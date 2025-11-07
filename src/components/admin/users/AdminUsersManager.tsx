@@ -5,22 +5,52 @@ import { useState, useEffect } from "react";
 import styled from "styled-components";
 
 const Container = styled.div`
-  padding: 2rem;
+  padding: 1.5rem;
   max-width: 1000px;
   margin: 0 auto;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+  }
 `;
 
 const Header = styled.div`
   display: flex;
-  justify-content: between;
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 1rem;
+  }
 `;
 
 const Title = styled.h1`
   font-size: 1.875rem;
   font-weight: 700;
   color: #1f2937;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.25rem;
+    text-align: center;
+  }
 `;
 
 const CreateButton = styled.button`
@@ -32,15 +62,30 @@ const CreateButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  white-space: nowrap;
+  min-height: 44px;
 
   &:hover {
     background: #059669;
+  }
+
+  @media (max-width: 480px) {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
   }
 `;
 
 const UsersGrid = styled.div`
   display: grid;
   gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    gap: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.75rem;
+  }
 `;
 
 const UserCard = styled.div`
@@ -50,23 +95,43 @@ const UserCard = styled.div`
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
   display: flex;
-  justify-content: between;
+  justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    padding: 1.25rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `;
 
 const UserInfo = styled.div`
   flex: 1;
+  min-width: 200px;
 `;
 
 const UserName = styled.div`
   font-weight: 600;
   color: #1f2937;
   margin-bottom: 0.25rem;
+  font-size: 1.125rem;
+
+  @media (max-width: 480px) {
+    font-size: 1rem;
+  }
 `;
 
 const UserEmail = styled.div`
   color: #6b7280;
   font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  word-break: break-word;
 `;
 
 const UserRole = styled.div`
@@ -79,17 +144,45 @@ const UserRole = styled.div`
   display: inline-block;
 `;
 
-const Modal = styled.div<{ isOpen: boolean }>`
+const UserMeta = styled.div`
+  text-align: right;
+
+  @media (max-width: 480px) {
+    text-align: left;
+    width: 100%;
+  }
+`;
+
+const LastLogin = styled.div`
+  color: #6b7280;
+  font-size: 0.875rem;
+
+  @media (max-width: 480px) {
+    font-size: 0.8rem;
+  }
+`;
+
+interface ModalProps {
+  $isOpen: boolean;
+}
+
+const Modal = styled.div<ModalProps>`
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.5);
-  display: ${(props) => (props.isOpen ? "flex" : "none")};
+  display: ${(props) => (props.$isOpen ? "flex" : "none")};
   align-items: center;
   justify-content: center;
   z-index: 50;
+  padding: 1rem;
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
 `;
 
 const ModalContent = styled.div`
@@ -98,6 +191,31 @@ const ModalContent = styled.div`
   border-radius: 0.5rem;
   width: 90%;
   max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem;
+    width: 95%;
+    max-height: 80vh;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+`;
+
+const ModalTitle = styled.h2`
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+
+  @media (max-width: 480px) {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
 `;
 
 const Form = styled.form`
@@ -115,6 +233,7 @@ const InputGroup = styled.div`
 const Label = styled.label`
   font-weight: 600;
   color: #374151;
+  font-size: 0.875rem;
 `;
 
 const Input = styled.input`
@@ -122,11 +241,16 @@ const Input = styled.input`
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
   font-size: 1rem;
+  min-height: 44px;
 
   &:focus {
     outline: none;
     border-color: #3b82f6;
-    ring: 2px solid #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+
+  @media (max-width: 480px) {
+    font-size: 16px; /* Prevent zoom on iOS */
   }
 `;
 
@@ -136,10 +260,16 @@ const Select = styled.select`
   border-radius: 0.375rem;
   font-size: 1rem;
   background: white;
+  min-height: 44px;
 
   &:focus {
     outline: none;
     border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+
+  @media (max-width: 480px) {
+    font-size: 16px;
   }
 `;
 
@@ -148,34 +278,54 @@ const ButtonGroup = styled.div`
   gap: 1rem;
   justify-content: flex-end;
   margin-top: 1rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+  }
 `;
 
-const Button = styled.button<{ variant?: "primary" | "secondary" }>`
+interface ButtonProps {
+  $variant?: "primary" | "secondary";
+}
+
+const Button = styled.button<ButtonProps>`
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 0.375rem;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  min-height: 44px;
+  flex: 1;
 
   ${(props) =>
-    props.variant === "primary"
+    props.$variant === "primary"
       ? `
-    background: #3b82f6;
-    color: white;
-    
-    &:hover {
-      background: #2563eb;
-    }
-  `
+      background: #3b82f6;
+      color: white;
+      
+      &:hover:not(:disabled) {
+        background: #2563eb;
+      }
+    `
       : `
-    background: #6b7280;
-    color: white;
-    
-    &:hover {
-      background: #4b5563;
-    }
-  `}
+      background: #6b7280;
+      color: white;
+      
+      &:hover:not(:disabled) {
+        background: #4b5563;
+      }
+    `}
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 480px) {
+    min-width: 100%;
+  }
 `;
 
 interface AdminUser {
@@ -197,7 +347,7 @@ interface AdminUsersManagerProps {
   };
 }
 
-export default function AdminUsersManager({ user }: AdminUsersManagerProps) {
+const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -292,29 +442,21 @@ export default function AdminUsersManager({ user }: AdminUsersManagerProps) {
               <UserEmail>{adminUser.email}</UserEmail>
               <UserRole>{adminUser.role.replace("_", " ")}</UserRole>
             </UserInfo>
-            <div>
+            <UserMeta>
               {adminUser.lastLogin && (
-                <div style={{ color: "#6b7280", fontSize: "0.875rem" }}>
+                <LastLogin>
                   Last login:{" "}
                   {new Date(adminUser.lastLogin).toLocaleDateString()}
-                </div>
+                </LastLogin>
               )}
-            </div>
+            </UserMeta>
           </UserCard>
         ))}
       </UsersGrid>
 
-      <Modal isOpen={isModalOpen}>
+      <Modal $isOpen={isModalOpen}>
         <ModalContent>
-          <h2
-            style={{
-              marginBottom: "1.5rem",
-              fontSize: "1.5rem",
-              fontWeight: "600",
-            }}
-          >
-            Create New Admin User
-          </h2>
+          <ModalTitle>Create New Admin User</ModalTitle>
 
           <Form onSubmit={handleCreateAdmin}>
             <InputGroup>
@@ -326,6 +468,7 @@ export default function AdminUsersManager({ user }: AdminUsersManagerProps) {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 required
+                disabled={loading}
               />
             </InputGroup>
 
@@ -338,6 +481,7 @@ export default function AdminUsersManager({ user }: AdminUsersManagerProps) {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 required
+                disabled={loading}
               />
             </InputGroup>
 
@@ -349,6 +493,7 @@ export default function AdminUsersManager({ user }: AdminUsersManagerProps) {
                   setFormData({ ...formData, role: e.target.value })
                 }
                 required
+                disabled={loading}
               >
                 <option value="CONTENT_MODERATOR">Content Moderator</option>
                 <option value="ANALYTICS_VIEWER">Analytics Viewer</option>
@@ -366,18 +511,20 @@ export default function AdminUsersManager({ user }: AdminUsersManagerProps) {
                 }
                 required
                 minLength={6}
+                disabled={loading}
               />
             </InputGroup>
 
             <ButtonGroup>
               <Button
                 type="button"
-                variant="secondary"
+                $variant="secondary"
                 onClick={() => setIsModalOpen(false)}
+                disabled={loading}
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" disabled={loading}>
+              <Button type="submit" $variant="primary" disabled={loading}>
                 {loading ? "Creating..." : "Create Admin User"}
               </Button>
             </ButtonGroup>
@@ -386,4 +533,5 @@ export default function AdminUsersManager({ user }: AdminUsersManagerProps) {
       </Modal>
     </Container>
   );
-}
+};
+export default AdminUsersManager;

@@ -5,9 +5,18 @@ import { useState, useEffect } from "react";
 import styled from "styled-components";
 
 const Container = styled.div`
-  padding: 2rem;
+  padding: 1.5rem;
   max-width: 1000px;
   margin: 0 auto;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+  }
 `;
 
 const Header = styled.div`
@@ -15,12 +24,33 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  @media (max-width: 768px) {
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 1rem;
+  }
 `;
 
 const Title = styled.h1`
   font-size: 1.875rem;
   font-weight: 700;
   color: #1f2937;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.25rem;
+    text-align: center;
+  }
 `;
 
 const CreateButton = styled.button`
@@ -31,8 +61,11 @@ const CreateButton = styled.button`
   border-radius: 0.5rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+  min-height: 44px;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: #059669;
   }
 
@@ -40,12 +73,26 @@ const CreateButton = styled.button`
     background: #6b7280;
     cursor: not-allowed;
   }
+
+  @media (max-width: 480px) {
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+  }
 `;
 
 const StaffGrid = styled.div`
   display: grid;
   gap: 1.5rem;
   margin-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.75rem;
+  }
 `;
 
 const StaffCard = styled.div`
@@ -57,9 +104,109 @@ const StaffCard = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.25rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
 `;
 
-const Modal = styled.div<{ $isOpen: boolean }>`
+const StaffInfo = styled.div`
+  flex: 1;
+  min-width: 200px;
+`;
+
+const StaffName = styled.div`
+  font-weight: 600;
+  font-size: 1.125rem;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+
+  @media (max-width: 480px) {
+    font-size: 1rem;
+  }
+`;
+
+const StaffEmail = styled.div`
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  word-break: break-word;
+`;
+
+const RoleBadge = styled.div`
+  background: #f3f4f6;
+  color: #374151;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+  margin-right: 0.5rem;
+  margin-top: 0.5rem;
+`;
+
+interface StatusBadgeProps {
+  $isActive: boolean;
+}
+
+const StatusBadge = styled.div<StatusBadgeProps>`
+  background: ${(props) => (props.$isActive ? "#dcfce7" : "#f3f4f6")};
+  color: ${(props) => (props.$isActive ? "#166534" : "#6b7280")};
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  display: inline-block;
+  margin-top: 0.5rem;
+`;
+
+const StaffMeta = styled.div`
+  text-align: right;
+
+  @media (max-width: 480px) {
+    text-align: left;
+    width: 100%;
+    border-top: 1px solid #f3f4f6;
+    padding-top: 0.75rem;
+  }
+`;
+
+const LastLogin = styled.div`
+  color: #6b7280;
+  font-size: 0.875rem;
+
+  @media (max-width: 480px) {
+    font-size: 0.8rem;
+  }
+`;
+
+const NeverLoggedIn = styled.div`
+  color: #ef4444;
+  font-size: 0.875rem;
+
+  @media (max-width: 480px) {
+    font-size: 0.8rem;
+  }
+`;
+
+interface ModalProps {
+  $isOpen: boolean;
+}
+
+const Modal = styled.div<ModalProps>`
   position: fixed;
   top: 0;
   left: 0;
@@ -70,6 +217,12 @@ const Modal = styled.div<{ $isOpen: boolean }>`
   align-items: center;
   justify-content: center;
   z-index: 50;
+  padding: 1rem;
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
 `;
 
 const ModalContent = styled.div`
@@ -78,6 +231,31 @@ const ModalContent = styled.div`
   border-radius: 0.5rem;
   width: 90%;
   max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem;
+    width: 95%;
+    max-height: 80vh;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+`;
+
+const ModalTitle = styled.h2`
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+
+  @media (max-width: 480px) {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+  }
 `;
 
 const Form = styled.form`
@@ -95,6 +273,7 @@ const InputGroup = styled.div`
 const Label = styled.label`
   font-weight: 600;
   color: #374151;
+  font-size: 0.875rem;
 `;
 
 const Input = styled.input`
@@ -102,11 +281,16 @@ const Input = styled.input`
   border: 1px solid #d1d5db;
   border-radius: 0.375rem;
   font-size: 1rem;
+  min-height: 44px;
 
   &:focus {
     outline: none;
     border-color: #3b82f6;
-    ring: 2px solid #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+
+  @media (max-width: 480px) {
+    font-size: 16px;
   }
 `;
 
@@ -116,11 +300,16 @@ const Select = styled.select`
   border-radius: 0.375rem;
   font-size: 1rem;
   background: white;
+  min-height: 44px;
 
   &:focus {
     outline: none;
     border-color: #3b82f6;
-    ring: 2px solid #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+
+  @media (max-width: 480px) {
+    font-size: 16px;
   }
 `;
 
@@ -129,49 +318,54 @@ const ButtonGroup = styled.div`
   gap: 1rem;
   justify-content: flex-end;
   margin-top: 1rem;
+  flex-wrap: wrap;
+
+  @media (max-width: 480px) {
+    flex-direction: column-reverse;
+  }
 `;
 
-const Button = styled.button<{ $variant?: "primary" | "secondary" }>`
+interface ButtonProps {
+  $variant?: "primary" | "secondary";
+}
+
+const Button = styled.button<ButtonProps>`
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 0.375rem;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  min-height: 44px;
+  flex: 1;
 
   ${(props) =>
     props.$variant === "primary"
       ? `
-    background: #3b82f6;
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: #2563eb;
-    }
-
-    &:disabled {
-      background: #9ca3af;
-      cursor: not-allowed;
-    }
-  `
+      background: #3b82f6;
+      color: white;
+      
+      &:hover:not(:disabled) {
+        background: #2563eb;
+      }
+    `
       : `
-    background: #6b7280;
-    color: white;
+      background: #6b7280;
+      color: white;
+      
+      &:hover:not(:disabled) {
+        background: #4b5563;
+      }
+    `}
 
-    &:hover {
-      background: #4b5563;
-    }
-  `}
-`;
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 
-const StatusBadge = styled.div<{ $isActive: boolean }>`
-  background: ${(props) => (props.$isActive ? "#dcfce7" : "#f3f4f6")};
-  color: ${(props) => (props.$isActive ? "#166534" : "#6b7280")};
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.75rem;
-  display: inline-block;
-  margin-top: 0.5rem;
+  @media (max-width: 480px) {
+    min-width: 100%;
+  }
 `;
 
 // src/types/bar-staff.ts
@@ -221,7 +415,7 @@ export interface BarStaffManagerProps {
   barId: string;
 }
 
-export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
+const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
   const [staff, setStaff] = useState<BarStaff[]>([]);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
@@ -236,13 +430,10 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
     fetchBarStaff();
   }, [barId]);
 
-  // In your BarStaffManager component - UPDATE THESE LINES:
-
   const fetchBarStaff = async (): Promise<void> => {
     try {
       const token = localStorage.getItem("hoppr_token");
       const response = await fetch(`/api/auth/bar/${barId}/users`, {
-        // ✅ FIXED ENDPOINT
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -268,7 +459,6 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
     try {
       const token = localStorage.getItem("hoppr_token");
       const response = await fetch(`/api/auth/bar/${barId}/users`, {
-        // ✅ FIXED ENDPOINT
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -288,7 +478,7 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
           role: "STAFF",
           password: "",
         });
-        fetchBarStaff(); // Refresh list
+        fetchBarStaff();
       } else {
         alert(`Failed: ${responseData.error}`);
       }
@@ -326,58 +516,31 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
       <StaffGrid>
         {staff.map((staffMember) => (
           <StaffCard key={staffMember.id}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, fontSize: "1.125rem" }}>
-                {staffMember.name}
-              </div>
-              <div style={{ color: "#6b7280", fontSize: "0.875rem" }}>
-                {staffMember.email}
-              </div>
-              <div
-                style={{
-                  background: "#f3f4f6",
-                  color: "#374151",
-                  padding: "0.25rem 0.75rem",
-                  borderRadius: "1rem",
-                  fontSize: "0.75rem",
-                  display: "inline-block",
-                  marginTop: "0.5rem",
-                  marginRight: "0.5rem",
-                }}
-              >
-                {formatRoleName(staffMember.role)}
-              </div>
+            <StaffInfo>
+              <StaffName>{staffMember.name}</StaffName>
+              <StaffEmail>{staffMember.email}</StaffEmail>
+              <RoleBadge>{formatRoleName(staffMember.role)}</RoleBadge>
               <StatusBadge $isActive={staffMember.isActive}>
                 {staffMember.isActive ? "Active" : "Inactive"}
               </StatusBadge>
-            </div>
-            <div>
+            </StaffInfo>
+            <StaffMeta>
               {staffMember.lastLogin ? (
-                <div style={{ color: "#6b7280", fontSize: "0.875rem" }}>
+                <LastLogin>
                   Last login:{" "}
                   {new Date(staffMember.lastLogin).toLocaleDateString()}
-                </div>
+                </LastLogin>
               ) : (
-                <div style={{ color: "#ef4444", fontSize: "0.875rem" }}>
-                  Never logged in
-                </div>
+                <NeverLoggedIn>Never logged in</NeverLoggedIn>
               )}
-            </div>
+            </StaffMeta>
           </StaffCard>
         ))}
       </StaffGrid>
 
       <Modal $isOpen={isModalOpen}>
         <ModalContent>
-          <h2
-            style={{
-              marginBottom: "1.5rem",
-              fontSize: "1.5rem",
-              fontWeight: "600",
-            }}
-          >
-            Create Staff Account
-          </h2>
+          <ModalTitle>Create Staff Account</ModalTitle>
 
           <Form onSubmit={handleCreateStaff}>
             <InputGroup>
@@ -389,6 +552,7 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 required
                 placeholder="Enter staff member's name"
+                disabled={loading}
               />
             </InputGroup>
 
@@ -401,6 +565,7 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
                 onChange={(e) => handleInputChange("email", e.target.value)}
                 required
                 placeholder="staff@yourbar.com"
+                disabled={loading}
               />
             </InputGroup>
 
@@ -413,6 +578,7 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
                   handleInputChange("role", e.target.value as BarStaffRole)
                 }
                 required
+                disabled={loading}
               >
                 <option value="MANAGER">Manager</option>
                 <option value="PROMOTIONS_MANAGER">Promotions Manager</option>
@@ -431,6 +597,7 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
                 required
                 minLength={6}
                 placeholder="Set initial password"
+                disabled={loading}
               />
             </InputGroup>
 
@@ -452,4 +619,6 @@ export default function BarStaffManager({ user, barId }: BarStaffManagerProps) {
       </Modal>
     </Container>
   );
-}
+};
+
+export default BarStaffManager;

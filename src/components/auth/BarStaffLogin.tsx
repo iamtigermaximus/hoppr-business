@@ -9,18 +9,31 @@ const Form = styled.form`
   display: flex;
   flex-direction: column;
   gap: 20px;
+
+  @media (max-width: 480px) {
+    gap: 16px;
+  }
 `;
 
 const InputGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  @media (max-width: 480px) {
+    gap: 6px;
+  }
 `;
 
 const Label = styled.label`
   font-weight: 600;
   color: #374151;
   text-align: left;
+  font-size: 14px;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+  }
 `;
 
 const Input = styled.input`
@@ -32,11 +45,17 @@ const Input = styled.input`
 
   &:focus {
     outline: none;
-    border-color: #3b82f6;
+    border-color: #10b981;
   }
 
   &::placeholder {
     color: #9ca3af;
+  }
+
+  @media (max-width: 480px) {
+    padding: 10px 14px;
+    font-size: 16px;
+    border-radius: 6px;
   }
 `;
 
@@ -50,6 +69,7 @@ const Button = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin-top: 8px;
 
   &:hover:not(:disabled) {
     background: #059669;
@@ -58,6 +78,13 @@ const Button = styled.button`
   &:disabled {
     background: #9ca3af;
     cursor: not-allowed;
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px 16px;
+    font-size: 16px;
+    border-radius: 6px;
+    margin-top: 4px;
   }
 `;
 
@@ -68,6 +95,12 @@ const ErrorMessage = styled.div`
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
+
+  @media (max-width: 480px) {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 6px;
+  }
 `;
 
 const SuccessMessage = styled.div`
@@ -77,18 +110,30 @@ const SuccessMessage = styled.div`
   padding: 12px 16px;
   border-radius: 8px;
   font-size: 14px;
+
+  @media (max-width: 480px) {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 6px;
+  }
 `;
 
 const BarIdNote = styled.p`
   color: #6b7280;
   font-size: 14px;
   text-align: left;
-  margin-top: -8px;
+  margin-top: -4px;
+  line-height: 1.4;
+
+  @media (max-width: 480px) {
+    font-size: 13px;
+    margin-top: -2px;
+  }
 `;
 
-export default function BarStaffLogin() {
-  const [email, setEmail] = useState("pierce@midnightclub.com");
-  const [password, setPassword] = useState("owner123");
+const BarStaffLogin = () => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [barId, setBarId] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -153,11 +198,12 @@ export default function BarStaffLogin() {
         <Input
           id="bar-email"
           type="email"
-          placeholder="maria@midnightclub.com"
+          placeholder="staff@yourbar.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={loading}
+          autoComplete="email"
         />
       </InputGroup>
 
@@ -171,6 +217,7 @@ export default function BarStaffLogin() {
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={loading}
+          autoComplete="current-password"
         />
       </InputGroup>
 
@@ -179,10 +226,11 @@ export default function BarStaffLogin() {
         <Input
           id="bar-id"
           type="text"
-          placeholder="midnight-club-123"
+          placeholder="your-bar-id"
           value={barId}
           onChange={(e) => setBarId(e.target.value)}
           disabled={loading}
+          autoComplete="off"
         />
         <BarIdNote>Only needed if you have access to multiple bars</BarIdNote>
       </InputGroup>
@@ -192,4 +240,5 @@ export default function BarStaffLogin() {
       </Button>
     </Form>
   );
-}
+};
+export default BarStaffLogin;

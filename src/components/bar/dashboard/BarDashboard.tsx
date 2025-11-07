@@ -3,6 +3,277 @@
 
 import { useState, useEffect } from "react";
 import BarStaffManager from "@/components/bar/staff/BarStaffManager";
+import styled from "styled-components";
+
+const Container = styled.div`
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+  }
+`;
+
+const WelcomeSection = styled.div`
+  margin-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+`;
+
+const Title = styled.h1`
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #1f2937;
+
+  @media (max-width: 768px) {
+    font-size: 1.75rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.5rem;
+  }
+`;
+
+const Subtitle = styled.p`
+  color: #6b7280;
+  font-size: 1.125rem;
+
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 0.9rem;
+  }
+`;
+
+const TabsContainer = styled.div`
+  margin-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    margin-bottom: 1.5rem;
+  }
+`;
+
+const TabsWrapper = styled.div`
+  display: flex;
+  gap: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
+    gap: 0.5rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.25rem;
+  }
+`;
+
+interface TabButtonProps {
+  $active: boolean;
+}
+
+const TabButton = styled.button<TabButtonProps>`
+  padding: 0.75rem 1.5rem;
+  background: ${(props) => (props.$active ? "#3b82f6" : "transparent")};
+  color: ${(props) => (props.$active ? "white" : "#6b7280")};
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  min-height: 44px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: ${(props) => (props.$active ? "#2563eb" : "#f3f4f6")};
+  }
+
+  @media (max-width: 768px) {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    min-height: 40px;
+  }
+`;
+
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+`;
+
+const StatCard = styled.div`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  transition: transform 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.25rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    text-align: center;
+  }
+`;
+
+const StatValue = styled.div`
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+
+  @media (max-width: 768px) {
+    font-size: 1.75rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
+  }
+`;
+
+const StatLabel = styled.div`
+  color: #6b7280;
+  font-size: 0.875rem;
+
+  @media (max-width: 480px) {
+    font-size: 0.8rem;
+  }
+`;
+
+const ActivityCard = styled.div`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+
+  @media (max-width: 768px) {
+    padding: 1.25rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+  }
+`;
+
+const ActivityTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #1f2937;
+
+  @media (max-width: 480px) {
+    font-size: 1.125rem;
+    margin-bottom: 0.75rem;
+  }
+`;
+
+const ActivityItem = styled.p`
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+
+  @media (max-width: 480px) {
+    font-size: 0.9rem;
+    margin-bottom: 0.375rem;
+  }
+`;
+
+const TabContent = styled.div`
+  min-height: 400px;
+
+  @media (max-width: 768px) {
+    min-height: 300px;
+  }
+`;
+
+const PlaceholderCard = styled.div`
+  background: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  text-align: center;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem;
+  }
+`;
+
+const PlaceholderTitle = styled.h3`
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #1f2937;
+
+  @media (max-width: 480px) {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+`;
+
+const PlaceholderText = styled.p`
+  color: #6b7280;
+  font-size: 1rem;
+
+  @media (max-width: 480px) {
+    font-size: 0.9rem;
+  }
+`;
 
 export type BarStaffRole =
   | "OWNER"
@@ -35,278 +306,113 @@ interface BarDashboardContentProps {
   stats: BarStats;
 }
 
-export default function BarDashboardContent({
-  user,
-  stats,
-}: BarDashboardContentProps) {
+const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
   const [activeTab, setActiveTab] = useState<
     "overview" | "staff" | "promotions" | "analytics"
   >("overview");
 
   return (
-    <div style={{ padding: "2rem", maxWidth: "1200px", margin: "0 auto" }}>
+    <Container>
       {/* Welcome Section */}
-      <div style={{ marginBottom: "2rem" }}>
-        <h1
-          style={{
-            fontSize: "2rem",
-            fontWeight: "700",
-            marginBottom: "0.5rem",
-          }}
-        >
-          Welcome to {user.barName}! 🎉
-        </h1>
-        <p style={{ color: "#6b7280", fontSize: "1.125rem" }}>
+      <WelcomeSection>
+        <Title>Welcome to {user.barName}! 🎉</Title>
+        <Subtitle>
           Hello, {user.name}! Here&apos;s your bar performance overview.
-        </p>
-      </div>
+        </Subtitle>
+      </WelcomeSection>
 
       {/* Navigation Tabs */}
-      <div style={{ marginBottom: "2rem" }}>
-        <div
-          style={{
-            display: "flex",
-            gap: "1rem",
-            borderBottom: "1px solid #e5e7eb",
-            paddingBottom: "0.5rem",
-          }}
-        >
-          <button
+      <TabsContainer>
+        <TabsWrapper>
+          <TabButton
+            $active={activeTab === "overview"}
             onClick={() => setActiveTab("overview")}
-            style={{
-              padding: "0.5rem 1rem",
-              background: activeTab === "overview" ? "#3b82f6" : "transparent",
-              color: activeTab === "overview" ? "white" : "#6b7280",
-              border: "none",
-              borderRadius: "0.375rem",
-              cursor: "pointer",
-              fontWeight: "600",
-            }}
           >
             Overview
-          </button>
-          <button
+          </TabButton>
+          <TabButton
+            $active={activeTab === "staff"}
             onClick={() => setActiveTab("staff")}
-            style={{
-              padding: "0.5rem 1rem",
-              background: activeTab === "staff" ? "#3b82f6" : "transparent",
-              color: activeTab === "staff" ? "white" : "#6b7280",
-              border: "none",
-              borderRadius: "0.375rem",
-              cursor: "pointer",
-              fontWeight: "600",
-            }}
           >
             Staff Management
-          </button>
-          <button
+          </TabButton>
+          <TabButton
+            $active={activeTab === "promotions"}
             onClick={() => setActiveTab("promotions")}
-            style={{
-              padding: "0.5rem 1rem",
-              background:
-                activeTab === "promotions" ? "#3b82f6" : "transparent",
-              color: activeTab === "promotions" ? "white" : "#6b7280",
-              border: "none",
-              borderRadius: "0.375rem",
-              cursor: "pointer",
-              fontWeight: "600",
-            }}
           >
             Promotions
-          </button>
-          <button
+          </TabButton>
+          <TabButton
+            $active={activeTab === "analytics"}
             onClick={() => setActiveTab("analytics")}
-            style={{
-              padding: "0.5rem 1rem",
-              background: activeTab === "analytics" ? "#3b82f6" : "transparent",
-              color: activeTab === "analytics" ? "white" : "#6b7280",
-              border: "none",
-              borderRadius: "0.375rem",
-              cursor: "pointer",
-              fontWeight: "600",
-            }}
           >
             Analytics
-          </button>
-        </div>
-      </div>
+          </TabButton>
+        </TabsWrapper>
+      </TabsContainer>
 
       {/* Tab Content */}
-      {activeTab === "overview" && (
-        <div>
-          {/* Stats Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: "1rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <div
-              style={{
-                background: "white",
-                padding: "1.5rem",
-                borderRadius: "0.5rem",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "2rem",
-                  fontWeight: "700",
-                  color: "#1f2937",
-                }}
-              >
-                {stats.vipPassSales}
-              </div>
-              <div style={{ color: "#6b7280" }}>VIP Pass Sales</div>
-            </div>
+      <TabContent>
+        {activeTab === "overview" && (
+          <div>
+            {/* Stats Grid */}
+            <StatsGrid>
+              <StatCard>
+                <StatValue>{stats.vipPassSales.toLocaleString()}</StatValue>
+                <StatLabel>VIP Pass Sales</StatLabel>
+              </StatCard>
 
-            <div
-              style={{
-                background: "white",
-                padding: "1.5rem",
-                borderRadius: "0.5rem",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "2rem",
-                  fontWeight: "700",
-                  color: "#1f2937",
-                }}
-              >
-                €{stats.revenue}
-              </div>
-              <div style={{ color: "#6b7280" }}>Revenue</div>
-            </div>
+              <StatCard>
+                <StatValue>€{stats.revenue.toLocaleString()}</StatValue>
+                <StatLabel>Revenue</StatLabel>
+              </StatCard>
 
-            <div
-              style={{
-                background: "white",
-                padding: "1.5rem",
-                borderRadius: "0.5rem",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "2rem",
-                  fontWeight: "700",
-                  color: "#1f2937",
-                }}
-              >
-                {stats.profileViews}
-              </div>
-              <div style={{ color: "#6b7280" }}>Profile Views</div>
-            </div>
+              <StatCard>
+                <StatValue>{stats.profileViews.toLocaleString()}</StatValue>
+                <StatLabel>Profile Views</StatLabel>
+              </StatCard>
 
-            <div
-              style={{
-                background: "white",
-                padding: "1.5rem",
-                borderRadius: "0.5rem",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-                border: "1px solid #e5e7eb",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: "2rem",
-                  fontWeight: "700",
-                  color: "#1f2937",
-                }}
-              >
-                {stats.promotionClicks}
+              <StatCard>
+                <StatValue>{stats.promotionClicks.toLocaleString()}</StatValue>
+                <StatLabel>Promotion Clicks</StatLabel>
+              </StatCard>
+            </StatsGrid>
+
+            {/* Recent Activity Section */}
+            <ActivityCard>
+              <ActivityTitle>Recent Activity</ActivityTitle>
+              <div>
+                <ActivityItem>• 5 new VIP pass purchases today</ActivityItem>
+                <ActivityItem>• Profile viewed 23 times this week</ActivityItem>
+                <ActivityItem>
+                  • Promotion &quot;Friday Night Special&quot; ends in 2 days
+                </ActivityItem>
               </div>
-              <div style={{ color: "#6b7280" }}>Promotion Clicks</div>
-            </div>
+            </ActivityCard>
           </div>
+        )}
 
-          {/* Recent Activity Section */}
-          <div
-            style={{
-              background: "white",
-              padding: "1.5rem",
-              borderRadius: "0.5rem",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <h3
-              style={{
-                fontSize: "1.25rem",
-                fontWeight: "600",
-                marginBottom: "1rem",
-              }}
-            >
-              Recent Activity
-            </h3>
-            <div style={{ color: "#6b7280" }}>
-              <p>• 5 new VIP pass purchases today</p>
-              <p>• Profile viewed 23 times this week</p>
-              <p>• Promotion &quot;Friday Night Special&quot; ends in 2 days</p>
-            </div>
-          </div>
-        </div>
-      )}
+        {activeTab === "staff" && (
+          <BarStaffManager user={user} barId={user.barId} />
+        )}
 
-      {activeTab === "staff" && (
-        <BarStaffManager user={user} barId={user.barId} />
-      )}
+        {activeTab === "promotions" && (
+          <PlaceholderCard>
+            <PlaceholderTitle>Promotions Management</PlaceholderTitle>
+            <PlaceholderText>
+              Promotions management coming soon...
+            </PlaceholderText>
+          </PlaceholderCard>
+        )}
 
-      {activeTab === "promotions" && (
-        <div
-          style={{
-            background: "white",
-            padding: "2rem",
-            borderRadius: "0.5rem",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: "600",
-              marginBottom: "1rem",
-            }}
-          >
-            Promotions Management
-          </h3>
-          <p style={{ color: "#6b7280" }}>
-            Promotions management coming soon...
-          </p>
-        </div>
-      )}
-
-      {activeTab === "analytics" && (
-        <div
-          style={{
-            background: "white",
-            padding: "2rem",
-            borderRadius: "0.5rem",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            border: "1px solid #e5e7eb",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "1.5rem",
-              fontWeight: "600",
-              marginBottom: "1rem",
-            }}
-          >
-            Analytics
-          </h3>
-          <p style={{ color: "#6b7280" }}>Detailed analytics coming soon...</p>
-        </div>
-      )}
-    </div>
+        {activeTab === "analytics" && (
+          <PlaceholderCard>
+            <PlaceholderTitle>Analytics</PlaceholderTitle>
+            <PlaceholderText>Detailed analytics coming soon...</PlaceholderText>
+          </PlaceholderCard>
+        )}
+      </TabContent>
+    </Container>
   );
-}
+};
+export default BarDashboardContent;
