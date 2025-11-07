@@ -1,4 +1,4 @@
-// src/app/api/auth/bar/route.st
+// src/app/api/auth/bar/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { authService } from "@/services/auth-service";

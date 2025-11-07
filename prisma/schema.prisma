@@ -89,9 +89,9 @@ model BarStaff {
   isActive       Boolean      @default(true)
   lastLogin      DateTime?
 
-  // Timestamps
-  invitedAt DateTime  @default(now())
-  joinedAt  DateTime?
+  // Timestamps 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations - FIXED: Added missing relations
   bar   Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)

@@ -1,5 +1,4 @@
-// src/components/auth/BarStaffLogin.tsx
-
+// src/components/auth/BarStaffLogin.tsx - COMPLETE FIXED VERSION
 "use client";
 
 import React, { useState } from "react";
@@ -117,9 +116,19 @@ export default function BarStaffLogin() {
         throw new Error(data.error || "Login failed");
       }
 
-      // Store token and user data
-      localStorage.setItem("hoppr_token", data.token);
-      localStorage.setItem("hoppr_user", JSON.stringify(data.user));
+      // Store token in cookies AND localStorage
+      const token = data.token;
+      const userData = JSON.stringify(data.user);
+
+      // Store in cookies (for server-side access)
+      document.cookie = `hoppr_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `hoppr_user=${encodeURIComponent(
+        userData
+      )}; path=/; max-age=86400; SameSite=Lax`;
+
+      // Also store in localStorage (for client-side access)
+      localStorage.setItem("hoppr_token", token);
+      localStorage.setItem("hoppr_user", userData);
 
       setSuccess(`Welcome to ${data.user.barName}! Redirecting...`);
 
