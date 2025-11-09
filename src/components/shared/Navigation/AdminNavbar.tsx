@@ -20,11 +20,32 @@ const AdminNavContainer = styled.nav`
   }
 `;
 
-const Logo = styled.div`
+const LogoContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 20;
+`;
+
+const LogoImage = styled.img`
+  height: 50px;
+  width: 50px;
+
+  @media (max-width: 768px) {
+    height: 40px;
+    width: 40px;
+  }
+
+  @media (max-width: 480px) {
+    height: 30px;
+    width: 30px;
+  }
+`;
+
+const LogoText = styled.div`
   font-size: 1.25rem;
   font-weight: 700;
   color: #1f2937;
-  z-index: 20;
 
   @media (max-width: 768px) {
     font-size: 1.1rem;
@@ -202,6 +223,7 @@ const LogoutButton = styled.button`
     max-width: 200px;
   }
 `;
+
 const AdminNavbar = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -246,7 +268,16 @@ const AdminNavbar = () => {
 
   return (
     <AdminNavContainer>
-      <Logo>Hoppr Admin</Logo>
+      <LogoContainer>
+        <LogoImage
+          src="/hoppr-neon-nobg.png"
+          alt="Hoppr Logo"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+        <LogoText>Hoppr Admin</LogoText>
+      </LogoContainer>
 
       <MobileMenuButton
         $isOpen={isMenuOpen}

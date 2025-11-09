@@ -20,12 +20,35 @@ const BarNavContainer = styled.nav`
   }
 `;
 
-const BarLogo = styled.div`
+const BarLogoContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  z-index: 20;
+  max-width: 300px;
+  overflow: hidden;
+`;
+
+const BarLogoImage = styled.img`
+  height: 50px;
+  width: 50px;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    height: 40px;
+    width: 40px;
+  }
+
+  @media (max-width: 480px) {
+    height: 30px;
+    width: 30px;
+  }
+`;
+
+const BarName = styled.div`
   font-size: 1.25rem;
   font-weight: 700;
   color: #1f2937;
-  z-index: 20;
-  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -269,7 +292,16 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
 
   return (
     <BarNavContainer>
-      <BarLogo title={barName}>{barName}</BarLogo>
+      <BarLogoContainer>
+        <BarLogoImage
+          src="/hoppr-neon-nobg.png"
+          alt="Hoppr Logo"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+        <BarName title={barName}>{barName}</BarName>
+      </BarLogoContainer>
 
       <BarMobileMenuButton
         $isOpen={isMenuOpen}
