@@ -60,7 +60,7 @@ const Input = styled.input`
 `;
 
 const Button = styled.button`
-  background: #10b981;
+  background: #3b82f6;
   color: white;
   border: none;
   padding: 14px 20px;
@@ -72,7 +72,7 @@ const Button = styled.button`
   margin-top: 8px;
 
   &:hover:not(:disabled) {
-    background: #059669;
+    background: #2563eb;
   }
 
   &:disabled {

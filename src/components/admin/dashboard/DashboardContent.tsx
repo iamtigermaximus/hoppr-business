@@ -130,7 +130,7 @@ interface DashboardContentProps {
 const DashboardContent = ({ user, stats }: DashboardContentProps) => {
   return (
     <Container>
-      <Title>Welcome back, {user.name}! 👋</Title>
+      <Title>Welcome back, {user.name}!</Title>
 
       <StatsGrid>
         <StatCard>

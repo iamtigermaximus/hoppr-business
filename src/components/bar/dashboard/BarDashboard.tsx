@@ -315,7 +315,7 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     <Container>
       {/* Welcome Section */}
       <WelcomeSection>
-        <Title>Welcome to {user.barName}! 🎉</Title>
+        <Title>Welcome to {user.barName}! </Title>
         <Subtitle>
           Hello, {user.name}! Here&apos;s your bar performance overview.
         </Subtitle>

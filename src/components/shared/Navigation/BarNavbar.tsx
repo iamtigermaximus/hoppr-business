@@ -243,15 +243,15 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { href: `/bar/${barId}/dashboard`, label: "📊 Dashboard" },
+    { href: `/bar/${barId}/dashboard`, label: " Dashboard" },
     {
       href: `/bar/${barId}/users`,
       label: "👥 Users",
       restricted: ["OWNER", "MANAGER"],
     },
-    { href: `/bar/${barId}/promotions`, label: "🎯 Promotions" },
-    { href: `/bar/${barId}/scanner`, label: "📱 QR Scanner" },
-    { href: `/bar/${barId}/analytics`, label: "📈 Analytics" },
+    { href: `/bar/${barId}/promotions`, label: " Promotions" },
+    { href: `/bar/${barId}/scanner`, label: " QR Scanner" },
+    { href: `/bar/${barId}/analytics`, label: " Analytics" },
   ];
 
   const handleLogout = () => {

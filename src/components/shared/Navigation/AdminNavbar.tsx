@@ -230,10 +230,10 @@ const AdminNavbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { href: "/admin/dashboard", label: "📊 Dashboard" },
-    { href: "/admin/users", label: "👥 Users" },
-    { href: "/admin/bars", label: "🏢 Bars" },
-    { href: "/admin/analytics", label: "📈 Analytics" },
+    { href: "/admin/dashboard", label: " Dashboard" },
+    { href: "/admin/users", label: " Users" },
+    { href: "/admin/bars", label: "Bars" },
+    { href: "/admin/analytics", label: " Analytics" },
   ];
 
   const handleLogout = () => {
