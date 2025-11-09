@@ -2,7 +2,7 @@
 
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import styled from "styled-components";
 import AdminLogin from "./AdminLogin";
 import BarStaffLogin from "./BarStaffLogin";
@@ -46,7 +46,31 @@ const LoginCard = styled.div`
   }
 `;
 
-const Logo = styled.h1`
+const LogoContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 24px;
+`;
+
+const LogoImage = styled.img`
+  height: 120px;
+  width: 120px;
+  margin-bottom: 16px;
+
+  @media (max-width: 768px) {
+    height: 100px;
+    width: 100px;
+  }
+
+  @media (max-width: 480px) {
+    height: 80px;
+    width: 80px;
+    margin-bottom: 12px;
+  }
+`;
+
+const LogoText = styled.h1`
   font-size: 2.5rem;
   font-weight: 700;
   color: #1f2937;
@@ -129,7 +153,17 @@ const LoginPortal = () => {
   return (
     <Container>
       <LoginCard>
-        <Logo>Hoppr Business</Logo>
+        <LogoContainer>
+          <LogoImage
+            src="/hoppr-neon-nobg.png"
+            alt="Hoppr Logo"
+            onError={(e) => {
+              // Fallback if logo doesn't exist
+              e.currentTarget.style.display = "none";
+            }}
+          />
+          <LogoText>Hoppr Business</LogoText>
+        </LogoContainer>
         <Subtitle>Management Dashboard</Subtitle>
 
         <TabContainer>

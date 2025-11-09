@@ -208,7 +208,7 @@ const AdminLogin = () => {
       </InputGroup>
 
       <Button type="submit" disabled={loading}>
-        {loading ? "Signing in..." : "Sign in as Admin"}
+        {loading ? "Signing in..." : "Sign in"}
       </Button>
     </Form>
   );

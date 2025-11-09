@@ -236,7 +236,7 @@ const BarStaffLogin = () => {
       </InputGroup>
 
       <Button type="submit" disabled={loading}>
-        {loading ? "Signing in..." : "Sign in to Bar Dashboard"}
+        {loading ? "Signing in..." : "Sign in "}
       </Button>
     </Form>
   );
