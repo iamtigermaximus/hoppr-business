@@ -21,15 +21,23 @@ interface BarImportHistory {
   updatedAt: string;
 }
 
-// Styled Components
+// Styled Components - UPDATED FOR RESPONSIVENESS
 const Container = styled.div`
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
+
+  @media (min-width: 768px) {
+    padding: 2rem;
+  }
 `;
 
 const Header = styled.div`
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+
+  @media (min-width: 768px) {
+    margin-bottom: 2rem;
+  }
 `;
 
 const BackButton = styled(Link)`
@@ -40,6 +48,8 @@ const BackButton = styled(Link)`
   text-decoration: none;
   font-weight: 500;
   margin-bottom: 1rem;
+  padding: 0.5rem 0;
+  min-height: 44px; /* Better touch target */
 
   &:hover {
     color: #2563eb;
@@ -47,37 +57,53 @@ const BackButton = styled(Link)`
 `;
 
 const Title = styled.h1`
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   color: #1f2937;
   margin-bottom: 0.5rem;
+  line-height: 1.2;
+
+  @media (min-width: 768px) {
+    font-size: 2rem;
+  }
 `;
 
 const Subtitle = styled.p`
   color: #6b7280;
-  font-size: 1.125rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+
+  @media (min-width: 768px) {
+    font-size: 1.125rem;
+  }
 `;
 
 const Grid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
+  @media (min-width: 768px) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
   }
 `;
 
 const UploadSection = styled.div`
-  grid-column: 1 / -1;
+  width: 100%;
 `;
 
 const Card = styled.div`
   background: white;
   border-radius: 0.5rem;
-  padding: 1.5rem;
+  padding: 1rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
+
+  @media (min-width: 768px) {
+    padding: 1.5rem;
+  }
 `;
 
 const DropZone = styled.div<{ $isDragOver: boolean; $hasFile: boolean }>`
@@ -85,12 +111,22 @@ const DropZone = styled.div<{ $isDragOver: boolean; $hasFile: boolean }>`
     ${({ $isDragOver, $hasFile }) =>
       $hasFile ? "#10b981" : $isDragOver ? "#3b82f6" : "#d1d5db"};
   border-radius: 0.5rem;
-  padding: 3rem 2rem;
+  padding: 1.5rem 1rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
   background: ${({ $isDragOver, $hasFile }) =>
     $hasFile ? "#f0fdf4" : $isDragOver ? "#f0f9ff" : "#f9fafb"};
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  @media (min-width: 768px) {
+    padding: 3rem 2rem;
+    min-height: 200px;
+  }
 
   &:hover {
     border-color: #3b82f6;
@@ -99,9 +135,14 @@ const DropZone = styled.div<{ $isDragOver: boolean; $hasFile: boolean }>`
 `;
 
 const UploadIcon = styled.div<{ $hasFile: boolean }>`
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
   color: ${({ $hasFile }) => ($hasFile ? "#10b981" : "#6b7280")};
+
+  @media (min-width: 768px) {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
 `;
 
 const FileInput = styled.input`
@@ -110,23 +151,42 @@ const FileInput = styled.input`
 
 const FileInfo = styled.div`
   margin-top: 1rem;
-  padding: 1rem;
+  padding: 0.75rem;
   background: #f8fafc;
   border-radius: 0.375rem;
   border: 1px solid #e2e8f0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 `;
 
 const FileName = styled.div`
   font-weight: 600;
   color: #1e293b;
   margin-bottom: 0.5rem;
+  word-break: break-word;
+  font-size: 0.875rem;
+
+  @media (min-width: 768px) {
+    font-size: 1rem;
+  }
 `;
 
 const FileDetails = styled.div`
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.25rem;
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
+
+  @media (min-width: 480px) {
+    flex-direction: row;
+    gap: 1rem;
+  }
+
+  @media (min-width: 768px) {
+    font-size: 0.875rem;
+  }
 `;
 
 const ProgressBar = styled.div<{ $progress: number }>`
@@ -148,7 +208,7 @@ const ProgressBar = styled.div<{ $progress: number }>`
 `;
 
 const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem;
   border: none;
   border-radius: 0.375rem;
   font-weight: 600;
@@ -157,7 +217,11 @@ const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
+  font-size: 0.875rem;
+  flex: 1;
+  min-width: 0;
 
   ${({ $variant }) => {
     switch ($variant) {
@@ -192,12 +256,41 @@ const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
     opacity: 0.6;
     cursor: not-allowed;
   }
+
+  @media (min-width: 768px) {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    flex: 0 1 auto;
+  }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  gap: 1rem;
-  margin-top: 2rem;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  width: 100%;
+
+  @media (min-width: 480px) {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  @media (min-width: 768px) {
+    margin-top: 2rem;
+    gap: 1rem;
+  }
+`;
+
+const ButtonRow = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+
+  @media (min-width: 480px) {
+    width: auto;
+    flex: 1;
+  }
 `;
 
 const RequirementsCard = styled(Card)`
@@ -217,42 +310,69 @@ const RequirementItem = styled.li`
   display: flex;
   align-items: flex-start;
   gap: 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
 
   &::before {
     content: "•";
     color: #d97706;
     font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 768px) {
+    font-size: 1rem;
   }
 `;
 
 const HistorySection = styled.div`
-  grid-column: 1 / -1;
-  margin-top: 2rem;
+  width: 100%;
+  margin-top: 1.5rem;
+
+  @media (min-width: 768px) {
+    margin-top: 2rem;
+  }
 `;
 
 const HistoryTable = styled.table`
   width: 100%;
   border-collapse: collapse;
+  font-size: 0.75rem;
+
+  @media (min-width: 768px) {
+    font-size: 0.875rem;
+  }
 `;
 
 const TableHeader = styled.th`
   text-align: left;
-  padding: 0.75rem;
+  padding: 0.5rem;
   border-bottom: 1px solid #e5e7eb;
   font-weight: 600;
   color: #374151;
+  white-space: nowrap;
+
+  @media (min-width: 768px) {
+    padding: 0.75rem;
+  }
 `;
 
 const TableCell = styled.td`
-  padding: 0.75rem;
+  padding: 0.5rem;
   border-bottom: 1px solid #f3f4f6;
+  word-break: break-word;
+
+  @media (min-width: 768px) {
+    padding: 0.75rem;
+  }
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
-  padding: 0.25rem 0.75rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
+  font-size: 0.625rem;
   font-weight: 600;
+  white-space: nowrap;
 
   ${({ $status }) => {
     switch ($status) {
@@ -270,45 +390,93 @@ const StatusBadge = styled.span<{ $status: string }>`
         return "background: #f3f4f6; color: #374151;";
     }
   }}
+
+  @media (min-width: 768px) {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+  }
 `;
 
 const ErrorMessage = styled.div`
   color: #dc2626;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  padding: 1rem;
+  padding: 0.75rem;
   border-radius: 0.375rem;
   margin-top: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+
+  @media (min-width: 768px) {
+    padding: 1rem;
+    font-size: 1rem;
+  }
 `;
 
 const SuccessMessage = styled.div`
   color: #065f46;
   background: #d1fae5;
   border: 1px solid #a7f3d0;
-  padding: 1rem;
+  padding: 0.75rem;
   border-radius: 0.375rem;
   margin-top: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+
+  @media (min-width: 768px) {
+    padding: 1rem;
+    font-size: 1rem;
+  }
 `;
 
 const ErrorState = styled.div`
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #dc2626;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 0.5rem;
   text-align: center;
-  margin: 2rem 0;
+  margin: 1.5rem 0;
+
+  @media (min-width: 768px) {
+    padding: 1.5rem;
+    margin: 2rem 0;
+  }
 `;
 
+// COMMENTED OUT: Debug info component - kept for future debugging needs
+/*
 const DebugInfo = styled.div`
   background: #f3f4f6;
   border: 1px solid #d1d5db;
-  padding: 1rem;
+  padding: 0.75rem;
   border-radius: 0.375rem;
   margin-top: 1rem;
   font-family: monospace;
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #374151;
+  overflow-x: auto;
+  max-height: 200px;
+  overflow-y: auto;
+
+  @media (min-width: 768px) {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
+`;
+*/
+
+// Mobile responsive table wrapper
+const TableWrapper = styled.div`
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  margin: 0 -1rem;
+  padding: 0 1rem;
+
+  @media (min-width: 768px) {
+    margin: 0;
+    padding: 0;
+  }
 `;
 
 // Main Component
@@ -322,19 +490,24 @@ const CSVImport = () => {
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<string>("");
+  // COMMENTED OUT: Debug state - kept for future debugging needs
+  // const [debugInfo, setDebugInfo] = useState("");
 
   const router = useRouter();
 
   // Token handling
   const getToken = (): string | null => {
-    return localStorage.getItem("hoppr_token");
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hoppr_token");
+    }
+    return null;
   };
 
-  // Enhanced debug function
+  // COMMENTED OUT: Enhanced debug function - kept for future debugging needs
+  /*
   const checkAuthStatus = async () => {
     const token = getToken();
-    const user = localStorage.getItem("hoppr_user");
+    const user = typeof window !== "undefined" ? localStorage.getItem("hoppr_user") : null;
 
     let debugText = "🔐 AUTH STATUS CHECK:\n";
     debugText += `Token exists: ${!!token}\n`;
@@ -368,6 +541,7 @@ const CSVImport = () => {
     console.log(debugText);
     setDebugInfo(debugText);
   };
+  */
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -410,28 +584,34 @@ const CSVImport = () => {
   const handleUpload = async () => {
     if (!selectedFile) return;
 
-    await checkAuthStatus();
-
     const token = getToken();
-    if (!token) {
-      setAuthError("No authentication token found. Please log in.");
-      return;
-    }
+    console.log("🔍 DEBUG UPLOAD STARTED");
+    console.log("🔍 Token exists:", !!token);
+    console.log(
+      "🔍 File:",
+      selectedFile.name,
+      selectedFile.size,
+      selectedFile.type
+    );
 
     setIsUploading(true);
     setUploadProgress(0);
     setError(null);
     setSuccess(null);
-    setAuthError(null);
 
     try {
       const formData = new FormData();
       formData.append("csvFile", selectedFile);
 
-      console.log("📤 Starting upload...");
-      console.log("Token being sent:", token);
-      console.log("File:", selectedFile.name);
+      // Test the API endpoint first
+      console.log("🔍 Testing API endpoint...");
+      const testResponse = await fetch("/api/auth/admin/bars/import", {
+        method: "HEAD",
+      });
+      console.log("🔍 API endpoint status:", testResponse.status);
 
+      // Now do the actual upload
+      console.log("🔍 Starting actual upload...");
       const response = await fetch("/api/auth/admin/bars/import", {
         method: "POST",
         headers: {
@@ -440,75 +620,131 @@ const CSVImport = () => {
         body: formData,
       });
 
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
+      console.log("🔍 Upload response status:", response.status);
+      console.log("🔍 Upload response ok:", response.ok);
 
       const result = await response.json();
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-
-      console.log("📥 Upload response:", {
-        status: response.status,
-        ok: response.ok,
-        result,
-      });
-
-      if (response.status === 401) {
-        console.log("❌ Token rejected, clearing auth data...");
-        localStorage.removeItem("hoppr_token");
-        localStorage.removeItem("hoppr_user");
-        document.cookie =
-          "hoppr_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        document.cookie =
-          "hoppr_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        throw new Error("Your session has expired. Please log in again.");
-      }
+      console.log("🔍 Upload result:", result);
 
       if (!response.ok) {
-        throw new Error(
-          result.error || result.message || `Import failed: ${response.status}`
-        );
+        throw new Error(result.error || `Upload failed: ${response.status}`);
       }
 
-      const successMessage = `Successfully imported ${result.imported} bars!${
-        result.failed > 0 ? ` ${result.failed} failed.` : ""
-      }`;
-
-      setSuccess(successMessage);
+      setSuccess(`Successfully imported ${result.imported} bars!`);
       fetchImportHistory();
-
-      setTimeout(() => {
-        router.push("/admin/bars");
-      }, 2000);
     } catch (error) {
-      console.error("Upload error:", error);
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : "Upload failed - please try again";
-
-      if (
-        errorMessage.includes("session") ||
-        errorMessage.includes("authentication") ||
-        errorMessage.includes("token") ||
-        errorMessage.includes("log in")
-      ) {
-        setAuthError(errorMessage);
-      } else {
-        setError(errorMessage);
-      }
+      console.error("❌ UPLOAD ERROR:", error);
+      setError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setIsUploading(false);
     }
   };
+
+  // const handleUpload = async () => {
+  //   if (!selectedFile) return;
+
+  //   // COMMENTED OUT: Debug check - kept for future debugging needs
+  //   // await checkAuthStatus();
+
+  //   const token = getToken();
+  //   if (!token) {
+  //     setAuthError("No authentication token found. Please log in.");
+  //     return;
+  //   }
+
+  //   setIsUploading(true);
+  //   setUploadProgress(0);
+  //   setError(null);
+  //   setSuccess(null);
+  //   setAuthError(null);
+
+  //   try {
+  //     const formData = new FormData();
+  //     formData.append("csvFile", selectedFile);
+
+  //     console.log("📤 Starting upload...");
+  //     console.log("Token being sent:", token);
+  //     console.log("File:", selectedFile.name);
+
+  //     const response = await fetch("/api/auth/admin/bars/import", {
+  //       method: "POST",
+  //       headers: {
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //       body: formData,
+  //     });
+
+  //     // Simulate progress
+  //     const progressInterval = setInterval(() => {
+  //       setUploadProgress((prev) => {
+  //         if (prev >= 90) {
+  //           clearInterval(progressInterval);
+  //           return 90;
+  //         }
+  //         return prev + 10;
+  //       });
+  //     }, 200);
+
+  //     const result = await response.json();
+  //     clearInterval(progressInterval);
+  //     setUploadProgress(100);
+
+  //     console.log("📥 Upload response:", {
+  //       status: response.status,
+  //       ok: response.ok,
+  //       result,
+  //     });
+
+  //     if (response.status === 401) {
+  //       console.log("❌ Token rejected, clearing auth data...");
+  //       if (typeof window !== "undefined") {
+  //         localStorage.removeItem("hoppr_token");
+  //         localStorage.removeItem("hoppr_user");
+  //       }
+  //       document.cookie =
+  //         "hoppr_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  //       document.cookie =
+  //         "hoppr_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  //       throw new Error("Your session has expired. Please log in again.");
+  //     }
+
+  //     if (!response.ok) {
+  //       throw new Error(
+  //         result.error || result.message || `Import failed: ${response.status}`
+  //       );
+  //     }
+
+  //     const successMessage = `Successfully imported ${result.imported} bars!${
+  //       result.failed > 0 ? ` ${result.failed} failed.` : ""
+  //     }`;
+
+  //     setSuccess(successMessage);
+  //     fetchImportHistory();
+
+  //     setTimeout(() => {
+  //       router.push("/admin/bars");
+  //     }, 2000);
+  //   } catch (error) {
+  //     console.error("Upload error:", error);
+  //     const errorMessage =
+  //       error instanceof Error
+  //         ? error.message
+  //         : "Upload failed - please try again";
+
+  //     if (
+  //       errorMessage.includes("session") ||
+  //       errorMessage.includes("authentication") ||
+  //       errorMessage.includes("token") ||
+  //       errorMessage.includes("log in")
+  //     ) {
+  //       setAuthError(errorMessage);
+  //     } else {
+  //       setError(errorMessage);
+  //     }
+  //   } finally {
+  //     setIsUploading(false);
+  //   }
+  // };
 
   const fetchImportHistory = async () => {
     try {
@@ -531,8 +767,10 @@ const CSVImport = () => {
       console.log("📋 History response status:", response.status);
 
       if (response.status === 401) {
-        localStorage.removeItem("hoppr_token");
-        localStorage.removeItem("hoppr_user");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("hoppr_token");
+          localStorage.removeItem("hoppr_user");
+        }
         setAuthError("Your session has expired. Please log in again.");
         return;
       }
@@ -586,7 +824,8 @@ const CSVImport = () => {
   // Load import history on component mount
   useEffect(() => {
     console.log("🔐 Component mounted, checking auth...");
-    checkAuthStatus();
+    // COMMENTED OUT: Debug check - kept for future debugging needs
+    // checkAuthStatus();
     fetchImportHistory();
   }, []);
 
@@ -604,16 +843,18 @@ const CSVImport = () => {
         </Header>
 
         <ErrorState>
-          <h3>Authentication Required</h3>
-          <p>{authError}</p>
-          <DebugInfo>{debugInfo}</DebugInfo>
+          <h3 style={{ marginBottom: "1rem" }}>Authentication Required</h3>
+          <p style={{ marginBottom: "1rem" }}>{authError}</p>
+          {/* COMMENTED OUT: Debug info display - kept for future debugging needs */}
+          {/* <DebugInfo>{debugInfo}</DebugInfo> */}
           <div
             style={{
               display: "flex",
-              gap: "1rem",
+              flexDirection: "column",
+              gap: "0.75rem",
               justifyContent: "center",
               marginTop: "1rem",
-              flexWrap: "wrap",
+              width: "100%",
             }}
           >
             <Button $variant="primary" onClick={handleLogin}>
@@ -669,12 +910,12 @@ const CSVImport = () => {
                     style={{
                       fontWeight: 600,
                       marginBottom: "0.5rem",
-                      fontSize: "1.125rem",
+                      fontSize: "1rem",
                     }}
                   >
                     Drop CSV file here or click to browse
                   </p>
-                  <p style={{ color: "#6b7280" }}>
+                  <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
                     Supports .csv files up to 10MB
                   </p>
                 </div>
@@ -697,52 +938,64 @@ const CSVImport = () => {
             )}
 
             <ButtonGroup>
-              <Button
-                $variant="primary"
-                onClick={handleUpload}
-                disabled={!selectedFile || isUploading}
-              >
-                {isUploading ? (
-                  <>
-                    <span>Uploading... {uploadProgress}%</span>
-                  </>
-                ) : (
-                  "Import Bars"
-                )}
-              </Button>
-
-              {selectedFile && !isUploading && (
+              <ButtonRow>
                 <Button
-                  $variant="secondary"
-                  onClick={() => {
-                    setSelectedFile(null);
-                    setError(null);
-                    setSuccess(null);
-                  }}
+                  $variant="primary"
+                  onClick={handleUpload}
+                  disabled={!selectedFile || isUploading}
                 >
-                  Clear File
+                  {isUploading ? (
+                    <>
+                      <span>Uploading... {uploadProgress}%</span>
+                    </>
+                  ) : (
+                    "Import Bars"
+                  )}
                 </Button>
-              )}
 
-              <a
-                href="/templates/bars-import-template.csv"
-                download
-                style={{ marginLeft: "auto" }}
-              >
-                <Button $variant="secondary">📥 Download Template</Button>
-              </a>
+                {selectedFile && !isUploading && (
+                  <Button
+                    $variant="secondary"
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </ButtonRow>
 
-              <Button $variant="secondary" onClick={checkAuthStatus}>
-                🔍 Debug Auth
-              </Button>
+              <ButtonRow>
+                <a
+                  href="/templates/bars-import-template.csv"
+                  download
+                  style={{ display: "flex", flex: 1, textDecoration: "none" }}
+                >
+                  <Button $variant="secondary">Download Template</Button>
+                </a>
+
+                {/* COMMENTED OUT: Debug button - kept for future debugging needs */}
+                {/* <Button $variant="secondary" onClick={checkAuthStatus}>
+                  🔍 Debug
+                </Button> */}
+              </ButtonRow>
             </ButtonGroup>
 
-            {debugInfo && <DebugInfo>{debugInfo}</DebugInfo>}
+            {/* COMMENTED OUT: Debug info display - kept for future debugging needs */}
+            {/* {debugInfo && <DebugInfo>{debugInfo}</DebugInfo>} */}
           </Card>
         </UploadSection>
 
         <RequirementsCard>
-          <h3 style={{ marginBottom: "1rem", color: "#92400e" }}>
+          <h3
+            style={{
+              marginBottom: "1rem",
+              color: "#92400e",
+              fontSize: "1.125rem",
+            }}
+          >
             CSV Format Requirements
           </h3>
           <RequirementList>
@@ -776,34 +1029,38 @@ const CSVImport = () => {
           <HistorySection>
             <h3 style={{ marginBottom: "1rem" }}>Import History</h3>
             <Card>
-              <HistoryTable>
-                <thead>
-                  <tr>
-                    <TableHeader>File Name</TableHeader>
-                    <TableHeader>Date</TableHeader>
-                    <TableHeader>Status</TableHeader>
-                    <TableHeader>Imported</TableHeader>
-                    <TableHeader>Failed</TableHeader>
-                    <TableHeader>Total</TableHeader>
-                  </tr>
-                </thead>
-                <tbody>
-                  {importHistory.map((importItem) => (
-                    <tr key={importItem.id}>
-                      <TableCell>{importItem.fileName}</TableCell>
-                      <TableCell>{formatDate(importItem.createdAt)}</TableCell>
-                      <TableCell>
-                        <StatusBadge $status={importItem.status}>
-                          {importItem.status}
-                        </StatusBadge>
-                      </TableCell>
-                      <TableCell>{importItem.importedRows}</TableCell>
-                      <TableCell>{importItem.failedRows}</TableCell>
-                      <TableCell>{importItem.totalRows}</TableCell>
+              <TableWrapper>
+                <HistoryTable>
+                  <thead>
+                    <tr>
+                      <TableHeader>File Name</TableHeader>
+                      <TableHeader>Date</TableHeader>
+                      <TableHeader>Status</TableHeader>
+                      <TableHeader>Imported</TableHeader>
+                      <TableHeader>Failed</TableHeader>
+                      <TableHeader>Total</TableHeader>
                     </tr>
-                  ))}
-                </tbody>
-              </HistoryTable>
+                  </thead>
+                  <tbody>
+                    {importHistory.map((importItem) => (
+                      <tr key={importItem.id}>
+                        <TableCell>{importItem.fileName}</TableCell>
+                        <TableCell>
+                          {formatDate(importItem.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge $status={importItem.status}>
+                            {importItem.status}
+                          </StatusBadge>
+                        </TableCell>
+                        <TableCell>{importItem.importedRows}</TableCell>
+                        <TableCell>{importItem.failedRows}</TableCell>
+                        <TableCell>{importItem.totalRows}</TableCell>
+                      </tr>
+                    ))}
+                  </tbody>
+                </HistoryTable>
+              </TableWrapper>
             </Card>
           </HistorySection>
         )}
