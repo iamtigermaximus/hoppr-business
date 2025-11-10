@@ -144,6 +144,57 @@ const UserRole = styled.div`
   display: inline-block;
 `;
 
+const UserActions = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+
+  @media (max-width: 480px) {
+    width: 100%;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+`;
+
+const ActionButton = styled.button<{ $variant: "edit" | "delete" }>`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+  min-height: 36px;
+
+  ${(props) =>
+    props.$variant === "edit"
+      ? `
+    background: #3b82f6;
+    color: white;
+    
+    &:hover:not(:disabled) {
+      background: #2563eb;
+    }
+  `
+      : `
+    background: #ef4444;
+    color: white;
+    
+    &:hover:not(:disabled) {
+      background: #dc2626;
+    }
+  `}
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 480px) {
+    flex: 1;
+  }
+`;
+
 const UserMeta = styled.div`
   text-align: right;
 
@@ -160,6 +211,26 @@ const LastLogin = styled.div`
   @media (max-width: 480px) {
     font-size: 0.8rem;
   }
+`;
+
+const StatusBadge = styled.div<{ $isActive: boolean }>`
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  display: inline-block;
+  margin-left: 0.5rem;
+
+  ${(props) =>
+    props.$isActive
+      ? `
+    background: #d1fae5;
+    color: #065f46;
+  `
+      : `
+    background: #fee2e2;
+    color: #991b1b;
+  `}
 `;
 
 interface ModalProps {
@@ -250,7 +321,7 @@ const Input = styled.input`
   }
 
   @media (max-width: 480px) {
-    font-size: 16px; /* Prevent zoom on iOS */
+    font-size: 16px;
   }
 `;
 
@@ -273,6 +344,17 @@ const Select = styled.select`
   }
 `;
 
+const CheckboxGroup = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const Checkbox = styled.input`
+  width: 1.25rem;
+  height: 1.25rem;
+`;
+
 const ButtonGroup = styled.div`
   display: flex;
   gap: 1rem;
@@ -286,7 +368,7 @@ const ButtonGroup = styled.div`
 `;
 
 interface ButtonProps {
-  $variant?: "primary" | "secondary";
+  $variant?: "primary" | "secondary" | "danger";
 }
 
 const Button = styled.button<ButtonProps>`
@@ -299,24 +381,37 @@ const Button = styled.button<ButtonProps>`
   min-height: 44px;
   flex: 1;
 
-  ${(props) =>
-    props.$variant === "primary"
-      ? `
-      background: #3b82f6;
-      color: white;
-      
-      &:hover:not(:disabled) {
-        background: #2563eb;
-      }
-    `
-      : `
-      background: #6b7280;
-      color: white;
-      
-      &:hover:not(:disabled) {
-        background: #4b5563;
-      }
-    `}
+  ${(props) => {
+    switch (props.$variant) {
+      case "primary":
+        return `
+          background: #3b82f6;
+          color: white;
+          
+          &:hover:not(:disabled) {
+            background: #2563eb;
+          }
+        `;
+      case "danger":
+        return `
+          background: #ef4444;
+          color: white;
+          
+          &:hover:not(:disabled) {
+            background: #dc2626;
+          }
+        `;
+      default:
+        return `
+          background: #6b7280;
+          color: white;
+          
+          &:hover:not(:disabled) {
+            background: #4b5563;
+          }
+        `;
+    }
+  }}
 
   &:disabled {
     opacity: 0.6;
@@ -326,6 +421,36 @@ const Button = styled.button<ButtonProps>`
   @media (max-width: 480px) {
     min-width: 100%;
   }
+`;
+
+const DeleteConfirmModal = styled(Modal)``;
+
+const DeleteConfirmContent = styled(ModalContent)`
+  max-width: 400px;
+`;
+
+const DeleteText = styled.p`
+  color: #6b7280;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+`;
+
+const DeleteUserInfo = styled.div`
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+`;
+
+const DeleteUserName = styled.div`
+  font-weight: 600;
+  color: #dc2626;
+`;
+
+const DeleteUserEmail = styled.div`
+  color: #ef4444;
+  font-size: 0.875rem;
 `;
 
 interface AdminUser {
@@ -347,15 +472,22 @@ interface AdminUsersManagerProps {
   };
 }
 
+type ModalMode = "create" | "edit";
+
 const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<ModalMode>("create");
   const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     role: "CONTENT_MODERATOR",
     password: "",
+    isActive: true,
   });
 
   useEffect(() => {
@@ -365,7 +497,7 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
   const fetchAdminUsers = async () => {
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch("/api/admin/users", {
+      const response = await fetch("/api/auth/admin/users", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -386,9 +518,6 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
 
     try {
       const token = localStorage.getItem("hoppr_token");
-      console.log("🔐 Token:", token ? "Exists" : "Missing");
-      console.log("📤 Sending data:", formData);
-
       const response = await fetch("/api/auth/admin/users", {
         method: "POST",
         headers: {
@@ -398,38 +527,158 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
         body: JSON.stringify(formData),
       });
 
-      console.log("📥 Response status:", response.status);
-
       const responseData = await response.json();
-      console.log("📥 Response data:", responseData);
 
       if (response.ok) {
-        console.log("✅ Admin user created successfully!");
         setIsModalOpen(false);
         setFormData({
           name: "",
           email: "",
           role: "CONTENT_MODERATOR",
           password: "",
+          isActive: true,
         });
         fetchAdminUsers();
       } else {
-        console.log("❌ API Error:", responseData.error);
         alert(`Failed: ${responseData.error}`);
       }
     } catch (error) {
-      console.error("❌ Network error:", error);
+      console.error("Network error:", error);
       alert("Network error - check console");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleEditAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
+
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const response = await fetch(`/api/auth/admin/users/${selectedUser.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          role: formData.role,
+          isActive: formData.isActive,
+          ...(formData.password && { password: formData.password }),
+        }),
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+        setIsModalOpen(false);
+        setFormData({
+          name: "",
+          email: "",
+          role: "CONTENT_MODERATOR",
+          password: "",
+          isActive: true,
+        });
+        setSelectedUser(null);
+        fetchAdminUsers();
+      } else {
+        alert(`Failed: ${responseData.error}`);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Network error - check console");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAdmin = async () => {
+    if (!selectedUser) return;
+
+    setDeleteLoading(true);
+
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const response = await fetch(`/api/auth/admin/users/${selectedUser.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setIsDeleteModalOpen(false);
+        setSelectedUser(null);
+        fetchAdminUsers();
+      } else {
+        const responseData = await response.json();
+        alert(`Failed: ${responseData.error}`);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+      alert("Network error - check console");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  const openCreateModal = () => {
+    setModalMode("create");
+    setFormData({
+      name: "",
+      email: "",
+      role: "CONTENT_MODERATOR",
+      password: "",
+      isActive: true,
+    });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (adminUser: AdminUser) => {
+    setModalMode("edit");
+    setSelectedUser(adminUser);
+    setFormData({
+      name: adminUser.name,
+      email: adminUser.email,
+      role: adminUser.role,
+      password: "",
+      isActive: adminUser.isActive,
+    });
+    setIsModalOpen(true);
+  };
+
+  const openDeleteModal = (adminUser: AdminUser) => {
+    setSelectedUser(adminUser);
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeModals = () => {
+    setIsModalOpen(false);
+    setIsDeleteModalOpen(false);
+    setSelectedUser(null);
+    setFormData({
+      name: "",
+      email: "",
+      role: "CONTENT_MODERATOR",
+      password: "",
+      isActive: true,
+    });
+  };
+
+  const isCurrentUser = (adminUser: AdminUser) => {
+    return adminUser.id === user.id;
+  };
+
   return (
     <Container>
       <Header>
         <Title>Admin Users Management</Title>
-        <CreateButton onClick={() => setIsModalOpen(true)}>
+        <CreateButton onClick={openCreateModal}>
           + Create Admin User
         </CreateButton>
       </Header>
@@ -438,10 +687,39 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
         {adminUsers.map((adminUser) => (
           <UserCard key={adminUser.id}>
             <UserInfo>
-              <UserName>{adminUser.name}</UserName>
+              <UserName>
+                {adminUser.name}
+                {isCurrentUser(adminUser) && " (You)"}
+              </UserName>
               <UserEmail>{adminUser.email}</UserEmail>
-              <UserRole>{adminUser.role.replace("_", " ")}</UserRole>
+              <div>
+                <UserRole>{adminUser.role.replace("_", " ")}</UserRole>
+                <StatusBadge $isActive={adminUser.isActive}>
+                  {adminUser.isActive ? "Active" : "Inactive"}
+                </StatusBadge>
+              </div>
             </UserInfo>
+            <UserActions>
+              <ActionButton
+                $variant="edit"
+                onClick={() => openEditModal(adminUser)}
+                disabled={loading}
+              >
+                Edit
+              </ActionButton>
+              <ActionButton
+                $variant="delete"
+                onClick={() => openDeleteModal(adminUser)}
+                disabled={isCurrentUser(adminUser) || loading}
+                title={
+                  isCurrentUser(adminUser)
+                    ? "Cannot delete your own account"
+                    : "Delete user"
+                }
+              >
+                Delete
+              </ActionButton>
+            </UserActions>
             <UserMeta>
               {adminUser.lastLogin && (
                 <LastLogin>
@@ -454,11 +732,20 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
         ))}
       </UsersGrid>
 
+      {/* Create/Edit Modal */}
       <Modal $isOpen={isModalOpen}>
         <ModalContent>
-          <ModalTitle>Create New Admin User</ModalTitle>
+          <ModalTitle>
+            {modalMode === "create"
+              ? "Create New Admin User"
+              : "Edit Admin User"}
+          </ModalTitle>
 
-          <Form onSubmit={handleCreateAdmin}>
+          <Form
+            onSubmit={
+              modalMode === "create" ? handleCreateAdmin : handleEditAdmin
+            }
+          >
             <InputGroup>
               <Label>Full Name</Label>
               <Input
@@ -481,7 +768,7 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
                   setFormData({ ...formData, email: e.target.value })
                 }
                 required
-                disabled={loading}
+                disabled={loading || modalMode === "edit"}
               />
             </InputGroup>
 
@@ -498,40 +785,107 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
                 <option value="CONTENT_MODERATOR">Content Moderator</option>
                 <option value="ANALYTICS_VIEWER">Analytics Viewer</option>
                 <option value="SUPPORT">Support</option>
+                <option value="SUPER_ADMIN">Super Admin</option>
               </Select>
             </InputGroup>
 
             <InputGroup>
-              <Label>Password</Label>
+              <Label>
+                Password
+                {modalMode === "edit" && (
+                  <span style={{ color: "#6b7280", fontWeight: "normal" }}>
+                    {" "}
+                    (leave blank to keep current)
+                  </span>
+                )}
+              </Label>
               <Input
                 type="password"
                 value={formData.password}
                 onChange={(e) =>
                   setFormData({ ...formData, password: e.target.value })
                 }
-                required
+                required={modalMode === "create"}
                 minLength={6}
                 disabled={loading}
               />
             </InputGroup>
 
+            {modalMode === "edit" && (
+              <CheckboxGroup>
+                <Checkbox
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(e) =>
+                    setFormData({ ...formData, isActive: e.target.checked })
+                  }
+                  disabled={loading}
+                />
+                <Label>Active User</Label>
+              </CheckboxGroup>
+            )}
+
             <ButtonGroup>
               <Button
                 type="button"
                 $variant="secondary"
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModals}
                 disabled={loading}
               >
                 Cancel
               </Button>
               <Button type="submit" $variant="primary" disabled={loading}>
-                {loading ? "Creating..." : "Create Admin User"}
+                {loading
+                  ? modalMode === "create"
+                    ? "Creating..."
+                    : "Updating..."
+                  : modalMode === "create"
+                  ? "Create Admin User"
+                  : "Update Admin User"}
               </Button>
             </ButtonGroup>
           </Form>
         </ModalContent>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal $isOpen={isDeleteModalOpen}>
+        <DeleteConfirmContent>
+          <ModalTitle>Delete Admin User</ModalTitle>
+          <DeleteText>
+            Are you sure you want to delete this admin user? This action cannot
+            be undone.
+          </DeleteText>
+
+          {selectedUser && (
+            <DeleteUserInfo>
+              <DeleteUserName>{selectedUser.name}</DeleteUserName>
+              <DeleteUserEmail>{selectedUser.email}</DeleteUserEmail>
+            </DeleteUserInfo>
+          )}
+
+          <ButtonGroup>
+            <Button
+              type="button"
+              $variant="secondary"
+              onClick={closeModals}
+              disabled={deleteLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              $variant="danger"
+              onClick={handleDeleteAdmin}
+              disabled={deleteLoading}
+            >
+              {deleteLoading ? "Deleting..." : "Delete User"}
+            </Button>
+          </ButtonGroup>
+        </DeleteConfirmContent>
+      </DeleteConfirmModal>
     </Container>
   );
 };
+
 export default AdminUsersManager;
