@@ -1,0 +1,138 @@
+.
+├── prisma
+│   ├── schema.prisma
+│   └── seed.ts
+├── public
+│   ├── images
+│   ├── templates
+│   │   └── bars-import-template.csv
+│   ├── .DS_Store
+│   ├── android-chrome-192x192.png
+│   ├── android-chrome-512x512.png
+│   ├── apple-touch-icon.png
+│   ├── favicon-16x16.png
+│   ├── favicon-32x32.png
+│   ├── favicon.ico
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── hoppr-neon-nobg.png
+│   ├── next.svg
+│   ├── site.webmanifest
+│   ├── vercel.svg
+│   └── window.svg
+├── src
+│   ├── app
+│   │   ├── (auth)
+│   │   │   ├── admin
+│   │   │   │   └── login
+│   │   │   │       └── page.tsx
+│   │   │   ├── bar
+│   │   │   │   └── login
+│   │   │   │       └── page.tsx
+│   │   │   ├── login
+│   │   │   │   └── page.tsx
+│   │   │   └── layout.tsx
+│   │   ├── admin
+│   │   │   ├── bars
+│   │   │   │   ├── create
+│   │   │   │   │   └── page.tsx
+│   │   │   │   ├── import
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── dashboard
+│   │   │   │   └── page.tsx
+│   │   │   ├── users
+│   │   │   │   └── page.tsx
+│   │   │   └── layout.tsx
+│   │   ├── api
+│   │   │   └── auth
+│   │   │       ├── admin
+│   │   │       │   ├── bars
+│   │   │       │   │   ├── [id]
+│   │   │       │   │   │   └── page.tsx
+│   │   │       │   │   ├── import
+│   │   │       │   │   │   ├── history
+│   │   │       │   │   │   │   └── route.ts
+│   │   │       │   │   │   └── route.ts
+│   │   │       │   │   └── route.ts
+│   │   │       │   ├── users
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── route.ts
+│   │   │       └── bar
+│   │   │           ├── [barId]
+│   │   │           │   └── staff
+│   │   │           │       └── route.ts
+│   │   │           └── route.ts
+│   │   ├── bar
+│   │   │   ├── [id]
+│   │   │   │   ├── dashboard
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── users
+│   │   │   │       └── page.tsx
+│   │   │   └── layout.tsx
+│   │   ├── .DS_Store
+│   │   ├── favicon.ico
+│   │   ├── globals.css
+│   │   ├── layout.tsx
+│   │   ├── page.module.css
+│   │   └── page.tsx
+│   ├── components
+│   │   ├── admin
+│   │   │   ├── add-bar-form
+│   │   │   │   └── AddBarForm.tsx
+│   │   │   ├── bars-database
+│   │   │   │   └── BarsDatabase.tsx
+│   │   │   ├── csv-import
+│   │   │   │   └── CSVImport.tsx
+│   │   │   ├── dashboard
+│   │   │   │   └── DashboardContent.tsx
+│   │   │   └── users
+│   │   │       └── AdminUsersManager.tsx
+│   │   ├── auth
+│   │   │   ├── admin-login-portal
+│   │   │   │   └── AdminLoginPortal.tsx
+│   │   │   ├── bar-login-portal
+│   │   │   │   └── BarLoginPortal.tsx
+│   │   │   ├── AdminLogin.tsx
+│   │   │   ├── BarStaffLogin.tsx
+│   │   │   └── LoginPortal.tsx
+│   │   ├── bar
+│   │   │   ├── dashboard
+│   │   │   │   └── BarDashboard.tsx
+│   │   │   └── staff
+│   │   │       └── BarStaffManager.tsx
+│   │   ├── shared
+│   │   │   ├── Charts
+│   │   │   │   ├── ActivityChart.tsx
+│   │   │   │   └── RevenueChart.tsx
+│   │   │   ├── Navigation
+│   │   │   │   ├── AdminNavbar.tsx
+│   │   │   │   ├── BarNavbar.tsx
+│   │   │   │   └── MainNav.tsx
+│   │   │   └── UI
+│   │   │       ├── Button.tsx
+│   │   │       ├── Card.tsx
+│   │   │       └── Modal.tsx
+│   │   └── .DS_Store
+│   ├── lib
+│   │   ├── auth.ts
+│   │   ├── database.ts
+│   │   └── registry.tsx
+│   ├── services
+│   │   └── auth-service.ts
+│   ├── types
+│   │   └── index.ts
+│   └── .DS_Store
+├── .DS_Store
+├── .env
+├── .gitignore
+├── eslint.config.mjs
+├── next-env.d.ts
+├── next.config.ts
+├── package-lock.json
+├── package.json
+├── project-structure.txt
+├── README.md
+└── tsconfig.json
+
+54 directories, 82 files

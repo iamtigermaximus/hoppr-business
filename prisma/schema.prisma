@@ -21,6 +21,7 @@ model AdminUser {
 
   auditLogs   AuditLog[]
   createdBars Bar[]      @relation("BarCreatedBy")
+  barImports  BarImport[] 
 
   @@map("admin_users")
 }
@@ -247,4 +248,31 @@ enum VIPPassType {
   COVER_INCLUDED
   PREMIUM_ENTRY
   DRINK_PACKAGE
+}
+
+model BarImport {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileSize    Int
+  totalRows   Int
+  importedRows Int
+  failedRows  Int
+  status      ImportStatus @default(PENDING)
+  errors      Json?
+  importedBy  String // admin user ID or email
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  importedByUser AdminUser? @relation(fields: [importedBy], references: [id])
+
+
+  @@map("bar_imports")
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIAL
 }

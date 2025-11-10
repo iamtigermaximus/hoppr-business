@@ -20,9 +20,11 @@
   "dependencies": {
     "@prisma/client": "^6.18.0",
     "bcryptjs": "^3.0.2",
+    "csv-parse": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.552.0",
     "next": "16.0.1",
+    "papaparse": "^5.5.3",
     "prisma": "^6.19.0",
     "react": "19.2.0",
     "react-dom": "19.2.0",
@@ -30,8 +32,10 @@
     "styled-components": "^6.1.19"
   },
   "devDependencies": {
+    "@types/csv-parse": "^1.1.12",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
+    "@types/papaparse": "^5.5.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/styled-components": "^5.1.35",
