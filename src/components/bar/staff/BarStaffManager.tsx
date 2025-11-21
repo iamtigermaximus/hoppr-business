@@ -433,7 +433,7 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
   const fetchBarStaff = async (): Promise<void> => {
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/auth/bar/${barId}/users`, {
+      const response = await fetch(`/api/auth/bar/${barId}/staff`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -458,7 +458,7 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
 
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/auth/bar/${barId}/users`, {
+      const response = await fetch(`/api/auth/bar/${barId}/staff`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
