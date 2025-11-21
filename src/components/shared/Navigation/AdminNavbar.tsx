@@ -13,6 +13,7 @@ const AdminNavContainer = styled.nav`
   background: white;
   border-bottom: 1px solid #e5e7eb;
   position: relative;
+  z-index: 1000;
 
   @media (max-width: 768px) {
     padding: 0.75rem 1rem;
@@ -24,7 +25,7 @@ const LogoContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  z-index: 20;
+  z-index: 1002;
 `;
 
 const LogoImage = styled.img`
@@ -71,7 +72,7 @@ const MobileMenuButton = styled.button<MobileMenuButtonProps>`
   border: none;
   cursor: pointer;
   padding: 0;
-  z-index: 20;
+  z-index: 1002;
 
   @media (max-width: 768px) {
     display: flex;
@@ -112,19 +113,50 @@ const NavItemsContainer = styled.div<NavItemsContainerProps>`
   align-items: center;
 
   @media (max-width: 768px) {
-    position: absolute;
-    top: 100%;
+    position: fixed;
+    top: 0;
     left: 0;
     right: 0;
-    background: white;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
     flex-direction: column;
-    padding: ${(props) => (props.$isOpen ? "1rem 1.5rem" : "0 1.5rem")};
-    border-bottom: ${(props) => (props.$isOpen ? "1px solid #e5e7eb" : "none")};
-    max-height: ${(props) => (props.$isOpen ? "500px" : "0")};
+    justify-content: flex-start;
+    padding: 0;
+    max-height: none;
     overflow: hidden;
     transition: all 0.3s ease;
-    box-shadow: ${(props) =>
-      props.$isOpen ? "0 4px 6px -1px rgba(0, 0, 0, 0.1)" : "none"};
+    opacity: ${(props) => (props.$isOpen ? "1" : "0")};
+    visibility: ${(props) => (props.$isOpen ? "visible" : "hidden")};
+    z-index: 1001;
+  }
+`;
+
+const MobileMenuContent = styled.div<{ $isOpen: boolean }>`
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+
+  @media (max-width: 768px) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: white;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 5rem 1.5rem 2rem;
+    transform: ${(props) =>
+      props.$isOpen ? "translateX(0)" : "translateX(-100%)"};
+    transition: transform 0.3s ease;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    overflow-y: auto;
+    z-index: 1002;
+  }
+
+  @media (max-width: 480px) {
+    width: 260px;
+    padding: 4.5rem 1rem 1.5rem;
   }
 `;
 
@@ -136,7 +168,8 @@ const NavItems = styled.div`
   @media (max-width: 768px) {
     flex-direction: column;
     width: 100%;
-    gap: 0.5rem;
+    gap: 0;
+    align-items: stretch;
   }
 `;
 
@@ -160,13 +193,19 @@ const NavItem = styled.a<NavItemProps>`
   }
 
   @media (max-width: 768px) {
-    padding: 0.75rem 0;
+    padding: 1rem 0.75rem;
     width: 100%;
-    text-align: center;
+    text-align: left;
     border-bottom: 1px solid #f3f4f6;
+    border-radius: 0;
+    font-size: 1rem;
 
     &:last-child {
       border-bottom: none;
+    }
+
+    &:hover {
+      background: #f8fafc;
     }
   }
 `;
@@ -185,10 +224,12 @@ const UserMenu = styled.div`
     border-left: none;
     border-top: 1px solid #e5e7eb;
     padding-top: 1rem;
+    margin-top: 1rem;
     width: 100%;
-    justify-content: center;
+    justify-content: flex-start;
     flex-direction: column;
     gap: 0.75rem;
+    align-items: stretch;
   }
 `;
 
@@ -197,8 +238,10 @@ const UserName = styled.span`
   font-size: 0.875rem;
   white-space: nowrap;
 
-  @media (max-width: 480px) {
-    font-size: 0.8rem;
+  @media (max-width: 768px) {
+    font-size: 1rem;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
   }
 `;
 
@@ -220,7 +263,27 @@ const LogoutButton = styled.button`
 
   @media (max-width: 768px) {
     width: 100%;
-    max-width: 200px;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: 0.375rem;
+  }
+`;
+
+const CloseOverlay = styled.div<{ $isOpen: boolean }>`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+    z-index: 1001;
+    cursor: pointer;
+    opacity: ${(props) => (props.$isOpen ? "1" : "0")};
+    visibility: ${(props) => (props.$isOpen ? "visible" : "hidden")};
   }
 `;
 
@@ -230,10 +293,10 @@ const AdminNavbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const navItems = [
-    { href: "/admin/dashboard", label: " Dashboard" },
-    { href: "/admin/users", label: " Users" },
+    { href: "/admin/dashboard", label: "Dashboard" },
+    { href: "/admin/users", label: "Users" },
     { href: "/admin/bars", label: "Bars" },
-    { href: "/admin/analytics", label: " Analytics" },
+    { href: "/admin/analytics", label: "Analytics" },
   ];
 
   const handleLogout = () => {
@@ -266,6 +329,10 @@ const AdminNavbar = () => {
     setIsMenuOpen(false);
   };
 
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
   return (
     <AdminNavContainer>
       <LogoContainer>
@@ -290,24 +357,30 @@ const AdminNavbar = () => {
       </MobileMenuButton>
 
       <NavItemsContainer $isOpen={isMenuOpen}>
-        <NavItems>
-          {navItems.map((item) => (
-            <NavItem
-              key={item.href}
-              $active={pathname === item.href}
-              onClick={() => handleNavClick(item.href)}
-            >
-              {item.label}
-            </NavItem>
-          ))}
+        {/* Close overlay - clicks outside the menu will close it */}
+        <CloseOverlay $isOpen={isMenuOpen} onClick={closeMenu} />
 
-          <UserMenu>
-            <UserName>Welcome, {getUserName()}</UserName>
-            <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
-          </UserMenu>
-        </NavItems>
+        <MobileMenuContent $isOpen={isMenuOpen}>
+          <NavItems>
+            {navItems.map((item) => (
+              <NavItem
+                key={item.href}
+                $active={pathname === item.href}
+                onClick={() => handleNavClick(item.href)}
+              >
+                {item.label}
+              </NavItem>
+            ))}
+
+            <UserMenu>
+              <UserName>Welcome, {getUserName()}</UserName>
+              <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
+            </UserMenu>
+          </NavItems>
+        </MobileMenuContent>
       </NavItemsContainer>
     </AdminNavContainer>
   );
 };
+
 export default AdminNavbar;
