@@ -19,13 +19,17 @@ async function getDashboardData() {
       redirect("/login");
     }
 
+    // Update stats to include all required properties
     const stats = {
       totalBars: 247,
       activeBars: 189,
       pendingVerification: 12,
       vipPassSales: 12450,
       totalRevenue: 9960,
-      userGrowth: 1234,
+      userGrowth: 8.5, // percentage
+      barGrowth: 12.3, // percentage - added
+      revenueGrowth: 15.7, // percentage - added
+      newUsers: 1234, // count - added
     };
 
     return { user: authResult.user, stats };
