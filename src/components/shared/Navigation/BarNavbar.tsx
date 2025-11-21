@@ -244,9 +244,10 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
 
   const navItems = [
     { href: `/bar/${barId}/dashboard`, label: " Dashboard" },
+    { href: `/bar/${barId}/intelligence`, label: "Intelligence" },
     {
       href: `/bar/${barId}/users`,
-      label: "👥 Users",
+      label: "👥 Staff",
       restricted: ["OWNER", "MANAGER"],
     },
     { href: `/bar/${barId}/promotions`, label: " Promotions" },
