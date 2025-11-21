@@ -75,7 +75,7 @@ const BarMobileMenuButton = styled.button<BarMobileMenuButtonProps>`
   justify-content: space-between;
   width: 24px;
   height: 18px;
-  background: transparent;
+  background: white;
   border: none;
   cursor: pointer;
   padding: 0;
