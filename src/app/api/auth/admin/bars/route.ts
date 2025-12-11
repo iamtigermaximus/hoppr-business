@@ -346,7 +346,109 @@ function getDefaultOperatingHours() {
   };
 }
 
-// GET /api/admin/bars - List bars with pagination and search
+// // GET /api/admin/bars - List bars with pagination and search
+// export async function GET(request: NextRequest) {
+//   try {
+//     const token = request.headers.get("authorization")?.replace("Bearer ", "");
+
+//     if (!token) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
+
+//     const adminUser = await verifyAdminToken(token);
+
+//     if (!adminUser) {
+//       return NextResponse.json(
+//         { error: "Invalid admin token" },
+//         { status: 401 }
+//       );
+//     }
+
+//     const { searchParams } = new URL(request.url);
+//     const page = parseInt(searchParams.get("page") || "1");
+//     const limit = parseInt(searchParams.get("limit") || "10");
+//     const search = searchParams.get("search") || "";
+//     const status = searchParams.get("status") || "";
+//     const city = searchParams.get("city") || "";
+
+//     const skip = (page - 1) * limit;
+
+//     // Build where clause
+//     const where: Prisma.BarWhereInput = {};
+
+//     if (search) {
+//       where.OR = [
+//         { name: { contains: search, mode: "insensitive" } },
+//         { city: { contains: search, mode: "insensitive" } },
+//         { district: { contains: search, mode: "insensitive" } },
+//       ];
+//     }
+
+//     if (status && isValidBarStatus(status)) {
+//       where.status = status;
+//     }
+
+//     if (city) {
+//       where.city = { contains: city, mode: "insensitive" };
+//     }
+
+//     const [bars, total] = await Promise.all([
+//       prisma.bar.findMany({
+//         where,
+//         skip,
+//         take: limit,
+//         orderBy: { createdAt: "desc" },
+//         select: {
+//           id: true,
+//           name: true,
+//           type: true,
+//           city: true,
+//           district: true,
+//           status: true,
+//           isVerified: true,
+//           isActive: true,
+//           createdAt: true,
+//           _count: {
+//             select: {
+//               staff: true,
+//               promotions: { where: { isActive: true } },
+//             },
+//           },
+//         },
+//       }),
+//       prisma.bar.count({ where }),
+//     ]);
+
+//     return NextResponse.json({
+//       bars: bars.map((bar) => ({
+//         id: bar.id,
+//         name: bar.name,
+//         type: bar.type,
+//         city: bar.city,
+//         district: bar.district,
+//         status: bar.status,
+//         isVerified: bar.isVerified,
+//         isActive: bar.isActive,
+//         createdAt: bar.createdAt,
+//         staffCount: bar._count.staff,
+//         activePromotions: bar._count.promotions,
+//       })),
+//       pagination: {
+//         page,
+//         limit,
+//         total,
+//         pages: Math.ceil(total / limit),
+//       },
+//     });
+//   } catch (error) {
+//     console.error("Get bars error:", error);
+//     return NextResponse.json(
+//       { error: "Internal server error" },
+//       { status: 500 }
+//     );
+//   }
+// }
+// Update your GET function in /api/auth/admin/bars/route.ts
 export async function GET(request: NextRequest) {
   try {
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
@@ -392,53 +494,51 @@ export async function GET(request: NextRequest) {
       where.city = { contains: city, mode: "insensitive" };
     }
 
-    const [bars, total] = await Promise.all([
-      prisma.bar.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          name: true,
-          type: true,
-          city: true,
-          district: true,
-          status: true,
-          isVerified: true,
-          isActive: true,
-          createdAt: true,
-          _count: {
-            select: {
-              staff: true,
-              promotions: { where: { isActive: true } },
-            },
-          },
-        },
+    // Get paginated bars
+    const bars = await prisma.bar.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        city: true,
+        district: true,
+        status: true,
+        isVerified: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    // Get total count for pagination
+    const total = await prisma.bar.count({ where });
+
+    // NEW: Get statistics for the current filter (or all bars if no filter)
+    const stats = {
+      totalBars: await prisma.bar.count({ where }),
+      activeBars: await prisma.bar.count({
+        where: { ...where, status: { not: "SUSPENDED" } },
       }),
-      prisma.bar.count({ where }),
-    ]);
+      verifiedBars: await prisma.bar.count({
+        where: { ...where, isVerified: true },
+      }),
+      unclaimedBars: await prisma.bar.count({
+        where: { ...where, status: "UNCLAIMED" },
+      }),
+    };
 
     return NextResponse.json({
-      bars: bars.map((bar) => ({
-        id: bar.id,
-        name: bar.name,
-        type: bar.type,
-        city: bar.city,
-        district: bar.district,
-        status: bar.status,
-        isVerified: bar.isVerified,
-        isActive: bar.isActive,
-        createdAt: bar.createdAt,
-        staffCount: bar._count.staff,
-        activePromotions: bar._count.promotions,
-      })),
+      bars,
       pagination: {
         page,
         limit,
         total,
         pages: Math.ceil(total / limit),
       },
+      stats, // Include stats in response
     });
   } catch (error) {
     console.error("Get bars error:", error);
@@ -448,7 +548,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
 // POST /api/admin/bars - Create a new bar manually
 export async function POST(request: NextRequest) {
   try {
