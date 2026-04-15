@@ -36,8 +36,8 @@
 //   data?: T;
 //   error?: string;
 // }
-export type TimeRange = "7d" | "30d" | "90d" | "1y";
-export type AdminTimeRange = TimeRange;
+export type AdminTimeRange = "7d" | "30d" | "90d" | "1y";
+
 export interface AdminDashboardStats {
   // Core metrics
   totalBars: number;
@@ -66,6 +66,15 @@ export interface AdminDashboardStats {
   barsMissingCoordinates: number;
   barsUnverified: number;
   barsInactive: number;
+
+  // Action items fields
+  barCompletionScore: number;
+  barsWithNoStaff: number;
+  barsInactiveOver30Days: number;
+  topDistricts: Array<{ district: string; count: number }>;
+  citiesWithoutBars: string[];
+  helsinkiDistrictsWithZeroBars: string[];
+  barTypeGaps: Array<{ type: string; count: number; status: string }>;
 }
 
 export interface PlatformGrowthData {

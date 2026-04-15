@@ -2185,9 +2185,483 @@
 // };
 
 // export default AdminAnalytics;
+// "use client";
+
+// import { useState, useEffect } from "react";
+// import styled from "styled-components";
+// import { AdminUser, TimeRange } from "@/types/analytics";
+// import {
+//   AdminDashboardStats,
+//   AdminApiResponse,
+//   PlatformGrowthData,
+//   FinancialData,
+// } from "@/types/admin-analytics";
+
+// import AnalyticsSummary from "../analytics-summary/AnalyticsSummary";
+// import PlatformGrowth from "../platform-growth/PlatformGrowth";
+// import FinancialOverview from "../financial-overview/FinancialOverview";
+// import MarketingPerformance from "../marketing-performance/MarketingPerformance";
+// import CustomerIntelligence from "../customer-intelligence/CustomerIntelligence";
+// import CompetitiveInsights from "../competitive-insights/CompetitiveInsights";
+// import MarketCoverage from "../market-coverage/MarketCoverage";
+
+// const Container = styled.div`
+//   padding: 1.5rem;
+//   max-width: 1400px;
+//   margin: 0 auto;
+//   width: 100%;
+//   min-height: 100vh;
+//   background: #f8fafc;
+
+//   @media (max-width: 1024px) {
+//     padding: 1.25rem;
+//   }
+
+//   @media (max-width: 768px) {
+//     padding: 1rem;
+//   }
+
+//   @media (max-width: 480px) {
+//     padding: 0.75rem;
+//   }
+// `;
+
+// const Header = styled.div`
+//   display: flex;
+//   justify-content: space-between;
+//   align-items: center;
+//   margin-bottom: 2rem;
+//   flex-wrap: wrap;
+//   gap: 1rem;
+
+//   @media (max-width: 768px) {
+//     margin-bottom: 1.5rem;
+//     flex-direction: column;
+//     align-items: stretch;
+//   }
+// `;
+
+// const Title = styled.h1`
+//   font-size: 1.875rem;
+//   font-weight: 700;
+//   color: #1f2937;
+//   margin: 0;
+
+//   @media (max-width: 1024px) {
+//     font-size: 1.75rem;
+//   }
+
+//   @media (max-width: 768px) {
+//     font-size: 1.5rem;
+//     text-align: center;
+//   }
+// `;
+
+// const HeaderControls = styled.div`
+//   display: flex;
+//   align-items: center;
+//   gap: 1rem;
+//   flex-wrap: wrap;
+
+//   @media (max-width: 768px) {
+//     justify-content: center;
+//     width: 100%;
+//   }
+// `;
+
+// const DateFilter = styled.div`
+//   display: flex;
+//   gap: 0.5rem;
+//   align-items: center;
+//   flex-wrap: wrap;
+// `;
+
+// const FilterButton = styled.button<{ $active: boolean }>`
+//   padding: 0.625rem 1.25rem;
+//   border: 1px solid ${(props) => (props.$active ? "#3b82f6" : "#d1d5db")};
+//   border-radius: 0.5rem;
+//   background: ${(props) => (props.$active ? "#3b82f6" : "white")};
+//   color: ${(props) => (props.$active ? "white" : "#374151")};
+//   font-weight: 500;
+//   cursor: pointer;
+//   transition: all 0.2s ease;
+//   font-size: 0.875rem;
+//   min-width: 60px;
+//   min-height: 44px;
+
+//   &:hover {
+//     background: ${(props) => (props.$active ? "#2563eb" : "#f9fafb")};
+//     border-color: ${(props) => (props.$active ? "#2563eb" : "#9ca3af")};
+//   }
+// `;
+
+// const LoadingState = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   justify-content: center;
+//   align-items: center;
+//   height: 60vh;
+//   font-size: 1.125rem;
+//   color: #6b7280;
+//   text-align: center;
+//   gap: 1rem;
+// `;
+
+// const ErrorState = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   justify-content: center;
+//   align-items: center;
+//   height: 60vh;
+//   font-size: 1.125rem;
+//   color: #ef4444;
+//   text-align: center;
+//   gap: 1rem;
+// `;
+
+// const RetryButton = styled.button`
+//   padding: 0.75rem 1.5rem;
+//   background: #3b82f6;
+//   color: white;
+//   border: none;
+//   border-radius: 0.5rem;
+//   font-weight: 500;
+//   cursor: pointer;
+//   transition: background-color 0.2s;
+//   min-height: 44px;
+
+//   &:hover {
+//     background: #2563eb;
+//   }
+// `;
+
+// const ContentGrid = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   gap: 1.5rem;
+// `;
+
+// const convertToAnalyticsData = (
+//   stats: AdminDashboardStats,
+//   growthData: PlatformGrowthData | null,
+//   financialData: FinancialData | null,
+//   timeRange: TimeRange,
+// ) => {
+//   const platformGrowth = growthData
+//     ? {
+//         labels: growthData.labels || [],
+//         barsData: growthData.barsData || [],
+//         usersData: growthData.usersData || [],
+//         revenueData: growthData.revenueData || [],
+//         totalBars: growthData.totalBars ?? stats.totalBars,
+//         activeBars: growthData.activeBars ?? stats.activeBars,
+//         newBars: growthData.newBars ?? stats.newUsers,
+//         barRetentionRate:
+//           growthData.barRetentionRate ??
+//           (stats.activeBars > 0
+//             ? (stats.activeBars / stats.totalBars) * 100
+//             : 0),
+//         totalUsers: growthData.totalUsers ?? stats.activeUsers,
+//         activeUsers: growthData.activeUsers ?? stats.activeUsers,
+//         newUsers: growthData.newUsers ?? stats.newUsers,
+//         userGrowthRate: growthData.userGrowthRate ?? stats.userGrowth,
+//       }
+//     : {
+//         labels: [],
+//         barsData: [],
+//         usersData: [],
+//         revenueData: [],
+//         totalBars: stats.totalBars,
+//         activeBars: stats.activeBars,
+//         newBars: stats.newUsers,
+//         barRetentionRate:
+//           stats.activeBars > 0 ? (stats.activeBars / stats.totalBars) * 100 : 0,
+//         totalUsers: stats.activeUsers,
+//         activeUsers: stats.activeUsers,
+//         newUsers: stats.newUsers,
+//         userGrowthRate: stats.userGrowth,
+//       };
+
+//   const financial = financialData || {
+//     totalRevenue: stats.totalRevenue,
+//     platformRevenue: stats.totalRevenue * 0.2,
+//     vipPassesSold: stats.vipPassSales,
+//     vipEnabledBars: 0,
+//     vipAdoptionRate: 0,
+//     averageRevenuePerBar:
+//       stats.totalBars > 0 ? stats.totalRevenue / stats.totalBars : 0,
+//     revenueGrowth: stats.revenueGrowth,
+//     passSalesGrowth: 0,
+//   };
+
+//   return {
+//     summary: {
+//       totalBars: stats.totalBars,
+//       barGrowth: stats.barGrowth,
+//       totalRevenue: stats.totalRevenue,
+//       revenueGrowth: stats.revenueGrowth,
+//       activeUsers: stats.activeUsers,
+//       userGrowth: stats.userGrowth,
+//       marketingEfficiency: 0,
+//       verifiedBars: stats.verifiedBars,
+//       barsWithImages: stats.barsWithImages,
+//       barsWithHours: stats.barsWithHours,
+//       barsWithDescription: stats.barsWithDescription,
+//       barsWithCoordinates: stats.barsWithCoordinates,
+//       dataCompletenessScore: stats.dataCompletenessScore,
+//       barsMissingImages: stats.barsMissingImages,
+//       barsMissingHours: stats.barsMissingHours,
+//       barsMissingDescription: stats.barsMissingDescription,
+//       barsUnverified: stats.barsUnverified,
+//     },
+//     platformGrowth: platformGrowth,
+//     financialData: financial,
+//     marketingPerformance: {
+//       activePromotions: 0,
+//       totalViews: 0,
+//       totalClicks: 0,
+//       totalRedemptions: 0,
+//       clickThroughRate: 0,
+//       conversionRate: 0,
+//       socialInteractions: 0,
+//     },
+//     customerIntelligence: {
+//       customersAcquired: stats.newUsers,
+//       socialModeUsers: 0,
+//       vipPurchasePatterns: [],
+//       demographics: {
+//         ageGroups: {},
+//         genderSplit: {},
+//         popularHours: {},
+//       },
+//     },
+//     competitiveInsights: {
+//       topPerformingBars: [],
+//       marketDistribution: [],
+//       opportunityAreas: [],
+//     },
+//   };
+// };
+
+// interface AdminAnalyticsProps {
+//   user: AdminUser;
+// }
+
+// const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
+//   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
+//   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+//   const [growthData, setGrowthData] = useState<PlatformGrowthData | null>(null);
+//   const [financialData, setFinancialData] = useState<FinancialData | null>(
+//     null,
+//   );
+//   const [loading, setLoading] = useState<boolean>(true);
+//   const [error, setError] = useState<string | null>(null);
+
+//   const getToken = (): string | null => {
+//     if (typeof window !== "undefined") {
+//       return localStorage.getItem("hoppr_token");
+//     }
+//     return null;
+//   };
+
+//   const fetchAnalyticsData = async (range: TimeRange): Promise<void> => {
+//     try {
+//       setLoading(true);
+//       setError(null);
+
+//       const token = getToken();
+
+//       if (!token) {
+//         setError("Authentication required. Please log in.");
+//         return;
+//       }
+
+//       const [summaryResponse, growthResponse, financialResponse] =
+//         await Promise.all([
+//           fetch(`/api/auth/admin/analytics/summary?range=${range}`, {
+//             headers: { Authorization: `Bearer ${token}` },
+//           }),
+//           fetch(`/api/auth/admin/analytics/platform-growth?range=${range}`, {
+//             headers: { Authorization: `Bearer ${token}` },
+//           }),
+//           fetch(`/api/auth/admin/analytics/financial?range=${range}`, {
+//             headers: { Authorization: `Bearer ${token}` },
+//           }),
+//         ]);
+
+//       if (summaryResponse.ok) {
+//         const summaryResult =
+//           (await summaryResponse.json()) as AdminApiResponse<AdminDashboardStats>;
+//         if (summaryResult.success && summaryResult.data) {
+//           setStats(summaryResult.data);
+//         }
+//       }
+
+//       if (growthResponse.ok) {
+//         const growthResult = (await growthResponse.json()) as {
+//           success: boolean;
+//           data: PlatformGrowthData;
+//         };
+//         if (growthResult.success && growthResult.data) {
+//           setGrowthData(growthResult.data);
+//         }
+//       }
+
+//       if (financialResponse.ok) {
+//         const financialResult = (await financialResponse.json()) as {
+//           success: boolean;
+//           data: FinancialData;
+//         };
+//         if (financialResult.success && financialResult.data) {
+//           setFinancialData(financialResult.data);
+//         }
+//       }
+//     } catch (err) {
+//       const errorMessage =
+//         err instanceof Error ? err.message : "An unexpected error occurred";
+//       setError(errorMessage);
+//       console.error("Analytics fetch error:", err);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   useEffect(() => {
+//     fetchAnalyticsData(timeRange);
+//   }, [timeRange]);
+
+//   const handleRetry = (): void => {
+//     fetchAnalyticsData(timeRange);
+//   };
+
+//   const handleRangeChange = (range: TimeRange): void => {
+//     setTimeRange(range);
+//   };
+
+//   if (loading) {
+//     return (
+//       <Container>
+//         <Header>
+//           <Title>Analytics Dashboard</Title>
+//           <HeaderControls>
+//             <DateFilter>
+//               {(["7d", "30d", "90d", "1y"] as TimeRange[]).map((range) => (
+//                 <FilterButton
+//                   key={range}
+//                   $active={timeRange === range}
+//                   disabled
+//                 >
+//                   {range.toUpperCase()}
+//                 </FilterButton>
+//               ))}
+//             </DateFilter>
+//           </HeaderControls>
+//         </Header>
+//         <LoadingState>
+//           <div>Loading analytics data...</div>
+//         </LoadingState>
+//       </Container>
+//     );
+//   }
+
+//   if (error) {
+//     return (
+//       <Container>
+//         <Header>
+//           <Title>Analytics Dashboard</Title>
+//           <HeaderControls>
+//             <DateFilter>
+//               {(["7d", "30d", "90d", "1y"] as TimeRange[]).map((range) => (
+//                 <FilterButton
+//                   key={range}
+//                   $active={timeRange === range}
+//                   onClick={() => handleRangeChange(range)}
+//                 >
+//                   {range.toUpperCase()}
+//                 </FilterButton>
+//               ))}
+//             </DateFilter>
+//           </HeaderControls>
+//         </Header>
+//         <ErrorState>
+//           <div>Error Loading Analytics</div>
+//           <div>{error}</div>
+//           <RetryButton onClick={handleRetry}>Try Again</RetryButton>
+//         </ErrorState>
+//       </Container>
+//     );
+//   }
+
+//   if (!stats) {
+//     return (
+//       <Container>
+//         <ErrorState>
+//           <div>No data available</div>
+//           <RetryButton onClick={handleRetry}>Retry</RetryButton>
+//         </ErrorState>
+//       </Container>
+//     );
+//   }
+
+//   const analyticsData = convertToAnalyticsData(
+//     stats,
+//     growthData,
+//     financialData,
+//     timeRange,
+//   );
+
+//   return (
+//     <Container>
+//       <Header>
+//         <Title>Analytics Dashboard</Title>
+//         <HeaderControls>
+//           <DateFilter>
+//             {(["7d", "30d", "90d", "1y"] as TimeRange[]).map((range) => (
+//               <FilterButton
+//                 key={range}
+//                 $active={timeRange === range}
+//                 onClick={() => handleRangeChange(range)}
+//               >
+//                 {range.toUpperCase()}
+//               </FilterButton>
+//             ))}
+//           </DateFilter>
+//         </HeaderControls>
+//       </Header>
+
+//       <ContentGrid>
+//         <AnalyticsSummary data={analyticsData.summary} />
+//         <MarketCoverage />
+//         <PlatformGrowth
+//           data={analyticsData.platformGrowth}
+//           timeRange={timeRange}
+//         />
+//         <FinancialOverview
+//           data={analyticsData.financialData}
+//           timeRange={timeRange}
+//         />
+//         <MarketingPerformance
+//           data={analyticsData.marketingPerformance}
+//           timeRange={timeRange}
+//         />
+//         <CustomerIntelligence
+//           data={analyticsData.customerIntelligence}
+//           timeRange={timeRange}
+//         />
+//         <CompetitiveInsights
+//           data={analyticsData.competitiveInsights}
+//           timeRange={timeRange}
+//         />
+//       </ContentGrid>
+//     </Container>
+//   );
+// };
+
+// export default AdminAnalytics;
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import { AdminUser, TimeRange } from "@/types/analytics";
 import {
@@ -2200,10 +2674,8 @@ import {
 import AnalyticsSummary from "../analytics-summary/AnalyticsSummary";
 import PlatformGrowth from "../platform-growth/PlatformGrowth";
 import FinancialOverview from "../financial-overview/FinancialOverview";
-import MarketingPerformance from "../marketing-performance/MarketingPerformance";
-import CustomerIntelligence from "../customer-intelligence/CustomerIntelligence";
-import CompetitiveInsights from "../competitive-insights/CompetitiveInsights";
 import MarketCoverage from "../market-coverage/MarketCoverage";
+import ActionItems from "../action-items/ActionItems";
 
 const Container = styled.div`
   padding: 1.5rem;
@@ -2413,6 +2885,13 @@ const convertToAnalyticsData = (
       barsMissingHours: stats.barsMissingHours,
       barsMissingDescription: stats.barsMissingDescription,
       barsUnverified: stats.barsUnverified,
+      barCompletionScore: stats.barCompletionScore,
+      barsWithNoStaff: stats.barsWithNoStaff,
+      barsInactiveOver30Days: stats.barsInactiveOver30Days,
+      topDistricts: stats.topDistricts,
+      citiesWithoutBars: stats.citiesWithoutBars || [],
+      helsinkiDistrictsWithZeroBars: stats.helsinkiDistrictsWithZeroBars || [],
+      barTypeGaps: stats.barTypeGaps || [],
     },
     platformGrowth: platformGrowth,
     financialData: financial,
@@ -2448,6 +2927,7 @@ interface AdminAnalyticsProps {
 }
 
 const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
+  const router = useRouter();
   const [timeRange, setTimeRange] = useState<TimeRange>("30d");
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [growthData, setGrowthData] = useState<PlatformGrowthData | null>(null);
@@ -2494,6 +2974,7 @@ const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
           (await summaryResponse.json()) as AdminApiResponse<AdminDashboardStats>;
         if (summaryResult.success && summaryResult.data) {
           setStats(summaryResult.data);
+          console.log("Stats loaded:", summaryResult.data);
         }
       }
 
@@ -2631,6 +3112,18 @@ const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
 
       <ContentGrid>
         <AnalyticsSummary data={analyticsData.summary} />
+        <ActionItems
+          barCompletionScore={stats.barCompletionScore}
+          barsWithNoStaff={stats.barsWithNoStaff}
+          barsInactiveOver30Days={stats.barsInactiveOver30Days}
+          topDistricts={stats.topDistricts}
+          citiesWithoutBars={stats.citiesWithoutBars || []}
+          helsinkiDistrictsWithZeroBars={
+            stats.helsinkiDistrictsWithZeroBars || []
+          }
+          barTypeGaps={stats.barTypeGaps || []}
+          onNavigate={(path: string) => router.push(path)}
+        />
         <MarketCoverage />
         <PlatformGrowth
           data={analyticsData.platformGrowth}
@@ -2638,18 +3131,6 @@ const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
         />
         <FinancialOverview
           data={analyticsData.financialData}
-          timeRange={timeRange}
-        />
-        <MarketingPerformance
-          data={analyticsData.marketingPerformance}
-          timeRange={timeRange}
-        />
-        <CustomerIntelligence
-          data={analyticsData.customerIntelligence}
-          timeRange={timeRange}
-        />
-        <CompetitiveInsights
-          data={analyticsData.competitiveInsights}
           timeRange={timeRange}
         />
       </ContentGrid>
