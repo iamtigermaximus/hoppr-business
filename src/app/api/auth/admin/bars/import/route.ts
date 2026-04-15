@@ -976,6 +976,365 @@
 //     sunday: { open: "14:00", close: "02:00" },
 //   };
 // }
+// import { NextRequest, NextResponse } from "next/server";
+// import { PrismaClient, BarType, PriceRange } from "@prisma/client";
+
+// const prisma = new PrismaClient();
+
+// const VALID_BAR_TYPES = [
+//   "PUB",
+//   "CLUB",
+//   "LOUNGE",
+//   "COCKTAIL_BAR",
+//   "RESTAURANT_BAR",
+//   "SPORTS_BAR",
+//   "KARAOKE",
+//   "LIVE_MUSIC",
+// ] as const;
+
+// const VALID_PRICE_RANGES = ["BUDGET", "MODERATE", "PREMIUM", "LUXURY"] as const;
+
+// interface CSVRecord {
+//   name?: string;
+//   type?: string;
+//   address?: string;
+//   city?: string;
+//   district?: string;
+//   latitude?: string;
+//   longitude?: string;
+//   phone?: string;
+//   email?: string;
+//   website?: string;
+//   instagram?: string;
+//   priceRange?: string;
+//   capacity?: string;
+//   amenities?: string;
+//   description?: string;
+//   operatingHours?: string;
+//   vipEnabled?: string;
+//   coverImage?: string;
+//   imageUrls?: string;
+//   logoUrl?: string;
+// }
+
+// async function verifyAdminToken(token: string) {
+//   try {
+//     const adminUser = await prisma.adminUser.findFirst({
+//       where: { isActive: true },
+//     });
+//     return adminUser;
+//   } catch (error) {
+//     console.error("Token verification error:", error);
+//     return null;
+//   }
+// }
+
+// function parseCSV(csvText: string): CSVRecord[] {
+//   const lines = csvText.split("\n").filter((line) => line.trim() !== "");
+//   if (lines.length < 2) return [];
+
+//   const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
+//   console.log("FUCKING HEADERS:", headers);
+
+//   const records: CSVRecord[] = [];
+//   for (let i = 1; i < lines.length; i++) {
+//     const line = lines[i];
+//     if (!line.trim()) continue;
+
+//     const values: string[] = [];
+//     let current = "";
+//     let inQuotes = false;
+
+//     for (let j = 0; j < line.length; j++) {
+//       const char = line[j];
+//       const nextChar = line[j + 1];
+
+//       if (char === '"') {
+//         if (inQuotes && nextChar === '"') {
+//           current += '"';
+//           j++;
+//         } else {
+//           inQuotes = !inQuotes;
+//         }
+//       } else if (char === "," && !inQuotes) {
+//         values.push(current.trim());
+//         current = "";
+//       } else {
+//         current += char;
+//       }
+//     }
+//     values.push(current.trim());
+
+//     const record: CSVRecord = {};
+//     headers.forEach((header, index) => {
+//       if (index < values.length) {
+//         const value = values[index].replace(/"/g, "").trim();
+//         record[header as keyof CSVRecord] = value;
+//       }
+//     });
+
+//     if (record.name && record.name.trim()) {
+//       records.push(record);
+//     }
+//   }
+
+//   console.log(`PARSED ${records.length} FUCKING RECORDS`);
+//   return records;
+// }
+
+// export async function POST(request: NextRequest) {
+//   try {
+//     console.log("STARTING FUCKING CSV IMPORT...");
+
+//     const token = request.headers.get("authorization")?.replace("Bearer ", "");
+//     if (!token) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
+
+//     const adminUser = await verifyAdminToken(token);
+//     if (!adminUser) {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+
+//     const formData = await request.formData();
+//     const csvFile = formData.get("csvFile") as File;
+//     if (!csvFile) {
+//       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+//     }
+
+//     if (csvFile.size > 10 * 1024 * 1024) {
+//       return NextResponse.json(
+//         { error: "File too large. Maximum size is 10MB." },
+//         { status: 400 }
+//       );
+//     }
+
+//     const csvText = await csvFile.text();
+//     console.log("RAW CSV:", csvText);
+
+//     const records = parseCSV(csvText);
+
+//     if (records.length === 0) {
+//       return NextResponse.json(
+//         { error: "CSV file is empty or has no valid data" },
+//         { status: 400 }
+//       );
+//     }
+
+//     console.log("FIRST RECORD:", records[0]);
+
+//     let importedCount = 0;
+//     let failedCount = 0;
+//     const errors: string[] = [];
+
+//     for (const [index, record] of records.entries()) {
+//       const rowNumber = index + 2;
+
+//       try {
+//         if (!record.name?.trim()) {
+//           errors.push(`Row ${rowNumber}: Missing bar name`);
+//           failedCount++;
+//           continue;
+//         }
+
+//         if (!record.type?.trim()) {
+//           errors.push(`Row ${rowNumber}: Missing bar type`);
+//           failedCount++;
+//           continue;
+//         }
+
+//         if (!record.address?.trim()) {
+//           errors.push(`Row ${rowNumber}: Missing address`);
+//           failedCount++;
+//           continue;
+//         }
+
+//         if (!record.city?.trim()) {
+//           errors.push(`Row ${rowNumber}: Missing city`);
+//           failedCount++;
+//           continue;
+//         }
+
+//         const barType = record.type.toUpperCase();
+//         if (
+//           !VALID_BAR_TYPES.includes(barType as (typeof VALID_BAR_TYPES)[number])
+//         ) {
+//           errors.push(
+//             `Row ${rowNumber}: Invalid bar type "${
+//               record.type
+//             }". Must be one of: ${VALID_BAR_TYPES.join(", ")}`
+//           );
+//           failedCount++;
+//           continue;
+//         }
+
+//         if (
+//           record.priceRange &&
+//           !VALID_PRICE_RANGES.includes(
+//             record.priceRange.toUpperCase() as (typeof VALID_PRICE_RANGES)[number]
+//           )
+//         ) {
+//           errors.push(
+//             `Row ${rowNumber}: Invalid price range "${
+//               record.priceRange
+//             }". Must be one of: ${VALID_PRICE_RANGES.join(", ")}`
+//           );
+//           failedCount++;
+//           continue;
+//         }
+
+//         let latitude: number | null = null;
+//         let longitude: number | null = null;
+
+//         if (record.latitude) {
+//           latitude = parseFloat(record.latitude);
+//           if (isNaN(latitude)) {
+//             errors.push(
+//               `Row ${rowNumber}: Invalid latitude "${record.latitude}"`
+//             );
+//             failedCount++;
+//             continue;
+//           }
+//         }
+
+//         if (record.longitude) {
+//           longitude = parseFloat(record.longitude);
+//           if (isNaN(longitude)) {
+//             errors.push(
+//               `Row ${rowNumber}: Invalid longitude "${record.longitude}"`
+//             );
+//             failedCount++;
+//             continue;
+//           }
+//         }
+
+//         let amenities: string[] = [];
+//         if (record.amenities) {
+//           amenities = record.amenities
+//             .split(",")
+//             .map((a) => a.trim())
+//             .filter(Boolean);
+//         }
+
+//         let imageUrls: string[] = [];
+//         if (record.imageUrls) {
+//           imageUrls = record.imageUrls
+//             .split(",")
+//             .map((url) => url.trim())
+//             .filter(Boolean);
+//         }
+
+//         let operatingHours = {};
+//         if (record.operatingHours) {
+//           try {
+//             operatingHours = JSON.parse(record.operatingHours);
+//           } catch (e) {
+//             console.log("Invalid operating hours, using default");
+//           }
+//         }
+
+//         const existingBar = await prisma.bar.findUnique({
+//           where: { name: record.name.trim() },
+//         });
+
+//         if (existingBar) {
+//           errors.push(`Row ${rowNumber}: Bar "${record.name}" already exists`);
+//           failedCount++;
+//           continue;
+//         }
+
+//         await prisma.bar.create({
+//           data: {
+//             name: record.name.trim(),
+//             type: barType as BarType,
+//             address: record.address.trim(),
+//             city: record.city.trim(),
+//             district: record.district?.trim() || null,
+//             latitude: latitude,
+//             longitude: longitude,
+//             phone: record.phone?.trim() || null,
+//             email: record.email?.trim() || null,
+//             website: record.website?.trim() || null,
+//             instagram: record.instagram?.trim() || null,
+//             priceRange: record.priceRange
+//               ? (record.priceRange.toUpperCase() as PriceRange)
+//               : null,
+//             capacity: record.capacity ? parseInt(record.capacity) : null,
+//             amenities: amenities,
+//             description: record.description?.trim() || null,
+//             operatingHours: operatingHours,
+//             vipEnabled: record.vipEnabled
+//               ? record.vipEnabled.toLowerCase() === "true"
+//               : false,
+//             coverImage: record.coverImage?.trim() || null,
+//             imageUrls: imageUrls,
+//             logoUrl: record.logoUrl?.trim() || null,
+//             status: "UNCLAIMED",
+//             isVerified: false,
+//             isActive: true,
+//             createdById: adminUser.id,
+//           },
+//         });
+
+//         importedCount++;
+//         console.log(`IMPORTED: ${record.name}`);
+//       } catch (error) {
+//         console.error(`ERROR ROW ${rowNumber}:`, error);
+//         errors.push(
+//           `Row ${rowNumber}: ${
+//             error instanceof Error ? error.message : "Unknown error"
+//           }`
+//         );
+//         failedCount++;
+//       }
+//     }
+
+//     console.log(
+//       `IMPORT COMPLETED: ${importedCount} imported, ${failedCount} failed`
+//     );
+
+//     try {
+//       await prisma.barImport.create({
+//         data: {
+//           fileName: csvFile.name,
+//           fileSize: csvFile.size,
+//           totalRows: records.length,
+//           importedRows: importedCount,
+//           failedRows: failedCount,
+//           status:
+//             failedCount === 0
+//               ? "COMPLETED"
+//               : failedCount === records.length
+//               ? "FAILED"
+//               : "PARTIAL",
+//           errors: errors.length > 0 ? errors : undefined,
+//           importedBy: adminUser.id,
+//         },
+//       });
+//     } catch (error) {
+//       console.log("NO AUDIT RECORD - BARIMPORT TABLE PROBABLY DOESN'T EXIST");
+//     }
+
+//     return NextResponse.json({
+//       success: true,
+//       imported: importedCount,
+//       failed: failedCount,
+//       total: records.length,
+//       errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+//     });
+//   } catch (error) {
+//     console.error("FUCKING CSV IMPORT ERROR:", error);
+//     return NextResponse.json(
+//       {
+//         error:
+//           "Internal server error: " +
+//           (error instanceof Error ? error.message : "Unknown error"),
+//       },
+//       { status: 500 }
+//     );
+//   }
+// }
+
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient, BarType, PriceRange } from "@prisma/client";
 
@@ -993,6 +1352,9 @@ const VALID_BAR_TYPES = [
 ] as const;
 
 const VALID_PRICE_RANGES = ["BUDGET", "MODERATE", "PREMIUM", "LUXURY"] as const;
+
+type ValidBarType = (typeof VALID_BAR_TYPES)[number];
+type ValidPriceRange = (typeof VALID_PRICE_RANGES)[number];
 
 interface CSVRecord {
   name?: string;
@@ -1017,6 +1379,19 @@ interface CSVRecord {
   logoUrl?: string;
 }
 
+interface DuplicateInfo {
+  row: number;
+  name: string;
+  reason: "within_file" | "already_in_database";
+}
+
+interface ImportResult {
+  imported: number;
+  skipped: number;
+  duplicates: DuplicateInfo[];
+  errors: string[];
+}
+
 async function verifyAdminToken(token: string) {
   try {
     const adminUser = await prisma.adminUser.findFirst({
@@ -1034,7 +1409,7 @@ function parseCSV(csvText: string): CSVRecord[] {
   if (lines.length < 2) return [];
 
   const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
-  console.log("FUCKING HEADERS:", headers);
+  console.log("HEADERS:", headers);
 
   const records: CSVRecord[] = [];
   for (let i = 1; i < lines.length; i++) {
@@ -1078,13 +1453,53 @@ function parseCSV(csvText: string): CSVRecord[] {
     }
   }
 
-  console.log(`PARSED ${records.length} FUCKING RECORDS`);
+  console.log(`PARSED ${records.length} RECORDS`);
   return records;
+}
+
+function parseAmenities(amenitiesStr: string): string[] {
+  if (!amenitiesStr) return [];
+  const trimmedStr = amenitiesStr.trim();
+
+  try {
+    const parsed = JSON.parse(trimmedStr);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string");
+    }
+  } catch {
+    // Not JSON, try other formats
+  }
+
+  if (trimmedStr.includes("'") && trimmedStr.startsWith("[")) {
+    return trimmedStr
+      .replace(/^\[|\]$/g, "")
+      .split(",")
+      .map((item) => item.trim().replace(/^'|'$/g, ""))
+      .filter(Boolean);
+  }
+
+  if (trimmedStr.includes(",")) {
+    return trimmedStr
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  if (trimmedStr) return [trimmedStr];
+  return [];
+}
+
+function isValidBarType(value: string): value is ValidBarType {
+  return VALID_BAR_TYPES.includes(value as ValidBarType);
+}
+
+function isValidPriceRange(value: string): value is ValidPriceRange {
+  return VALID_PRICE_RANGES.includes(value as ValidPriceRange);
 }
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("STARTING FUCKING CSV IMPORT...");
+    console.log("STARTING CSV IMPORT...");
 
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
     if (!token) {
@@ -1105,116 +1520,108 @@ export async function POST(request: NextRequest) {
     if (csvFile.size > 10 * 1024 * 1024) {
       return NextResponse.json(
         { error: "File too large. Maximum size is 10MB." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const csvText = await csvFile.text();
-    console.log("RAW CSV:", csvText);
-
     const records = parseCSV(csvText);
 
     if (records.length === 0) {
       return NextResponse.json(
         { error: "CSV file is empty or has no valid data" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    console.log("FIRST RECORD:", records[0]);
+    console.log(`Processing ${records.length} records...`);
 
-    let importedCount = 0;
-    let failedCount = 0;
-    const errors: string[] = [];
+    const result: ImportResult = {
+      imported: 0,
+      skipped: 0,
+      duplicates: [],
+      errors: [],
+    };
+
+    const processedNamesInFile = new Set<string>();
+    const barsToImport: { record: CSVRecord; rowNumber: number }[] = [];
 
     for (const [index, record] of records.entries()) {
       const rowNumber = index + 2;
 
+      if (!record.name?.trim()) {
+        result.errors.push(`Row ${rowNumber}: Missing bar name`);
+        result.skipped++;
+        continue;
+      }
+
+      const barName = record.name.trim();
+
+      if (processedNamesInFile.has(barName)) {
+        result.duplicates.push({
+          row: rowNumber,
+          name: barName,
+          reason: "within_file",
+        });
+        result.skipped++;
+        continue;
+      }
+
+      const existingBar = await prisma.bar.findUnique({
+        where: { name: barName },
+      });
+
+      if (existingBar) {
+        result.duplicates.push({
+          row: rowNumber,
+          name: barName,
+          reason: "already_in_database",
+        });
+        result.skipped++;
+        continue;
+      }
+
+      processedNamesInFile.add(barName);
+      barsToImport.push({ record, rowNumber });
+    }
+
+    console.log(`Found ${barsToImport.length} unique bars to import`);
+    console.log(`Skipping ${result.skipped} duplicates`);
+
+    for (const { record, rowNumber } of barsToImport) {
       try {
-        if (!record.name?.trim()) {
-          errors.push(`Row ${rowNumber}: Missing bar name`);
-          failedCount++;
-          continue;
+        const barName = record.name!.trim();
+
+        let barType: BarType = "PUB";
+        if (record.type) {
+          const upperType = record.type.toUpperCase();
+          if (isValidBarType(upperType)) {
+            barType = upperType;
+          }
         }
 
-        if (!record.type?.trim()) {
-          errors.push(`Row ${rowNumber}: Missing bar type`);
-          failedCount++;
-          continue;
-        }
-
-        if (!record.address?.trim()) {
-          errors.push(`Row ${rowNumber}: Missing address`);
-          failedCount++;
-          continue;
-        }
-
-        if (!record.city?.trim()) {
-          errors.push(`Row ${rowNumber}: Missing city`);
-          failedCount++;
-          continue;
-        }
-
-        const barType = record.type.toUpperCase();
-        if (
-          !VALID_BAR_TYPES.includes(barType as (typeof VALID_BAR_TYPES)[number])
-        ) {
-          errors.push(
-            `Row ${rowNumber}: Invalid bar type "${
-              record.type
-            }". Must be one of: ${VALID_BAR_TYPES.join(", ")}`
-          );
-          failedCount++;
-          continue;
-        }
-
-        if (
-          record.priceRange &&
-          !VALID_PRICE_RANGES.includes(
-            record.priceRange.toUpperCase() as (typeof VALID_PRICE_RANGES)[number]
-          )
-        ) {
-          errors.push(
-            `Row ${rowNumber}: Invalid price range "${
-              record.priceRange
-            }". Must be one of: ${VALID_PRICE_RANGES.join(", ")}`
-          );
-          failedCount++;
-          continue;
+        let priceRange: PriceRange | null = null;
+        if (record.priceRange) {
+          const upperRange = record.priceRange.toUpperCase();
+          if (isValidPriceRange(upperRange)) {
+            priceRange = upperRange;
+          }
         }
 
         let latitude: number | null = null;
         let longitude: number | null = null;
-
         if (record.latitude) {
-          latitude = parseFloat(record.latitude);
-          if (isNaN(latitude)) {
-            errors.push(
-              `Row ${rowNumber}: Invalid latitude "${record.latitude}"`
-            );
-            failedCount++;
-            continue;
-          }
+          const lat = parseFloat(record.latitude);
+          if (!isNaN(lat)) latitude = lat;
         }
-
         if (record.longitude) {
-          longitude = parseFloat(record.longitude);
-          if (isNaN(longitude)) {
-            errors.push(
-              `Row ${rowNumber}: Invalid longitude "${record.longitude}"`
-            );
-            failedCount++;
-            continue;
-          }
+          const lng = parseFloat(record.longitude);
+          if (!isNaN(lng)) longitude = lng;
         }
 
-        let amenities: string[] = [];
-        if (record.amenities) {
-          amenities = record.amenities
-            .split(",")
-            .map((a) => a.trim())
-            .filter(Boolean);
-        }
+        const amenities: string[] = record.amenities
+          ? parseAmenities(record.amenities)
+          : [];
 
         let imageUrls: string[] = [];
         if (record.imageUrls) {
@@ -1225,30 +1632,33 @@ export async function POST(request: NextRequest) {
         }
 
         let operatingHours = {};
-        if (record.operatingHours) {
+        if (record.operatingHours && record.operatingHours !== "{}") {
           try {
             operatingHours = JSON.parse(record.operatingHours);
           } catch (e) {
-            console.log("Invalid operating hours, using default");
+            console.log(
+              `Row ${rowNumber}: Invalid operating hours, using default`,
+            );
           }
         }
 
-        const existingBar = await prisma.bar.findUnique({
-          where: { name: record.name.trim() },
-        });
+        let vipEnabled = false;
+        if (record.vipEnabled) {
+          vipEnabled = record.vipEnabled.toLowerCase() === "true";
+        }
 
-        if (existingBar) {
-          errors.push(`Row ${rowNumber}: Bar "${record.name}" already exists`);
-          failedCount++;
-          continue;
+        let capacity: number | null = null;
+        if (record.capacity) {
+          const cap = parseInt(record.capacity);
+          if (!isNaN(cap)) capacity = cap;
         }
 
         await prisma.bar.create({
           data: {
-            name: record.name.trim(),
-            type: barType as BarType,
-            address: record.address.trim(),
-            city: record.city.trim(),
+            name: barName,
+            type: barType,
+            address: record.address?.trim() || "Address not provided",
+            city: record.city?.trim() || "Helsinki",
             district: record.district?.trim() || null,
             latitude: latitude,
             longitude: longitude,
@@ -1256,16 +1666,12 @@ export async function POST(request: NextRequest) {
             email: record.email?.trim() || null,
             website: record.website?.trim() || null,
             instagram: record.instagram?.trim() || null,
-            priceRange: record.priceRange
-              ? (record.priceRange.toUpperCase() as PriceRange)
-              : null,
-            capacity: record.capacity ? parseInt(record.capacity) : null,
+            priceRange: priceRange,
+            capacity: capacity,
             amenities: amenities,
             description: record.description?.trim() || null,
             operatingHours: operatingHours,
-            vipEnabled: record.vipEnabled
-              ? record.vipEnabled.toLowerCase() === "true"
-              : false,
+            vipEnabled: vipEnabled,
             coverImage: record.coverImage?.trim() || null,
             imageUrls: imageUrls,
             logoUrl: record.logoUrl?.trim() || null,
@@ -1276,22 +1682,30 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        importedCount++;
-        console.log(`IMPORTED: ${record.name}`);
+        result.imported++;
+        console.log(`✅ IMPORTED: ${barName}`);
       } catch (error) {
-        console.error(`ERROR ROW ${rowNumber}:`, error);
-        errors.push(
-          `Row ${rowNumber}: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
+        console.error(`ERROR Row ${rowNumber}:`, error);
+        result.errors.push(
+          `Row ${rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
-        failedCount++;
+        result.skipped++;
       }
     }
 
-    console.log(
-      `IMPORT COMPLETED: ${importedCount} imported, ${failedCount} failed`
-    );
+    console.log("\n=== IMPORT SUMMARY ===");
+    console.log(`📊 Total records in file: ${records.length}`);
+    console.log(`✅ Imported: ${result.imported}`);
+    console.log(`⏭️ Skipped: ${result.skipped}`);
+
+    if (result.duplicates.length > 0) {
+      console.log(`\n🔄 Duplicates found (${result.duplicates.length}):`);
+      for (const dup of result.duplicates) {
+        console.log(
+          `   Row ${dup.row}: "${dup.name}" - ${dup.reason === "within_file" ? "duplicate within same file" : "already exists in database"}`,
+        );
+      }
+    }
 
     try {
       await prisma.barImport.create({
@@ -1299,38 +1713,46 @@ export async function POST(request: NextRequest) {
           fileName: csvFile.name,
           fileSize: csvFile.size,
           totalRows: records.length,
-          importedRows: importedCount,
-          failedRows: failedCount,
+          importedRows: result.imported,
+          failedRows: result.skipped,
           status:
-            failedCount === 0
-              ? "COMPLETED"
-              : failedCount === records.length
+            result.imported === 0
               ? "FAILED"
-              : "PARTIAL",
-          errors: errors.length > 0 ? errors : undefined,
+              : result.skipped === 0
+                ? "COMPLETED"
+                : "PARTIAL",
+          errors:
+            result.errors.length > 0
+              ? result.errors
+              : result.duplicates.map(
+                  (d) =>
+                    `Row ${d.row}: Duplicate bar "${d.name}" (${d.reason === "within_file" ? "duplicate in file" : "already in database"})`,
+                ),
           importedBy: adminUser.id,
         },
       });
     } catch (error) {
-      console.log("NO AUDIT RECORD - BARIMPORT TABLE PROBABLY DOESN'T EXIST");
+      console.log("Note: barImport table doesn't exist, skipping audit log");
     }
 
     return NextResponse.json({
       success: true,
-      imported: importedCount,
-      failed: failedCount,
+      imported: result.imported,
+      skipped: result.skipped,
       total: records.length,
-      errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+      duplicates: result.duplicates,
+      errors: result.errors,
+      message: `✅ Imported ${result.imported} new bars. ⏭️ Skipped ${result.skipped} duplicates.`,
     });
   } catch (error) {
-    console.error("FUCKING CSV IMPORT ERROR:", error);
+    console.error("CSV IMPORT ERROR:", error);
     return NextResponse.json(
       {
         error:
           "Internal server error: " +
           (error instanceof Error ? error.message : "Unknown error"),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
