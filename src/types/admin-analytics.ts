@@ -38,6 +38,37 @@
 // }
 export type AdminTimeRange = "7d" | "30d" | "90d" | "1y";
 
+// Top Bar by Views
+export interface TopBarByViews {
+  id: string;
+  name: string;
+  type: string;
+  city: string;
+  district: string | null;
+  profileViews: number;
+  coverImage: string | null;
+}
+
+// Top Bar by Completion
+export interface TopBarByCompletion {
+  id: string;
+  name: string;
+  type: string;
+  city: string;
+  district: string | null;
+  completionScore: number;
+  profileViews: number;
+}
+
+// Bars Needing Attention Issue
+export interface NeedingAttentionIssue {
+  reason: string;
+  count: number;
+  priority: "high" | "medium" | "low";
+  action: string;
+}
+
+// Main Admin Dashboard Stats
 export interface AdminDashboardStats {
   // Core metrics
   totalBars: number;
@@ -75,8 +106,17 @@ export interface AdminDashboardStats {
   citiesWithoutBars: string[];
   helsinkiDistrictsWithZeroBars: string[];
   barTypeGaps: Array<{ type: string; count: number; status: string }>;
+
+  // Bar Engagement Metrics
+  totalProfileViews: number;
+  avgViewsPerBar: number;
+  barsWithZeroViews: number;
+  topBarsByViews: TopBarByViews[];
+  topBarsByCompletion: TopBarByCompletion[];
+  barsNeedingAttention: NeedingAttentionIssue[];
 }
 
+// Platform Growth Data
 export interface PlatformGrowthData {
   labels: string[];
   barsData: number[];
@@ -92,6 +132,7 @@ export interface PlatformGrowthData {
   userGrowthRate: number;
 }
 
+// Financial Data
 export interface FinancialData {
   totalRevenue: number;
   platformRevenue: number;
@@ -103,6 +144,7 @@ export interface FinancialData {
   passSalesGrowth: number;
 }
 
+// API Response Wrapper
 export interface AdminApiResponse<T> {
   success: boolean;
   data?: T;

@@ -62,6 +62,13 @@ model Bar {
   // VIP Features
   vipEnabled Boolean @default(false)
 
+  // Engagement Metrics (tracked by mobile app)
+  profileViews     Int @default(0)
+  directionClicks  Int @default(0)
+  callClicks       Int @default(0)
+  websiteClicks    Int @default(0)
+  shareCount       Int @default(0)
+
   // Timestamps
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt

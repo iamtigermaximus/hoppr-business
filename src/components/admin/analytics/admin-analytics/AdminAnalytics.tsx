@@ -2676,6 +2676,9 @@ import PlatformGrowth from "../platform-growth/PlatformGrowth";
 import FinancialOverview from "../financial-overview/FinancialOverview";
 import MarketCoverage from "../market-coverage/MarketCoverage";
 import ActionItems from "../action-items/ActionItems";
+import BarEngagementSummary from "../bar-engagement-summary/BarEngagementSummary";
+import TopPerformingBars from "../top-performing-bars/TopPerformingBars";
+import BarsNeedingAttention from "../bars-needing-attention/BarsNeedingAttention";
 
 const Container = styled.div`
   padding: 1.5rem;
@@ -3112,6 +3115,21 @@ const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
 
       <ContentGrid>
         <AnalyticsSummary data={analyticsData.summary} />
+
+        <BarEngagementSummary
+          totalProfileViews={stats.totalProfileViews || 0}
+          avgViewsPerBar={stats.avgViewsPerBar || 0}
+          barsWithZeroViews={stats.barsWithZeroViews || 0}
+          totalBars={stats.totalBars}
+        />
+
+        <TopPerformingBars
+          topByViews={stats.topBarsByViews || []}
+          topByCompletion={stats.topBarsByCompletion || []}
+        />
+
+        <BarsNeedingAttention issues={stats.barsNeedingAttention || []} />
+
         <ActionItems
           barCompletionScore={stats.barCompletionScore}
           barsWithNoStaff={stats.barsWithNoStaff}
@@ -3124,6 +3142,7 @@ const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
           barTypeGaps={stats.barTypeGaps || []}
           onNavigate={(path: string) => router.push(path)}
         />
+
         <MarketCoverage />
         <PlatformGrowth
           data={analyticsData.platformGrowth}

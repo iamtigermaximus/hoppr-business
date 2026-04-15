@@ -797,35 +797,17 @@ export async function GET(request: NextRequest) {
       count: d._count.id,
     }));
 
-    // CITIES WITHOUT BARS - Simple and dynamic
-    const citiesWithBars = await prisma.bar.groupBy({
-      by: ["city"],
-      _count: { id: true },
-    });
-
-    const citiesWithBarsSet = new Set(citiesWithBars.map((c) => c.city));
-
-    // List of target cities (you can add more as you expand)
-    const targetCities = ["Helsinki", "Espoo", "Vantaa", "Kauniainen"];
-
-    const citiesWithoutBars = targetCities.filter(
-      (city) => !citiesWithBarsSet.has(city),
-    );
-
-    // DISTRICTS WITH ZERO BARS - Only for Helsinki (since other cities have fewer districts)
+    // Districts with 0 bars
     const existingDistrictsRaw = await prisma.bar.groupBy({
-      by: ["district", "city"],
+      by: ["district"],
       where: { district: { not: null } },
     });
 
-    const existingHelsinkiDistricts = new Set(
-      existingDistrictsRaw
-        .filter((d) => d.city === "Helsinki")
-        .map((d) => d.district as string),
+    const existingDistrictSet = new Set(
+      existingDistrictsRaw.map((d) => d.district as string),
     );
 
-    // Helsinki districts (can be expanded)
-    const helsinkiDistricts = [
+    const knownDistricts = [
       "Kamppi",
       "Kallio",
       "Punavuori",
@@ -861,8 +843,20 @@ export async function GET(request: NextRequest) {
       "Taka-Töölö",
     ];
 
-    const helsinkiDistrictsWithZeroBars = helsinkiDistricts.filter(
-      (district) => !existingHelsinkiDistricts.has(district),
+    const helsinkiDistrictsWithZeroBars = knownDistricts.filter(
+      (d) => !existingDistrictSet.has(d),
+    );
+
+    // Cities without bars
+    const citiesWithBars = await prisma.bar.groupBy({
+      by: ["city"],
+      _count: { id: true },
+    });
+
+    const citiesWithBarsSet = new Set(citiesWithBars.map((c) => c.city));
+    const targetCities = ["Helsinki", "Espoo", "Vantaa", "Kauniainen"];
+    const citiesWithoutBars = targetCities.filter(
+      (city) => !citiesWithBarsSet.has(city),
     );
 
     // Bar type gaps
@@ -894,6 +888,132 @@ export async function GET(request: NextRequest) {
         status: existingTypeMap.has(type) ? "exists" : "missing",
       }))
       .filter((t) => t.count < 5);
+
+    // ========== BAR ENGAGEMENT METRICS ==========
+    // Total profile views across all bars
+    const totalProfileViewsAgg = await prisma.bar.aggregate({
+      _sum: { profileViews: true },
+    });
+    const totalProfileViews = totalProfileViewsAgg._sum.profileViews || 0;
+
+    // Average views per bar
+    const avgViewsPerBar =
+      totalBars > 0 ? Math.round(totalProfileViews / totalBars) : 0;
+
+    // Bars with zero profile views
+    const barsWithZeroViews = await prisma.bar.count({
+      where: { profileViews: 0 },
+    });
+
+    // Top 10 performing bars by profile views
+    const topBarsByViewsRaw = await prisma.bar.findMany({
+      where: { profileViews: { gt: 0 } },
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        city: true,
+        district: true,
+        profileViews: true,
+        coverImage: true,
+      },
+      orderBy: { profileViews: "desc" },
+      take: 10,
+    });
+
+    const topBarsByViews = topBarsByViewsRaw.map((bar) => ({
+      id: bar.id,
+      name: bar.name,
+      type: bar.type,
+      city: bar.city,
+      district: bar.district,
+      profileViews: bar.profileViews,
+      coverImage: bar.coverImage,
+    }));
+
+    // Top 10 bars by completion score
+    const allBarsForCompletion = await prisma.bar.findMany({
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        city: true,
+        district: true,
+        description: true,
+        coverImage: true,
+        operatingHours: true,
+        phone: true,
+        website: true,
+        amenities: true,
+        profileViews: true,
+      },
+    });
+
+    const barsWithCompletionScores = allBarsForCompletion.map((bar) => {
+      let score = 0;
+      const totalFields = 6;
+      if (bar.description) score++;
+      if (bar.coverImage) score++;
+      if (bar.operatingHours && Object.keys(bar.operatingHours).length > 0)
+        score++;
+      if (bar.phone) score++;
+      if (bar.website) score++;
+      if (bar.amenities && bar.amenities.length > 0) score++;
+      const completionScore = Math.round((score / totalFields) * 100);
+      return {
+        id: bar.id,
+        name: bar.name,
+        type: bar.type,
+        city: bar.city,
+        district: bar.district,
+        completionScore,
+        profileViews: bar.profileViews,
+      };
+    });
+
+    const topBarsByCompletion = barsWithCompletionScores
+      .sort((a, b) => b.completionScore - a.completionScore)
+      .slice(0, 10);
+
+    // Bars needing attention (prioritized list)
+    const barsNeedingAttention = [
+      {
+        reason: "No staff assigned",
+        count: barsWithNoStaff,
+        priority: "high" as const,
+        action: "Reach out to claim the bar",
+      },
+      {
+        reason: "Missing operating hours",
+        count: barsMissingHours,
+        priority: "high" as const,
+        action: "Add operating hours",
+      },
+      {
+        reason: "Missing cover image",
+        count: barsMissingImages,
+        priority: "medium" as const,
+        action: "Upload a cover image",
+      },
+      {
+        reason: "Missing description",
+        count: barsMissingDescription,
+        priority: "medium" as const,
+        action: "Add bar description",
+      },
+      {
+        reason: "Zero profile views",
+        count: barsWithZeroViews,
+        priority: "medium" as const,
+        action: "Promote the bar",
+      },
+      {
+        reason: "Inactive >30 days",
+        count: barsInactiveOver30Days,
+        priority: "high" as const,
+        action: "Contact bar owner",
+      },
+    ].filter((item) => item.count > 0);
 
     // VIP pass sales (placeholder)
     let vipPassSales = 0;
@@ -1023,9 +1143,16 @@ export async function GET(request: NextRequest) {
       barsWithNoStaff,
       barsInactiveOver30Days,
       topDistricts,
-      citiesWithoutBars, // NEW: Cities with no bars
-      helsinkiDistrictsWithZeroBars, // NEW: Helsinki districts with no bars
+      citiesWithoutBars,
+      helsinkiDistrictsWithZeroBars,
       barTypeGaps,
+      // Bar Engagement Metrics
+      totalProfileViews,
+      avgViewsPerBar,
+      barsWithZeroViews,
+      topBarsByViews,
+      topBarsByCompletion,
+      barsNeedingAttention,
     };
 
     return NextResponse.json({
