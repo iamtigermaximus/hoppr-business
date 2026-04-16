@@ -117,6 +117,59 @@
 //   return <DashboardContent user={data.user} stats={data.stats} />;
 // }
 
+// import { redirect } from "next/navigation";
+// import { cookies } from "next/headers";
+// import { authService } from "@/services/auth-service";
+// import DashboardContent from "@/components/admin/dashboard/DashboardContent";
+
+// async function getDashboardData() {
+//   const cookieStore = await cookies();
+//   const token = cookieStore.get("hoppr_token")?.value;
+
+//   console.log("🔍 Dashboard - Token exists:", !!token);
+
+//   if (!token) {
+//     console.log("❌ No token, redirecting to login");
+//     redirect("/login");
+//   }
+
+//   try {
+//     const authResult = await authService.validateToken(token);
+
+//     if (authResult.type !== "admin") {
+//       console.log("❌ Not admin, redirecting to login");
+//       redirect("/login");
+//     }
+
+//     console.log("✅ Admin authenticated:", authResult.user.email);
+
+//     // USE HARDCODED STATS - DON'T CALL THE API
+//     const stats = {
+//       totalBars: 111,
+//       activeBars: 111,
+//       pendingVerification: 0,
+//       vipPassSales: 0,
+//       totalRevenue: 0,
+//       userGrowth: 8.5,
+//       barGrowth: 12.5,
+//       revenueGrowth: 0,
+//       newUsers: 9,
+//     };
+
+//     console.log("📊 Using hardcoded stats:", stats);
+
+//     return { user: authResult.user, stats };
+//   } catch (error) {
+//     console.error("Error fetching dashboard data:", error);
+//     redirect("/login");
+//   }
+// }
+
+// export default async function DashboardPage() {
+//   const data = await getDashboardData();
+//   return <DashboardContent user={data.user} stats={data.stats} />;
+// }
+// app/admin/dashboard/page.tsx
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { authService } from "@/services/auth-service";
@@ -126,46 +179,21 @@ async function getDashboardData() {
   const cookieStore = await cookies();
   const token = cookieStore.get("hoppr_token")?.value;
 
-  console.log("🔍 Dashboard - Token exists:", !!token);
-
   if (!token) {
-    console.log("❌ No token, redirecting to login");
     redirect("/login");
   }
 
-  try {
-    const authResult = await authService.validateToken(token);
+  const authResult = await authService.validateToken(token);
 
-    if (authResult.type !== "admin") {
-      console.log("❌ Not admin, redirecting to login");
-      redirect("/login");
-    }
-
-    console.log("✅ Admin authenticated:", authResult.user.email);
-
-    // USE HARDCODED STATS - DON'T CALL THE API
-    const stats = {
-      totalBars: 111,
-      activeBars: 111,
-      pendingVerification: 0,
-      vipPassSales: 0,
-      totalRevenue: 0,
-      userGrowth: 8.5,
-      barGrowth: 12.5,
-      revenueGrowth: 0,
-      newUsers: 9,
-    };
-
-    console.log("📊 Using hardcoded stats:", stats);
-
-    return { user: authResult.user, stats };
-  } catch (error) {
-    console.error("Error fetching dashboard data:", error);
+  if (authResult.type !== "admin") {
     redirect("/login");
   }
+
+  // Just return user info, DashboardContent will fetch stats itself
+  return { user: authResult.user };
 }
 
 export default async function DashboardPage() {
   const data = await getDashboardData();
-  return <DashboardContent user={data.user} stats={data.stats} />;
+  return <DashboardContent />;
 }
