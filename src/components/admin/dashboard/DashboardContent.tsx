@@ -1585,6 +1585,8 @@ const DashboardContent = () => {
           "/api/auth/admin/analytics/summary?range=30d",
           {
             headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+            next: { revalidate: 0 },
           },
         );
 
