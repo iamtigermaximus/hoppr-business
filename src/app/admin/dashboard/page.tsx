@@ -43,6 +43,79 @@
 //   return <DashboardContent user={data.user} stats={data.stats} />;
 // }
 // src/app/(admin)/dashboard/page.tsx
+// import { redirect } from "next/navigation";
+// import { cookies } from "next/headers";
+// import { authService } from "@/services/auth-service";
+// import DashboardContent from "@/components/admin/dashboard/DashboardContent";
+
+// async function getDashboardData() {
+//   const cookieStore = await cookies();
+//   const token = cookieStore.get("hoppr_token")?.value;
+
+//   if (!token) {
+//     redirect("/login");
+//   }
+
+//   try {
+//     const authResult = await authService.validateToken(token);
+
+//     if (authResult.type !== "admin") {
+//       redirect("/login");
+//     }
+
+//     // Fetch real data from your analytics API
+//     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+//     const response = await fetch(
+//       `${apiUrl}/api/auth/admin/analytics/summary?range=30d`,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${token}`,
+//         },
+//         cache: "no-store", // Don't cache for real-time data
+//       },
+//     );
+
+//     let stats = {
+//       totalBars: 0,
+//       activeBars: 0,
+//       pendingVerification: 0,
+//       vipPassSales: 0,
+//       totalRevenue: 0,
+//       userGrowth: 0,
+//       barGrowth: 0,
+//       revenueGrowth: 0,
+//       newUsers: 0,
+//     };
+
+//     if (response.ok) {
+//       const result = await response.json();
+//       if (result.success && result.data) {
+//         stats = {
+//           totalBars: result.data.totalBars,
+//           activeBars: result.data.activeBars,
+//           pendingVerification: result.data.pendingVerification,
+//           vipPassSales: result.data.vipPassSales,
+//           totalRevenue: result.data.totalRevenue,
+//           userGrowth: result.data.userGrowth,
+//           barGrowth: result.data.barGrowth,
+//           revenueGrowth: result.data.revenueGrowth,
+//           newUsers: result.data.newUsers,
+//         };
+//       }
+//     }
+
+//     return { user: authResult.user, stats };
+//   } catch (error) {
+//     console.error("Error fetching dashboard data:", error);
+//     redirect("/login");
+//   }
+// }
+
+// export default async function DashboardPage() {
+//   const data = await getDashboardData();
+//   return <DashboardContent user={data.user} stats={data.stats} />;
+// }
+
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { authService } from "@/services/auth-service";
@@ -52,7 +125,10 @@ async function getDashboardData() {
   const cookieStore = await cookies();
   const token = cookieStore.get("hoppr_token")?.value;
 
+  console.log("🔍 Dashboard - Token exists:", !!token);
+
   if (!token) {
+    console.log("❌ No token, redirecting to login");
     redirect("/login");
   }
 
@@ -60,49 +136,26 @@ async function getDashboardData() {
     const authResult = await authService.validateToken(token);
 
     if (authResult.type !== "admin") {
+      console.log("❌ Not admin, redirecting to login");
       redirect("/login");
     }
 
-    // Fetch real data from your analytics API
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
-    const response = await fetch(
-      `${apiUrl}/api/auth/admin/analytics/summary?range=30d`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        cache: "no-store", // Don't cache for real-time data
-      },
-    );
+    console.log("✅ Admin authenticated:", authResult.user.email);
 
-    let stats = {
-      totalBars: 0,
-      activeBars: 0,
+    // USE HARDCODED STATS - DON'T CALL THE API
+    const stats = {
+      totalBars: 111,
+      activeBars: 111,
       pendingVerification: 0,
       vipPassSales: 0,
       totalRevenue: 0,
-      userGrowth: 0,
-      barGrowth: 0,
+      userGrowth: 8.5,
+      barGrowth: 12.5,
       revenueGrowth: 0,
-      newUsers: 0,
+      newUsers: 9,
     };
 
-    if (response.ok) {
-      const result = await response.json();
-      if (result.success && result.data) {
-        stats = {
-          totalBars: result.data.totalBars,
-          activeBars: result.data.activeBars,
-          pendingVerification: result.data.pendingVerification,
-          vipPassSales: result.data.vipPassSales,
-          totalRevenue: result.data.totalRevenue,
-          userGrowth: result.data.userGrowth,
-          barGrowth: result.data.barGrowth,
-          revenueGrowth: result.data.revenueGrowth,
-          newUsers: result.data.newUsers,
-        };
-      }
-    }
+    console.log("📊 Using hardcoded stats:", stats);
 
     return { user: authResult.user, stats };
   } catch (error) {
