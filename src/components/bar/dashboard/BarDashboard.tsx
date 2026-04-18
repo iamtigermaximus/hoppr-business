@@ -1,12 +1,12 @@
 // src/components/bar/dashboard/BarDashboardContent.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import BarStaffManager from "@/components/bar/staff/BarStaffManager";
 import PromotionsWizard from "@/components/bar/promotions/PromotionsWizard";
 import AnalyticsDashboard from "@/components/bar/analytics/AnalyticsDashboard";
 import QRScanner from "@/components/bar/qr/QRScanner";
-import BarIntelligenceHub from "@/components/bar/intelligence/BarIntelligenceHub"; // Add this import
+import BarIntelligenceHub from "@/components/bar/intelligence/BarIntelligenceHub";
 import styled from "styled-components";
 
 const Container = styled.div`
@@ -152,7 +152,9 @@ const StatCard = styled.div`
   border-radius: 0.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
 
   &:hover {
     transform: translateY(-2px);
@@ -290,6 +292,9 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     | "intelligence"
   >("overview");
 
+  const [dashboardStats, setDashboardStats] = useState<BarStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+
   // Check user permissions for tab access
   const canManageStaff = ["OWNER", "MANAGER"].includes(user.staffRole);
   const canManagePromotions = [
@@ -298,7 +303,7 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     "PROMOTIONS_MANAGER",
   ].includes(user.staffRole);
   const canViewAnalytics = ["OWNER", "MANAGER", "PROMOTIONS_MANAGER"].includes(
-    user.staffRole
+    user.staffRole,
   );
   const canUseScanner = [
     "OWNER",
@@ -311,6 +316,56 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     "MANAGER",
     "PROMOTIONS_MANAGER",
   ].includes(user.staffRole);
+
+  const getToken = (): string | null => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hoppr_token");
+    }
+    return null;
+  };
+
+  const fetchDashboardStats = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const response = await fetch(`/api/bar/${user.barId}/dashboard/stats`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setDashboardStats(data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch dashboard stats:", error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardStats();
+  }, [user.barId]);
+
+  const displayStats = dashboardStats || stats;
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toLocaleString();
+  };
+
+  if (statsLoading) {
+    return (
+      <Container>
+        <WelcomeSection>
+          <Title>Welcome to {user.barName}! 🎉</Title>
+          <Subtitle>Loading your dashboard...</Subtitle>
+        </WelcomeSection>
+      </Container>
+    );
+  }
 
   return (
     <Container>
@@ -386,22 +441,24 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
             {/* Stats Grid */}
             <StatsGrid>
               <StatCard>
-                <StatValue>{stats.vipPassSales.toLocaleString()}</StatValue>
+                <StatValue>{formatNumber(displayStats.vipPassSales)}</StatValue>
                 <StatLabel>VIP Pass Sales</StatLabel>
               </StatCard>
 
               <StatCard>
-                <StatValue>€{stats.revenue.toLocaleString()}</StatValue>
+                <StatValue>€{formatNumber(displayStats.revenue)}</StatValue>
                 <StatLabel>Revenue</StatLabel>
               </StatCard>
 
               <StatCard>
-                <StatValue>{stats.profileViews.toLocaleString()}</StatValue>
+                <StatValue>{formatNumber(displayStats.profileViews)}</StatValue>
                 <StatLabel>Profile Views</StatLabel>
               </StatCard>
 
               <StatCard>
-                <StatValue>{stats.promotionClicks.toLocaleString()}</StatValue>
+                <StatValue>
+                  {formatNumber(displayStats.promotionClicks)}
+                </StatValue>
                 <StatLabel>Promotion Clicks</StatLabel>
               </StatCard>
             </StatsGrid>

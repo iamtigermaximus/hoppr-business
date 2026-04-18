@@ -82,6 +82,7 @@ model Bar {
   vipPassScans VIPPassScan[] // ← ADDED THIS
   createdBy    AdminUser?     @relation("BarCreatedBy", fields: [createdById], references: [id])
   createdById  String?
+  invitations  BarInvitation[] 
 
   @@map("bars")
 }
@@ -282,4 +283,21 @@ enum ImportStatus {
   COMPLETED
   FAILED
   PARTIAL
+}
+
+model BarInvitation {
+  id           String   @id @default(cuid())
+  barId        String
+  email        String
+  name         String
+  role         BarStaffRole @default(OWNER)
+  token        String   @unique
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bar          Bar      @relation(fields: [barId], references: [id])
+
+  @@map("bar_invitations")
 }

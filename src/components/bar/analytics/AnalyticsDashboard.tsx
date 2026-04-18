@@ -217,9 +217,17 @@ const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
   >("overview");
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(
-    null
+    null,
   );
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const getToken = (): string | null => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hoppr_token");
+    }
+    return null;
+  };
 
   useEffect(() => {
     fetchAnalyticsData();
@@ -228,51 +236,71 @@ const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem("hoppr_token");
+      setError(null);
+      const token = getToken();
+
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
       const response = await fetch(
         `/api/bar/${barId}/analytics?range=${timeRange}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        }
+        },
       );
 
-      if (response.ok) {
-        const data: AnalyticsData = await response.json();
-        setAnalyticsData(data);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch analytics: ${response.status}`);
       }
+
+      const data: AnalyticsData = await response.json();
+      setAnalyticsData(data);
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load analytics",
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const mockData: AnalyticsData = {
-    period: timeRange,
-    profileViews: 1234,
-    vipPassSales: 89,
-    revenue: 2225,
-    promotionClicks: 456,
-    socialCheckins: 342,
-    topPromotions: [
-      { name: "Friday Night Special", usage: 156, revenue: 780 },
-      { name: "VIP Lounge Access", usage: 89, revenue: 890 },
-      { name: "Happy Hour", usage: 203, revenue: 455 },
-    ],
-    customerDemographics: {
-      newCustomers: 45,
-      returningCustomers: 67,
-      vipCustomers: 22,
-    },
-  };
-
-  const data = analyticsData || mockData;
-
   if (loading) {
     return <Container>Loading analytics...</Container>;
   }
+
+  if (error) {
+    return (
+      <Container>
+        <div style={{ color: "#ef4444", textAlign: "center", padding: "2rem" }}>
+          Error: {error}
+          <button
+            onClick={fetchAnalyticsData}
+            style={{
+              marginTop: "1rem",
+              padding: "0.5rem 1rem",
+              cursor: "pointer",
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      </Container>
+    );
+  }
+
+  if (!analyticsData) {
+    return <Container>No data available</Container>;
+  }
+
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toLocaleString();
+  };
 
   return (
     <Container>
@@ -319,33 +347,25 @@ const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
         <>
           <StatsGrid>
             <StatCard>
-              <StatValue>{data.vipPassSales}</StatValue>
+              <StatValue>{formatNumber(analyticsData.vipPassSales)}</StatValue>
               <StatLabel>VIP Pass Sales</StatLabel>
-              <StatChange $positive={true}>
-                +12% from previous period
-              </StatChange>
             </StatCard>
 
             <StatCard>
-              <StatValue>€{data.revenue}</StatValue>
+              <StatValue>€{formatNumber(analyticsData.revenue)}</StatValue>
               <StatLabel>Revenue</StatLabel>
-              <StatChange $positive={true}>+8% from previous period</StatChange>
             </StatCard>
 
             <StatCard>
-              <StatValue>{data.profileViews}</StatValue>
+              <StatValue>{formatNumber(analyticsData.profileViews)}</StatValue>
               <StatLabel>Profile Views</StatLabel>
-              <StatChange $positive={true}>
-                +15% from previous period
-              </StatChange>
             </StatCard>
 
             <StatCard>
-              <StatValue>{data.promotionClicks}</StatValue>
+              <StatValue>
+                {formatNumber(analyticsData.promotionClicks)}
+              </StatValue>
               <StatLabel>Promotion Clicks</StatLabel>
-              <StatChange $positive={false}>
-                -3% from previous period
-              </StatChange>
             </StatCard>
           </StatsGrid>
 
@@ -374,11 +394,11 @@ const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
               </tr>
             </thead>
             <tbody>
-              {data.topPromotions.map((promotion, index) => (
+              {analyticsData.topPromotions.map((promotion, index) => (
                 <tr key={index}>
                   <TableCell>{promotion.name}</TableCell>
                   <TableCell>{promotion.usage} times</TableCell>
-                  <TableCell>€{promotion.revenue}</TableCell>
+                  <TableCell>€{formatNumber(promotion.revenue)}</TableCell>
                 </tr>
               ))}
             </tbody>
@@ -391,17 +411,23 @@ const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
           <ChartTitle>Customer Demographics</ChartTitle>
           <StatsGrid>
             <StatCard>
-              <StatValue>{data.customerDemographics.newCustomers}</StatValue>
+              <StatValue>
+                {formatNumber(analyticsData.customerDemographics.newCustomers)}
+              </StatValue>
               <StatLabel>New Customers</StatLabel>
             </StatCard>
             <StatCard>
               <StatValue>
-                {data.customerDemographics.returningCustomers}
+                {formatNumber(
+                  analyticsData.customerDemographics.returningCustomers,
+                )}
               </StatValue>
               <StatLabel>Returning Customers</StatLabel>
             </StatCard>
             <StatCard>
-              <StatValue>{data.customerDemographics.vipCustomers}</StatValue>
+              <StatValue>
+                {formatNumber(analyticsData.customerDemographics.vipCustomers)}
+              </StatValue>
               <StatLabel>VIP Customers</StatLabel>
             </StatCard>
           </StatsGrid>

@@ -561,9 +561,10 @@
 import { useState, useEffect } from "react";
 import styled from "styled-components";
 
+// Styled Components with Responsive Design
 const Container = styled.div`
   padding: 1.5rem;
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   width: 100%;
 
@@ -581,19 +582,13 @@ const Title = styled.h1`
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: #1f2937;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 
   @media (max-width: 768px) {
     font-size: 1.5rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
   }
 
   @media (max-width: 480px) {
-    font-size: 1.375rem;
+    font-size: 1.25rem;
   }
 `;
 
@@ -608,7 +603,8 @@ const Subtitle = styled.p`
   }
 
   @media (max-width: 480px) {
-    font-size: 0.9rem;
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
   }
 `;
 
@@ -622,7 +618,6 @@ const BackButton = styled.button`
   padding: 0.5rem 1rem;
   border-radius: 0.375rem;
   cursor: pointer;
-  font-weight: 500;
   margin-bottom: 1.5rem;
   transition: all 0.2s;
 
@@ -634,7 +629,7 @@ const BackButton = styled.button`
   @media (max-width: 480px) {
     width: 100%;
     justify-content: center;
-    padding: 0.75rem 1rem;
+    padding: 0.75rem;
   }
 `;
 
@@ -645,12 +640,12 @@ const ModeSelector = styled.div`
   margin-bottom: 2rem;
 
   @media (max-width: 768px) {
-    grid-template-columns: 1fr;
     gap: 1rem;
   }
 
-  @media (max-width: 480px) {
-    gap: 0.75rem;
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
   }
 `;
 
@@ -675,7 +670,6 @@ const ModeCard = styled.div<{ $selected: boolean }>`
 
   @media (max-width: 480px) {
     padding: 1.25rem;
-    text-align: left;
   }
 `;
 
@@ -683,9 +677,12 @@ const ModeIcon = styled.div`
   font-size: 3rem;
   margin-bottom: 1rem;
 
-  @media (max-width: 480px) {
+  @media (max-width: 768px) {
     font-size: 2.5rem;
-    margin-bottom: 0.75rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 2rem;
   }
 `;
 
@@ -695,9 +692,12 @@ const ModeTitle = styled.h3`
   margin-bottom: 0.5rem;
   color: #1f2937;
 
-  @media (max-width: 480px) {
+  @media (max-width: 768px) {
     font-size: 1.25rem;
-    margin-bottom: 0.375rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.125rem;
   }
 `;
 
@@ -706,9 +706,8 @@ const ModeDescription = styled.p`
   margin-bottom: 1rem;
   line-height: 1.5;
 
-  @media (max-width: 480px) {
+  @media (max-width: 768px) {
     font-size: 0.875rem;
-    margin-bottom: 0.75rem;
   }
 `;
 
@@ -719,10 +718,17 @@ const AITag = styled.span`
   border-radius: 1rem;
   font-size: 0.75rem;
   font-weight: 600;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+`;
+
+const ModeFeatures = styled.div`
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #6b7280;
 
   @media (max-width: 480px) {
-    font-size: 0.7rem;
-    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
   }
 `;
 
@@ -739,58 +745,26 @@ const WizardHeader = styled.div`
   border-bottom: 1px solid #e5e7eb;
   background: #f8f9fa;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     flex-direction: column;
   }
 `;
 
-interface WizardStepProps {
-  $active: boolean;
-  $completed: boolean;
-}
-
-const WizardStep = styled.div<WizardStepProps>`
+const WizardStep = styled.div<{ $active: boolean; $completed: boolean }>`
   flex: 1;
   padding: 1rem;
   text-align: center;
   font-weight: 600;
   cursor: pointer;
+  background: ${(props) =>
+    props.$active ? "#3b82f6" : props.$completed ? "#10b981" : "#f8f9fa"};
+  color: ${(props) =>
+    props.$active || props.$completed ? "white" : "#6b7280"};
   transition: all 0.2s;
-  font-size: 0.875rem;
 
-  ${(props) =>
-    props.$active
-      ? `
-    background: #3b82f6;
-    color: white;
-  `
-      : props.$completed
-      ? `
-    background: #10b981;
-    color: white;
-  `
-      : `
-    background: #f8f9fa;
-    color: #6b7280;
-  `}
-
-  &:hover {
-    ${(props) =>
-      !props.$active && !props.$completed
-        ? `
-      background: #e5e7eb;
-    `
-        : ""}
-  }
-
-  @media (max-width: 768px) {
-    padding: 0.875rem 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  @media (max-width: 480px) {
-    padding: 0.75rem 0.375rem;
-    font-size: 0.75rem;
+  @media (max-width: 640px) {
+    padding: 0.75rem;
+    font-size: 0.875rem;
   }
 `;
 
@@ -809,172 +783,11 @@ const WizardContent = styled.div`
   }
 `;
 
-const AISuggestionsSection = styled.div`
-  background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-
-  @media (max-width: 768px) {
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-  }
-
-  @media (max-width: 480px) {
-    padding: 1rem;
-    margin-bottom: 1rem;
-  }
-`;
-
-const AISectionTitle = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1e293b;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-
-  @media (max-width: 480px) {
-    font-size: 1.125rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
-  }
-`;
-
-const AISuggestionsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-    gap: 0.875rem;
-  }
-
-  @media (max-width: 480px) {
-    gap: 0.75rem;
-  }
-`;
-
-const AISuggestionCard = styled.div<{ $selected: boolean }>`
-  background: white;
-  padding: 1.25rem;
-  border-radius: 0.5rem;
-  border: 2px solid ${(props) => (props.$selected ? "#3b82f6" : "#e2e8f0")};
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
-
-  &:hover {
-    border-color: #3b82f6;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-  }
-
-  @media (max-width: 480px) {
-    padding: 1rem;
-  }
-`;
-
-const SuggestionHeader = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 0.75rem;
-
-  @media (max-width: 480px) {
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-  }
-`;
-
-const SuggestionIcon = styled.div`
-  font-size: 1.5rem;
-  flex-shrink: 0;
-
-  @media (max-width: 480px) {
-    font-size: 1.25rem;
-  }
-`;
-
-const SuggestionContent = styled.div`
-  flex: 1;
-`;
-
-const SuggestionTitle = styled.h4`
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 0.25rem 0;
-
-  @media (max-width: 480px) {
-    font-size: 1rem;
-  }
-`;
-
-const SuggestionDescription = styled.p`
-  color: #475569;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  margin: 0 0 0.75rem 0;
-
-  @media (max-width: 480px) {
-    font-size: 0.8rem;
-    line-height: 1.4;
-  }
-`;
-
-const SuggestionDetails = styled.div`
-  background: #f8fafc;
-  padding: 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.75rem;
-  color: #64748b;
-
-  @media (max-width: 480px) {
-    padding: 0.5rem;
-    font-size: 0.7rem;
-  }
-`;
-
-const ConfidenceBadge = styled.div<{ $confidence: "high" | "medium" | "low" }>`
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 1rem;
-  font-size: 0.625rem;
-  font-weight: 600;
-  background: ${(props) =>
-    props.$confidence === "high"
-      ? "#dcfce7"
-      : props.$confidence === "medium"
-      ? "#fef3c7"
-      : "#f3f4f6"};
-  color: ${(props) =>
-    props.$confidence === "high"
-      ? "#166534"
-      : props.$confidence === "medium"
-      ? "#92400e"
-      : "#6b7280"};
-
-  @media (max-width: 480px) {
-    top: 0.5rem;
-    right: 0.5rem;
-    font-size: 0.575rem;
-    padding: 0.2rem 0.4rem;
-  }
-`;
-
 const FormGroup = styled.div`
   margin-bottom: 1.5rem;
 
   @media (max-width: 480px) {
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
   }
 `;
 
@@ -987,7 +800,6 @@ const Label = styled.label`
 
   @media (max-width: 480px) {
     font-size: 0.8rem;
-    margin-bottom: 0.375rem;
   }
 `;
 
@@ -1006,7 +818,7 @@ const Input = styled.input`
 
   @media (max-width: 480px) {
     padding: 0.625rem;
-    font-size: 16px; /* Prevents zoom on iOS */
+    font-size: 16px;
   }
 `;
 
@@ -1058,24 +870,24 @@ const ButtonGroup = styled.div`
   margin-top: 2rem;
   gap: 1rem;
 
-  @media (max-width: 768px) {
+  @media (max-width: 640px) {
     flex-direction: column;
-  }
-
-  @media (max-width: 480px) {
-    margin-top: 1.5rem;
     gap: 0.75rem;
   }
 `;
 
-const Button = styled.button<{ $variant: "primary" | "secondary" | "outline" }>`
+const Button = styled.button<{
+  $variant: "primary" | "secondary" | "outline" | "danger";
+}>`
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 0.375rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 0.2s;
   flex: 1;
+  transition: all 0.2s;
+  text-align: center;
+  min-height: 44px;
   font-size: 0.875rem;
 
   ${(props) =>
@@ -1083,28 +895,25 @@ const Button = styled.button<{ $variant: "primary" | "secondary" | "outline" }>`
       ? `
     background: #3b82f6;
     color: white;
-    
-    &:hover:not(:disabled) {
-      background: #2563eb;
-    }
+    &:hover:not(:disabled) { background: #2563eb; }
   `
       : props.$variant === "secondary"
-      ? `
+        ? `
     background: #10b981;
     color: white;
-    
-    &:hover:not(:disabled) {
-      background: #059669;
-    }
+    &:hover:not(:disabled) { background: #059669; }
   `
-      : `
+        : props.$variant === "danger"
+          ? `
+    background: #ef4444;
+    color: white;
+    &:hover:not(:disabled) { background: #dc2626; }
+  `
+          : `
     background: transparent;
     color: #6b7280;
     border: 1px solid #d1d5db;
-    
-    &:hover:not(:disabled) {
-      background: #f3f4f6;
-    }
+    &:hover:not(:disabled) { background: #f3f4f6; }
   `}
 
   &:disabled {
@@ -1112,9 +921,8 @@ const Button = styled.button<{ $variant: "primary" | "secondary" | "outline" }>`
     cursor: not-allowed;
   }
 
-  @media (max-width: 480px) {
-    padding: 0.875rem 1rem;
-    font-size: 0.8rem;
+  @media (max-width: 640px) {
+    padding: 0.875rem;
   }
 `;
 
@@ -1126,8 +934,7 @@ const PreviewCard = styled.div`
   margin-top: 1rem;
 
   @media (max-width: 480px) {
-    padding: 1.25rem;
-    margin-top: 0.75rem;
+    padding: 1rem;
   }
 `;
 
@@ -1149,7 +956,6 @@ const PreviewDescription = styled.p`
 
   @media (max-width: 480px) {
     font-size: 0.875rem;
-    margin-bottom: 0.75rem;
   }
 `;
 
@@ -1160,7 +966,7 @@ const PreviewDetails = styled.div`
   margin-top: 1rem;
 
   @media (max-width: 480px) {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
   }
 `;
@@ -1173,252 +979,706 @@ const PreviewDetail = styled.div`
   border: 1px solid #e5e7eb;
 
   @media (max-width: 480px) {
-    padding: 0.625rem;
+    padding: 0.5rem;
+    font-size: 0.75rem;
   }
 `;
 
-const LoadingState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  color: #64748b;
-  text-align: center;
-
-  @media (max-width: 480px) {
-    padding: 1.5rem;
-  }
-`;
-
-const ModeFeatures = styled.div`
+const ErrorMessage = styled.div`
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #dc2626;
   font-size: 0.875rem;
-  line-height: 1.6;
 
   @media (max-width: 480px) {
+    padding: 0.75rem;
     font-size: 0.8rem;
   }
 `;
 
-interface PromotionsWizardProps {
-  barId: string;
-}
+const SuccessMessage = styled.div`
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  color: #166534;
+  font-size: 0.875rem;
 
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+    font-size: 0.8rem;
+  }
+`;
+
+// Modal Components
+const ModalOverlay = styled.div<{ $isOpen: boolean }>`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: ${(props) => (props.$isOpen ? "flex" : "none")};
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+`;
+
+const ModalContainer = styled.div`
+  background: white;
+  border-radius: 1rem;
+  width: 90%;
+  max-width: 450px;
+  overflow: hidden;
+  animation: modalSlideIn 0.2s ease-out;
+
+  @keyframes modalSlideIn {
+    from {
+      transform: translateY(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 480px) {
+    width: 95%;
+    margin: 1rem;
+  }
+`;
+
+const ModalHeader = styled.div<{ $type: "warning" | "success" | "info" }>`
+  padding: 1.5rem 1.5rem 1rem 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: ${(props) =>
+    props.$type === "warning"
+      ? "#fef3c7"
+      : props.$type === "success"
+        ? "#dcfce7"
+        : "#eff6ff"};
+`;
+
+const ModalIcon = styled.div`
+  font-size: 3rem;
+  text-align: center;
+  margin-bottom: 0.5rem;
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-align: center;
+  color: #1f2937;
+  margin: 0;
+`;
+
+const ModalBody = styled.div`
+  padding: 1.5rem;
+  text-align: center;
+  color: #6b7280;
+  line-height: 1.5;
+`;
+
+const ModalFooter = styled.div`
+  padding: 1rem 1.5rem 1.5rem 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+`;
+
+const ModalButton = styled.button<{
+  $variant: "confirm" | "cancel" | "approve";
+}>`
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  min-height: 44px;
+
+  ${(props) =>
+    props.$variant === "confirm"
+      ? `
+    background: #ef4444;
+    color: white;
+    &:hover { background: #dc2626; }
+  `
+      : props.$variant === "approve"
+        ? `
+    background: #10b981;
+    color: white;
+    &:hover { background: #059669; }
+  `
+        : `
+    background: #f3f4f6;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+    &:hover { background: #e5e7eb; }
+  `}
+`;
+
+// Promotions List Styles
+const PromotionsSection = styled.div`
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 2px solid #e5e7eb;
+
+  @media (max-width: 768px) {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+  }
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+
+  @media (max-width: 768px) {
+    font-size: 1.25rem;
+  }
+`;
+
+// Tab Styles
+const TabsContainer = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 0.5rem;
+  overflow-x: auto;
+
+  @media (max-width: 640px) {
+    gap: 0.25rem;
+  }
+`;
+
+const Tab = styled.button<{ $active: boolean }>`
+  padding: 0.75rem 1.5rem;
+  background: ${(props) => (props.$active ? "#3b82f6" : "transparent")};
+  color: ${(props) => (props.$active ? "white" : "#6b7280")};
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+  white-space: nowrap;
+  min-height: 44px;
+
+  &:hover {
+    background: ${(props) => (props.$active ? "#2563eb" : "#f3f4f6")};
+  }
+
+  @media (max-width: 640px) {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+`;
+
+const TabCount = styled.span<{ $color: string }>`
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 1rem;
+  background: ${(props) =>
+    props.$color === "orange"
+      ? "#fef3c7"
+      : props.$color === "green"
+        ? "#dcfce7"
+        : props.$color === "red"
+          ? "#fee2e2"
+          : "#f3f4f6"};
+  color: ${(props) =>
+    props.$color === "orange"
+      ? "#92400e"
+      : props.$color === "green"
+        ? "#166534"
+        : props.$color === "red"
+          ? "#dc2626"
+          : "#6b7280"};
+  font-size: 0.7rem;
+  font-weight: 600;
+`;
+
+const PromotionsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const PromotionCard = styled.div<{ $status: string }>`
+  background: white;
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid
+    ${(props) =>
+      props.$status === "active"
+        ? "#10b981"
+        : props.$status === "pending"
+          ? "#f59e0b"
+          : props.$status === "expired"
+            ? "#ef4444"
+            : "#6b7280"};
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 280px;
+
+  &:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    min-height: 260px;
+  }
+`;
+
+const CardHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+`;
+
+const PromotionTitle = styled.h4`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+  flex: 1;
+
+  @media (max-width: 480px) {
+    font-size: 1rem;
+  }
+`;
+
+const StatusBadge = styled.span<{ $status: string }>`
+  font-size: 0.7rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 1rem;
+  background: ${(props) =>
+    props.$status === "active"
+      ? "#dcfce7"
+      : props.$status === "pending"
+        ? "#fef3c7"
+        : props.$status === "expired"
+          ? "#fee2e2"
+          : "#f3f4f6"};
+  color: ${(props) =>
+    props.$status === "active"
+      ? "#166534"
+      : props.$status === "pending"
+        ? "#92400e"
+        : props.$status === "expired"
+          ? "#dc2626"
+          : "#6b7280"};
+  white-space: nowrap;
+  flex-shrink: 0;
+`;
+
+const PromotionDescription = styled.p`
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+
+  @media (max-width: 480px) {
+    font-size: 0.8rem;
+    -webkit-line-clamp: 2;
+  }
+`;
+
+const PromotionMeta = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+  color: #9ca3af;
+
+  @media (max-width: 480px) {
+    gap: 0.5rem;
+    font-size: 0.7rem;
+  }
+`;
+
+const MetaItem = styled.span`
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+`;
+
+const DiscountBadge = styled.div`
+  display: inline-block;
+  background: #10b981;
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.25rem;
+  margin-top: 0.5rem;
+  align-self: flex-start;
+`;
+
+const StatsRow = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.7rem;
+  color: #6b7280;
+  justify-content: space-around;
+
+  @media (max-width: 480px) {
+    gap: 0.75rem;
+    font-size: 0.65rem;
+  }
+`;
+
+const EmptyState = styled.div`
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #f9fafb;
+  border-radius: 0.75rem;
+  color: #6b7280;
+
+  @media (max-width: 768px) {
+    padding: 2rem 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.5rem 1rem;
+  }
+`;
+
+const EmptyStateIcon = styled.div`
+  font-size: 3rem;
+  margin-bottom: 1rem;
+
+  @media (max-width: 480px) {
+    font-size: 2.5rem;
+  }
+`;
+
+const LoadingSpinner = styled.div`
+  text-align: center;
+  padding: 2rem;
+  color: #6b7280;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+`;
+
+const StatusMessage = styled.div<{ $type: "pending" | "active" }>`
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.7rem;
+  text-align: center;
+  background: ${(props) => (props.$type === "pending" ? "#fef3c7" : "#dcfce7")};
+  color: ${(props) => (props.$type === "pending" ? "#92400e" : "#166534")};
+`;
+
+// Types
 type PromotionType =
-  | "DISCOUNT"
-  | "FREE_ITEM"
-  | "COMBO"
-  | "VIP_ACCESS"
-  | "EVENT";
-type DiscountType = "PERCENTAGE" | "FIXED";
-type TargetAudience =
-  | "ALL"
-  | "NEW_CUSTOMERS"
-  | "RETURNING"
-  | "VIP"
-  | "WEEKEND"
-  | "WEEKDAY";
+  | "HAPPY_HOUR"
+  | "STUDENT_DISCOUNT"
+  | "LADIES_NIGHT"
+  | "THEME_NIGHT"
+  | "FOOD_SPECIAL"
+  | "DRINK_SPECIAL"
+  | "COVER_DISCOUNT"
+  | "VIP_OFFER";
 
-interface AIPromotionSuggestion {
-  id: string;
-  title: string;
-  description: string;
-  type: PromotionType;
-  targetAudience: TargetAudience;
-  confidence: "high" | "medium" | "low";
-  expectedImpact: number;
-  reasoning: string[];
-  suggestedTitle: string;
-  suggestedDescription: string;
-  suggestedDiscount?: number;
-  suggestedDuration: number;
-  icon: string;
-}
+type TargetAudience = "ALL" | "WEEKEND" | "WEEKDAY";
+type FilterTab = "all" | "pending" | "active" | "expired";
 
 interface PromotionFormData {
   title: string;
   description: string;
   type: PromotionType;
-  discountValue?: number;
-  discountType?: DiscountType;
+  discountValue: number;
   startDate: string;
   endDate: string;
-  usageLimit?: number;
   targetAudience: TargetAudience;
   conditions: string;
 }
 
-type CreationMode = "ai" | "manual" | null;
+interface ExistingPromotion {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  discount: number | null;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+  isApproved: boolean;
+  views: number;
+  clicks: number;
+  redemptions: number;
+}
 
-const PromotionsWizard = ({ barId }: PromotionsWizardProps) => {
-  const [creationMode, setCreationMode] = useState<CreationMode>(null);
+interface PromotionsWizardProps {
+  barId: string;
+  userRole?: string;
+}
+
+interface ModalState {
+  isOpen: boolean;
+  type: "delete" | "approve";
+  promotionId: string;
+  promotionTitle: string;
+}
+
+const PromotionsWizard = ({
+  barId,
+  userRole = "STAFF",
+}: PromotionsWizardProps) => {
+  const [mode, setMode] = useState<"ai" | "manual" | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [selectedSuggestion, setSelectedSuggestion] =
-    useState<AIPromotionSuggestion | null>(null);
-  const [aiSuggestions, setAISuggestions] = useState<AIPromotionSuggestion[]>(
-    []
-  );
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [promotions, setPromotions] = useState<ExistingPromotion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [modal, setModal] = useState<ModalState>({
+    isOpen: false,
+    type: "delete",
+    promotionId: "",
+    promotionTitle: "",
+  });
+
   const [formData, setFormData] = useState<PromotionFormData>({
     title: "",
     description: "",
-    type: "DISCOUNT",
+    type: "DRINK_SPECIAL",
     discountValue: 0,
-    discountType: "PERCENTAGE",
     startDate: new Date().toISOString().split("T")[0],
     endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       .toISOString()
       .split("T")[0],
-    usageLimit: 100,
     targetAudience: "ALL",
     conditions: "",
   });
 
-  // Different steps based on mode
-  const manualSteps = [
+  const steps = [
     { id: 1, title: "Basic Info" },
     { id: 2, title: "Details" },
-    { id: 3, title: "Audience" },
-    { id: 4, title: "Review" },
-  ];
-
-  const aiSteps = [
-    { id: 1, title: "AI Suggestions" },
-    { id: 2, title: "Customize" },
     { id: 3, title: "Review" },
   ];
 
-  const steps = creationMode === "ai" ? aiSteps : manualSteps;
+  // Check if user can approve (OWNER, MANAGER, PROMOTIONS_MANAGER)
+  const canApprove = ["OWNER", "MANAGER", "PROMOTIONS_MANAGER"].includes(
+    userRole,
+  );
+  const canDelete = ["OWNER", "MANAGER", "PROMOTIONS_MANAGER"].includes(
+    userRole,
+  );
 
+  // Fetch existing promotions on load
   useEffect(() => {
-    if (creationMode === "ai") {
-      fetchAISuggestions();
-    }
-  }, [creationMode]);
+    fetchPromotions();
+  }, [barId]);
 
-  const fetchAISuggestions = async () => {
+  const fetchPromotions = async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const token = localStorage.getItem("hoppr_token");
+      if (!token) {
+        setLoading(false);
+        return;
+      }
 
-      const mockSuggestions: AIPromotionSuggestion[] = [
+      const response = await fetch(
+        `/api/auth/bar/${barId}/promotions?status=all`,
         {
-          id: "1",
-          title: "Weekend VIP Experience",
-          description:
-            "Exclusive VIP packages for your high-value weekend customers",
-          type: "VIP_ACCESS",
-          targetAudience: "VIP",
-          confidence: "high",
-          expectedImpact: 23,
-          reasoning: [
-            "VIP customers spend 45% more on weekends",
-            "Current weekend VIP utilization is only 60%",
-          ],
-          suggestedTitle: "Weekend VIP Lounge Access",
-          suggestedDescription:
-            "Exclusive VIP experience with premium seating and dedicated service",
-          suggestedDuration: 14,
-          icon: "👑",
+          headers: { Authorization: `Bearer ${token}` },
         },
-        {
-          id: "2",
-          title: "Happy Hour Extension",
-          description: "Extend happy hour to capture after-work crowd",
-          type: "DISCOUNT",
-          targetAudience: "WEEKDAY",
-          confidence: "medium",
-          expectedImpact: 18,
-          reasoning: [
-            "Foot traffic drops after 7 PM on weekdays",
-            "Nearby offices have late finishing times",
-          ],
-          suggestedTitle: "Extended Happy Hour",
-          suggestedDescription: "Enjoy 25% off all drinks from 5 PM to 8 PM",
-          suggestedDiscount: 25,
-          suggestedDuration: 30,
-          icon: "🍻",
-        },
-        {
-          id: "3",
-          title: "New Customer Welcome",
-          description:
-            "Special offer to convert first-time visitors into regulars",
-          type: "COMBO",
-          targetAudience: "NEW_CUSTOMERS",
-          confidence: "high",
-          expectedImpact: 32,
-          reasoning: [
-            "Only 35% of new customers return within 30 days",
-            "Welcome offers boost retention by 68%",
-          ],
-          suggestedTitle: "First Visit Special",
-          suggestedDescription: "Welcome! Enjoy 20% off your first order",
-          suggestedDiscount: 20,
-          suggestedDuration: 7,
-          icon: "👋",
-        },
-      ];
+      );
 
-      setAISuggestions(mockSuggestions);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.promotions) {
+          setPromotions(data.promotions);
+        }
+      }
     } catch (error) {
-      console.error("Failed to fetch AI suggestions:", error);
+      console.error("Failed to fetch promotions:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBackToModeSelection = () => {
-    setCreationMode(null);
+  const handleApprovePromotion = async (promotionId: string) => {
+    closeModal();
+
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const response = await fetch(
+        `/api/auth/bar/${barId}/promotions/${promotionId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ isApproved: true }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(
+          "✅ Promotion approved! It will now appear in the user app.",
+        );
+        fetchPromotions();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error || "Failed to approve");
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to approve promotion",
+      );
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const handleDeletePromotion = async (promotionId: string, title: string) => {
+    closeModal();
+
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const response = await fetch(
+        `/api/auth/bar/${barId}/promotions/${promotionId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSuccess(`✅ "${title}" deleted successfully.`);
+        fetchPromotions();
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        throw new Error(data.error || "Failed to delete");
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Failed to delete promotion",
+      );
+      setTimeout(() => setError(null), 3000);
+    }
+  };
+
+  const openDeleteModal = (promotionId: string, promotionTitle: string) => {
+    setModal({
+      isOpen: true,
+      type: "delete",
+      promotionId,
+      promotionTitle,
+    });
+  };
+
+  const openApproveModal = (promotionId: string, promotionTitle: string) => {
+    setModal({
+      isOpen: true,
+      type: "approve",
+      promotionId,
+      promotionTitle,
+    });
+  };
+
+  const closeModal = () => {
+    setModal({ ...modal, isOpen: false });
+  };
+
+  const confirmAction = () => {
+    if (modal.type === "delete") {
+      handleDeletePromotion(modal.promotionId, modal.promotionTitle);
+    } else if (modal.type === "approve") {
+      handleApprovePromotion(modal.promotionId);
+    }
+  };
+
+  const handleBackToMode = () => {
+    setMode(null);
     setCurrentStep(1);
-    setSelectedSuggestion(null);
+    setError(null);
+    setSuccess(null);
+    setActiveTab("all");
     setFormData({
       title: "",
       description: "",
-      type: "DISCOUNT",
+      type: "DRINK_SPECIAL",
       discountValue: 0,
-      discountType: "PERCENTAGE",
       startDate: new Date().toISOString().split("T")[0],
       endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         .toISOString()
         .split("T")[0],
-      usageLimit: 100,
       targetAudience: "ALL",
       conditions: "",
     });
-  };
-
-  const handleSuggestionSelect = (suggestion: AIPromotionSuggestion) => {
-    setSelectedSuggestion(suggestion);
-
-    setFormData({
-      title: suggestion.suggestedTitle,
-      description: suggestion.suggestedDescription,
-      type: suggestion.type,
-      discountValue: suggestion.suggestedDiscount || 0,
-      discountType: "PERCENTAGE",
-      startDate: new Date().toISOString().split("T")[0],
-      endDate: new Date(
-        Date.now() + suggestion.suggestedDuration * 24 * 60 * 60 * 1000
-      )
-        .toISOString()
-        .split("T")[0],
-      usageLimit: 100,
-      targetAudience: suggestion.targetAudience,
-      conditions: "Automatically generated by AI",
-    });
-
-    setCurrentStep(2);
+    fetchPromotions();
   };
 
   const handleInputChange = (
     field: keyof PromotionFormData,
-    value: string | number
+    value: string | number,
   ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const nextStep = () => {
@@ -1434,447 +1694,613 @@ const PromotionsWizard = ({ barId }: PromotionsWizardProps) => {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
+    setError(null);
+
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/bar/${barId}/promotions`, {
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await fetch(`/api/auth/bar/${barId}/promotions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          ...formData,
-          aiSuggested: creationMode === "ai",
-          originalSuggestion: selectedSuggestion?.id,
+          title: formData.title,
+          description: formData.description,
+          type: formData.type,
+          discountValue: formData.discountValue || null,
+          startDate: formData.startDate,
+          endDate: formData.endDate,
+          conditions: formData.conditions ? [formData.conditions] : [],
+          targetAudience: formData.targetAudience,
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        alert(
-          `Promotion created successfully${
-            creationMode === "ai" ? " with AI!" : "!"
-          }`
+        setSuccess(
+          `✅ "${formData.title}" created successfully! ${
+            canApprove
+              ? "You can approve it now."
+              : "Waiting for owner/manager approval."
+          }`,
         );
-        handleBackToModeSelection();
+        setTimeout(() => {
+          handleBackToMode();
+        }, 2000);
       } else {
-        alert("Failed to create promotion");
+        throw new Error(data.error || "Failed to create promotion");
       }
     } catch (error) {
-      alert("Error creating promotion");
+      setError(
+        error instanceof Error ? error.message : "Failed to create promotion",
+      );
+    } finally {
+      setSubmitting(false);
     }
+  };
+
+  const getPromotionStatus = (promo: ExistingPromotion): string => {
+    const now = new Date();
+    const endDate = new Date(promo.endDate);
+
+    if (!promo.isApproved) return "pending";
+    if (!promo.isActive) return "inactive";
+    if (endDate < now) return "expired";
+    return "active";
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const formatPromotionType = (type: string): string => {
+    return type
+      .replace(/_/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, (l) => l.toUpperCase());
+  };
+
+  // Filter promotions based on active tab
+  const getFilteredPromotions = () => {
+    if (activeTab === "all") return promotions;
+    return promotions.filter((p) => getPromotionStatus(p) === activeTab);
+  };
+
+  // Get counts for tabs
+  const getTabCounts = () => {
+    const counts = {
+      all: promotions.length,
+      pending: promotions.filter((p) => getPromotionStatus(p) === "pending")
+        .length,
+      active: promotions.filter((p) => getPromotionStatus(p) === "active")
+        .length,
+      expired: promotions.filter((p) => getPromotionStatus(p) === "expired")
+        .length,
+    };
+    return counts;
+  };
+
+  const counts = getTabCounts();
+
+  // Render Modal
+  const renderModal = () => {
+    const isDelete = modal.type === "delete";
+
+    return (
+      <ModalOverlay $isOpen={modal.isOpen} onClick={closeModal}>
+        <ModalContainer onClick={(e) => e.stopPropagation()}>
+          <ModalHeader $type={isDelete ? "warning" : "success"}>
+            <ModalIcon>{isDelete ? "⚠️" : "🎉"}</ModalIcon>
+            <ModalTitle>
+              {isDelete ? "Delete Promotion" : "Approve Promotion"}
+            </ModalTitle>
+          </ModalHeader>
+          <ModalBody>
+            {isDelete ? (
+              <>
+                Are you sure you want to delete{" "}
+                <strong>"{modal.promotionTitle}"</strong>?
+                <br />
+                This action cannot be undone.
+              </>
+            ) : (
+              <>
+                Are you sure you want to approve{" "}
+                <strong>"{modal.promotionTitle}"</strong>?
+                <br />
+                It will immediately become visible to customers in the user app.
+              </>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <ModalButton $variant="cancel" onClick={closeModal}>
+              Cancel
+            </ModalButton>
+            <ModalButton
+              $variant={isDelete ? "confirm" : "approve"}
+              onClick={confirmAction}
+            >
+              {isDelete ? "Yes, Delete" : "Yes, Approve"}
+            </ModalButton>
+          </ModalFooter>
+        </ModalContainer>
+      </ModalOverlay>
+    );
+  };
+
+  // Render Tabs
+  const renderTabs = () => (
+    <TabsContainer>
+      <Tab $active={activeTab === "all"} onClick={() => setActiveTab("all")}>
+        All
+        <TabCount $color="gray">{counts.all}</TabCount>
+      </Tab>
+      <Tab
+        $active={activeTab === "pending"}
+        onClick={() => setActiveTab("pending")}
+      >
+        ⏳ Pending
+        <TabCount $color="orange">{counts.pending}</TabCount>
+      </Tab>
+      <Tab
+        $active={activeTab === "active"}
+        onClick={() => setActiveTab("active")}
+      >
+        ✓ Active
+        <TabCount $color="green">{counts.active}</TabCount>
+      </Tab>
+      <Tab
+        $active={activeTab === "expired"}
+        onClick={() => setActiveTab("expired")}
+      >
+        📅 Expired
+        <TabCount $color="red">{counts.expired}</TabCount>
+      </Tab>
+    </TabsContainer>
+  );
+
+  // Render existing promotions list
+  const renderPromotionsList = () => {
+    if (loading) {
+      return (
+        <PromotionsSection>
+          <SectionTitle>Your Promotions</SectionTitle>
+          {renderTabs()}
+          <LoadingSpinner>Loading your promotions...</LoadingSpinner>
+        </PromotionsSection>
+      );
+    }
+
+    const filteredPromotions = getFilteredPromotions();
+
+    return (
+      <PromotionsSection>
+        <SectionTitle>Your Promotions</SectionTitle>
+        {renderTabs()}
+
+        {filteredPromotions.length === 0 ? (
+          <EmptyState>
+            <EmptyStateIcon>
+              {activeTab === "pending" && "⏳"}
+              {activeTab === "active" && "✓"}
+              {activeTab === "expired" && "📅"}
+              {activeTab === "all" && "🎯"}
+            </EmptyStateIcon>
+            <p>
+              {activeTab === "pending" &&
+                "No pending promotions waiting for approval."}
+              {activeTab === "active" &&
+                "No active promotions yet. Create and approve one!"}
+              {activeTab === "expired" && "No expired promotions."}
+              {activeTab === "all" &&
+                "No promotions yet. Create your first promotion above!"}
+            </p>
+          </EmptyState>
+        ) : (
+          <PromotionsGrid>
+            {filteredPromotions.map((promo) => {
+              const status = getPromotionStatus(promo);
+              return (
+                <PromotionCard key={promo.id} $status={status}>
+                  <CardHeader>
+                    <PromotionTitle>{promo.title}</PromotionTitle>
+                    <StatusBadge $status={status}>
+                      {status === "active"
+                        ? "✓ Live"
+                        : status === "pending"
+                          ? "⏳ Draft"
+                          : status === "expired"
+                            ? "📅 Expired"
+                            : "❌ Inactive"}
+                    </StatusBadge>
+                  </CardHeader>
+
+                  <PromotionDescription>
+                    {promo.description.length > 100
+                      ? `${promo.description.substring(0, 100)}...`
+                      : promo.description}
+                  </PromotionDescription>
+
+                  <PromotionMeta>
+                    <MetaItem>📌 {formatPromotionType(promo.type)}</MetaItem>
+                    <MetaItem>
+                      📅 {formatDate(promo.startDate)} →{" "}
+                      {formatDate(promo.endDate)}
+                    </MetaItem>
+                  </PromotionMeta>
+
+                  {promo.discount && promo.discount > 0 && (
+                    <DiscountBadge>{promo.discount}% OFF</DiscountBadge>
+                  )}
+
+                  <ActionButtons>
+                    {status === "pending" && canApprove && (
+                      <Button
+                        $variant="secondary"
+                        style={{ flex: 2 }}
+                        onClick={() => openApproveModal(promo.id, promo.title)}
+                      >
+                        Approve & Publish
+                      </Button>
+                    )}
+
+                    {canDelete && (
+                      <Button
+                        $variant="danger"
+                        style={{ flex: 1 }}
+                        onClick={() => openDeleteModal(promo.id, promo.title)}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </ActionButtons>
+
+                  {status === "pending" && !canApprove && (
+                    <StatusMessage $type="pending">
+                      ⏳ Waiting for owner/manager approval
+                    </StatusMessage>
+                  )}
+
+                  {status === "active" && (
+                    <StatusMessage $type="active">
+                      ✓ Live in user app - Customers can see this
+                    </StatusMessage>
+                  )}
+
+                  <StatsRow>
+                    <span>👁️ {promo.views.toLocaleString()}</span>
+                    <span>👆 {promo.clicks.toLocaleString()}</span>
+                    <span>🎫 {promo.redemptions.toLocaleString()}</span>
+                  </StatsRow>
+                </PromotionCard>
+              );
+            })}
+          </PromotionsGrid>
+        )}
+      </PromotionsSection>
+    );
   };
 
   const renderModeSelection = () => (
     <div>
-      <Title>
-        {/* <span>🎯</span> Create Promotion */}
-        Create Promotion
-      </Title>
+      <Title>🎯 Create Promotion</Title>
       <Subtitle>Choose how you&apos;d like to create your promotion</Subtitle>
 
       <ModeSelector>
-        <ModeCard
-          $selected={creationMode === "ai"}
-          onClick={() => setCreationMode("ai")}
-        >
+        <ModeCard $selected={mode === "ai"} onClick={() => setMode("ai")}>
           <ModeIcon>🤖</ModeIcon>
           <ModeTitle>AI Assistant</ModeTitle>
-          <AITag>RECOMMENDED</AITag>
+          <AITag>COMING SOON</AITag>
           <ModeDescription>
             Get AI-powered suggestions based on your bar&apos;s performance
-            data. Perfect for staff with less marketing experience.
           </ModeDescription>
-          <ModeFeatures style={{ color: "#10b981", fontWeight: 600 }}>
+          <ModeFeatures>
             • Data-driven suggestions
-            <br />
-            • Auto-filled forms
-            <br />
-            • Higher success rate
-            <br />• Perfect for beginners
+            <br />• Auto-filled forms
+            <br />• Higher success rate
           </ModeFeatures>
         </ModeCard>
 
         <ModeCard
-          $selected={creationMode === "manual"}
-          onClick={() => setCreationMode("manual")}
+          $selected={mode === "manual"}
+          onClick={() => setMode("manual")}
         >
           <ModeIcon>✏️</ModeIcon>
           <ModeTitle>Manual Creation</ModeTitle>
           <ModeDescription>
-            Create promotions from scratch with full control over every detail.
-            Best for experienced marketers.
+            Create promotions from scratch with full control
           </ModeDescription>
-          <ModeFeatures style={{ color: "#6b7280" }}>
+          <ModeFeatures>
             • Full creative control
-            <br />
-            • Custom everything
-            <br />
-            • Advanced options
+            <br />• Custom everything
             <br />• For experts
           </ModeFeatures>
         </ModeCard>
       </ModeSelector>
+
+      {renderPromotionsList()}
     </div>
   );
 
-  const renderAIStep = () => {
+  const renderBasicInfo = () => (
+    <div>
+      <FormGroup>
+        <Label>Promotion Title *</Label>
+        <Input
+          type="text"
+          value={formData.title}
+          onChange={(e) => handleInputChange("title", e.target.value)}
+          placeholder="e.g., Friday Night Happy Hour"
+          required
+        />
+      </FormGroup>
+
+      <FormGroup>
+        <Label>Description *</Label>
+        <TextArea
+          value={formData.description}
+          onChange={(e) => handleInputChange("description", e.target.value)}
+          placeholder="Describe your promotion..."
+          required
+        />
+      </FormGroup>
+
+      <FormGroup>
+        <Label>Promotion Type *</Label>
+        <Select
+          value={formData.type}
+          onChange={(e) =>
+            handleInputChange("type", e.target.value as PromotionType)
+          }
+        >
+          <option value="HAPPY_HOUR">Happy Hour</option>
+          <option value="DRINK_SPECIAL">Drink Special</option>
+          <option value="FOOD_SPECIAL">Food Special</option>
+          <option value="LADIES_NIGHT">Ladies Night</option>
+          <option value="THEME_NIGHT">Theme Night</option>
+          <option value="VIP_OFFER">VIP Offer</option>
+          <option value="COVER_DISCOUNT">Cover Discount</option>
+          <option value="STUDENT_DISCOUNT">Student Discount</option>
+        </Select>
+      </FormGroup>
+    </div>
+  );
+
+  const renderDetails = () => (
+    <div>
+      {formData.type === "HAPPY_HOUR" ||
+      formData.type === "DRINK_SPECIAL" ||
+      formData.type === "FOOD_SPECIAL" ? (
+        <FormGroup>
+          <Label>Discount Value (%)</Label>
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            value={formData.discountValue}
+            onChange={(e) =>
+              handleInputChange("discountValue", Number(e.target.value))
+            }
+            placeholder="e.g., 25"
+          />
+        </FormGroup>
+      ) : null}
+
+      <FormGroup>
+        <Label>Start Date *</Label>
+        <Input
+          type="date"
+          value={formData.startDate}
+          onChange={(e) => handleInputChange("startDate", e.target.value)}
+          required
+        />
+      </FormGroup>
+
+      <FormGroup>
+        <Label>End Date *</Label>
+        <Input
+          type="date"
+          value={formData.endDate}
+          onChange={(e) => handleInputChange("endDate", e.target.value)}
+          required
+        />
+      </FormGroup>
+
+      <FormGroup>
+        <Label>Target Audience</Label>
+        <Select
+          value={formData.targetAudience}
+          onChange={(e) =>
+            handleInputChange(
+              "targetAudience",
+              e.target.value as TargetAudience,
+            )
+          }
+        >
+          <option value="ALL">All Customers</option>
+          <option value="WEEKEND">Weekend Customers (Fri-Sat)</option>
+          <option value="WEEKDAY">Weekday Customers (Mon-Thu)</option>
+        </Select>
+      </FormGroup>
+
+      <FormGroup>
+        <Label>Terms & Conditions (Optional)</Label>
+        <TextArea
+          value={formData.conditions}
+          onChange={(e) => handleInputChange("conditions", e.target.value)}
+          placeholder="e.g., Valid with valid ID, 18+ only, Cannot combine with other offers"
+        />
+      </FormGroup>
+    </div>
+  );
+
+  const renderReview = () => (
+    <div>
+      <PreviewCard>
+        <PreviewTitle>{formData.title || "Untitled Promotion"}</PreviewTitle>
+        <PreviewDescription>
+          {formData.description || "No description"}
+        </PreviewDescription>
+        <PreviewDetails>
+          <PreviewDetail>
+            <strong>Type</strong>
+            <div>{formData.type.replace("_", " ")}</div>
+          </PreviewDetail>
+          <PreviewDetail>
+            <strong>Duration</strong>
+            <div>
+              {formData.startDate} to {formData.endDate}
+            </div>
+          </PreviewDetail>
+          <PreviewDetail>
+            <strong>Audience</strong>
+            <div>{formData.targetAudience}</div>
+          </PreviewDetail>
+          {formData.discountValue > 0 && (
+            <PreviewDetail>
+              <strong>Discount</strong>
+              <div>{formData.discountValue}% OFF</div>
+            </PreviewDetail>
+          )}
+        </PreviewDetails>
+        {formData.conditions && (
+          <div
+            style={{
+              marginTop: "1rem",
+              fontSize: "0.875rem",
+              color: "#6b7280",
+            }}
+          >
+            <strong>Terms:</strong> {formData.conditions}
+          </div>
+        )}
+      </PreviewCard>
+
+      <div
+        style={{
+          marginTop: "1rem",
+          padding: "0.75rem",
+          background: "#fef3c7",
+          borderRadius: "0.5rem",
+          fontSize: "0.875rem",
+          color: "#92400e",
+        }}
+      >
+        ⏳ This promotion will be created as DRAFT and will need approval from
+        an Owner or Manager before going live in the user app.
+      </div>
+    </div>
+  );
+
+  const renderManualWizard = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <div>
-            <AISuggestionsSection>
-              <AISectionTitle>
-                <span>🤖</span> AI-Powered Suggestions
-              </AISectionTitle>
-              <p style={{ color: "#475569", marginBottom: "1.5rem" }}>
-                Based on your bar&apos;s performance, here are personalized
-                promotion suggestions.
-              </p>
-
-              {loading ? (
-                <LoadingState>
-                  <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>
-                    🤔
-                  </div>
-                  <p>AI is analyzing your bar data...</p>
-                </LoadingState>
-              ) : (
-                <AISuggestionsGrid>
-                  {aiSuggestions.map((suggestion) => (
-                    <AISuggestionCard
-                      key={suggestion.id}
-                      $selected={selectedSuggestion?.id === suggestion.id}
-                      onClick={() => handleSuggestionSelect(suggestion)}
-                    >
-                      <ConfidenceBadge $confidence={suggestion.confidence}>
-                        {suggestion.confidence.toUpperCase()}
-                      </ConfidenceBadge>
-
-                      <SuggestionHeader>
-                        <SuggestionIcon>{suggestion.icon}</SuggestionIcon>
-                        <SuggestionContent>
-                          <SuggestionTitle>{suggestion.title}</SuggestionTitle>
-                          <SuggestionDescription>
-                            {suggestion.description}
-                          </SuggestionDescription>
-                        </SuggestionContent>
-                      </SuggestionHeader>
-
-                      <SuggestionDetails>
-                        <strong>Expected Impact: </strong>
-                        <span style={{ color: "#10b981", fontWeight: 600 }}>
-                          +{suggestion.expectedImpact}% revenue
-                        </span>
-                      </SuggestionDetails>
-                    </AISuggestionCard>
-                  ))}
-                </AISuggestionsGrid>
-              )}
-            </AISuggestionsSection>
-
-            <div style={{ textAlign: "center" }}>
-              <Button
-                $variant="outline"
-                onClick={() => setCreationMode("manual")}
-              >
-                Switch to Manual Creation
-              </Button>
-            </div>
-          </div>
-        );
-
+        return renderBasicInfo();
       case 2:
-        return renderManualStep(2);
-
+        return renderDetails();
       case 3:
-        return renderManualStep(4); // Use manual review step
-
+        return renderReview();
       default:
         return null;
     }
   };
 
-  const renderManualStep = (step: number) => {
-    switch (step) {
-      case 1:
-        return (
-          <div>
-            <FormGroup>
-              <Label>Promotion Title</Label>
-              <Input
-                type="text"
-                value={formData.title}
-                onChange={(e) => handleInputChange("title", e.target.value)}
-                placeholder="e.g., Friday Night Special"
-              />
-            </FormGroup>
-            <FormGroup>
-              <Label>Description</Label>
-              <TextArea
-                value={formData.description}
-                onChange={(e) =>
-                  handleInputChange("description", e.target.value)
-                }
-                placeholder="Describe your promotion..."
-              />
-            </FormGroup>
-            <FormGroup>
-              <Label>Promotion Type</Label>
-              <Select
-                value={formData.type}
-                onChange={(e) =>
-                  handleInputChange("type", e.target.value as PromotionType)
-                }
-              >
-                <option value="DISCOUNT">Discount</option>
-                <option value="FREE_ITEM">Free Item</option>
-                <option value="COMBO">Combo Deal</option>
-                <option value="VIP_ACCESS">VIP Access</option>
-                <option value="EVENT">Special Event</option>
-              </Select>
-            </FormGroup>
-          </div>
-        );
+  if (!mode) {
+    return (
+      <>
+        <Container>{renderModeSelection()}</Container>
+        {renderModal()}
+      </>
+    );
+  }
 
-      case 2:
-        return (
-          <div>
-            {formData.type === "DISCOUNT" && (
-              <>
-                <FormGroup>
-                  <Label>Discount Type</Label>
-                  <Select
-                    value={formData.discountType}
-                    onChange={(e) =>
-                      handleInputChange(
-                        "discountType",
-                        e.target.value as DiscountType
-                      )
-                    }
-                  >
-                    <option value="PERCENTAGE">Percentage</option>
-                    <option value="FIXED">Fixed Amount</option>
-                  </Select>
-                </FormGroup>
-                <FormGroup>
-                  <Label>Discount Value</Label>
-                  <Input
-                    type="number"
-                    value={formData.discountValue}
-                    onChange={(e) =>
-                      handleInputChange("discountValue", Number(e.target.value))
-                    }
-                  />
-                </FormGroup>
-              </>
-            )}
-            <FormGroup>
-              <Label>Start Date</Label>
-              <Input
-                type="date"
-                value={formData.startDate}
-                onChange={(e) => handleInputChange("startDate", e.target.value)}
-              />
-            </FormGroup>
-            <FormGroup>
-              <Label>End Date</Label>
-              <Input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => handleInputChange("endDate", e.target.value)}
-              />
-            </FormGroup>
-            <FormGroup>
-              <Label>Usage Limit (optional)</Label>
-              <Input
-                type="number"
-                value={formData.usageLimit}
-                onChange={(e) =>
-                  handleInputChange("usageLimit", Number(e.target.value))
-                }
-                placeholder="Leave empty for unlimited"
-              />
-            </FormGroup>
-          </div>
-        );
-
-      case 3:
-        return (
-          <div>
-            <FormGroup>
-              <Label>Target Audience</Label>
-              <Select
-                value={formData.targetAudience}
-                onChange={(e) =>
-                  handleInputChange(
-                    "targetAudience",
-                    e.target.value as TargetAudience
-                  )
-                }
-              >
-                <option value="ALL">All Customers</option>
-                <option value="NEW_CUSTOMERS">New Customers Only</option>
-                <option value="RETURNING">Returning Customers</option>
-                <option value="VIP">VIP Customers Only</option>
-                <option value="WEEKEND">Weekend Customers</option>
-                <option value="WEEKDAY">Weekday Customers</option>
-              </Select>
-            </FormGroup>
-            <FormGroup>
-              <Label>Conditions</Label>
-              <TextArea
-                value={formData.conditions}
-                onChange={(e) =>
-                  handleInputChange("conditions", e.target.value)
-                }
-                placeholder="Any special conditions or requirements..."
-              />
-            </FormGroup>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div>
-            <PreviewCard>
-              <PreviewTitle>{formData.title}</PreviewTitle>
-              <PreviewDescription>{formData.description}</PreviewDescription>
-
-              {creationMode === "ai" && selectedSuggestion && (
-                <div
-                  style={{
-                    background: "#dcfce7",
-                    padding: "0.75rem",
-                    borderRadius: "0.375rem",
-                    marginBottom: "1rem",
-                    fontSize: "0.875rem",
-                    color: "#166534",
-                  }}
-                >
-                  <strong>🤖 AI Optimized:</strong> Enhanced with AI based on
-                  your bar&apos;s data.
-                </div>
-              )}
-
-              <PreviewDetails>
-                <PreviewDetail>
-                  <strong>Type</strong>
-                  <div>{formData.type.replace("_", " ")}</div>
-                </PreviewDetail>
-                <PreviewDetail>
-                  <strong>Duration</strong>
-                  <div>
-                    {formData.startDate} to {formData.endDate}
-                  </div>
-                </PreviewDetail>
-                <PreviewDetail>
-                  <strong>Audience</strong>
-                  <div>{formData.targetAudience.replace("_", " ")}</div>
-                </PreviewDetail>
-                {formData.usageLimit && (
-                  <PreviewDetail>
-                    <strong>Usage Limit</strong>
-                    <div>{formData.usageLimit} times</div>
-                  </PreviewDetail>
-                )}
-              </PreviewDetails>
-            </PreviewCard>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const renderStep = () => {
-    if (creationMode === "ai") {
-      return renderAIStep();
-    } else if (creationMode === "manual") {
-      return renderManualStep(currentStep);
-    }
-    return null;
-  };
-
-  if (!creationMode) {
-    return <Container>{renderModeSelection()}</Container>;
+  if (mode === "ai") {
+    return (
+      <>
+        <Container>
+          <BackButton onClick={() => setMode(null)}>
+            ← Back to Mode Selection
+          </BackButton>
+          <Title>AI Assistant</Title>
+          <Subtitle>Coming soon! Please use manual creation for now.</Subtitle>
+          <ButtonGroup>
+            <Button $variant="primary" onClick={() => setMode("manual")}>
+              Switch to Manual Creation
+            </Button>
+            <Button $variant="outline" onClick={() => setMode(null)}>
+              Back
+            </Button>
+          </ButtonGroup>
+        </Container>
+        {renderModal()}
+      </>
+    );
   }
 
   return (
-    <Container>
-      {/* Back Button */}
-      <BackButton onClick={handleBackToModeSelection}>
-        <span>←</span>
-        Back to Mode Selection
-      </BackButton>
+    <>
+      <Container>
+        <BackButton onClick={() => setMode(null)}>
+          ← Back to Mode Selection
+        </BackButton>
 
-      <Title>
-        {/* <span>🎯</span> Create Promotion */}
-        Create Promotion
-        {creationMode === "ai" && (
-          <AITag style={{ marginLeft: "1rem" }}>AI ASSISTANT</AITag>
-        )}
-      </Title>
-      <Subtitle>
-        {creationMode === "ai"
-          ? "AI-powered suggestions for better results"
-          : "Manual creation with full control"}
-      </Subtitle>
+        <Title>Create Promotion</Title>
+        <Subtitle>Manual creation with full control</Subtitle>
 
-      <WizardContainer>
-        <WizardHeader>
-          {steps.map((step) => (
-            <WizardStep
-              key={step.id}
-              $active={currentStep === step.id}
-              $completed={currentStep > step.id}
-              onClick={() => setCurrentStep(step.id)}
-            >
-              {step.title}
-            </WizardStep>
-          ))}
-        </WizardHeader>
+        {error && <ErrorMessage>❌ {error}</ErrorMessage>}
+        {success && <SuccessMessage>✅ {success}</SuccessMessage>}
 
-        <WizardContent>
-          {renderStep()}
+        <WizardContainer>
+          <WizardHeader>
+            {steps.map((step) => (
+              <WizardStep
+                key={step.id}
+                $active={currentStep === step.id}
+                $completed={currentStep > step.id}
+                onClick={() => setCurrentStep(step.id)}
+              >
+                {step.title}
+              </WizardStep>
+            ))}
+          </WizardHeader>
 
-          <ButtonGroup>
-            <Button
-              $variant="outline"
-              onClick={prevStep}
-              disabled={currentStep === 1}
-            >
-              Previous
-            </Button>
+          <WizardContent>
+            {renderManualWizard()}
 
-            {currentStep < steps.length ? (
-              <Button $variant="primary" onClick={nextStep}>
-                {creationMode === "ai" &&
-                currentStep === 1 &&
-                selectedSuggestion
-                  ? "Customize Suggestion"
-                  : "Next"}
-              </Button>
-            ) : (
-              <Button $variant="secondary" onClick={handleSubmit}>
-                🚀 Launch Promotion
-              </Button>
-            )}
-          </ButtonGroup>
-
-          {creationMode === "ai" && currentStep === 1 && (
-            <div style={{ textAlign: "center", marginTop: "1rem" }}>
+            <ButtonGroup>
               <Button
                 $variant="outline"
-                onClick={() => setCreationMode("manual")}
+                onClick={prevStep}
+                disabled={currentStep === 1}
               >
-                ↶ Switch to Manual Mode
+                Previous
               </Button>
-            </div>
-          )}
-        </WizardContent>
-      </WizardContainer>
-    </Container>
+              {currentStep < steps.length ? (
+                <Button $variant="primary" onClick={nextStep}>
+                  Next
+                </Button>
+              ) : (
+                <Button
+                  $variant="secondary"
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                >
+                  {submitting ? "Creating..." : "Create Draft Promotion"}
+                </Button>
+              )}
+            </ButtonGroup>
+          </WizardContent>
+        </WizardContainer>
+      </Container>
+      {renderModal()}
+    </>
   );
 };
 
