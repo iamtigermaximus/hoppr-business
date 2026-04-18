@@ -1116,7 +1116,7 @@ const AmenitiesGrid = styled.div`
 
 const ImageGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 1rem;
   margin-top: 1rem;
 `;
@@ -1228,6 +1228,17 @@ const QuickActionsContainer = styled.div`
   gap: 0.75rem;
 `;
 
+// Operating Hours Type
+interface OperatingHours {
+  Monday: { open: string; close: string };
+  Tuesday: { open: string; close: string };
+  Wednesday: { open: string; close: string };
+  Thursday: { open: string; close: string };
+  Friday: { open: string; close: string };
+  Saturday: { open: string; close: string };
+  Sunday: { open: string; close: string };
+}
+
 // Types based on your Prisma schema
 interface Bar {
   id: string;
@@ -1243,7 +1254,7 @@ interface Bar {
   email: string | null;
   website: string | null;
   instagram: string | null;
-  operatingHours: any;
+  operatingHours: OperatingHours | null;
   priceRange: string | null;
   capacity: number | null;
   amenities: string[];
@@ -1638,17 +1649,43 @@ const BarDetails = () => {
           )}
 
           {/* Images */}
-          {(bar.coverImage || bar.imageUrls.length > 0) && (
+          {(bar.coverImage || (bar.imageUrls && bar.imageUrls.length > 0)) && (
             <Card>
               <CardHeader>
                 <CardTitle>Images</CardTitle>
               </CardHeader>
-              <ImageGrid>
-                {bar.coverImage && <Image src={bar.coverImage} alt="Cover" />}
-                {bar.imageUrls.map((url, index) => (
-                  <Image key={index} src={url} alt={`Bar image ${index + 1}`} />
-                ))}
-              </ImageGrid>
+
+              {/* Cover Image */}
+              {bar.coverImage && (
+                <div style={{ marginBottom: "1rem" }}>
+                  <InfoLabel>Cover Image</InfoLabel>
+                  <Image
+                    src={bar.coverImage}
+                    alt="Cover"
+                    style={{
+                      height: "200px",
+                      width: "100%",
+                      objectFit: "cover",
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* Gallery Images */}
+              {bar.imageUrls && bar.imageUrls.length > 0 && (
+                <div>
+                  <InfoLabel>Gallery ({bar.imageUrls.length} images)</InfoLabel>
+                  <ImageGrid>
+                    {bar.imageUrls.map((url, index) => (
+                      <Image
+                        key={index}
+                        src={url}
+                        alt={`Gallery ${index + 1}`}
+                      />
+                    ))}
+                  </ImageGrid>
+                </div>
+              )}
             </Card>
           )}
         </MainContent>

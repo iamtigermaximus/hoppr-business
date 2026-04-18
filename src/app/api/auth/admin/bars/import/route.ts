@@ -1335,67 +1335,471 @@
 //   }
 // }
 
+// import { NextRequest, NextResponse } from "next/server";
+// import { PrismaClient, BarType, PriceRange } from "@prisma/client";
+
+// const prisma = new PrismaClient();
+
+// const VALID_BAR_TYPES = [
+//   "PUB",
+//   "CLUB",
+//   "LOUNGE",
+//   "COCKTAIL_BAR",
+//   "RESTAURANT_BAR",
+//   "SPORTS_BAR",
+//   "KARAOKE",
+//   "LIVE_MUSIC",
+// ] as const;
+
+// const VALID_PRICE_RANGES = ["BUDGET", "MODERATE", "PREMIUM", "LUXURY"] as const;
+
+// type ValidBarType = (typeof VALID_BAR_TYPES)[number];
+// type ValidPriceRange = (typeof VALID_PRICE_RANGES)[number];
+
+// interface CSVRecord {
+//   name?: string;
+//   type?: string;
+//   address?: string;
+//   city?: string;
+//   district?: string;
+//   latitude?: string;
+//   longitude?: string;
+//   phone?: string;
+//   email?: string;
+//   website?: string;
+//   instagram?: string;
+//   priceRange?: string;
+//   capacity?: string;
+//   amenities?: string;
+//   description?: string;
+//   operatingHours?: string;
+//   vipEnabled?: string;
+//   coverImage?: string;
+//   imageUrls?: string;
+//   logoUrl?: string;
+// }
+
+// interface DuplicateInfo {
+//   row: number;
+//   name: string;
+//   reason: "within_file" | "already_in_database";
+// }
+
+// interface ImportResult {
+//   imported: number;
+//   skipped: number;
+//   duplicates: DuplicateInfo[];
+//   errors: string[];
+// }
+
+// async function verifyAdminToken(token: string) {
+//   try {
+//     const adminUser = await prisma.adminUser.findFirst({
+//       where: { isActive: true },
+//     });
+//     return adminUser;
+//   } catch (error) {
+//     console.error("Token verification error:", error);
+//     return null;
+//   }
+// }
+
+// function parseCSV(csvText: string): CSVRecord[] {
+//   const lines = csvText.split("\n").filter((line) => line.trim() !== "");
+//   if (lines.length < 2) return [];
+
+//   const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
+//   console.log("HEADERS:", headers);
+
+//   const records: CSVRecord[] = [];
+//   for (let i = 1; i < lines.length; i++) {
+//     const line = lines[i];
+//     if (!line.trim()) continue;
+
+//     const values: string[] = [];
+//     let current = "";
+//     let inQuotes = false;
+
+//     for (let j = 0; j < line.length; j++) {
+//       const char = line[j];
+//       const nextChar = line[j + 1];
+
+//       if (char === '"') {
+//         if (inQuotes && nextChar === '"') {
+//           current += '"';
+//           j++;
+//         } else {
+//           inQuotes = !inQuotes;
+//         }
+//       } else if (char === "," && !inQuotes) {
+//         values.push(current.trim());
+//         current = "";
+//       } else {
+//         current += char;
+//       }
+//     }
+//     values.push(current.trim());
+
+//     const record: CSVRecord = {};
+//     headers.forEach((header, index) => {
+//       if (index < values.length) {
+//         const value = values[index].replace(/"/g, "").trim();
+//         record[header as keyof CSVRecord] = value;
+//       }
+//     });
+
+//     if (record.name && record.name.trim()) {
+//       records.push(record);
+//     }
+//   }
+
+//   console.log(`PARSED ${records.length} RECORDS`);
+//   return records;
+// }
+
+// function parseAmenities(amenitiesStr: string): string[] {
+//   if (!amenitiesStr) return [];
+//   const trimmedStr = amenitiesStr.trim();
+
+//   try {
+//     const parsed = JSON.parse(trimmedStr);
+//     if (Array.isArray(parsed)) {
+//       return parsed.filter((item): item is string => typeof item === "string");
+//     }
+//   } catch {
+//     // Not JSON, try other formats
+//   }
+
+//   if (trimmedStr.includes("'") && trimmedStr.startsWith("[")) {
+//     return trimmedStr
+//       .replace(/^\[|\]$/g, "")
+//       .split(",")
+//       .map((item) => item.trim().replace(/^'|'$/g, ""))
+//       .filter(Boolean);
+//   }
+
+//   if (trimmedStr.includes(",")) {
+//     return trimmedStr
+//       .split(",")
+//       .map((item) => item.trim())
+//       .filter(Boolean);
+//   }
+
+//   if (trimmedStr) return [trimmedStr];
+//   return [];
+// }
+
+// function isValidBarType(value: string): value is ValidBarType {
+//   return VALID_BAR_TYPES.includes(value as ValidBarType);
+// }
+
+// function isValidPriceRange(value: string): value is ValidPriceRange {
+//   return VALID_PRICE_RANGES.includes(value as ValidPriceRange);
+// }
+
+// export async function POST(request: NextRequest) {
+//   try {
+//     console.log("STARTING CSV IMPORT...");
+
+//     const token = request.headers.get("authorization")?.replace("Bearer ", "");
+//     if (!token) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
+
+//     const adminUser = await verifyAdminToken(token);
+//     if (!adminUser) {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+
+//     const formData = await request.formData();
+//     const csvFile = formData.get("csvFile") as File;
+//     if (!csvFile) {
+//       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+//     }
+
+//     if (csvFile.size > 10 * 1024 * 1024) {
+//       return NextResponse.json(
+//         { error: "File too large. Maximum size is 10MB." },
+//         { status: 400 },
+//       );
+//     }
+
+//     const csvText = await csvFile.text();
+//     const records = parseCSV(csvText);
+
+//     if (records.length === 0) {
+//       return NextResponse.json(
+//         { error: "CSV file is empty or has no valid data" },
+//         { status: 400 },
+//       );
+//     }
+
+//     console.log(`Processing ${records.length} records...`);
+
+//     const result: ImportResult = {
+//       imported: 0,
+//       skipped: 0,
+//       duplicates: [],
+//       errors: [],
+//     };
+
+//     const processedNamesInFile = new Set<string>();
+//     const barsToImport: { record: CSVRecord; rowNumber: number }[] = [];
+
+//     for (const [index, record] of records.entries()) {
+//       const rowNumber = index + 2;
+
+//       if (!record.name?.trim()) {
+//         result.errors.push(`Row ${rowNumber}: Missing bar name`);
+//         result.skipped++;
+//         continue;
+//       }
+
+//       const barName = record.name.trim();
+
+//       if (processedNamesInFile.has(barName)) {
+//         result.duplicates.push({
+//           row: rowNumber,
+//           name: barName,
+//           reason: "within_file",
+//         });
+//         result.skipped++;
+//         continue;
+//       }
+
+//       const existingBar = await prisma.bar.findUnique({
+//         where: { name: barName },
+//       });
+
+//       if (existingBar) {
+//         result.duplicates.push({
+//           row: rowNumber,
+//           name: barName,
+//           reason: "already_in_database",
+//         });
+//         result.skipped++;
+//         continue;
+//       }
+
+//       processedNamesInFile.add(barName);
+//       barsToImport.push({ record, rowNumber });
+//     }
+
+//     console.log(`Found ${barsToImport.length} unique bars to import`);
+//     console.log(`Skipping ${result.skipped} duplicates`);
+
+//     for (const { record, rowNumber } of barsToImport) {
+//       try {
+//         const barName = record.name!.trim();
+
+//         let barType: BarType = "PUB";
+//         if (record.type) {
+//           const upperType = record.type.toUpperCase();
+//           if (isValidBarType(upperType)) {
+//             barType = upperType;
+//           }
+//         }
+
+//         let priceRange: PriceRange | null = null;
+//         if (record.priceRange) {
+//           const upperRange = record.priceRange.toUpperCase();
+//           if (isValidPriceRange(upperRange)) {
+//             priceRange = upperRange;
+//           }
+//         }
+
+//         let latitude: number | null = null;
+//         let longitude: number | null = null;
+//         if (record.latitude) {
+//           const lat = parseFloat(record.latitude);
+//           if (!isNaN(lat)) latitude = lat;
+//         }
+//         if (record.longitude) {
+//           const lng = parseFloat(record.longitude);
+//           if (!isNaN(lng)) longitude = lng;
+//         }
+
+//         const amenities: string[] = record.amenities
+//           ? parseAmenities(record.amenities)
+//           : [];
+
+//         let imageUrls: string[] = [];
+//         if (record.imageUrls) {
+//           imageUrls = record.imageUrls
+//             .split(",")
+//             .map((url) => url.trim())
+//             .filter(Boolean);
+//         }
+
+//         let operatingHours = {};
+//         if (record.operatingHours && record.operatingHours !== "{}") {
+//           try {
+//             operatingHours = JSON.parse(record.operatingHours);
+//           } catch (e) {
+//             console.log(
+//               `Row ${rowNumber}: Invalid operating hours, using default`,
+//             );
+//           }
+//         }
+
+//         let vipEnabled = false;
+//         if (record.vipEnabled) {
+//           vipEnabled = record.vipEnabled.toLowerCase() === "true";
+//         }
+
+//         let capacity: number | null = null;
+//         if (record.capacity) {
+//           const cap = parseInt(record.capacity);
+//           if (!isNaN(cap)) capacity = cap;
+//         }
+
+//         await prisma.bar.create({
+//           data: {
+//             name: barName,
+//             type: barType,
+//             address: record.address?.trim() || "Address not provided",
+//             city: record.city?.trim() || "Helsinki",
+//             district: record.district?.trim() || null,
+//             latitude: latitude,
+//             longitude: longitude,
+//             phone: record.phone?.trim() || null,
+//             email: record.email?.trim() || null,
+//             website: record.website?.trim() || null,
+//             instagram: record.instagram?.trim() || null,
+//             priceRange: priceRange,
+//             capacity: capacity,
+//             amenities: amenities,
+//             description: record.description?.trim() || null,
+//             operatingHours: operatingHours,
+//             vipEnabled: vipEnabled,
+//             coverImage: record.coverImage?.trim() || null,
+//             imageUrls: imageUrls,
+//             logoUrl: record.logoUrl?.trim() || null,
+//             status: "UNCLAIMED",
+//             isVerified: false,
+//             isActive: true,
+//             createdById: adminUser.id,
+//           },
+//         });
+
+//         result.imported++;
+//         console.log(`✅ IMPORTED: ${barName}`);
+//       } catch (error) {
+//         console.error(`ERROR Row ${rowNumber}:`, error);
+//         result.errors.push(
+//           `Row ${rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`,
+//         );
+//         result.skipped++;
+//       }
+//     }
+
+//     console.log("\n=== IMPORT SUMMARY ===");
+//     console.log(`📊 Total records in file: ${records.length}`);
+//     console.log(`✅ Imported: ${result.imported}`);
+//     console.log(`⏭️ Skipped: ${result.skipped}`);
+
+//     if (result.duplicates.length > 0) {
+//       console.log(`\n🔄 Duplicates found (${result.duplicates.length}):`);
+//       for (const dup of result.duplicates) {
+//         console.log(
+//           `   Row ${dup.row}: "${dup.name}" - ${dup.reason === "within_file" ? "duplicate within same file" : "already exists in database"}`,
+//         );
+//       }
+//     }
+
+//     try {
+//       await prisma.barImport.create({
+//         data: {
+//           fileName: csvFile.name,
+//           fileSize: csvFile.size,
+//           totalRows: records.length,
+//           importedRows: result.imported,
+//           failedRows: result.skipped,
+//           status:
+//             result.imported === 0
+//               ? "FAILED"
+//               : result.skipped === 0
+//                 ? "COMPLETED"
+//                 : "PARTIAL",
+//           errors:
+//             result.errors.length > 0
+//               ? result.errors
+//               : result.duplicates.map(
+//                   (d) =>
+//                     `Row ${d.row}: Duplicate bar "${d.name}" (${d.reason === "within_file" ? "duplicate in file" : "already in database"})`,
+//                 ),
+//           importedBy: adminUser.id,
+//         },
+//       });
+//     } catch (error) {
+//       console.log("Note: barImport table doesn't exist, skipping audit log");
+//     }
+
+//     return NextResponse.json({
+//       success: true,
+//       imported: result.imported,
+//       skipped: result.skipped,
+//       total: records.length,
+//       duplicates: result.duplicates,
+//       errors: result.errors,
+//       message: `✅ Imported ${result.imported} new bars. ⏭️ Skipped ${result.skipped} duplicates.`,
+//     });
+//   } catch (error) {
+//     console.error("CSV IMPORT ERROR:", error);
+//     return NextResponse.json(
+//       {
+//         error:
+//           "Internal server error: " +
+//           (error instanceof Error ? error.message : "Unknown error"),
+//       },
+//       { status: 500 },
+//     );
+//   }
+// }
+// Route: POST /api/auth/admin/bars/import
+// Description: Import bars from CSV file
+
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, BarType, PriceRange } from "@prisma/client";
+import { PrismaClient, BarType, PriceRange, AdminRole } from "@prisma/client";
+import { verify } from "jsonwebtoken";
 
 const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-const VALID_BAR_TYPES = [
-  "PUB",
-  "CLUB",
-  "LOUNGE",
-  "COCKTAIL_BAR",
-  "RESTAURANT_BAR",
-  "SPORTS_BAR",
-  "KARAOKE",
-  "LIVE_MUSIC",
-] as const;
-
-const VALID_PRICE_RANGES = ["BUDGET", "MODERATE", "PREMIUM", "LUXURY"] as const;
-
-type ValidBarType = (typeof VALID_BAR_TYPES)[number];
-type ValidPriceRange = (typeof VALID_PRICE_RANGES)[number];
-
-interface CSVRecord {
-  name?: string;
-  type?: string;
-  address?: string;
-  city?: string;
-  district?: string;
-  latitude?: string;
-  longitude?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  instagram?: string;
-  priceRange?: string;
-  capacity?: string;
-  amenities?: string;
-  description?: string;
-  operatingHours?: string;
-  vipEnabled?: string;
-  coverImage?: string;
-  imageUrls?: string;
-  logoUrl?: string;
+interface OperatingHours {
+  open: string;
+  close: string;
 }
 
-interface DuplicateInfo {
-  row: number;
-  name: string;
-  reason: "within_file" | "already_in_database";
+interface DayHours {
+  Monday: OperatingHours;
+  Tuesday: OperatingHours;
+  Wednesday: OperatingHours;
+  Thursday: OperatingHours;
+  Friday: OperatingHours;
+  Saturday: OperatingHours;
+  Sunday: OperatingHours;
 }
 
 interface ImportResult {
+  total: number;
   imported: number;
-  skipped: number;
-  duplicates: DuplicateInfo[];
+  failed: number;
   errors: string[];
 }
 
-async function verifyAdminToken(token: string) {
+interface ImportResponse {
+  success: boolean;
+  results: ImportResult;
+}
+
+async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   try {
+    const decoded = verify(token, JWT_SECRET) as { role: string };
+    const adminRole = decoded.role as AdminRole;
     const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true },
+      where: { isActive: true, role: adminRole },
+      select: { id: true },
     });
     return adminUser;
   } catch (error) {
@@ -1404,104 +1808,112 @@ async function verifyAdminToken(token: string) {
   }
 }
 
-function parseCSV(csvText: string): CSVRecord[] {
-  const lines = csvText.split("\n").filter((line) => line.trim() !== "");
-  if (lines.length < 2) return [];
+function parseOperatingHours(hoursStr: string): DayHours {
+  const defaultHours: OperatingHours = { open: "Closed", close: "Closed" };
+  const operatingHours: DayHours = {
+    Monday: { ...defaultHours },
+    Tuesday: { ...defaultHours },
+    Wednesday: { ...defaultHours },
+    Thursday: { ...defaultHours },
+    Friday: { ...defaultHours },
+    Saturday: { ...defaultHours },
+    Sunday: { ...defaultHours },
+  };
 
-  const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
-  console.log("HEADERS:", headers);
+  if (!hoursStr || hoursStr.trim() === "") {
+    return operatingHours;
+  }
 
-  const records: CSVRecord[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) continue;
+  const parts = hoursStr.split(",");
+  for (const part of parts) {
+    const match = part.match(
+      /(\w+):\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*-\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i,
+    );
+    if (match) {
+      const day = match[1] as keyof DayHours;
+      let openTime = match[2];
+      let closeTime = match[3];
 
-    const values: string[] = [];
-    let current = "";
-    let inQuotes = false;
+      if (!openTime.includes(":")) openTime = `${openTime}:00`;
+      if (!closeTime.includes(":")) closeTime = `${closeTime}:00`;
 
-    for (let j = 0; j < line.length; j++) {
-      const char = line[j];
-      const nextChar = line[j + 1];
-
-      if (char === '"') {
-        if (inQuotes && nextChar === '"') {
-          current += '"';
-          j++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (char === "," && !inQuotes) {
-        values.push(current.trim());
-        current = "";
-      } else {
-        current += char;
+      if (operatingHours[day]) {
+        operatingHours[day] = { open: openTime, close: closeTime };
       }
-    }
-    values.push(current.trim());
-
-    const record: CSVRecord = {};
-    headers.forEach((header, index) => {
-      if (index < values.length) {
-        const value = values[index].replace(/"/g, "").trim();
-        record[header as keyof CSVRecord] = value;
-      }
-    });
-
-    if (record.name && record.name.trim()) {
-      records.push(record);
     }
   }
 
-  console.log(`PARSED ${records.length} RECORDS`);
-  return records;
+  return operatingHours;
 }
 
 function parseAmenities(amenitiesStr: string): string[] {
-  if (!amenitiesStr) return [];
-  const trimmedStr = amenitiesStr.trim();
+  if (!amenitiesStr || amenitiesStr.trim() === "") {
+    return [];
+  }
+  return amenitiesStr
+    .split(",")
+    .map((a) => a.trim())
+    .filter((a) => a.length > 0);
+}
 
+function parseImageUrls(urlsStr: string): string[] {
+  if (!urlsStr || urlsStr.trim() === "") {
+    return [];
+  }
+  return urlsStr
+    .split(",")
+    .map((u) => u.trim())
+    .filter((u) => u.length > 0);
+}
+
+function parsePriceRange(priceStr: string): PriceRange | undefined {
+  const priceMap: Record<string, PriceRange> = {
+    budget: "BUDGET",
+    moderate: "MODERATE",
+    premium: "PREMIUM",
+    luxury: "LUXURY",
+    $: "BUDGET",
+    $$: "MODERATE",
+    $$$: "PREMIUM",
+    $$$$: "LUXURY",
+  };
+
+  const normalized = priceStr?.toLowerCase().trim() || "";
+  const mapped = priceMap[normalized];
+  if (mapped && Object.values(PriceRange).includes(mapped)) {
+    return mapped;
+  }
+  return undefined;
+}
+
+function parseBarType(typeStr: string): BarType | undefined {
+  const typeMap: Record<string, BarType> = {
+    pub: "PUB",
+    club: "CLUB",
+    lounge: "LOUNGE",
+    cocktail: "COCKTAIL_BAR",
+    "cocktail bar": "COCKTAIL_BAR",
+    restaurant: "RESTAURANT_BAR",
+    "restaurant bar": "RESTAURANT_BAR",
+    sports: "SPORTS_BAR",
+    "sports bar": "SPORTS_BAR",
+    karaoke: "KARAOKE",
+    "live music": "LIVE_MUSIC",
+    music: "LIVE_MUSIC",
+  };
+
+  const normalized = typeStr?.toLowerCase().trim() || "";
+  const mapped = typeMap[normalized];
+  if (mapped && Object.values(BarType).includes(mapped)) {
+    return mapped;
+  }
+  return undefined;
+}
+
+export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const parsed = JSON.parse(trimmedStr);
-    if (Array.isArray(parsed)) {
-      return parsed.filter((item): item is string => typeof item === "string");
-    }
-  } catch {
-    // Not JSON, try other formats
-  }
-
-  if (trimmedStr.includes("'") && trimmedStr.startsWith("[")) {
-    return trimmedStr
-      .replace(/^\[|\]$/g, "")
-      .split(",")
-      .map((item) => item.trim().replace(/^'|'$/g, ""))
-      .filter(Boolean);
-  }
-
-  if (trimmedStr.includes(",")) {
-    return trimmedStr
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  if (trimmedStr) return [trimmedStr];
-  return [];
-}
-
-function isValidBarType(value: string): value is ValidBarType {
-  return VALID_BAR_TYPES.includes(value as ValidBarType);
-}
-
-function isValidPriceRange(value: string): value is ValidPriceRange {
-  return VALID_PRICE_RANGES.includes(value as ValidPriceRange);
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    console.log("STARTING CSV IMPORT...");
-
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
+
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -1512,246 +1924,182 @@ export async function POST(request: NextRequest) {
     }
 
     const formData = await request.formData();
-    const csvFile = formData.get("csvFile") as File;
-    if (!csvFile) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    const file = formData.get("file") as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    if (csvFile.size > 10 * 1024 * 1024) {
+    const fileContent = await file.text();
+    const lines = fileContent.split("\n");
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+
+    const requiredHeaders = ["name", "address", "city", "type"];
+    const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h));
+
+    if (missingHeaders.length > 0) {
       return NextResponse.json(
-        { error: "File too large. Maximum size is 10MB." },
+        {
+          error: `Missing required headers: ${missingHeaders.join(", ")}`,
+        },
         { status: 400 },
       );
     }
 
-    const csvText = await csvFile.text();
-    const records = parseCSV(csvText);
-
-    if (records.length === 0) {
-      return NextResponse.json(
-        { error: "CSV file is empty or has no valid data" },
-        { status: 400 },
-      );
-    }
-
-    console.log(`Processing ${records.length} records...`);
-
-    const result: ImportResult = {
+    const results: ImportResult = {
+      total: 0,
       imported: 0,
-      skipped: 0,
-      duplicates: [],
+      failed: 0,
       errors: [],
     };
 
-    const processedNamesInFile = new Set<string>();
-    const barsToImport: { record: CSVRecord; rowNumber: number }[] = [];
+    const nameIndex = headers.indexOf("name");
+    const descriptionIndex = headers.indexOf("description");
+    const addressIndex = headers.indexOf("address");
+    const cityIndex = headers.indexOf("city");
+    const districtIndex = headers.indexOf("district");
+    const typeIndex = headers.indexOf("type");
+    const latitudeIndex = headers.indexOf("latitude");
+    const longitudeIndex = headers.indexOf("longitude");
+    const phoneIndex = headers.indexOf("phone");
+    const emailIndex = headers.indexOf("email");
+    const websiteIndex = headers.indexOf("website");
+    const instagramIndex = headers.indexOf("instagram");
+    const operatingHoursIndex = headers.indexOf("operatinghours");
+    const priceRangeIndex = headers.indexOf("pricerange");
+    const capacityIndex = headers.indexOf("capacity");
+    const amenitiesIndex = headers.indexOf("amenities");
+    const coverImageIndex = headers.indexOf("coverimage");
+    const imageUrlsIndex = headers.indexOf("imageurls");
+    const logoUrlIndex = headers.indexOf("logourl");
+    const vipEnabledIndex = headers.indexOf("vipenabled");
 
-    for (const [index, record] of records.entries()) {
-      const rowNumber = index + 2;
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
 
-      if (!record.name?.trim()) {
-        result.errors.push(`Row ${rowNumber}: Missing bar name`);
-        result.skipped++;
-        continue;
-      }
+      results.total++;
 
-      const barName = record.name.trim();
-
-      if (processedNamesInFile.has(barName)) {
-        result.duplicates.push({
-          row: rowNumber,
-          name: barName,
-          reason: "within_file",
-        });
-        result.skipped++;
-        continue;
-      }
-
-      const existingBar = await prisma.bar.findUnique({
-        where: { name: barName },
-      });
-
-      if (existingBar) {
-        result.duplicates.push({
-          row: rowNumber,
-          name: barName,
-          reason: "already_in_database",
-        });
-        result.skipped++;
-        continue;
-      }
-
-      processedNamesInFile.add(barName);
-      barsToImport.push({ record, rowNumber });
-    }
-
-    console.log(`Found ${barsToImport.length} unique bars to import`);
-    console.log(`Skipping ${result.skipped} duplicates`);
-
-    for (const { record, rowNumber } of barsToImport) {
       try {
-        const barName = record.name!.trim();
+        const values = line.split(",").map((v) => v.trim());
 
-        let barType: BarType = "PUB";
-        if (record.type) {
-          const upperType = record.type.toUpperCase();
-          if (isValidBarType(upperType)) {
-            barType = upperType;
-          }
+        const name = values[nameIndex];
+        if (!name) {
+          throw new Error("Name is required");
         }
 
-        let priceRange: PriceRange | null = null;
-        if (record.priceRange) {
-          const upperRange = record.priceRange.toUpperCase();
-          if (isValidPriceRange(upperRange)) {
-            priceRange = upperRange;
-          }
+        const address = values[addressIndex];
+        if (!address) {
+          throw new Error("Address is required");
         }
 
-        let latitude: number | null = null;
-        let longitude: number | null = null;
-        if (record.latitude) {
-          const lat = parseFloat(record.latitude);
-          if (!isNaN(lat)) latitude = lat;
-        }
-        if (record.longitude) {
-          const lng = parseFloat(record.longitude);
-          if (!isNaN(lng)) longitude = lng;
+        const city = values[cityIndex];
+        if (!city) {
+          throw new Error("City is required");
         }
 
-        const amenities: string[] = record.amenities
-          ? parseAmenities(record.amenities)
-          : [];
-
-        let imageUrls: string[] = [];
-        if (record.imageUrls) {
-          imageUrls = record.imageUrls
-            .split(",")
-            .map((url) => url.trim())
-            .filter(Boolean);
+        const typeStr = values[typeIndex];
+        const barType = parseBarType(typeStr);
+        if (!barType) {
+          throw new Error(`Invalid bar type: ${typeStr}`);
         }
 
-        let operatingHours = {};
-        if (record.operatingHours && record.operatingHours !== "{}") {
-          try {
-            operatingHours = JSON.parse(record.operatingHours);
-          } catch (e) {
-            console.log(
-              `Row ${rowNumber}: Invalid operating hours, using default`,
-            );
-          }
+        const latitude = values[latitudeIndex]
+          ? parseFloat(values[latitudeIndex])
+          : null;
+        const longitude = values[longitudeIndex]
+          ? parseFloat(values[longitudeIndex])
+          : null;
+
+        const operatingHours = parseOperatingHours(
+          values[operatingHoursIndex] || "",
+        );
+        const amenities = parseAmenities(values[amenitiesIndex] || "");
+        const imageUrls = parseImageUrls(values[imageUrlsIndex] || "");
+        const priceRange = parsePriceRange(values[priceRangeIndex] || "");
+
+        // Check if bar already exists
+        const existingBar = await prisma.bar.findUnique({
+          where: { name },
+          select: { id: true },
+        });
+
+        if (existingBar) {
+          throw new Error(`Bar "${name}" already exists`);
         }
 
-        let vipEnabled = false;
-        if (record.vipEnabled) {
-          vipEnabled = record.vipEnabled.toLowerCase() === "true";
-        }
-
-        let capacity: number | null = null;
-        if (record.capacity) {
-          const cap = parseInt(record.capacity);
-          if (!isNaN(cap)) capacity = cap;
-        }
-
-        await prisma.bar.create({
+        // FIXED: Use cityName instead of city (NO 'any' types)
+        const bar = await prisma.bar.create({
           data: {
-            name: barName,
+            name: name,
+            description: values[descriptionIndex] || null,
+            address: address,
+            cityName: city,
+            district: values[districtIndex] || null,
             type: barType,
-            address: record.address?.trim() || "Address not provided",
-            city: record.city?.trim() || "Helsinki",
-            district: record.district?.trim() || null,
             latitude: latitude,
             longitude: longitude,
-            phone: record.phone?.trim() || null,
-            email: record.email?.trim() || null,
-            website: record.website?.trim() || null,
-            instagram: record.instagram?.trim() || null,
+            phone: values[phoneIndex] || null,
+            email: values[emailIndex] || null,
+            website: values[websiteIndex] || null,
+            instagram: values[instagramIndex] || null,
+            operatingHours: operatingHours as unknown as Record<
+              string,
+              { open: string; close: string }
+            >,
             priceRange: priceRange,
-            capacity: capacity,
+            capacity: values[capacityIndex]
+              ? parseInt(values[capacityIndex])
+              : null,
             amenities: amenities,
-            description: record.description?.trim() || null,
-            operatingHours: operatingHours,
-            vipEnabled: vipEnabled,
-            coverImage: record.coverImage?.trim() || null,
+            coverImage: values[coverImageIndex] || null,
             imageUrls: imageUrls,
-            logoUrl: record.logoUrl?.trim() || null,
+            logoUrl: values[logoUrlIndex] || null,
             status: "UNCLAIMED",
             isVerified: false,
             isActive: true,
+            vipEnabled: values[vipEnabledIndex]?.toLowerCase() === "true",
             createdById: adminUser.id,
           },
         });
 
-        result.imported++;
-        console.log(`✅ IMPORTED: ${barName}`);
+        results.imported++;
+
+        // Create audit log
+        await prisma.auditLog.create({
+          data: {
+            adminId: adminUser.id,
+            barId: bar.id,
+            action: "IMPORT",
+            resource: "BAR",
+            details: { barName: bar.name, source: "CSV_IMPORT" },
+            createdAt: new Date(),
+          },
+        });
       } catch (error) {
-        console.error(`ERROR Row ${rowNumber}:`, error);
-        result.errors.push(
-          `Row ${rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`,
-        );
-        result.skipped++;
+        results.failed++;
+        const errorMsg =
+          error instanceof Error ? error.message : "Unknown error";
+        results.errors.push(`Row ${i}: ${errorMsg}`);
+        console.error(`Error importing row ${i}:`, error);
       }
     }
 
-    console.log("\n=== IMPORT SUMMARY ===");
-    console.log(`📊 Total records in file: ${records.length}`);
-    console.log(`✅ Imported: ${result.imported}`);
-    console.log(`⏭️ Skipped: ${result.skipped}`);
-
-    if (result.duplicates.length > 0) {
-      console.log(`\n🔄 Duplicates found (${result.duplicates.length}):`);
-      for (const dup of result.duplicates) {
-        console.log(
-          `   Row ${dup.row}: "${dup.name}" - ${dup.reason === "within_file" ? "duplicate within same file" : "already exists in database"}`,
-        );
-      }
-    }
-
-    try {
-      await prisma.barImport.create({
-        data: {
-          fileName: csvFile.name,
-          fileSize: csvFile.size,
-          totalRows: records.length,
-          importedRows: result.imported,
-          failedRows: result.skipped,
-          status:
-            result.imported === 0
-              ? "FAILED"
-              : result.skipped === 0
-                ? "COMPLETED"
-                : "PARTIAL",
-          errors:
-            result.errors.length > 0
-              ? result.errors
-              : result.duplicates.map(
-                  (d) =>
-                    `Row ${d.row}: Duplicate bar "${d.name}" (${d.reason === "within_file" ? "duplicate in file" : "already in database"})`,
-                ),
-          importedBy: adminUser.id,
-        },
-      });
-    } catch (error) {
-      console.log("Note: barImport table doesn't exist, skipping audit log");
-    }
-
-    return NextResponse.json({
+    const response: ImportResponse = {
       success: true,
-      imported: result.imported,
-      skipped: result.skipped,
-      total: records.length,
-      duplicates: result.duplicates,
-      errors: result.errors,
-      message: `✅ Imported ${result.imported} new bars. ⏭️ Skipped ${result.skipped} duplicates.`,
-    });
-  } catch (error) {
-    console.error("CSV IMPORT ERROR:", error);
-    return NextResponse.json(
-      {
-        error:
-          "Internal server error: " +
-          (error instanceof Error ? error.message : "Unknown error"),
+      results: {
+        total: results.total,
+        imported: results.imported,
+        failed: results.failed,
+        errors: results.errors.slice(0, 10),
       },
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error("Import error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
       { status: 500 },
     );
   }

@@ -835,857 +835,359 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import Link from "next/link";
 
+// Styled components (keep your existing ones)
 const Container = styled.div`
-  padding: 1rem;
-  max-width: 1200px;
+  padding: 1.5rem;
+  max-width: 1400px;
   margin: 0 auto;
+  width: 100%;
   min-height: 100vh;
+  background: #f8fafc;
 
-  @media (min-width: 768px) {
-    padding: 2rem;
+  @media (max-width: 768px) {
+    padding: 1rem;
   }
 `;
 
 const Header = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 2rem;
-
-  @media (min-width: 768px) {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
+  flex-wrap: wrap;
+  gap: 1rem;
 `;
 
 const Title = styled.h1`
-  font-size: 1.5rem;
+  font-size: 1.875rem;
   font-weight: 700;
   color: #1f2937;
   margin: 0;
-
-  @media (min-width: 768px) {
-    font-size: 2rem;
-  }
 `;
 
-const ActionButtons = styled.div`
+const Controls = styled.div`
   display: flex;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-
-  @media (min-width: 640px) {
-    flex-wrap: nowrap;
-  }
-`;
-
-const Button = styled.button<{ $variant?: "primary" | "secondary" }>`
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  white-space: nowrap;
-  min-height: 44px;
-
-  ${({ $variant }) =>
-    $variant === "primary"
-      ? `
-        background: #3b82f6;
-        color: white;
-        &:hover { 
-          background: #2563eb;
-          transform: translateY(-1px);
-        }
-      `
-      : `
-        background: #10b981;
-        color: white;
-        &:hover { 
-          background: #059669;
-          transform: translateY(-1px);
-        }
-      `}
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  @media (min-width: 768px) {
-    font-size: 1rem;
-  }
-`;
-
-const LinkButton = styled(Link)<{ $variant?: "primary" | "secondary" }>`
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 0.5rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  white-space: nowrap;
-  min-height: 44px;
-
-  ${({ $variant }) =>
-    $variant === "primary"
-      ? `
-        background: #3b82f6;
-        color: white;
-        &:hover { 
-          background: #2563eb;
-          transform: translateY(-1px);
-        }
-      `
-      : `
-        background: #10b981;
-        color: white;
-        &:hover { 
-          background: #059669;
-          transform: translateY(-1px);
-        }
-      `}
-
-  @media (min-width: 768px) {
-    font-size: 1rem;
-  }
-`;
-
-// Search and Filter Section
-const SearchSection = styled.div`
-  display: flex;
-  flex-direction: column;
   gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-
-  @media (min-width: 640px) {
-    flex-direction: row;
-    align-items: center;
-  }
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1.5rem;
 `;
 
 const SearchInput = styled.input`
-  flex: 1;
-  padding: 0.75rem;
+  padding: 0.5rem 1rem;
   border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  min-width: 0;
-  min-height: 44px;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  &::placeholder {
-    color: #9ca3af;
-  }
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  width: 250px;
+  min-height: 40px;
 `;
 
 const FilterSelect = styled.select`
-  padding: 0.75rem;
+  padding: 0.5rem 1rem;
   border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
+  border-radius: 0.375rem;
   font-size: 0.875rem;
   background: white;
-  min-width: 140px;
-  min-height: 44px;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-
-  @media (min-width: 768px) {
-    font-size: 1rem;
-  }
+  min-height: 40px;
 `;
 
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-  margin-bottom: 2rem;
-
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-  }
-`;
-
-const StatCard = styled.div`
-  background: white;
-  padding: 1.25rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-  text-align: center;
-  transition: transform 0.2s, box-shadow 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-`;
-
-const StatValue = styled.div`
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-
-  @media (min-width: 768px) {
-    font-size: 2rem;
-  }
-`;
-
-const StatLabel = styled.div`
-  color: #6b7280;
-  font-size: 0.75rem;
-  font-weight: 500;
-
-  @media (min-width: 768px) {
-    font-size: 0.875rem;
-  }
-`;
-
-// Results Count
-const ResultsCount = styled.div`
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-  padding: 0 0.5rem;
-
-  @media (min-width: 768px) {
-    padding: 0;
-  }
-`;
-
-const BarsGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1rem;
-
-  @media (min-width: 640px) {
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 1.5rem;
-  }
-
-  @media (min-width: 1024px) {
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  }
-`;
-
-const BarCard = styled.div`
+const Table = styled.table`
+  width: 100%;
   background: white;
   border-radius: 0.5rem;
+  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e5e7eb;
-  padding: 1.25rem;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    border-color: #3b82f6;
-  }
-
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-  }
+  border-collapse: collapse;
 `;
 
-const BarHeader = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-
-  @media (min-width: 480px) {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
-  }
-`;
-
-const BarName = styled.h3`
-  font-size: 1.125rem;
+const Th = styled.th`
+  text-align: left;
+  padding: 1rem;
+  background: #f8f9fa;
   font-weight: 600;
-  color: #1f2937;
-  margin: 0;
-  line-height: 1.4;
-  word-break: break-word;
-
-  @media (min-width: 768px) {
-    font-size: 1.25rem;
-  }
-`;
-
-const BarMeta = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-`;
-
-const BarType = styled.span`
-  background: #f3f4f6;
   color: #374151;
-  padding: 0.375rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
+  border-bottom: 1px solid #e5e7eb;
+`;
+
+const Td = styled.td`
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #6b7280;
+  vertical-align: middle;
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
-  padding: 0.375rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-
-  ${({ $status }) => {
-    switch ($status) {
-      case "VERIFIED":
-        return "background: #dcfce7; color: #166534;";
-      case "CLAIMED":
-        return "background: #dbeafe; color: #1e40af;";
-      case "UNCLAIMED":
-        return "background: #f3f4f6; color: #6b7280;";
-      default:
-        return "background: #f3f4f6; color: #6b7280;";
-    }
-  }}
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: ${(props) =>
+    props.$status === "VERIFIED"
+      ? "#dcfce7"
+      : props.$status === "CLAIMED"
+        ? "#dbeafe"
+        : props.$status === "SUSPENDED"
+          ? "#fee2e2"
+          : "#f3f4f6"};
+  color: ${(props) =>
+    props.$status === "VERIFIED"
+      ? "#166534"
+      : props.$status === "CLAIMED"
+        ? "#1e40af"
+        : props.$status === "SUSPENDED"
+          ? "#dc2626"
+          : "#6b7280"};
 `;
 
-const BarDetails = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  flex: 1;
-`;
-
-const BarDetail = styled.div`
-  color: #6b7280;
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  line-height: 1.4;
-`;
-
-const BarActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  margin-top: auto;
-  padding-top: 1rem;
-  flex-wrap: wrap;
-`;
-
-const ActionLink = styled(Link)`
-  padding: 0.5rem 1rem;
+const ActionButton = styled.button`
   background: #3b82f6;
   color: white;
+  padding: 0.25rem 0.75rem;
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 0.25rem;
   font-size: 0.75rem;
-  font-weight: 500;
-  text-decoration: none;
   cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  white-space: nowrap;
-  min-height: 36px;
-  flex: 1;
-  justify-content: center;
+  margin-right: 0.5rem;
 
   &:hover {
     background: #2563eb;
-    transform: translateY(-1px);
-  }
-
-  &.secondary {
-    background: #6b7280;
-
-    &:hover {
-      background: #4b5563;
-    }
-  }
-
-  @media (min-width: 480px) {
-    flex: 0;
-    font-size: 0.875rem;
   }
 `;
 
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 3rem;
-  color: #6b7280;
+const DeleteButton = styled.button`
+  background: #ef4444;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  cursor: pointer;
 
-  h3 {
-    font-size: 1.25rem;
-    margin-bottom: 0.5rem;
-    color: #374151;
+  &:hover {
+    background: #dc2626;
   }
+`;
 
-  p {
-    margin-bottom: 1.5rem;
-    color: #6b7280;
+const Pagination = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+`;
+
+const PageButton = styled.button<{ $active?: boolean }>`
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  background: ${(props) => (props.$active ? "#3b82f6" : "white")};
+  color: ${(props) => (props.$active ? "white" : "#374151")};
+  border-radius: 0.375rem;
+  cursor: pointer;
+  margin: 0 0.25rem;
+
+  &:hover {
+    background: ${(props) => (props.$active ? "#2563eb" : "#f3f4f6")};
   }
 `;
 
 const LoadingState = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  text-align: center;
   padding: 3rem;
   color: #6b7280;
-  text-align: center;
 `;
 
-const LoadingSpinner = styled.div`
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f4f6;
-  border-top: 4px solid #3b82f6;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-
-  @keyframes spin {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
-  }
-`;
-
-const ErrorState = styled.div`
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  text-align: center;
-  margin: 2rem 0;
-`;
-
-// NEW: Pagination Components
-const PaginationContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 2rem;
-  flex-wrap: wrap;
-`;
-
-const PageButton = styled.button<{ $active?: boolean }>`
-  padding: 0.5rem 0.75rem;
-  border: 1px solid ${({ $active }) => ($active ? "#3b82f6" : "#d1d5db")};
-  border-radius: 0.375rem;
-  background: ${({ $active }) => ($active ? "#3b82f6" : "white")};
-  color: ${({ $active }) => ($active ? "white" : "#374151")};
-  font-size: 0.875rem;
-  font-weight: ${({ $active }) => ($active ? "600" : "500")};
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 40px;
-  min-height: 36px;
-
-  &:hover:not(:disabled) {
-    border-color: #3b82f6;
-    background: ${({ $active }) => ($active ? "#2563eb" : "#f0f9ff")};
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
-
-const PageInfo = styled.span`
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin: 0 0.5rem;
-  white-space: nowrap;
-`;
-
-const PageSizeSelect = styled.select`
-  padding: 0.5rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  background: white;
-  min-width: 80px;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-  }
-`;
-
-// Types
 interface Bar {
   id: string;
   name: string;
-  type: string;
   city: string;
-  district?: string;
+  district: string | null;
+  type: string;
   status: string;
   isVerified: boolean;
+  isActive: boolean;
+  profileViews: number;
+  staffCount: number;
+  promotionCount: number;
   createdAt: string;
+  updatedAt: string;
 }
 
-interface BarsStats {
-  totalBars: number;
-  activeBars: number;
-  verifiedBars: number;
-  unclaimedBars: number;
-}
-
-interface PaginationInfo {
+interface PaginationData {
   page: number;
   limit: number;
   total: number;
-  pages: number;
-}
-
-// Interface for API response with stats
-interface BarsApiResponse {
-  bars: Bar[];
-  pagination: PaginationInfo;
-  stats?: {
-    totalBars: number;
-    activeBars: number;
-    verifiedBars: number;
-    unclaimedBars: number;
-  };
+  totalPages: number;
 }
 
 const BarsDatabase = () => {
-  const [bars, setBars] = useState<Bar[]>([]);
-  const [stats, setStats] = useState<BarsStats>({
-    totalBars: 0,
-    activeBars: 0,
-    verifiedBars: 0,
-    unclaimedBars: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
-  // Search and filter states
-  const [searchTerm, setSearchTerm] = useState("");
+  const [bars, setBars] = useState<Bar[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
-
-  // Pagination states
-  const [pagination, setPagination] = useState<PaginationInfo>({
+  const [pagination, setPagination] = useState<PaginationData>({
     page: 1,
     limit: 10,
     total: 0,
-    pages: 1,
+    totalPages: 0,
   });
 
-  // Fetch bars with pagination
-  const fetchBars = async (page = 1, limit = 10) => {
+  const getToken = (): string | null => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hoppr_token");
+    }
+    return null;
+  };
+
+  const fetchBars = async () => {
     try {
       setLoading(true);
-      setError(null);
-
-      const token =
-        localStorage.getItem("hoppr_token") ||
-        localStorage.getItem("admin_token") ||
-        localStorage.getItem("token");
+      const token = getToken();
 
       if (!token) {
-        throw new Error("No authentication token found. Please log in.");
+        router.push("/login");
+        return;
       }
 
-      // Build query parameters
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      });
-
-      // Add filters if provided
-      if (searchTerm) params.append("search", searchTerm);
+      const params = new URLSearchParams();
+      params.append("page", pagination.page.toString());
+      params.append("limit", pagination.limit.toString());
+      if (search) params.append("search", search);
       if (statusFilter) params.append("status", statusFilter);
+      if (typeFilter) params.append("type", typeFilter);
       if (cityFilter) params.append("city", cityFilter);
 
       const response = await fetch(
         `/api/auth/admin/bars?${params.toString()}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
 
-      if (response.status === 401) {
-        throw new Error("Your session has expired. Please log in again.");
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch bars: ${response.status}`);
-      }
-
-      const result: BarsApiResponse = await response.json();
-
-      setBars(result.bars);
-
-      // Update pagination info
-      if (result.pagination) {
-        setPagination(result.pagination);
-      }
-
-      // Update stats - use backend stats if provided, otherwise calculate from total
-      if (result.stats) {
-        // Backend provides accurate stats
-        setStats(result.stats);
-      } else {
-        // Fallback: Use pagination total for total bars
-        // Note: This won't give accurate verified/unclaimed counts
-        setStats({
-          totalBars: result.pagination?.total || result.bars.length,
-          activeBars: result.pagination?.total || result.bars.length, // Approximate
-          verifiedBars: 0, // We don't know without backend stats
-          unclaimedBars: 0, // We don't know without backend stats
-        });
+      if (response.ok) {
+        const data = await response.json();
+        setBars(data.data || []);
+        setPagination((prev) => ({
+          ...prev,
+          total: data.pagination?.total || 0,
+          totalPages: data.pagination?.totalPages || 0,
+        }));
+      } else if (response.status === 401) {
+        router.push("/login");
       }
     } catch (error) {
-      console.error("❌ Error in fetchBars:", error);
-      setError(error instanceof Error ? error.message : "Failed to load bars");
+      console.error("Error fetching bars:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch bars when component mounts
-  useEffect(() => {
-    fetchBars(1, pagination.limit);
-  }, []);
-
-  // Fetch bars when search/filters change
-  useEffect(() => {
-    // Reset to page 1 when filters change
-    fetchBars(1, pagination.limit);
-  }, [searchTerm, statusFilter, cityFilter]);
-
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > pagination.pages) return;
-    fetchBars(page, pagination.limit);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // Handle page size change
-  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLimit = parseInt(e.target.value);
-    setPagination((prev) => ({ ...prev, limit: newLimit }));
-    fetchBars(1, newLimit);
-  };
-
-  // Get unique cities for filter dropdown
-  const getUniqueCities = () => {
-    const cities = bars.map((bar) => bar.city);
+  // FIXED: Get unique cities with null check
+  const getUniqueCities = (): string[] => {
+    if (!bars || bars.length === 0) return [];
+    const cities = bars
+      .map((bar) => bar.city)
+      .filter((city): city is string => !!city);
     return [...new Set(cities)].sort();
   };
 
-  // Generate page numbers for pagination
-  const getPageNumbers = () => {
-    const { page, pages } = pagination;
-    const pageNumbers = [];
-
-    // Always show first page
-    pageNumbers.push(1);
-
-    // Calculate range around current page
-    let start = Math.max(2, page - 2);
-    let end = Math.min(pages - 1, page + 2);
-
-    // Adjust if we're near the start
-    if (page <= 3) {
-      end = Math.min(pages - 1, 5);
-    }
-
-    // Adjust if we're near the end
-    if (page >= pages - 2) {
-      start = Math.max(2, pages - 4);
-    }
-
-    // Add ellipsis after first page if needed
-    if (start > 2) {
-      pageNumbers.push("...");
-    }
-
-    // Add middle pages
-    for (let i = start; i <= end; i++) {
-      pageNumbers.push(i);
-    }
-
-    // Add ellipsis before last page if needed
-    if (end < pages - 1) {
-      pageNumbers.push("...");
-    }
-
-    // Always show last page if there is more than one page
-    if (pages > 1) {
-      pageNumbers.push(pages);
-    }
-
-    return pageNumbers;
+  // FIXED: Get unique types with null check
+  const getUniqueTypes = (): string[] => {
+    if (!bars || bars.length === 0) return [];
+    const types = bars
+      .map((bar) => bar.type)
+      .filter((type): type is string => !!type);
+    return [...new Set(types)].sort();
   };
 
-  const handleAddBar = () => {
-    router.push("/admin/bars/create");
+  useEffect(() => {
+    fetchBars();
+  }, [pagination.page, search, statusFilter, typeFilter, cityFilter]);
+
+  const handlePageChange = (newPage: number) => {
+    setPagination((prev) => ({ ...prev, page: newPage }));
   };
 
-  const handleRetry = () => {
-    setError(null);
-    fetchBars(pagination.page, pagination.limit);
+  const handleViewBar = (barId: string) => {
+    router.push(`/admin/bars/${barId}`);
   };
 
-  const handleLogin = () => {
-    router.push("/admin/login");
+  const handleDeleteBar = async (barId: string, barName: string) => {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${barName}"? This action cannot be undone.`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const token = getToken();
+      const response = await fetch(`/api/auth/admin/bars/${barId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        fetchBars();
+      } else {
+        alert("Failed to delete bar");
+      }
+    } catch (error) {
+      console.error("Error deleting bar:", error);
+      alert("Failed to delete bar");
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString();
   };
 
-  // Show error state
-  if (error) {
+  if (loading && bars.length === 0) {
     return (
       <Container>
-        <Header>
-          <Title>Bars Database</Title>
-          <ActionButtons>
-            <LinkButton href="/admin/bars/import" $variant="secondary">
-              📁 Import CSV
-            </LinkButton>
-            <Button $variant="primary" onClick={handleAddBar}>
-              ➕ Add Bar
-            </Button>
-          </ActionButtons>
-        </Header>
-        <ErrorState>
-          <h3>Authentication Required</h3>
-          <p>{error}</p>
-          <div
-            style={{
-              display: "flex",
-              gap: "1rem",
-              justifyContent: "center",
-              marginTop: "1rem",
-              flexWrap: "wrap",
-            }}
-          >
-            <Button $variant="primary" onClick={handleLogin}>
-              🔐 Go to Login
-            </Button>
-            <Button $variant="secondary" onClick={handleRetry}>
-              🔄 Try Again
-            </Button>
-          </div>
-        </ErrorState>
+        <LoadingState>Loading bars...</LoadingState>
       </Container>
     );
   }
 
-  // Show loading state
-  if (loading) {
-    return (
-      <Container>
-        <Header>
-          <Title>Bars Database</Title>
-          <ActionButtons>
-            <LinkButton href="/admin/bars/import" $variant="secondary">
-              📁 Import CSV
-            </LinkButton>
-            <Button $variant="primary" onClick={handleAddBar}>
-              ➕ Add Bar
-            </Button>
-          </ActionButtons>
-        </Header>
-        <LoadingState>
-          <LoadingSpinner />
-          <p>Loading bars...</p>
-        </LoadingState>
-      </Container>
-    );
-  }
-
-  // Main content
   return (
     <Container>
       <Header>
         <Title>Bars Database</Title>
-        <ActionButtons>
-          <LinkButton href="/admin/bars/import" $variant="secondary">
-            📁 Import CSV
-          </LinkButton>
-          <Button $variant="primary" onClick={handleAddBar}>
-            ➕ Add Bar
-          </Button>
-        </ActionButtons>
       </Header>
 
-      {/* Search and Filters Section */}
-      <SearchSection>
+      <Controls>
         <SearchInput
           type="text"
-          placeholder="Search bars by name, city, or type..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search by name, city, district..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
         />
         <FilterSelect
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
-          <option value="">All Status</option>
+          <option value="">All Statuses</option>
           <option value="VERIFIED">Verified</option>
           <option value="CLAIMED">Claimed</option>
           <option value="UNCLAIMED">Unclaimed</option>
+          <option value="SUSPENDED">Suspended</option>
+        </FilterSelect>
+        <FilterSelect
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+        >
+          <option value="">All Types</option>
+          {getUniqueTypes().map((type) => (
+            <option key={type} value={type}>
+              {type.replace(/_/g, " ")}
+            </option>
+          ))}
         </FilterSelect>
         <FilterSelect
           value={cityFilter}
@@ -1698,141 +1200,98 @@ const BarsDatabase = () => {
             </option>
           ))}
         </FilterSelect>
-      </SearchSection>
+      </Controls>
 
-      <StatsGrid>
-        <StatCard>
-          <StatValue>{stats.totalBars}</StatValue>
-          <StatLabel>Total Bars</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats.activeBars}</StatValue>
-          <StatLabel>Active Bars</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats.verifiedBars}</StatValue>
-          <StatLabel>Verified</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats.unclaimedBars}</StatValue>
-          <StatLabel>Unclaimed</StatLabel>
-        </StatCard>
-      </StatsGrid>
+      <Table>
+        <thead>
+          <tr>
+            <Th>Name</Th>
+            <Th>City</Th>
+            <Th>District</Th>
+            <Th>Type</Th>
+            <Th>Status</Th>
+            <Th>Staff</Th>
+            <Th>Promotions</Th>
+            <Th>Views</Th>
+            <Th>Created</Th>
+            <Th>Actions</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {bars.map((bar) => (
+            <tr key={bar.id}>
+              <Td>
+                <strong>{bar.name}</strong>
+              </Td>
+              <Td>{bar.city}</Td>
+              <Td>{bar.district || "-"}</Td>
+              <Td>{bar.type.replace(/_/g, " ")}</Td>
+              <Td>
+                <StatusBadge $status={bar.status}>{bar.status}</StatusBadge>
+              </Td>
+              <Td>{bar.staffCount}</Td>
+              <Td>{bar.promotionCount}</Td>
+              <Td>{bar.profileViews.toLocaleString()}</Td>
+              <Td>{formatDate(bar.createdAt)}</Td>
+              <Td>
+                <ActionButton onClick={() => handleViewBar(bar.id)}>
+                  View
+                </ActionButton>
+                <DeleteButton onClick={() => handleDeleteBar(bar.id, bar.name)}>
+                  Delete
+                </DeleteButton>
+              </Td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
 
-      {/* Results Count */}
-      <ResultsCount>
-        Showing {bars.length} of {stats.totalBars} bars
-        {(searchTerm || statusFilter || cityFilter) && " (filtered)"}
-        {pagination.pages > 1 &&
-          ` • Page ${pagination.page} of ${pagination.pages}`}
-      </ResultsCount>
-
-      {bars.length === 0 ? (
-        <EmptyState>
-          <h3>No bars found</h3>
-          <p>
-            {stats.totalBars === 0
-              ? "Get started by adding your first bar or importing from CSV."
-              : "Try adjusting your search or filters to find what you're looking for."}
-          </p>
-          {stats.totalBars === 0 && (
-            <ActionButtons style={{ justifyContent: "center" }}>
-              <LinkButton href="/admin/bars/import" $variant="secondary">
-                📁 Import CSV
-              </LinkButton>
-              <Button $variant="primary" onClick={handleAddBar}>
-                ➕ Add Bar
-              </Button>
-            </ActionButtons>
-          )}
-        </EmptyState>
-      ) : (
-        <>
-          <BarsGrid>
-            {bars.map((bar) => (
-              <BarCard key={bar.id}>
-                <BarHeader>
-                  <BarName>{bar.name}</BarName>
-                  <BarMeta>
-                    <BarType>{bar.type.replace("_", " ")}</BarType>
-                    <StatusBadge
-                      $status={bar.isVerified ? "VERIFIED" : bar.status}
-                    >
-                      {bar.isVerified ? "VERIFIED" : bar.status}
-                    </StatusBadge>
-                  </BarMeta>
-                </BarHeader>
-
-                <BarDetails>
-                  <BarDetail>
-                    📍{" "}
-                    {bar.district ? `${bar.district}, ${bar.city}` : bar.city}
-                  </BarDetail>
-                  <BarDetail>📅 Added: {formatDate(bar.createdAt)}</BarDetail>
-                </BarDetails>
-
-                <BarActions>
-                  <ActionLink href={`/admin/bars/${bar.id}`}>
-                    View Details
-                  </ActionLink>
-                  <ActionLink
-                    href={`/admin/bars/${bar.id}/edit`}
-                    className="secondary"
-                  >
-                    Edit
-                  </ActionLink>
-                </BarActions>
-              </BarCard>
-            ))}
-          </BarsGrid>
-
-          {/* Pagination Controls */}
-          {pagination.pages > 1 && (
-            <PaginationContainer>
-              <PageButton
-                onClick={() => handlePageChange(pagination.page - 1)}
-                disabled={pagination.page === 1}
-              >
-                ← Previous
-              </PageButton>
-
-              <PageInfo>
-                Page {pagination.page} of {pagination.pages}
-              </PageInfo>
-
-              {getPageNumbers().map((pageNum, index) =>
-                pageNum === "..." ? (
-                  <span key={`ellipsis-${index}`}>...</span>
-                ) : (
+      {pagination.totalPages > 1 && (
+        <Pagination>
+          <div>
+            Showing {(pagination.page - 1) * pagination.limit + 1} to{" "}
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+            {pagination.total} bars
+          </div>
+          <div>
+            <PageButton
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1}
+            >
+              Previous
+            </PageButton>
+            {Array.from(
+              { length: Math.min(5, pagination.totalPages) },
+              (_, i) => {
+                let pageNum;
+                if (pagination.totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (pagination.page <= 3) {
+                  pageNum = i + 1;
+                } else if (pagination.page >= pagination.totalPages - 2) {
+                  pageNum = pagination.totalPages - 4 + i;
+                } else {
+                  pageNum = pagination.page - 2 + i;
+                }
+                return (
                   <PageButton
-                    key={`page-${pageNum}`}
+                    key={pageNum}
                     $active={pagination.page === pageNum}
-                    onClick={() => handlePageChange(pageNum as number)}
+                    onClick={() => handlePageChange(pageNum)}
                   >
                     {pageNum}
                   </PageButton>
-                )
-              )}
-
-              <PageButton
-                onClick={() => handlePageChange(pagination.page + 1)}
-                disabled={pagination.page === pagination.pages}
-              >
-                Next →
-              </PageButton>
-
-              <PageSizeSelect
-                value={pagination.limit}
-                onChange={handlePageSizeChange}
-              >
-                <option value="10">10 per page</option>
-                <option value="20">20 per page</option>
-                <option value="50">50 per page</option>
-                <option value="100">100 per page</option>
-              </PageSizeSelect>
-            </PaginationContainer>
-          )}
-        </>
+                );
+              },
+            )}
+            <PageButton
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page === pagination.totalPages}
+            >
+              Next
+            </PageButton>
+          </div>
+        </Pagination>
       )}
     </Container>
   );

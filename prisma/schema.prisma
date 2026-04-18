@@ -1,4 +1,330 @@
-// prisma/schema.prisma
+// // prisma/schema.prisma
+// generator client {
+//   provider = "prisma-client-js"
+// }
+
+// datasource db {
+//   provider = "postgresql"
+//   url      = env("DATABASE_URL")
+// }
+
+// model AdminUser {
+//   id             String    @id @default(cuid())
+//   email          String    @unique
+//   name           String
+//   role           AdminRole @default(SUPER_ADMIN)
+//   hashedPassword String?
+//   isActive       Boolean   @default(true)
+//   lastLogin      DateTime?
+//   createdAt      DateTime  @default(now())
+//   updatedAt      DateTime  @updatedAt
+
+//   auditLogs   AuditLog[]
+//   createdBars Bar[]      @relation("BarCreatedBy")
+//   barImports  BarImport[] 
+
+//   @@map("admin_users")
+// }
+
+// model Bar {
+//   id          String  @id @default(cuid())
+//   name        String  @unique
+//   description String?
+//   address     String
+//   city        String
+//   district    String?
+//   type        BarType
+//   latitude    Float?
+//   longitude   Float?
+
+//   // Contact Information
+//   phone     String?
+//   email     String?
+//   website   String?
+//   instagram String?
+
+//   // Business Information
+//   operatingHours Json?
+//   priceRange     PriceRange?
+//   capacity       Int?
+//   amenities      String[]
+
+//   // Media
+//   coverImage String?
+//   imageUrls  String[]
+//   logoUrl    String?
+
+//   // Status & Verification
+//   status     BarStatus @default(UNCLAIMED)
+//   isVerified Boolean   @default(false)
+//   isActive   Boolean   @default(true)
+
+//   // VIP Features
+//   vipEnabled Boolean @default(false)
+
+//   // Engagement Metrics (tracked by mobile app)
+//   profileViews     Int @default(0)
+//   directionClicks  Int @default(0)
+//   callClicks       Int @default(0)
+//   websiteClicks    Int @default(0)
+//   shareCount       Int @default(0)
+
+//   // Timestamps
+//   createdAt DateTime  @default(now())
+//   updatedAt DateTime  @updatedAt
+//   claimedAt DateTime?
+
+//   // Relations - FIXED: Added missing relations
+//   staff        BarStaff[]
+//   promotions   BarPromotion[]
+//   vipPasses    VIPPass[]
+//   auditLogs    AuditLog[]
+//   vipPassScans VIPPassScan[] // ← ADDED THIS
+//   createdBy    AdminUser?     @relation("BarCreatedBy", fields: [createdById], references: [id])
+//   createdById  String?
+//   invitations  BarInvitation[] 
+//   usageHistory PromotionUsage[] 
+
+//   @@map("bars")
+// }
+
+// model BarStaff {
+//   id             String       @id @default(cuid())
+//   barId          String
+//   email          String
+//   name           String
+//   role           BarStaffRole @default(STAFF)
+//   permissions    String[]
+//   hashedPassword String?
+//   isActive       Boolean      @default(true)
+//   lastLogin      DateTime?
+
+//   // Timestamps 
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   // Relations - FIXED: Added missing relations
+//   bar   Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
+//   scans VIPPassScan[] // ← ADDED THIS
+
+//   @@unique([barId, email])
+//   @@map("bar_staff")
+// }
+
+// model BarPromotion {
+//   id           String        @id @default(cuid())
+//   barId        String
+//   title        String
+//   description  String
+//   type         PromotionType
+//   imageUrl     String?
+//   accentColor  String?
+//   callToAction String?
+//   discount     Float?
+//   conditions   String[]
+//   startDate    DateTime
+//   endDate      DateTime
+//   validDays    String[]
+//   validHours   Json?
+//   isActive     Boolean       @default(true)
+//   isApproved   Boolean       @default(false)
+//   priority     Int           @default(1)
+//   views        Int           @default(0)
+//   clicks       Int           @default(0)
+//   redemptions  Int           @default(0)
+//   cardViews    Int           @default(0) 
+//   createdAt    DateTime      @default(now())
+//   updatedAt    DateTime      @updatedAt
+
+//   bar Bar @relation(fields: [barId], references: [id], onDelete: Cascade)
+//   usageHistory PromotionUsage[] 
+
+//   @@map("bar_promotions")
+// }
+
+// model PromotionUsage {
+//   id           String   @id @default(cuid())
+//   promotionId  String
+//   userId       String
+//   barId        String
+//   usageCount   Int      @default(1)
+//   firstUsedAt  DateTime @default(now())
+//   lastUsedAt   DateTime @default(now())
+//   createdAt    DateTime @default(now())
+//   updatedAt    DateTime @updatedAt
+
+//   promotion BarPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+//   bar       Bar          @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+//   @@unique([promotionId, userId])
+//   @@index([promotionId])
+//   @@index([userId])
+//   @@map("promotion_usage")
+// }
+
+// model VIPPass {
+//   id            String      @id @default(cuid())
+//   barId         String
+//   name          String
+//   description   String?
+//   type          VIPPassType @default(SKIP_LINE)
+//   price         Float
+//   originalPrice Float?
+//   benefits      String[]
+//   validityStart DateTime
+//   validityEnd   DateTime
+//   validDays     String[]
+//   totalQuantity Int
+//   soldCount     Int         @default(0)
+//   maxPerUser    Int         @default(2)
+//   isActive      Boolean     @default(true)
+//   createdAt     DateTime    @default(now())
+//   updatedAt     DateTime    @updatedAt
+
+//   // Relations - FIXED: Added missing relations
+//   bar   Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
+//   scans VIPPassScan[] // ← ADDED THIS
+
+//   @@map("vip_passes")
+// }
+
+// model VIPPassScan {
+//   id           String   @id @default(cuid())
+//   vipPassId    String
+//   barId        String
+//   scannedById  String
+//   qrCode       String
+//   customerName String?
+//   scannedAt    DateTime @default(now())
+
+//   // Relations - FIXED: All relations now complete
+//   vipPass   VIPPass  @relation(fields: [vipPassId], references: [id])
+//   bar       Bar      @relation(fields: [barId], references: [id])
+//   scannedBy BarStaff @relation(fields: [scannedById], references: [id])
+
+//   @@map("vip_pass_scans")
+// }
+
+// model AuditLog {
+//   id        String   @id @default(cuid())
+//   adminId   String?
+//   barId     String?
+//   action    String
+//   resource  String
+//   details   Json?
+//   ipAddress String?
+//   userAgent String?
+//   createdAt DateTime @default(now())
+
+//   admin AdminUser? @relation(fields: [adminId], references: [id])
+//   bar   Bar?       @relation(fields: [barId], references: [id])
+
+//   @@map("audit_logs")
+// }
+
+// // ENUMS (keep the same)
+// enum AdminRole {
+//   SUPER_ADMIN
+//   CONTENT_MODERATOR
+//   ANALYTICS_VIEWER
+//   SUPPORT
+// }
+
+// enum BarStaffRole {
+//   OWNER
+//   MANAGER
+//   PROMOTIONS_MANAGER
+//   STAFF
+//   VIEWER
+// }
+
+// enum BarType {
+//   PUB
+//   CLUB
+//   LOUNGE
+//   COCKTAIL_BAR
+//   RESTAURANT_BAR
+//   SPORTS_BAR
+//   KARAOKE
+//   LIVE_MUSIC
+// }
+
+// enum BarStatus {
+//   UNCLAIMED
+//   CLAIMED
+//   VERIFIED
+//   SUSPENDED
+// }
+
+// enum PriceRange {
+//   BUDGET
+//   MODERATE
+//   PREMIUM
+//   LUXURY
+// }
+
+// enum PromotionType {
+//   HAPPY_HOUR
+//   STUDENT_DISCOUNT
+//   LADIES_NIGHT
+//   THEME_NIGHT
+//   FOOD_SPECIAL
+//   DRINK_SPECIAL
+//   COVER_DISCOUNT
+//   VIP_OFFER
+// }
+
+// enum VIPPassType {
+//   SKIP_LINE
+//   COVER_INCLUDED
+//   PREMIUM_ENTRY
+//   DRINK_PACKAGE
+// }
+
+// model BarImport {
+//   id          String   @id @default(cuid())
+//   fileName    String
+//   fileSize    Int
+//   totalRows   Int
+//   importedRows Int
+//   failedRows  Int
+//   status      ImportStatus @default(PENDING)
+//   errors      Json?
+//   importedBy  String // admin user ID or email
+//   createdAt   DateTime @default(now())
+//   updatedAt   DateTime @updatedAt
+
+//   importedByUser AdminUser? @relation(fields: [importedBy], references: [id])
+
+
+//   @@map("bar_imports")
+// }
+
+// enum ImportStatus {
+//   PENDING
+//   PROCESSING
+//   COMPLETED
+//   FAILED
+//   PARTIAL
+// }
+
+// model BarInvitation {
+//   id           String   @id @default(cuid())
+//   barId        String
+//   email        String
+//   name         String
+//   role         BarStaffRole @default(OWNER)
+//   token        String   @unique
+//   expiresAt    DateTime
+//   acceptedAt   DateTime?
+//   createdAt    DateTime @default(now())
+//   updatedAt    DateTime @updatedAt
+
+//   bar          Bar      @relation(fields: [barId], references: [id])
+
+//   @@map("bar_invitations")
+// }
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,221 +334,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model AdminUser {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String
-  role           AdminRole @default(SUPER_ADMIN)
-  hashedPassword String?
-  isActive       Boolean   @default(true)
-  lastLogin      DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+// ============================================
+// ENUMS (Must be defined BEFORE they are used)
+// ============================================
 
-  auditLogs   AuditLog[]
-  createdBars Bar[]      @relation("BarCreatedBy")
-  barImports  BarImport[] 
-
-  @@map("admin_users")
-}
-
-model Bar {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  description String?
-  address     String
-  city        String
-  district    String?
-  type        BarType
-  latitude    Float?
-  longitude   Float?
-
-  // Contact Information
-  phone     String?
-  email     String?
-  website   String?
-  instagram String?
-
-  // Business Information
-  operatingHours Json?
-  priceRange     PriceRange?
-  capacity       Int?
-  amenities      String[]
-
-  // Media
-  coverImage String?
-  imageUrls  String[]
-  logoUrl    String?
-
-  // Status & Verification
-  status     BarStatus @default(UNCLAIMED)
-  isVerified Boolean   @default(false)
-  isActive   Boolean   @default(true)
-
-  // VIP Features
-  vipEnabled Boolean @default(false)
-
-  // Engagement Metrics (tracked by mobile app)
-  profileViews     Int @default(0)
-  directionClicks  Int @default(0)
-  callClicks       Int @default(0)
-  websiteClicks    Int @default(0)
-  shareCount       Int @default(0)
-
-  // Timestamps
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  claimedAt DateTime?
-
-  // Relations - FIXED: Added missing relations
-  staff        BarStaff[]
-  promotions   BarPromotion[]
-  vipPasses    VIPPass[]
-  auditLogs    AuditLog[]
-  vipPassScans VIPPassScan[] // ← ADDED THIS
-  createdBy    AdminUser?     @relation("BarCreatedBy", fields: [createdById], references: [id])
-  createdById  String?
-  invitations  BarInvitation[] 
-  usageHistory PromotionUsage[] 
-
-  @@map("bars")
-}
-
-model BarStaff {
-  id             String       @id @default(cuid())
-  barId          String
-  email          String
-  name           String
-  role           BarStaffRole @default(STAFF)
-  permissions    String[]
-  hashedPassword String?
-  isActive       Boolean      @default(true)
-  lastLogin      DateTime?
-
-  // Timestamps 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations - FIXED: Added missing relations
-  bar   Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
-  scans VIPPassScan[] // ← ADDED THIS
-
-  @@unique([barId, email])
-  @@map("bar_staff")
-}
-
-model BarPromotion {
-  id           String        @id @default(cuid())
-  barId        String
-  title        String
-  description  String
-  type         PromotionType
-  imageUrl     String?
-  accentColor  String?
-  callToAction String?
-  discount     Float?
-  conditions   String[]
-  startDate    DateTime
-  endDate      DateTime
-  validDays    String[]
-  validHours   Json?
-  isActive     Boolean       @default(true)
-  isApproved   Boolean       @default(false)
-  priority     Int           @default(1)
-  views        Int           @default(0)
-  clicks       Int           @default(0)
-  redemptions  Int           @default(0)
-  cardViews    Int           @default(0) 
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  bar Bar @relation(fields: [barId], references: [id], onDelete: Cascade)
-  usageHistory PromotionUsage[] 
-
-  @@map("bar_promotions")
-}
-
-model PromotionUsage {
-  id           String   @id @default(cuid())
-  promotionId  String
-  userId       String
-  barId        String
-  usageCount   Int      @default(1)
-  firstUsedAt  DateTime @default(now())
-  lastUsedAt   DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  promotion BarPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
-  bar       Bar          @relation(fields: [barId], references: [id], onDelete: Cascade)
-
-  @@unique([promotionId, userId])
-  @@index([promotionId])
-  @@index([userId])
-  @@map("promotion_usage")
-}
-
-model VIPPass {
-  id            String      @id @default(cuid())
-  barId         String
-  name          String
-  description   String?
-  type          VIPPassType @default(SKIP_LINE)
-  price         Float
-  originalPrice Float?
-  benefits      String[]
-  validityStart DateTime
-  validityEnd   DateTime
-  validDays     String[]
-  totalQuantity Int
-  soldCount     Int         @default(0)
-  maxPerUser    Int         @default(2)
-  isActive      Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-
-  // Relations - FIXED: Added missing relations
-  bar   Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
-  scans VIPPassScan[] // ← ADDED THIS
-
-  @@map("vip_passes")
-}
-
-model VIPPassScan {
-  id           String   @id @default(cuid())
-  vipPassId    String
-  barId        String
-  scannedById  String
-  qrCode       String
-  customerName String?
-  scannedAt    DateTime @default(now())
-
-  // Relations - FIXED: All relations now complete
-  vipPass   VIPPass  @relation(fields: [vipPassId], references: [id])
-  bar       Bar      @relation(fields: [barId], references: [id])
-  scannedBy BarStaff @relation(fields: [scannedById], references: [id])
-
-  @@map("vip_pass_scans")
-}
-
-model AuditLog {
-  id        String   @id @default(cuid())
-  adminId   String?
-  barId     String?
-  action    String
-  resource  String
-  details   Json?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-
-  admin AdminUser? @relation(fields: [adminId], references: [id])
-  bar   Bar?       @relation(fields: [barId], references: [id])
-
-  @@map("audit_logs")
-}
-
-// ENUMS (keep the same)
 enum AdminRole {
   SUPER_ADMIN
   CONTENT_MODERATOR
@@ -236,17 +351,6 @@ enum BarStaffRole {
   PROMOTIONS_MANAGER
   STAFF
   VIEWER
-}
-
-enum BarType {
-  PUB
-  CLUB
-  LOUNGE
-  COCKTAIL_BAR
-  RESTAURANT_BAR
-  SPORTS_BAR
-  KARAOKE
-  LIVE_MUSIC
 }
 
 enum BarStatus {
@@ -281,6 +385,236 @@ enum VIPPassType {
   DRINK_PACKAGE
 }
 
+enum VIPPassStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  PARTIAL
+}
+
+enum CrawlStatus {
+  PLANNING
+  UPCOMING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum SocialVibe {
+  CHILL
+  PARTY
+  NETWORKING
+  ADVENTUROUS
+  CASUAL
+}
+
+enum SocialStatus {
+  OFFLINE
+  ONLINE
+  SOCIAL_MODE
+  IN_MEETUP
+}
+
+enum InteractionType {
+  HOP_IN
+  MESSAGE
+  MEETUP_REQUEST
+  MEETUP_ACCEPTED
+  MEETUP_COMPLETED
+}
+
+enum MeetupStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum ParticipantStatus {
+  INVITED
+  JOINED
+  LEFT
+  REMOVED
+}
+
+enum InteractionStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  JOIN
+  LEAVE
+}
+
+enum NotificationType {
+  HOP_REQUEST
+  HOP_ACCEPTED
+  HOP_DECLINED
+  WAVE
+  MESSAGE
+  SYSTEM
+  MEETUP_INVITE
+  CRAWL_JOIN_REQUEST
+  CRAWL_JOIN_APPROVED
+  CRAWL_JOIN_REJECTED
+}
+
+enum CrawlJoinStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum HopInStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
+  CRAWL
+}
+
+enum BarType {
+  PUB
+  CLUB
+  LOUNGE
+  COCKTAIL_BAR
+  RESTAURANT_BAR
+  SPORTS_BAR
+  KARAOKE
+  LIVE_MUSIC
+}
+
+// ============================================
+// BUSINESS APP MODELS (Bar Owners/Staff)
+// ============================================
+
+model AdminUser {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  role           AdminRole @default(SUPER_ADMIN)
+  hashedPassword String?
+  isActive       Boolean   @default(true)
+  lastLogin      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  auditLogs   AuditLog[]
+  createdBars Bar[]      @relation("BarCreatedBy")
+  barImports  BarImport[]
+
+  @@map("admin_users")
+}
+
+model BarStaff {
+  id             String       @id @default(cuid())
+  barId          String
+  email          String
+  name           String
+  role           BarStaffRole @default(STAFF)
+  permissions    String[]
+  hashedPassword String?
+  isActive       Boolean      @default(true)
+  lastLogin      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  bar   Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
+  scans VIPPassScan[]
+
+  @@unique([barId, email])
+  @@map("bar_staff")
+}
+
+model BarPromotion {
+  id           String        @id @default(cuid())
+  barId        String
+  title        String
+  description  String
+  type         PromotionType
+  imageUrl     String?
+  accentColor  String?
+  callToAction String?
+  discount     Float?
+  conditions   String[]
+  startDate    DateTime
+  endDate      DateTime
+  validDays    String[]
+  validHours   Json?
+  isActive     Boolean       @default(true)
+  isApproved   Boolean       @default(false)
+  priority     Int           @default(1)
+  views        Int           @default(0)
+  clicks       Int           @default(0)
+  redemptions  Int           @default(0)
+  cardViews    Int           @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  bar          Bar              @relation(fields: [barId], references: [id], onDelete: Cascade)
+  usageHistory PromotionUsage[]
+
+  @@map("bar_promotions")
+}
+
+model PromotionUsage {
+  id           String   @id @default(cuid())
+  promotionId  String
+  userId       String
+  barId        String
+  usageCount   Int      @default(1)
+  firstUsedAt  DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  promotion BarPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  bar       Bar          @relation(fields: [barId], references: [id], onDelete: Cascade)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, userId])
+  @@index([promotionId])
+  @@index([userId])
+  @@map("promotion_usage")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  adminId   String?
+  barId     String?
+  action    String
+  resource  String
+  details   Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  admin AdminUser? @relation(fields: [adminId], references: [id])
+  bar   Bar?       @relation(fields: [barId], references: [id])
+
+  @@map("audit_logs")
+}
+
 model BarImport {
   id          String   @id @default(cuid())
   fileName    String
@@ -290,22 +624,13 @@ model BarImport {
   failedRows  Int
   status      ImportStatus @default(PENDING)
   errors      Json?
-  importedBy  String // admin user ID or email
+  importedBy  String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   importedByUser AdminUser? @relation(fields: [importedBy], references: [id])
 
-
   @@map("bar_imports")
-}
-
-enum ImportStatus {
-  PENDING
-  PROCESSING
-  COMPLETED
-  FAILED
-  PARTIAL
 }
 
 model BarInvitation {
@@ -320,7 +645,672 @@ model BarInvitation {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  bar          Bar      @relation(fields: [barId], references: [id])
+  bar Bar @relation(fields: [barId], references: [id])
 
   @@map("bar_invitations")
+}
+
+// ============================================
+// MAIN BAR MODEL (Merged)
+// ============================================
+
+model Bar {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  description String?
+  address     String
+  cityName    String?   // ← Made nullable
+  district    String?
+  type        BarType
+  latitude    Float?
+  longitude   Float?
+
+  // Contact Information
+  phone     String?
+  email     String?
+  website   String?
+  instagram String?
+
+  // Business Information
+  operatingHours Json?
+  priceRange     PriceRange?
+  capacity       Int?
+  amenities      String[]
+
+  // Media
+  coverImage String?
+  imageUrls  String[]
+  logoUrl    String?
+
+  // Status & Verification
+  status     BarStatus @default(UNCLAIMED)
+  isVerified Boolean   @default(false)
+  isActive   Boolean   @default(true)
+
+  // VIP Features
+  vipEnabled  Boolean @default(false)
+  vipPrice    Float?
+  vipCapacity Int?
+
+  // Engagement Metrics
+  profileViews     Int @default(0)
+  directionClicks  Int @default(0)
+  callClicks       Int @default(0)
+  websiteClicks    Int @default(0)
+  shareCount       Int @default(0)
+
+  // User App Fields
+  cityId   String?
+  imageUrl String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt  // ← Added default
+  claimedAt DateTime?
+
+  // Business App Relations
+  staff        BarStaff[]
+  promotions   BarPromotion[]
+  auditLogs    AuditLog[]
+  createdBy    AdminUser?    @relation("BarCreatedBy", fields: [createdById], references: [id])
+  createdById  String?
+  invitations  BarInvitation[]
+  usageHistory PromotionUsage[]
+
+  // User App Relations
+  city              City?              @relation(fields: [cityId], references: [id])
+  vipPasses         VIPPass[]
+  vipPassesEnhanced VIPPassEnhanced[]
+  userVIPPasses     UserVIPPass[]
+  featured          FeaturedBar[]
+  crawlBars         CrawlBar[]
+  socialProfiles    UserSocialProfile[]
+  socialMeetups     SocialMeetup[]
+  socialActivity    BarSocialActivity?
+  hopIns            HopIn[]
+  vipPassScans      VIPPassScan[]
+
+  @@map("bars")
+}
+
+// ============================================
+// USER APP MODELS (Customers)
+// ============================================
+
+model City {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  country   String   @default("Finland")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  bars   Bar[]
+  groups Group[]
+  crawls Crawl[]
+
+  @@map("cities")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  phoneNumber    String?   @unique
+  phoneVerified  Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  hashedPassword String?
+
+  // Auth Relations
+  accounts           Account[]
+  sessions           Session[]
+  phoneVerifications PhoneVerification[]
+
+  // Promotion Tracking Relations
+  promotionUsage PromotionUsage[]
+
+  // VIP Relations
+  vipPasses     VIPPass[]
+  userVIPPasses UserVIPPass[]
+
+  // Group Relations
+  groups        UserGroup[]
+  createdGroups Group[]
+  chatMessages  ChatMessage[]
+
+  // Crawl Relations
+  createdCrawls      Crawl[]             @relation("CrawlCreator")
+  crawlParticipants  CrawlParticipant[]
+  crawlChats         CrawlChatMessage[]
+  CrawlJoinRequest   CrawlJoinRequest[]
+
+  // Social Relations
+  socialProfile         UserSocialProfile?
+  initiatedInteractions SocialInteraction[] @relation("InteractionInitiator")
+  receivedInteractions  SocialInteraction[] @relation("InteractionTarget")
+  createdSocialMeetups  SocialMeetup[]
+  meetupParticipants    MeetupParticipant[]
+  socialChatMessages    SocialChatMessage[]
+  socialStats           UserSocialStats?
+
+  // Notification Relations
+  sentNotifications     Notification[] @relation("NotificationSender")
+  receivedNotifications Notification[] @relation("NotificationReceiver")
+  sentHopIns            HopIn[]         @relation("HopInSender")
+  receivedHopIns        HopIn[]         @relation("HopInReceiver")
+
+  // Chat Relations
+  chatroomParticipants ChatroomParticipant[]
+  chatroomMessages     ChatroomMessage[]
+
+  @@map("users")
+}
+
+model PhoneVerification {
+  id          String   @id @default(cuid())
+  phoneNumber String
+  code        String
+  expires     DateTime
+  verified    Boolean  @default(false)
+  userId      String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([phoneNumber, code])
+  @@map("phone_verifications")
+}
+
+// VIP Models
+model VIPPass {
+  id        String    @id @default(cuid())
+  userId    String
+  barId     String
+  qrCode    String    @unique
+  isValid   Boolean   @default(true)
+  usedAt    DateTime?
+  startTime DateTime
+  endTime   DateTime
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bar  Bar  @relation(fields: [barId], references: [id], onDelete: Cascade)
+  scans VIPPassScan[]
+
+  @@map("vip_passes")
+}
+
+model VIPPassEnhanced {
+  id          String      @id @default(cuid())
+  barId       String
+  name        String
+  description String?
+  type        VIPPassType @default(SKIP_LINE)
+
+  priceCents         Int
+  originalPriceCents Int?
+
+  benefits         String[]
+  skipLinePriority Boolean  @default(true)
+  coverFeeIncluded Boolean  @default(false)
+  coverFeeAmount   Int      @default(0)
+
+  validityStart DateTime
+  validityEnd   DateTime
+  validDays     String[]
+  validHours    Json?
+
+  totalQuantity Int
+  soldCount     Int @default(0)
+  maxPerUser    Int @default(1)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bar        Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
+  userPasses UserVIPPass[]
+
+  @@map("vip_passes_enhanced")
+}
+
+model UserVIPPass {
+  id                 String  @id @default(cuid())
+  userId             String
+  vipPassId          String
+  barId              String?
+  qrCode             String  @unique
+  purchasePriceCents Int
+
+  scannedAt DateTime?
+  scannedBy String?
+  status    VIPPassStatus @default(ACTIVE)
+  expiresAt DateTime
+
+  purchasedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vipPass VIPPassEnhanced @relation(fields: [vipPassId], references: [id], onDelete: Cascade)
+  bar     Bar?            @relation(fields: [barId], references: [id])
+
+  @@unique([userId, vipPassId])
+  @@map("user_vip_passes")
+}
+
+model VIPPassScan {
+  id           String   @id @default(cuid())
+  vipPassId    String
+  barId        String
+  scannedById  String
+  qrCode       String
+  customerName String?
+  scannedAt    DateTime @default(now())
+
+  vipPass   VIPPass  @relation(fields: [vipPassId], references: [id])
+  bar       Bar      @relation(fields: [barId], references: [id])
+  scannedBy BarStaff @relation(fields: [scannedById], references: [id])
+
+  @@map("vip_pass_scans")
+}
+
+// Group Models
+model Group {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  creatorId   String
+  isPublic    Boolean  @default(true)
+  maxMembers  Int      @default(10)
+  cityId      String
+  createdAt   DateTime @default(now())
+
+  creator User          @relation(fields: [creatorId], references: [id])
+  members UserGroup[]
+  chats   ChatMessage[]
+  city    City          @relation(fields: [cityId], references: [id])
+
+  @@map("groups")
+}
+
+model UserGroup {
+  id      String @id @default(cuid())
+  userId  String
+  groupId String
+
+  user  User  @relation(fields: [userId], references: [id])
+  group Group @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+  @@map("user_groups")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("chat_messages")
+}
+
+// Crawl Models
+model Crawl {
+  id              String      @id @default(cuid())
+  name            String
+  description     String?
+  creatorId       String
+  cityId          String
+  date            DateTime
+  startTime       DateTime
+  endTime         DateTime?
+  maxParticipants Int         @default(10)
+  isPublic        Boolean     @default(true)
+  status          CrawlStatus @default(PLANNING)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  chatroomId      String?     @unique
+
+  creator      User               @relation("CrawlCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  city         City               @relation(fields: [cityId], references: [id])
+  participants CrawlParticipant[]
+  crawlBars    CrawlBar[]
+  chats        CrawlChatMessage[]
+  notifications Notification[]
+  chatroom     Chatroom?
+  CrawlJoinRequest CrawlJoinRequest[]
+
+  @@map("crawls")
+}
+
+model CrawlParticipant {
+  id      String @id @default(cuid())
+  crawlId String
+  userId  String
+
+  crawl Crawl @relation(fields: [crawlId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@unique([crawlId, userId])
+  @@map("crawl_participants")
+}
+
+model CrawlBar {
+  id         String    @id @default(cuid())
+  crawlId    String
+  barId      String
+  orderIndex Int
+  duration   Int
+  startTime  DateTime?
+  endTime    DateTime?
+
+  crawl Crawl @relation(fields: [crawlId], references: [id])
+  bar   Bar   @relation(fields: [barId], references: [id])
+
+  @@unique([crawlId, barId])
+  @@map("crawl_bars")
+}
+
+model CrawlChatMessage {
+  id        String   @id @default(cuid())
+  crawlId   String
+  userId    String
+  content   String
+  createdAt DateTime @default(now())
+
+  crawl Crawl @relation(fields: [crawlId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("crawl_chat_messages")
+}
+
+model CrawlJoinRequest {
+  id          String         @id @default(cuid())
+  crawlId     String
+  userId      String
+  status      CrawlJoinStatus @default(PENDING)
+  message     String?
+  createdAt   DateTime       @default(now())
+  respondedAt DateTime?
+
+  crawl Crawl @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([crawlId, userId])
+  @@map("crawl_join_requests")
+}
+
+// Social Models
+model UserSocialProfile {
+  id             String       @id @default(cuid())
+  userId         String       @unique
+  bio            String?
+  vibe           SocialVibe?  @default(CASUAL)
+  interests      String[]
+  isSocialMode   Boolean      @default(false)
+  socialStatus   SocialStatus @default(OFFLINE)
+  lastActive     DateTime?
+  locationLat    Float?
+  locationLng    Float?
+  currentBarId   String?
+  isVisibleOnMap Boolean      @default(true)
+  maxDistance    Int          @default(1000)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user       User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentBar Bar? @relation(fields: [currentBarId], references: [id])
+
+  @@map("user_social_profiles")
+}
+
+model SocialMeetup {
+  id              String       @id @default(cuid())
+  name            String?
+  description     String?
+  barId           String
+  creatorId       String
+  status          MeetupStatus @default(ACTIVE)
+  maxParticipants Int          @default(8)
+  startTime       DateTime     @default(now())
+  endTime         DateTime?
+  expiresAt       DateTime
+  isPublic        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  bar          Bar                 @relation(fields: [barId], references: [id])
+  creator      User                @relation(fields: [creatorId], references: [id])
+  participants MeetupParticipant[]
+  chatMessages SocialChatMessage[]
+  interactions SocialInteraction[]
+  notifications Notification[]
+
+  @@map("social_meetups")
+}
+
+model MeetupParticipant {
+  id       String            @id @default(cuid())
+  meetupId String
+  userId   String
+  status   ParticipantStatus @default(JOINED)
+  joinedAt DateTime          @default(now())
+  leftAt   DateTime?
+
+  meetup SocialMeetup @relation(fields: [meetupId], references: [id])
+  user   User         @relation(fields: [userId], references: [id])
+
+  @@unique([meetupId, userId])
+  @@map("meetup_participants")
+}
+
+model SocialInteraction {
+  id              String            @id @default(cuid())
+  initiatorId     String
+  targetUserId    String
+  interactionType InteractionType
+  meetupId        String?
+  message         String?
+  status          InteractionStatus @default(PENDING)
+  createdAt       DateTime          @default(now())
+  respondedAt     DateTime?
+
+  initiator  User          @relation("InteractionInitiator", fields: [initiatorId], references: [id])
+  targetUser User          @relation("InteractionTarget", fields: [targetUserId], references: [id])
+  meetup     SocialMeetup? @relation(fields: [meetupId], references: [id])
+
+  @@map("social_interactions")
+}
+
+model SocialChatMessage {
+  id          String      @id @default(cuid())
+  meetupId    String
+  userId      String
+  content     String
+  messageType MessageType @default(TEXT)
+  createdAt   DateTime    @default(now())
+
+  meetup SocialMeetup @relation(fields: [meetupId], references: [id])
+  user   User         @relation(fields: [userId], references: [id])
+
+  @@map("social_chat_messages")
+}
+
+model UserSocialStats {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  totalMeetups      Int       @default(0)
+  successfulMeetups Int       @default(0)
+  hopInCount        Int       @default(0)
+  socialScore       Int       @default(100)
+  badges            String[]
+  lastRating        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_social_stats")
+}
+
+model BarSocialActivity {
+  id                 String   @id @default(cuid())
+  barId              String
+  activeUsersCount   Int      @default(0)
+  socialMeetupsCount Int      @default(0)
+  lastActivity       DateTime @default(now())
+  isHotspot          Boolean  @default(false)
+  heatLevel          Int      @default(0)
+
+  bar Bar @relation(fields: [barId], references: [id])
+
+  @@unique([barId])
+  @@map("bar_social_activities")
+}
+
+// Notification Models
+model Notification {
+  id           String           @id @default(cuid())
+  userId       String
+  type         NotificationType
+  fromUserId   String
+  message      String?
+  barId        String?
+  crawlId      String?
+  chatroomId   String?
+  read         Boolean          @default(false)
+  readAt       DateTime?
+  createdAt    DateTime         @default(now())
+  hopInId      String?
+  meetupId     String?
+
+  user      User        @relation("NotificationReceiver", fields: [userId], references: [id], onDelete: Cascade)
+  fromUser  User        @relation("NotificationSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  hopIn     HopIn?      @relation(fields: [hopInId], references: [id], onDelete: Cascade)
+  meetup    SocialMeetup? @relation(fields: [meetupId], references: [id], onDelete: Cascade)
+  crawl     Crawl?      @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  chatroom  Chatroom?   @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
+
+model HopIn {
+  id          String      @id @default(cuid())
+  fromUserId  String
+  toUserId    String
+  barId       String?
+  message     String?
+  status      HopInStatus @default(PENDING)
+  createdAt   DateTime    @default(now())
+  expiresAt   DateTime
+
+  fromUser      User         @relation("HopInSender", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser        User         @relation("HopInReceiver", fields: [toUserId], references: [id], onDelete: Cascade)
+  bar           Bar?         @relation(fields: [barId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@unique([fromUserId, toUserId, createdAt])
+  @@map("hop_ins")
+}
+
+// Chatroom Models
+model Chatroom {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  crawlId     String?  @unique
+  isGroupChat Boolean  @default(false)
+  chatType    ChatType @default(CRAWL)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  crawl       Crawl?   @relation(fields: [crawlId], references: [id], onDelete: Cascade)
+  participants ChatroomParticipant[]
+  messages    ChatroomMessage[]
+  notifications Notification[]
+
+  @@map("chatrooms")
+}
+
+model ChatroomParticipant {
+  id          String   @id @default(cuid())
+  userId      String
+  chatroomId  String
+  role        String   @default("MEMBER")
+  joinedAt    DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatroom   Chatroom @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatroomId])
+  @@map("chatroom_participants")
+}
+
+model ChatroomMessage {
+  id          String   @id @default(cuid())
+  content     String
+  userId      String
+  chatroomId  String
+  messageType String   @default("TEXT")
+  createdAt   DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatroom   Chatroom @relation(fields: [chatroomId], references: [id], onDelete: Cascade)
+
+  @@map("chatroom_messages")
+}
+
+model FeaturedBar {
+  id        String   @id @default(cuid())
+  barId     String
+  startDate DateTime
+  endDate   DateTime
+  priority  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  bar Bar @relation(fields: [barId], references: [id])
+
+  @@map("featured_bars")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
