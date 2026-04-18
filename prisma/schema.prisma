@@ -83,6 +83,7 @@ model Bar {
   createdBy    AdminUser?     @relation("BarCreatedBy", fields: [createdById], references: [id])
   createdById  String?
   invitations  BarInvitation[] 
+  usageHistory PromotionUsage[] 
 
   @@map("bars")
 }
@@ -131,12 +132,34 @@ model BarPromotion {
   views        Int           @default(0)
   clicks       Int           @default(0)
   redemptions  Int           @default(0)
+  cardViews    Int           @default(0) 
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   bar Bar @relation(fields: [barId], references: [id], onDelete: Cascade)
+  usageHistory PromotionUsage[] 
 
   @@map("bar_promotions")
+}
+
+model PromotionUsage {
+  id           String   @id @default(cuid())
+  promotionId  String
+  userId       String
+  barId        String
+  usageCount   Int      @default(1)
+  firstUsedAt  DateTime @default(now())
+  lastUsedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  promotion BarPromotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  bar       Bar          @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, userId])
+  @@index([promotionId])
+  @@index([userId])
+  @@map("promotion_usage")
 }
 
 model VIPPass {
