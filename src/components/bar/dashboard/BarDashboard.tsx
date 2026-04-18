@@ -1,4 +1,3 @@
-// src/components/bar/dashboard/BarDashboardContent.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,6 +7,7 @@ import AnalyticsDashboard from "@/components/bar/analytics/AnalyticsDashboard";
 import QRScanner from "@/components/bar/qr/QRScanner";
 import BarIntelligenceHub from "@/components/bar/intelligence/BarIntelligenceHub";
 import styled from "styled-components";
+import BarProfile from "../bar-profile/BarProfile";
 
 const Container = styled.div`
   padding: 1.5rem;
@@ -290,6 +290,7 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     | "analytics"
     | "scanner"
     | "intelligence"
+    | "profile"
   >("overview");
 
   const [dashboardStats, setDashboardStats] = useState<BarStats | null>(null);
@@ -316,6 +317,8 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     "MANAGER",
     "PROMOTIONS_MANAGER",
   ].includes(user.staffRole);
+  const canViewProfile = true; // Everyone can view profile
+  const canEditProfile = ["OWNER", "MANAGER"].includes(user.staffRole);
 
   const getToken = (): string | null => {
     if (typeof window !== "undefined") {
@@ -329,9 +332,12 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
       const token = getToken();
       if (!token) return;
 
-      const response = await fetch(`/api/bar/${user.barId}/dashboard/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await fetch(
+        `/api/auth/bar/${user.barId}/dashboard/stats`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -431,6 +437,15 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
               📱 QR Scanner
             </TabButton>
           )}
+
+          {canViewProfile && (
+            <TabButton
+              $active={activeTab === "profile"}
+              onClick={() => setActiveTab("profile")}
+            >
+              🏢 Bar Profile
+            </TabButton>
+          )}
         </TabsWrapper>
       </TabsContainer>
 
@@ -495,7 +510,7 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
 
         {activeTab === "promotions" && canManagePromotions && (
           <ComponentContainer>
-            <PromotionsWizard barId={user.barId} />
+            <PromotionsWizard barId={user.barId} userRole={user.staffRole} />
           </ComponentContainer>
         )}
 
@@ -508,6 +523,12 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
         {activeTab === "scanner" && canUseScanner && (
           <ComponentContainer>
             <QRScanner barId={user.barId} />
+          </ComponentContainer>
+        )}
+
+        {activeTab === "profile" && canViewProfile && (
+          <ComponentContainer>
+            <BarProfile barId={user.barId} userRole={user.staffRole} />
           </ComponentContainer>
         )}
       </TabContent>

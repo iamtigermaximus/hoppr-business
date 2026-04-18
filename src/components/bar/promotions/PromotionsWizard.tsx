@@ -1806,14 +1806,14 @@ const PromotionsWizard = ({
             {isDelete ? (
               <>
                 Are you sure you want to delete{" "}
-                <strong>"{modal.promotionTitle}"</strong>?
+                <strong>&quot;{modal.promotionTitle}&quot;</strong>?
                 <br />
                 This action cannot be undone.
               </>
             ) : (
               <>
                 Are you sure you want to approve{" "}
-                <strong>"{modal.promotionTitle}"</strong>?
+                <strong>&quot;{modal.promotionTitle}&quot;</strong>?
                 <br />
                 It will immediately become visible to customers in the user app.
               </>
@@ -1990,7 +1990,7 @@ const PromotionsWizard = ({
 
   const renderModeSelection = () => (
     <div>
-      <Title>🎯 Create Promotion</Title>
+      <Title>Create Promotion</Title>
       <Subtitle>Choose how you&apos;d like to create your promotion</Subtitle>
 
       <ModeSelector>
