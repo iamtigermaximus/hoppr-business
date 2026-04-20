@@ -835,14 +835,42 @@ const BarDetails = () => {
           </Card>
 
           {/* Images */}
-          {(bar.coverImage || (bar.imageUrls && bar.imageUrls.length > 0)) && (
+          {/* Images */}
+          {(bar.coverImage ||
+            bar.logoUrl ||
+            (bar.imageUrls && bar.imageUrls.length > 0)) && (
             <Card>
               <CardHeader>
                 <CardTitle>Images</CardTitle>
               </CardHeader>
 
+              {/* Logo - New addition */}
+              {bar.logoUrl && (
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <InfoLabel>Logo</InfoLabel>
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <Image
+                      src={bar.logoUrl}
+                      alt="Logo"
+                      style={{
+                        height: "100px",
+                        width: "100px",
+                        objectFit: "cover",
+                        borderRadius: "50%",
+                        border: "2px solid #e5e7eb",
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://placehold.co/200x200?text=Logo+Not+Found";
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Cover Image */}
               {bar.coverImage && (
-                <div style={{ marginBottom: "1rem" }}>
+                <div style={{ marginBottom: "1.5rem" }}>
                   <InfoLabel>Cover Image</InfoLabel>
                   <Image
                     src={bar.coverImage}
@@ -861,6 +889,7 @@ const BarDetails = () => {
                 </div>
               )}
 
+              {/* Gallery Images */}
               {bar.imageUrls && bar.imageUrls.length > 0 && (
                 <div>
                   <InfoLabel>Gallery ({bar.imageUrls.length} images)</InfoLabel>

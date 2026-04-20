@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import ImageUpload from "@/components/admin/image-upload/ImageUpload";
+import Image from "next/image";
 
 const Container = styled.div`
   padding: 1.5rem 0;
@@ -293,30 +295,119 @@ const SmallButton = styled.button`
   }
 `;
 
-interface BarProfileProps {
-  barId: string;
-  userRole: string;
+const ImagePreview = styled.div`
+  position: relative;
+  display: inline-block;
+  margin-top: 0.5rem;
+`;
+
+const ImagePreviewImg = styled.img`
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+`;
+
+const RemoveImageButton = styled.button`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+
+  &:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+  }
+`;
+
+const HelperText = styled.div`
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+`;
+
+const AMENITIES_OPTIONS = [
+  "WIFI",
+  "TOILETS",
+  "HEATING",
+  "DANCE_FLOOR",
+  "LIVE_MUSIC",
+  "SPORTS_TV",
+  "OUTDOOR_SEATING",
+  "ROOFTOP",
+  "VIP_SECTION",
+  "KARAOKE",
+  "POOL_TABLE",
+  "DART_BOARD",
+  "VALET_PARKING",
+  "COAT_CHECK",
+  "TERRACE",
+  "SAUNA",
+  "FIREPLACE",
+];
+
+const DEFAULT_OPERATING_HOURS = {
+  Monday: { open: "16:00", close: "02:00" },
+  Tuesday: { open: "16:00", close: "02:00" },
+  Wednesday: { open: "16:00", close: "02:00" },
+  Thursday: { open: "16:00", close: "02:00" },
+  Friday: { open: "16:00", close: "04:00" },
+  Saturday: { open: "14:00", close: "04:00" },
+  Sunday: { open: "14:00", close: "02:00" },
+};
+
+interface OperatingHours {
+  Monday: { open: string; close: string };
+  Tuesday: { open: string; close: string };
+  Wednesday: { open: string; close: string };
+  Thursday: { open: string; close: string };
+  Friday: { open: string; close: string };
+  Saturday: { open: string; close: string };
+  Sunday: { open: string; close: string };
 }
 
 interface BarData {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   address: string;
-  city: string;
-  district: string;
+  cityName: string;
+  district: string | null;
   type: string;
-  phone: string;
-  email: string;
-  website: string;
-  instagram: string;
-  priceRange: string;
-  capacity: number;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  instagram: string | null;
+  priceRange: string | null;
+  capacity: number | null;
   amenities: string[];
-  coverImage: string;
-  logoUrl: string;
+  coverImage: string | null;
+  imageUrls: string[];
+  logoUrl: string | null;
   vipEnabled: boolean;
+  operatingHours: OperatingHours | null;
 }
+
+interface BarProfileProps {
+  barId: string;
+  userRole: string;
+}
+
+const cleanCityName = (city: string): string => {
+  if (!city) return "";
+  return city.replace(/^\d+\s+/, "").trim();
+};
 
 const BarProfile = ({ barId, userRole }: BarProfileProps) => {
   const [bar, setBar] = useState<BarData | null>(null);
@@ -328,6 +419,12 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
   const [originalData, setOriginalData] = useState<Partial<BarData>>({});
   const [isDirty, setIsDirty] = useState(false);
   const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
+  const [operatingHours, setOperatingHours] = useState<OperatingHours>(
+    DEFAULT_OPERATING_HOURS,
+  );
+  const [coverImage, setCoverImage] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   const canEdit = ["OWNER", "MANAGER"].includes(userRole);
   const isReadOnly = !canEdit;
@@ -336,14 +433,16 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
     fetchBarProfile();
   }, [barId]);
 
-  // Check for changes whenever formData changes
   useEffect(() => {
-    if (Object.keys(originalData).length > 0) {
+    if (bar && Object.keys(originalData).length > 0) {
       const hasChanges =
-        JSON.stringify(formData) !== JSON.stringify(originalData);
+        JSON.stringify(formData) !== JSON.stringify(originalData) ||
+        JSON.stringify(operatingHours) !== JSON.stringify(bar.operatingHours) ||
+        coverImage !== (bar.coverImage || "") ||
+        logoUrl !== (bar.logoUrl || "");
+
       setIsDirty(hasChanges);
 
-      // Track which fields have changed
       const changed = new Set<string>();
       Object.keys(formData).forEach((key) => {
         if (
@@ -352,9 +451,27 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           changed.add(key);
         }
       });
+      if (
+        JSON.stringify(operatingHours) !== JSON.stringify(bar.operatingHours)
+      ) {
+        changed.add("operatingHours");
+      }
+      if (coverImage !== (bar.coverImage || "")) changed.add("coverImage");
+      if (logoUrl !== (bar.logoUrl || "")) changed.add("logoUrl");
+      if (JSON.stringify(imageUrls) !== JSON.stringify(bar.imageUrls || []))
+        changed.add("imageUrls");
+
       setDirtyFields(changed);
     }
-  }, [formData, originalData]);
+  }, [
+    formData,
+    originalData,
+    operatingHours,
+    coverImage,
+    logoUrl,
+    imageUrls,
+    bar,
+  ]);
 
   const fetchBarProfile = async () => {
     try {
@@ -364,12 +481,42 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setBar(data);
-        setFormData(data);
-        setOriginalData(data);
-        setIsDirty(false);
-        setDirtyFields(new Set());
+        const barData = await response.json();
+
+        setBar(barData);
+
+        const cleanCity = cleanCityName(barData.cityName || "");
+
+        const newFormData = {
+          name: barData.name || "",
+          description: barData.description || "",
+          address: barData.address || "",
+          cityName: cleanCity,
+          district: barData.district || "",
+          type: barData.type || "PUB",
+          phone: barData.phone || "",
+          email: barData.email || "",
+          website: barData.website || "",
+          instagram: barData.instagram || "",
+          priceRange: barData.priceRange || "MODERATE",
+          capacity: barData.capacity || null,
+          amenities: barData.amenities || [],
+          vipEnabled: barData.vipEnabled || false,
+        };
+
+        setFormData(newFormData);
+        setOriginalData(newFormData);
+
+        if (
+          barData.operatingHours &&
+          Object.keys(barData.operatingHours).length > 0
+        ) {
+          setOperatingHours(barData.operatingHours);
+        }
+
+        setCoverImage(barData.coverImage || "");
+        setLogoUrl(barData.logoUrl || "");
+        setImageUrls(barData.imageUrls || []);
       }
     } catch (error) {
       console.error("Failed to fetch bar profile:", error);
@@ -385,12 +532,82 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleHourChange = (
+    day: string,
+    type: "open" | "close",
+    value: string,
+  ) => {
+    setOperatingHours((prev) => ({
+      ...prev,
+      [day]: { ...prev[day as keyof OperatingHours], [type]: value },
+    }));
+  };
+
+  const handleAmenityChange = (amenity: string) => {
+    const currentAmenities = formData.amenities || [];
+    const newAmenities = currentAmenities.includes(amenity)
+      ? currentAmenities.filter((a) => a !== amenity)
+      : [...currentAmenities, amenity];
+    handleInputChange("amenities", newAmenities);
+  };
+
+  const handleCoverUpload = (url: string) => {
+    setCoverImage(url);
+    setIsDirty(true);
+    setDirtyFields((prev) => new Set([...prev, "coverImage"]));
+  };
+
+  const handleLogoUpload = (url: string) => {
+    setLogoUrl(url);
+    setIsDirty(true);
+    setDirtyFields((prev) => new Set([...prev, "logoUrl"]));
+  };
+
+  const handleGalleryUpload = (url: string) => {
+    setImageUrls((prev) => [...prev, url]);
+    setIsDirty(true);
+    setDirtyFields((prev) => new Set([...prev, "imageUrls"]));
+  };
+
+  const handleMultipleGalleryUpload = (urls: string[]) => {
+    setImageUrls((prev) => [...prev, ...urls]);
+    setIsDirty(true);
+    setDirtyFields((prev) => new Set([...prev, "imageUrls"]));
+    setSuccess(`✅ ${urls.length} image(s) uploaded successfully!`);
+    setTimeout(() => setSuccess(null), 3000);
+  };
+
   const handleReset = () => {
-    setFormData(originalData);
-    setIsDirty(false);
-    setDirtyFields(new Set());
-    setError(null);
-    setSuccess(null);
+    if (bar) {
+      const cleanCity = cleanCityName(bar.cityName || "");
+
+      setFormData({
+        name: bar.name || "",
+        description: bar.description || "",
+        address: bar.address || "",
+        cityName: cleanCity,
+        district: bar.district || "",
+        type: bar.type || "PUB",
+        phone: bar.phone || "",
+        email: bar.email || "",
+        website: bar.website || "",
+        instagram: bar.instagram || "",
+        priceRange: bar.priceRange || "MODERATE",
+        capacity: bar.capacity || null,
+        amenities: bar.amenities || [],
+        vipEnabled: bar.vipEnabled || false,
+      });
+
+      setOperatingHours(bar.operatingHours || DEFAULT_OPERATING_HOURS);
+      setCoverImage(bar.coverImage || "");
+      setLogoUrl(bar.logoUrl || "");
+      setImageUrls(bar.imageUrls || []);
+
+      setIsDirty(false);
+      setDirtyFields(new Set());
+      setError(null);
+      setSuccess(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -403,20 +620,70 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
 
     try {
       const token = localStorage.getItem("hoppr_token");
+
       const response = await fetch(`/api/auth/bar/${barId}/profile`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          address: formData.address,
+          city: formData.cityName,
+          district: formData.district,
+          type: formData.type,
+          phone: formData.phone,
+          email: formData.email,
+          website: formData.website,
+          instagram: formData.instagram,
+          priceRange: formData.priceRange,
+          capacity: formData.capacity,
+          amenities: formData.amenities,
+          coverImage: coverImage,
+          logoUrl: logoUrl,
+          imageUrls: imageUrls,
+          vipEnabled: formData.vipEnabled,
+          operatingHours: operatingHours,
+        }),
       });
 
       if (response.ok) {
-        setSuccess("✅ Bar profile updated successfully!");
-        setOriginalData(formData);
+        const result = await response.json();
+        const updatedBar = result.bar;
+
+        setBar(updatedBar);
+
+        const cleanCity = cleanCityName(updatedBar.cityName || "");
+
+        const newFormData = {
+          name: updatedBar.name || "",
+          description: updatedBar.description || "",
+          address: updatedBar.address || "",
+          cityName: cleanCity,
+          district: updatedBar.district || "",
+          type: updatedBar.type || "PUB",
+          phone: updatedBar.phone || "",
+          email: updatedBar.email || "",
+          website: updatedBar.website || "",
+          instagram: updatedBar.instagram || "",
+          priceRange: updatedBar.priceRange || "MODERATE",
+          capacity: updatedBar.capacity || null,
+          amenities: updatedBar.amenities || [],
+          vipEnabled: updatedBar.vipEnabled || false,
+        };
+
+        setFormData(newFormData);
+        setOriginalData(newFormData);
+        setOperatingHours(updatedBar.operatingHours || DEFAULT_OPERATING_HOURS);
+        setCoverImage(updatedBar.coverImage || "");
+        setLogoUrl(updatedBar.logoUrl || "");
+        setImageUrls(updatedBar.imageUrls || []);
+
         setIsDirty(false);
         setDirtyFields(new Set());
+        setSuccess("✅ Bar profile updated successfully!");
         setTimeout(() => setSuccess(null), 3000);
       } else {
         const data = await response.json();
@@ -458,7 +725,6 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           : "View your bar's information (contact an owner to make changes)"}
       </Subtitle>
 
-      {/* Unsaved Changes Bar */}
       {canEdit && isDirty && (
         <UnsavedChangesBar>
           <UnsavedText>
@@ -477,7 +743,6 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
       {success && <SuccessMessage>✅ {success}</SuccessMessage>}
 
       <Form onSubmit={handleSubmit}>
-        {/* Basic Information */}
         <FormSection>
           <SectionTitle>Basic Information</SectionTitle>
           <SectionDescription>
@@ -503,7 +768,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
               onChange={(e) => handleInputChange("description", e.target.value)}
               disabled={isReadOnly}
               $isDirty={isFieldDirty("description")}
-              placeholder="Describe your bar..."
+              placeholder="Describe your bar, atmosphere, specialties..."
             />
           </FormGroup>
 
@@ -560,7 +825,6 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           </FormGroup>
         </FormSection>
 
-        {/* Location */}
         <FormSection>
           <SectionTitle>Location</SectionTitle>
           <SectionDescription>Where to find your bar</SectionDescription>
@@ -582,10 +846,10 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
               <Label>City</Label>
               <Input
                 type="text"
-                value={formData.city || ""}
-                onChange={(e) => handleInputChange("city", e.target.value)}
+                value={formData.cityName || ""}
+                onChange={(e) => handleInputChange("cityName", e.target.value)}
                 disabled={isReadOnly}
-                $isDirty={isFieldDirty("city")}
+                $isDirty={isFieldDirty("cityName")}
               />
             </FormGroup>
 
@@ -603,7 +867,6 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           </Row>
         </FormSection>
 
-        {/* Contact Information */}
         <FormSection>
           <SectionTitle>Contact Information</SectionTitle>
           <SectionDescription>How customers can reach you</SectionDescription>
@@ -661,7 +924,274 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           </Row>
         </FormSection>
 
-        {/* VIP Settings */}
+        <FormSection>
+          <SectionTitle>Images & Media</SectionTitle>
+          <SectionDescription>
+            Showcase your bar&apos;s atmosphere
+          </SectionDescription>
+
+          <FormGroup>
+            <Label>Cover Image</Label>
+            {coverImage ? (
+              <div>
+                <ImagePreview>
+                  <ImagePreviewImg src={coverImage} alt="Cover" />
+                  {canEdit && (
+                    <RemoveImageButton onClick={() => setCoverImage("")}>
+                      ✕
+                    </RemoveImageButton>
+                  )}
+                </ImagePreview>
+                {canEdit && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <ImageUpload
+                      onUpload={handleCoverUpload}
+                      buttonText="Change Cover Image"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {canEdit ? (
+                  <>
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/cover-image.jpg"
+                      value={coverImage}
+                      onChange={(e) => setCoverImage(e.target.value)}
+                      disabled={isReadOnly}
+                    />
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <ImageUpload
+                        onUpload={handleCoverUpload}
+                        buttonText="Or Upload Cover Image"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <Input value="No cover image" disabled />
+                )}
+              </div>
+            )}
+            <HelperText>Recommended size: 1200 x 600 pixels</HelperText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Logo Image</Label>
+            {logoUrl ? (
+              <div>
+                <ImagePreview>
+                  <ImagePreviewImg
+                    src={logoUrl}
+                    alt="Logo"
+                    style={{ maxWidth: "150px", maxHeight: "150px" }}
+                  />
+                  {canEdit && (
+                    <RemoveImageButton onClick={() => setLogoUrl("")}>
+                      ✕
+                    </RemoveImageButton>
+                  )}
+                </ImagePreview>
+                {canEdit && (
+                  <div style={{ marginTop: "0.5rem" }}>
+                    <ImageUpload
+                      onUpload={handleLogoUpload}
+                      buttonText="Change Logo"
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                {canEdit ? (
+                  <>
+                    <Input
+                      type="url"
+                      placeholder="https://example.com/logo.png"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      disabled={isReadOnly}
+                    />
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <ImageUpload
+                        onUpload={handleLogoUpload}
+                        buttonText="Or Upload Logo"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <Input value="No logo image" disabled />
+                )}
+              </div>
+            )}
+            <HelperText>Recommended size: 400 x 400 pixels (square)</HelperText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Gallery Images</Label>
+            {canEdit && (
+              <ImageUpload
+                onUpload={handleGalleryUpload}
+                onMultipleUpload={handleMultipleGalleryUpload}
+                buttonText="Upload Images"
+                multiple={true}
+                existingImages={imageUrls}
+              />
+            )}
+
+            {imageUrls.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                  gap: "1rem",
+                  marginTop: "1rem",
+                }}
+              >
+                {imageUrls.map((url, index) => (
+                  <div
+                    key={`${url}-${index}`}
+                    style={{
+                      position: "relative",
+                      width: "100%",
+                      height: "120px",
+                      backgroundColor: "#f3f4f6",
+                      borderRadius: "0.5rem",
+                      overflow: "hidden",
+                      border: "1px solid #e5e7eb",
+                    }}
+                  >
+                    <Image
+                      src={url}
+                      alt={`Gallery ${index + 1}`}
+                      fill
+                      sizes="150px"
+                      style={{
+                        objectFit: "cover",
+                      }}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src =
+                          "https://placehold.co/400x300?text=Invalid+Image";
+                      }}
+                    />
+                    {canEdit && (
+                      <RemoveImageButton
+                        onClick={() => {
+                          setImageUrls(imageUrls.filter((_, i) => i !== index));
+                          setIsDirty(true);
+                          setDirtyFields(
+                            (prev) => new Set([...prev, "imageUrls"]),
+                          );
+                        }}
+                        style={{ top: "4px", right: "4px" }}
+                      >
+                        ✕
+                      </RemoveImageButton>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <HelperText>
+              {imageUrls.length > 0
+                ? `${imageUrls.length} image(s) in gallery. Click ✕ to remove.`
+                : "Upload multiple images to showcase your bar's atmosphere"}
+            </HelperText>
+          </FormGroup>
+        </FormSection>
+
+        <FormSection>
+          <SectionTitle>Operating Hours</SectionTitle>
+          <SectionDescription>
+            When your bar is open for business
+          </SectionDescription>
+
+          {[
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday",
+          ].map((day) => (
+            <FormGroup key={day}>
+              <Label>{day}</Label>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <Input
+                  type="text"
+                  value={
+                    operatingHours[day as keyof OperatingHours]?.open || ""
+                  }
+                  onChange={(e) =>
+                    handleHourChange(day, "open", e.target.value)
+                  }
+                  disabled={isReadOnly}
+                  placeholder="Open time"
+                  style={{ flex: 1 }}
+                  $isDirty={isFieldDirty("operatingHours")}
+                />
+                <span style={{ alignSelf: "center" }}>-</span>
+                <Input
+                  type="text"
+                  value={
+                    operatingHours[day as keyof OperatingHours]?.close || ""
+                  }
+                  onChange={(e) =>
+                    handleHourChange(day, "close", e.target.value)
+                  }
+                  disabled={isReadOnly}
+                  placeholder="Close time"
+                  style={{ flex: 1 }}
+                  $isDirty={isFieldDirty("operatingHours")}
+                />
+              </div>
+            </FormGroup>
+          ))}
+          <HelperText>
+            Use &quot;Closed&quot; to mark as closed. Format like
+            &quot;16:00&quot; or &quot;4:00 PM&quot;
+          </HelperText>
+        </FormSection>
+
+        <FormSection>
+          <SectionTitle>Amenities & Features</SectionTitle>
+          <SectionDescription>What makes your bar special</SectionDescription>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+              gap: "0.75rem",
+            }}
+          >
+            {AMENITIES_OPTIONS.map((amenity) => (
+              <label
+                key={amenity}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  fontSize: "0.875rem",
+                  cursor: isReadOnly ? "default" : "pointer",
+                  opacity: isReadOnly ? 0.7 : 1,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={(formData.amenities || []).includes(amenity)}
+                  onChange={() => handleAmenityChange(amenity)}
+                  disabled={isReadOnly}
+                  style={{ width: "1rem", height: "1rem" }}
+                />
+                {amenity.replace(/_/g, " ")}
+              </label>
+            ))}
+          </div>
+        </FormSection>
+
         <FormSection>
           <SectionTitle>VIP Features</SectionTitle>
           <SectionDescription>
@@ -669,7 +1199,14 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           </SectionDescription>
 
           <FormGroup>
-            <Label>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                cursor: isReadOnly ? "default" : "pointer",
+              }}
+            >
               <input
                 type="checkbox"
                 checked={formData.vipEnabled || false}
@@ -677,10 +1214,10 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
                   handleInputChange("vipEnabled", e.target.checked)
                 }
                 disabled={isReadOnly}
-                style={{ marginRight: "0.5rem" }}
+                style={{ width: "1rem", height: "1rem" }}
               />
               Enable VIP Passes
-            </Label>
+            </label>
           </FormGroup>
         </FormSection>
 

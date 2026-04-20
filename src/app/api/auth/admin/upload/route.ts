@@ -73,8 +73,10 @@
 //     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
 //   }
 // }
+// /app/api/auth/admin/upload/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
+import { verify } from "jsonwebtoken";
 
 // Configure Cloudinary
 cloudinary.config({
@@ -82,6 +84,31 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
+
+// Define JWT payload types
+interface BarStaffJwtPayload {
+  barId: string;
+  staffRole: string;
+  email: string;
+  name: string;
+}
+
+interface AdminJwtPayload {
+  adminId: string;
+  email: string;
+  role: string;
+  name: string;
+}
+
+type JwtPayload = BarStaffJwtPayload | AdminJwtPayload;
+
+function isAdminPayload(payload: JwtPayload): payload is AdminJwtPayload {
+  return "adminId" in payload && "role" in payload;
+}
+
+function isBarStaffPayload(payload: JwtPayload): payload is BarStaffJwtPayload {
+  return "barId" in payload && "staffRole" in payload;
+}
 
 async function uploadToCloudinary(
   file: File,
@@ -114,10 +141,36 @@ async function uploadToCloudinary(
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify admin token
+    // Verify token (supports both admin and bar staff)
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify and decode token
+    let decoded: JwtPayload;
+    try {
+      decoded = verify(
+        token,
+        process.env.JWT_SECRET || "your-secret-key",
+      ) as JwtPayload;
+
+      // Check if user is either admin OR bar staff
+      const isValidUser = isAdminPayload(decoded) || isBarStaffPayload(decoded);
+      if (!isValidUser) {
+        console.error("Invalid user type in token:", decoded);
+        return NextResponse.json(
+          { error: "Invalid user permissions" },
+          { status: 403 },
+        );
+      }
+
+      console.log(
+        `✅ Token verified for ${isAdminPayload(decoded) ? "Admin" : "Bar Staff"}`,
+      );
+    } catch (error) {
+      console.error("Token verification failed:", error);
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const formData = await request.formData();
@@ -133,6 +186,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       : singleFile
         ? [singleFile]
         : [];
+
+    console.log(
+      `📸 Upload request: ${isMultiple ? "Multiple" : "Single"} file(s)`,
+      {
+        fileCount: filesToUpload.length,
+        isMultiple,
+        hasSingleFile: !!singleFile,
+      },
+    );
 
     if (filesToUpload.length === 0) {
       return NextResponse.json(
@@ -162,7 +224,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const results = [];
     for (const file of filesToUpload) {
       try {
+        console.log(`📤 Uploading: ${file.name}`);
         const result = await uploadToCloudinary(file, "hoppr/bars");
+        console.log(`✅ Uploaded: ${file.name} -> ${result.url}`);
         results.push({
           success: true,
           url: result.url,
@@ -170,7 +234,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           name: file.name,
         });
       } catch (error) {
-        console.error(`Error uploading ${file.name}:`, error);
+        console.error(`❌ Error uploading ${file.name}:`, error);
         results.push({
           success: false,
           name: file.name,
@@ -184,7 +248,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const successful = results.filter((r) => r.success);
       const failed = results.filter((r) => !r.success);
 
-      return NextResponse.json({
+      const response = {
         success: successful.length > 0,
         results: successful.map((r) => ({
           url: r.url,
@@ -194,10 +258,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         errors: failed.map((r) => ({ name: r.name, error: r.error })),
         totalUploaded: successful.length,
         totalFailed: failed.length,
-      });
+      };
+
+      console.log(
+        `📦 Multiple upload complete: ${successful.length} succeeded, ${failed.length} failed`,
+      );
+      return NextResponse.json(response);
     } else {
       // Single file response (backward compatible)
       if (results[0]?.success) {
+        console.log(`📦 Single upload complete: ${results[0].url}`);
         return NextResponse.json({
           success: true,
           url: results[0].url,
