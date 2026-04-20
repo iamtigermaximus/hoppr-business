@@ -835,8 +835,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import Link from "next/link";
 
-// Styled components (keep your existing ones)
+// Styled Components
 const Container = styled.div`
   padding: 1.5rem;
   max-width: 1400px;
@@ -866,6 +867,82 @@ const Title = styled.h1`
   margin: 0;
 `;
 
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+`;
+
+const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  ${({ $variant }) => {
+    switch ($variant) {
+      case "primary":
+        return `
+          background: #3b82f6;
+          color: white;
+          &:hover { background: #2563eb; }
+        `;
+      case "danger":
+        return `
+          background: #ef4444;
+          color: white;
+          &:hover { background: #dc2626; }
+        `;
+      default:
+        return `
+          background: #10b981;
+          color: white;
+          &:hover { background: #059669; }
+        `;
+    }
+  }}
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const LinkButton = styled(Link)<{ $variant?: "primary" | "secondary" }>`
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+
+  ${({ $variant }) =>
+    $variant === "primary"
+      ? `
+        background: #3b82f6;
+        color: white;
+        &:hover { background: #2563eb; }
+      `
+      : `
+        background: #10b981;
+        color: white;
+        &:hover { background: #059669; }
+      `}
+`;
+
 const Controls = styled.div`
   display: flex;
   gap: 1rem;
@@ -892,13 +969,18 @@ const FilterSelect = styled.select`
   min-height: 40px;
 `;
 
+const TableWrapper = styled.div`
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+`;
+
 const Table = styled.table`
   width: 100%;
   background: white;
   border-radius: 0.5rem;
-  overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border-collapse: collapse;
+  min-width: 800px;
 `;
 
 const Th = styled.th`
@@ -976,19 +1058,23 @@ const Pagination = styled.div`
   align-items: center;
   margin-top: 1.5rem;
   padding-top: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 `;
 
-const PageButton = styled.button<{ $active?: boolean }>`
+const PageButton = styled.button<{ $active?: boolean; disabled?: boolean }>`
   padding: 0.5rem 1rem;
   border: 1px solid #d1d5db;
   background: ${(props) => (props.$active ? "#3b82f6" : "white")};
   color: ${(props) => (props.$active ? "white" : "#374151")};
   border-radius: 0.375rem;
-  cursor: pointer;
+  cursor: ${(props) => (props.disabled ? "not-allowed" : "pointer")};
   margin: 0 0.25rem;
+  opacity: ${(props) => (props.disabled ? 0.5 : 1)};
 
   &:hover {
-    background: ${(props) => (props.$active ? "#2563eb" : "#f3f4f6")};
+    background: ${(props) =>
+      !props.disabled && (props.$active ? "#2563eb" : "#f3f4f6")};
   }
 `;
 
@@ -996,6 +1082,106 @@ const LoadingState = styled.div`
   text-align: center;
   padding: 3rem;
   color: #6b7280;
+`;
+
+const ErrorState = styled.div`
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
+const SuccessState = styled.div`
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  text-align: center;
+`;
+
+// Modal for CSV Upload
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 0.5rem;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.5rem;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+`;
+
+const ModalTitle = styled.h2`
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #6b7280;
+`;
+
+const FileInput = styled.input`
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+`;
+
+const UploadProgress = styled.div`
+  width: 100%;
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 1rem 0;
+`;
+
+const ProgressBar = styled.div<{ $width: number }>`
+  width: ${(props) => props.$width}%;
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.3s;
+`;
+
+const ModalButtons = styled.div`
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
 `;
 
 interface Bar {
@@ -1025,10 +1211,19 @@ const BarsDatabase = () => {
   const router = useRouter();
   const [bars, setBars] = useState<Bar[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+
+  // CSV Upload states
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const [pagination, setPagination] = useState<PaginationData>({
     page: 1,
     limit: 10,
@@ -1046,10 +1241,11 @@ const BarsDatabase = () => {
   const fetchBars = async () => {
     try {
       setLoading(true);
+      setError(null);
       const token = getToken();
 
       if (!token) {
-        router.push("/login");
+        router.push("/admin/login");
         return;
       }
 
@@ -1077,30 +1273,90 @@ const BarsDatabase = () => {
           totalPages: data.pagination?.totalPages || 0,
         }));
       } else if (response.status === 401) {
-        router.push("/login");
+        router.push("/admin/login");
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Failed to fetch bars");
       }
     } catch (error) {
       console.error("Error fetching bars:", error);
+      setError("Failed to load bars. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // FIXED: Get unique cities with null check
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      setError("Please select a file first");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("csvFile", selectedFile);
+
+    try {
+      const token = getToken();
+
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          const percent = (event.loaded / event.total) * 100;
+          setUploadProgress(percent);
+        }
+      });
+
+      xhr.addEventListener("load", () => {
+        if (xhr.status === 200 || xhr.status === 201) {
+          const response = JSON.parse(xhr.responseText);
+          setSuccess(`Successfully imported ${response.imported || 0} bars!`);
+          setShowUploadModal(false);
+          setSelectedFile(null);
+          fetchBars();
+          setTimeout(() => setSuccess(null), 3000);
+        } else {
+          const error = JSON.parse(xhr.responseText);
+          setError(error.error || "Failed to upload CSV");
+        }
+        setUploading(false);
+      });
+
+      xhr.addEventListener("error", () => {
+        setError("Network error during upload");
+        setUploading(false);
+      });
+
+      xhr.open("POST", "/api/auth/admin/bars/import");
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+      xhr.send(formData);
+    } catch (error) {
+      console.error("Error uploading CSV:", error);
+      setError("Failed to upload CSV file");
+      setUploading(false);
+    }
+  };
+
   const getUniqueCities = (): string[] => {
     if (!bars || bars.length === 0) return [];
-    const cities = bars
-      .map((bar) => bar.city)
-      .filter((city): city is string => !!city);
+    const cities = bars.map((bar) => bar.city).filter(Boolean);
     return [...new Set(cities)].sort();
   };
 
-  // FIXED: Get unique types with null check
   const getUniqueTypes = (): string[] => {
     if (!bars || bars.length === 0) return [];
-    const types = bars
-      .map((bar) => bar.type)
-      .filter((type): type is string => !!type);
+    const types = bars.map((bar) => bar.type).filter(Boolean);
     return [...new Set(types)].sort();
   };
 
@@ -1133,13 +1389,16 @@ const BarsDatabase = () => {
       });
 
       if (response.ok) {
+        setSuccess(`Successfully deleted "${barName}"`);
         fetchBars();
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        alert("Failed to delete bar");
+        const error = await response.json();
+        setError(error.error || "Failed to delete bar");
       }
     } catch (error) {
       console.error("Error deleting bar:", error);
-      alert("Failed to delete bar");
+      setError("Failed to delete bar");
     }
   };
 
@@ -1159,7 +1418,18 @@ const BarsDatabase = () => {
     <Container>
       <Header>
         <Title>Bars Database</Title>
+        <ActionButtons>
+          <LinkButton href="/admin/bars/import" $variant="secondary">
+            📁 Import CSV
+          </LinkButton>
+          <LinkButton href="/admin/bars/create" $variant="primary">
+            ➕ Add Bar
+          </LinkButton>
+        </ActionButtons>
       </Header>
+
+      {error && <ErrorState>{error}</ErrorState>}
+      {success && <SuccessState>{success}</SuccessState>}
 
       <Controls>
         <SearchInput
@@ -1202,49 +1472,53 @@ const BarsDatabase = () => {
         </FilterSelect>
       </Controls>
 
-      <Table>
-        <thead>
-          <tr>
-            <Th>Name</Th>
-            <Th>City</Th>
-            <Th>District</Th>
-            <Th>Type</Th>
-            <Th>Status</Th>
-            <Th>Staff</Th>
-            <Th>Promotions</Th>
-            <Th>Views</Th>
-            <Th>Created</Th>
-            <Th>Actions</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {bars.map((bar) => (
-            <tr key={bar.id}>
-              <Td>
-                <strong>{bar.name}</strong>
-              </Td>
-              <Td>{bar.city}</Td>
-              <Td>{bar.district || "-"}</Td>
-              <Td>{bar.type.replace(/_/g, " ")}</Td>
-              <Td>
-                <StatusBadge $status={bar.status}>{bar.status}</StatusBadge>
-              </Td>
-              <Td>{bar.staffCount}</Td>
-              <Td>{bar.promotionCount}</Td>
-              <Td>{bar.profileViews.toLocaleString()}</Td>
-              <Td>{formatDate(bar.createdAt)}</Td>
-              <Td>
-                <ActionButton onClick={() => handleViewBar(bar.id)}>
-                  View
-                </ActionButton>
-                <DeleteButton onClick={() => handleDeleteBar(bar.id, bar.name)}>
-                  Delete
-                </DeleteButton>
-              </Td>
+      <TableWrapper>
+        <Table>
+          <thead>
+            <tr>
+              <Th>Name</Th>
+              <Th>City</Th>
+              <Th>District</Th>
+              <Th>Type</Th>
+              <Th>Status</Th>
+              <Th>Staff</Th>
+              <Th>Promotions</Th>
+              <Th>Views</Th>
+              <Th>Created</Th>
+              <Th>Actions</Th>
             </tr>
-          ))}
-        </tbody>
-      </Table>
+          </thead>
+          <tbody>
+            {bars.map((bar) => (
+              <tr key={bar.id}>
+                <Td>
+                  <strong>{bar.name}</strong>
+                </Td>
+                <Td>{bar.city}</Td>
+                <Td>{bar.district || "-"}</Td>
+                <Td>{bar.type.replace(/_/g, " ")}</Td>
+                <Td>
+                  <StatusBadge $status={bar.status}>{bar.status}</StatusBadge>
+                </Td>
+                <Td>{bar.staffCount}</Td>
+                <Td>{bar.promotionCount}</Td>
+                <Td>{bar.profileViews.toLocaleString()}</Td>
+                <Td>{formatDate(bar.createdAt)}</Td>
+                <Td>
+                  <ActionButton onClick={() => handleViewBar(bar.id)}>
+                    View
+                  </ActionButton>
+                  <DeleteButton
+                    onClick={() => handleDeleteBar(bar.id, bar.name)}
+                  >
+                    Delete
+                  </DeleteButton>
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableWrapper>
 
       {pagination.totalPages > 1 && (
         <Pagination>
@@ -1292,6 +1566,64 @@ const BarsDatabase = () => {
             </PageButton>
           </div>
         </Pagination>
+      )}
+
+      {/* CSV Upload Modal */}
+      {showUploadModal && (
+        <ModalOverlay onClick={() => !uploading && setShowUploadModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>Import Bars from CSV</ModalTitle>
+              <CloseButton
+                onClick={() => !uploading && setShowUploadModal(false)}
+              >
+                ×
+              </CloseButton>
+            </ModalHeader>
+
+            <FileInput
+              type="file"
+              accept=".csv"
+              onChange={handleFileSelect}
+              disabled={uploading}
+            />
+
+            {selectedFile && (
+              <>
+                <p>
+                  <strong>Selected file:</strong> {selectedFile.name}
+                </p>
+                <p>
+                  <strong>File size:</strong>{" "}
+                  {(selectedFile.size / 1024).toFixed(2)} KB
+                </p>
+              </>
+            )}
+
+            {uploading && (
+              <UploadProgress>
+                <ProgressBar $width={uploadProgress} />
+              </UploadProgress>
+            )}
+
+            <ModalButtons>
+              <Button
+                $variant="secondary"
+                onClick={() => setShowUploadModal(false)}
+                disabled={uploading}
+              >
+                Cancel
+              </Button>
+              <Button
+                $variant="primary"
+                onClick={handleUpload}
+                disabled={!selectedFile || uploading}
+              >
+                {uploading ? "Uploading..." : "Import CSV"}
+              </Button>
+            </ModalButtons>
+          </ModalContent>
+        </ModalOverlay>
       )}
     </Container>
   );

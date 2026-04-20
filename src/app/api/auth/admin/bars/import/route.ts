@@ -1759,48 +1759,399 @@
 // Route: POST /api/auth/admin/bars/import
 // Description: Import bars from CSV file
 
+// import { NextRequest, NextResponse } from "next/server";
+// import { PrismaClient, BarType, PriceRange } from "@prisma/client";
+// import { verify } from "jsonwebtoken";
+
+// const prisma = new PrismaClient();
+// const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
+// interface JwtPayload {
+//   id: string;
+//   email: string;
+// }
+
+// // FIXED: Verify admin by email, not by role
+// async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
+//   try {
+//     const decoded = verify(token, JWT_SECRET) as JwtPayload;
+
+//     const adminUser = await prisma.adminUser.findFirst({
+//       where: {
+//         email: decoded.email,
+//         isActive: true,
+//       },
+//       select: { id: true },
+//     });
+
+//     return adminUser;
+//   } catch (error) {
+//     console.error("Token verification error:", error);
+//     return null;
+//   }
+// }
+
+// function parseOperatingHours(hoursStr: string) {
+//   const defaultHours = { open: "Closed", close: "Closed" };
+//   const operatingHours = {
+//     Monday: { ...defaultHours },
+//     Tuesday: { ...defaultHours },
+//     Wednesday: { ...defaultHours },
+//     Thursday: { ...defaultHours },
+//     Friday: { ...defaultHours },
+//     Saturday: { ...defaultHours },
+//     Sunday: { ...defaultHours },
+//   };
+
+//   if (!hoursStr || hoursStr.trim() === "") {
+//     return operatingHours;
+//   }
+
+//   const parts = hoursStr.split(",");
+//   for (const part of parts) {
+//     const match = part.match(
+//       /(\w+):\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*-\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i,
+//     );
+//     if (match) {
+//       const day = match[1] as keyof typeof operatingHours;
+//       let openTime = match[2];
+//       let closeTime = match[3];
+
+//       if (!openTime.includes(":")) openTime = `${openTime}:00`;
+//       if (!closeTime.includes(":")) closeTime = `${closeTime}:00`;
+
+//       if (operatingHours[day]) {
+//         operatingHours[day] = { open: openTime, close: closeTime };
+//       }
+//     }
+//   }
+
+//   return operatingHours;
+// }
+
+// function parseAmenities(amenitiesStr: string): string[] {
+//   if (!amenitiesStr || amenitiesStr.trim() === "") {
+//     return [];
+//   }
+//   return amenitiesStr
+//     .split(",")
+//     .map((a) => a.trim())
+//     .filter((a) => a.length > 0);
+// }
+
+// function parseImageUrls(urlsStr: string): string[] {
+//   if (!urlsStr || urlsStr.trim() === "") {
+//     return [];
+//   }
+//   return urlsStr
+//     .split(",")
+//     .map((u) => u.trim())
+//     .filter((u) => u.length > 0);
+// }
+
+// function parsePriceRange(priceStr: string) {
+//   const priceMap: Record<string, any> = {
+//     budget: "BUDGET",
+//     moderate: "MODERATE",
+//     premium: "PREMIUM",
+//     luxury: "LUXURY",
+//     $: "BUDGET",
+//     $$: "MODERATE",
+//     $$$: "PREMIUM",
+//     $$$$: "LUXURY",
+//   };
+
+//   const normalized = priceStr?.toLowerCase().trim() || "";
+//   const mapped = priceMap[normalized];
+//   if (mapped && Object.values(PriceRange).includes(mapped)) {
+//     return mapped;
+//   }
+//   return undefined;
+// }
+
+// function parseBarType(typeStr: string) {
+//   const typeMap: Record<string, any> = {
+//     pub: "PUB",
+//     club: "CLUB",
+//     lounge: "LOUNGE",
+//     cocktail: "COCKTAIL_BAR",
+//     "cocktail bar": "COCKTAIL_BAR",
+//     restaurant: "RESTAURANT_BAR",
+//     "restaurant bar": "RESTAURANT_BAR",
+//     sports: "SPORTS_BAR",
+//     "sports bar": "SPORTS_BAR",
+//     karaoke: "KARAOKE",
+//     "live music": "LIVE_MUSIC",
+//     music: "LIVE_MUSIC",
+//   };
+
+//   const normalized = typeStr?.toLowerCase().trim() || "";
+//   const mapped = typeMap[normalized];
+//   if (mapped && Object.values(BarType).includes(mapped)) {
+//     return mapped;
+//   }
+//   return undefined;
+// }
+
+// export async function POST(request: NextRequest): Promise<NextResponse> {
+//   try {
+//     const token = request.headers.get("authorization")?.replace("Bearer ", "");
+
+//     if (!token) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
+
+//     const adminUser = await verifyAdminToken(token);
+//     if (!adminUser) {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+
+//     const formData = await request.formData();
+//     // FIXED: Accept both "file" and "csvFile" field names
+//     const file = (formData.get("file") ||
+//       formData.get("csvFile")) as File | null;
+
+//     if (!file) {
+//       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+//     }
+
+//     const fileContent = await file.text();
+//     const lines = fileContent.split("\n");
+//     const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+
+//     const requiredHeaders = ["name", "address", "city", "type"];
+//     const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h));
+
+//     if (missingHeaders.length > 0) {
+//       return NextResponse.json(
+//         {
+//           error: `Missing required headers: ${missingHeaders.join(", ")}`,
+//         },
+//         { status: 400 },
+//       );
+//     }
+
+//     const results = {
+//       total: 0,
+//       imported: 0,
+//       failed: 0,
+//       errors: [] as string[],
+//     };
+
+//     const nameIndex = headers.indexOf("name");
+//     const descriptionIndex = headers.indexOf("description");
+//     const addressIndex = headers.indexOf("address");
+//     const cityIndex = headers.indexOf("city");
+//     const districtIndex = headers.indexOf("district");
+//     const typeIndex = headers.indexOf("type");
+//     const latitudeIndex = headers.indexOf("latitude");
+//     const longitudeIndex = headers.indexOf("longitude");
+//     const phoneIndex = headers.indexOf("phone");
+//     const emailIndex = headers.indexOf("email");
+//     const websiteIndex = headers.indexOf("website");
+//     const instagramIndex = headers.indexOf("instagram");
+//     const operatingHoursIndex = headers.indexOf("operatinghours");
+//     const priceRangeIndex = headers.indexOf("pricerange");
+//     const capacityIndex = headers.indexOf("capacity");
+//     const amenitiesIndex = headers.indexOf("amenities");
+//     const coverImageIndex = headers.indexOf("coverimage");
+//     const imageUrlsIndex = headers.indexOf("imageurls");
+//     const logoUrlIndex = headers.indexOf("logourl");
+//     const vipEnabledIndex = headers.indexOf("vipenabled");
+
+//     for (let i = 1; i < lines.length; i++) {
+//       const line = lines[i].trim();
+//       if (!line) continue;
+
+//       results.total++;
+
+//       try {
+//         const values = line.split(",").map((v) => v.trim());
+
+//         const name = values[nameIndex];
+//         if (!name) {
+//           throw new Error("Name is required");
+//         }
+
+//         const address = values[addressIndex];
+//         if (!address) {
+//           throw new Error("Address is required");
+//         }
+
+//         const cityName = values[cityIndex];
+//         if (!cityName) {
+//           throw new Error("City is required");
+//         }
+
+//         const typeStr = values[typeIndex];
+//         const barType = parseBarType(typeStr);
+//         if (!barType) {
+//           throw new Error(`Invalid bar type: ${typeStr}`);
+//         }
+
+//         const latitude = values[latitudeIndex]
+//           ? parseFloat(values[latitudeIndex])
+//           : null;
+//         const longitude = values[longitudeIndex]
+//           ? parseFloat(values[longitudeIndex])
+//           : null;
+
+//         const operatingHours = parseOperatingHours(
+//           values[operatingHoursIndex] || "",
+//         );
+//         const amenities = parseAmenities(values[amenitiesIndex] || "");
+//         const imageUrls = parseImageUrls(values[imageUrlsIndex] || "");
+//         const priceRange = parsePriceRange(values[priceRangeIndex] || "");
+
+//         // Check if bar already exists
+//         const existingBar = await prisma.bar.findUnique({
+//           where: { name },
+//           select: { id: true },
+//         });
+
+//         if (existingBar) {
+//           throw new Error(`Bar "${name}" already exists`);
+//         }
+
+//         // FIXED: Find or create city to link the relation
+//         let city = await prisma.city.findFirst({
+//           where: { name: { equals: cityName, mode: "insensitive" } },
+//         });
+
+//         if (!city) {
+//           city = await prisma.city.create({
+//             data: {
+//               name: cityName,
+//               country: "Finland",
+//               isActive: true,
+//             },
+//           });
+//           console.log(`✅ Created new city: ${cityName}`);
+//         }
+
+//         // FIXED: Use cityName and cityId fields
+//         const bar = await prisma.bar.create({
+//           data: {
+//             name: name,
+//             description: values[descriptionIndex] || null,
+//             address: address,
+//             cityName: cityName,
+//             cityId: city.id,
+//             district: values[districtIndex] || null,
+//             type: barType,
+//             latitude: latitude,
+//             longitude: longitude,
+//             phone: values[phoneIndex] || null,
+//             email: values[emailIndex] || null,
+//             website: values[websiteIndex] || null,
+//             instagram: values[instagramIndex] || null,
+//             operatingHours: operatingHours,
+//             priceRange: priceRange,
+//             capacity: values[capacityIndex]
+//               ? parseInt(values[capacityIndex])
+//               : null,
+//             amenities: amenities,
+//             coverImage: values[coverImageIndex] || null,
+//             imageUrls: imageUrls,
+//             logoUrl: values[logoUrlIndex] || null,
+//             status: "UNCLAIMED",
+//             isVerified: false,
+//             isActive: true,
+//             vipEnabled: values[vipEnabledIndex]?.toLowerCase() === "true",
+//             createdById: adminUser.id,
+//           },
+//         });
+
+//         results.imported++;
+
+//         // Create audit log
+//         await prisma.auditLog.create({
+//           data: {
+//             adminId: adminUser.id,
+//             barId: bar.id,
+//             action: "IMPORT",
+//             resource: "BAR",
+//             details: { barName: bar.name, source: "CSV_IMPORT" },
+//             createdAt: new Date(),
+//           },
+//         });
+//       } catch (error) {
+//         results.failed++;
+//         const errorMsg =
+//           error instanceof Error ? error.message : "Unknown error";
+//         results.errors.push(`Row ${i}: ${errorMsg}`);
+//         console.error(`Error importing row ${i}:`, error);
+//       }
+//     }
+
+//     // Create import history record
+//     try {
+//       await prisma.barImport.create({
+//         data: {
+//           fileName: file.name,
+//           fileSize: file.size,
+//           totalRows: results.total,
+//           importedRows: results.imported,
+//           failedRows: results.failed,
+//           status:
+//             results.failed === 0
+//               ? "COMPLETED"
+//               : results.imported > 0
+//                 ? "PARTIAL"
+//                 : "FAILED",
+//           errors: results.errors.length > 0 ? results.errors : undefined,
+//           importedBy: adminUser.id,
+//         },
+//       });
+//     } catch (error) {
+//       console.log("Note: barImport table audit skipped");
+//     }
+
+//     return NextResponse.json({
+//       success: true,
+//       imported: results.imported,
+//       failed: results.failed,
+//       total: results.total,
+//       errors: results.errors.slice(0, 10),
+//       message: `✅ Imported ${results.imported} bars, ❌ ${results.failed} failed`,
+//     });
+//   } catch (error) {
+//     console.error("Import error:", error);
+//     return NextResponse.json(
+//       { error: "Internal server error" },
+//       { status: 500 },
+//     );
+//   }
+// }
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, BarType, PriceRange, AdminRole } from "@prisma/client";
+import {
+  PrismaClient,
+  BarType,
+  PriceRange,
+  ImportStatus,
+} from "@prisma/client";
 import { verify } from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-interface OperatingHours {
-  open: string;
-  close: string;
-}
-
-interface DayHours {
-  Monday: OperatingHours;
-  Tuesday: OperatingHours;
-  Wednesday: OperatingHours;
-  Thursday: OperatingHours;
-  Friday: OperatingHours;
-  Saturday: OperatingHours;
-  Sunday: OperatingHours;
-}
-
-interface ImportResult {
-  total: number;
-  imported: number;
-  failed: number;
-  errors: string[];
-}
-
-interface ImportResponse {
-  success: boolean;
-  results: ImportResult;
+interface JwtPayload {
+  id: string;
+  email: string;
 }
 
 async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   try {
-    const decoded = verify(token, JWT_SECRET) as { role: string };
-    const adminRole = decoded.role as AdminRole;
+    const decoded = verify(token, JWT_SECRET) as JwtPayload;
+
     const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true, role: adminRole },
+      where: {
+        email: decoded.email,
+        isActive: true,
+      },
       select: { id: true },
     });
+
     return adminUser;
   } catch (error) {
     console.error("Token verification error:", error);
@@ -1808,9 +2159,9 @@ async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   }
 }
 
-function parseOperatingHours(hoursStr: string): DayHours {
-  const defaultHours: OperatingHours = { open: "Closed", close: "Closed" };
-  const operatingHours: DayHours = {
+function parseOperatingHours(hoursStr: string) {
+  const defaultHours = { open: "Closed", close: "Closed" };
+  const operatingHours = {
     Monday: { ...defaultHours },
     Tuesday: { ...defaultHours },
     Wednesday: { ...defaultHours },
@@ -1830,7 +2181,7 @@ function parseOperatingHours(hoursStr: string): DayHours {
       /(\w+):\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*-\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i,
     );
     if (match) {
-      const day = match[1] as keyof DayHours;
+      const day = match[1] as keyof typeof operatingHours;
       let openTime = match[2];
       let closeTime = match[3];
 
@@ -1887,26 +2238,55 @@ function parsePriceRange(priceStr: string): PriceRange | undefined {
 }
 
 function parseBarType(typeStr: string): BarType | undefined {
+  if (!typeStr) return undefined;
+
+  let normalized = typeStr.toLowerCase().trim();
+  normalized = normalized.replace(/ /g, "_");
+  normalized = normalized.replace(/_+/g, "_");
+
   const typeMap: Record<string, BarType> = {
     pub: "PUB",
     club: "CLUB",
     lounge: "LOUNGE",
-    cocktail: "COCKTAIL_BAR",
-    "cocktail bar": "COCKTAIL_BAR",
-    restaurant: "RESTAURANT_BAR",
-    "restaurant bar": "RESTAURANT_BAR",
-    sports: "SPORTS_BAR",
-    "sports bar": "SPORTS_BAR",
+    cocktail_bar: "COCKTAIL_BAR",
+    restaurant_bar: "RESTAURANT_BAR",
+    sports_bar: "SPORTS_BAR",
     karaoke: "KARAOKE",
-    "live music": "LIVE_MUSIC",
+    live_music: "LIVE_MUSIC",
+    cocktail: "COCKTAIL_BAR",
+    cocktailbar: "COCKTAIL_BAR",
+    restaurant: "RESTAURANT_BAR",
+    restaurantbar: "RESTAURANT_BAR",
+    sports: "SPORTS_BAR",
+    sportsbar: "SPORTS_BAR",
+    karaokebaari: "KARAOKE",
+    livemusic: "LIVE_MUSIC",
     music: "LIVE_MUSIC",
   };
 
-  const normalized = typeStr?.toLowerCase().trim() || "";
-  const mapped = typeMap[normalized];
-  if (mapped && Object.values(BarType).includes(mapped)) {
-    return mapped;
+  if (typeMap[normalized]) {
+    return typeMap[normalized];
   }
+
+  const upperNormalized = normalized.toUpperCase();
+  const validBarTypes: BarType[] = [
+    "PUB",
+    "CLUB",
+    "LOUNGE",
+    "COCKTAIL_BAR",
+    "RESTAURANT_BAR",
+    "SPORTS_BAR",
+    "KARAOKE",
+    "LIVE_MUSIC",
+  ];
+
+  if (validBarTypes.includes(upperNormalized as BarType)) {
+    return upperNormalized as BarType;
+  }
+
+  console.log(
+    `⚠️ Unknown bar type: "${typeStr}" (normalized: "${normalized}")`,
+  );
   return undefined;
 }
 
@@ -1924,7 +2304,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    const file = (formData.get("file") ||
+      formData.get("csvFile")) as File | null;
 
     if (!file) {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
@@ -1939,18 +2320,17 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     if (missingHeaders.length > 0) {
       return NextResponse.json(
-        {
-          error: `Missing required headers: ${missingHeaders.join(", ")}`,
-        },
+        { error: `Missing required headers: ${missingHeaders.join(", ")}` },
         { status: 400 },
       );
     }
 
-    const results: ImportResult = {
+    const results = {
       total: 0,
       imported: 0,
-      failed: 0,
-      errors: [],
+      skipped: 0,
+      errors: [] as string[],
+      duplicates: [] as { row: number; name: string; reason: string }[],
     };
 
     const nameIndex = headers.indexOf("name");
@@ -1974,6 +2354,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const logoUrlIndex = headers.indexOf("logourl");
     const vipEnabledIndex = headers.indexOf("vipenabled");
 
+    const processedNames = new Set<string>();
+
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line) continue;
@@ -1993,16 +2375,45 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           throw new Error("Address is required");
         }
 
-        const city = values[cityIndex];
-        if (!city) {
+        const cityName = values[cityIndex];
+        if (!cityName) {
           throw new Error("City is required");
         }
 
         const typeStr = values[typeIndex];
         const barType = parseBarType(typeStr);
         if (!barType) {
-          throw new Error(`Invalid bar type: ${typeStr}`);
+          throw new Error(
+            `Invalid bar type: ${typeStr}. Expected one of: PUB, CLUB, LOUNGE, COCKTAIL_BAR, RESTAURANT_BAR, SPORTS_BAR, KARAOKE, LIVE_MUSIC`,
+          );
         }
+
+        if (processedNames.has(name.toLowerCase())) {
+          results.duplicates.push({
+            row: i + 1,
+            name: name,
+            reason: "within_file",
+          });
+          results.skipped++;
+          continue;
+        }
+
+        const existingBar = await prisma.bar.findFirst({
+          where: { name: { equals: name, mode: "insensitive" } },
+          select: { id: true, name: true },
+        });
+
+        if (existingBar) {
+          results.duplicates.push({
+            row: i + 1,
+            name: name,
+            reason: "already_in_database",
+          });
+          results.skipped++;
+          continue;
+        }
+
+        processedNames.add(name.toLowerCase());
 
         const latitude = values[latitudeIndex]
           ? parseFloat(values[latitudeIndex])
@@ -2018,23 +2429,27 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const imageUrls = parseImageUrls(values[imageUrlsIndex] || "");
         const priceRange = parsePriceRange(values[priceRangeIndex] || "");
 
-        // Check if bar already exists
-        const existingBar = await prisma.bar.findUnique({
-          where: { name },
-          select: { id: true },
+        let city = await prisma.city.findFirst({
+          where: { name: { equals: cityName, mode: "insensitive" } },
         });
 
-        if (existingBar) {
-          throw new Error(`Bar "${name}" already exists`);
+        if (!city) {
+          city = await prisma.city.create({
+            data: {
+              name: cityName,
+              country: "Finland",
+              isActive: true,
+            },
+          });
         }
 
-        // FIXED: Use cityName instead of city (NO 'any' types)
         const bar = await prisma.bar.create({
           data: {
             name: name,
             description: values[descriptionIndex] || null,
             address: address,
-            cityName: city,
+            cityName: cityName,
+            cityId: city.id,
             district: values[districtIndex] || null,
             type: barType,
             latitude: latitude,
@@ -2043,10 +2458,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             email: values[emailIndex] || null,
             website: values[websiteIndex] || null,
             instagram: values[instagramIndex] || null,
-            operatingHours: operatingHours as unknown as Record<
-              string,
-              { open: string; close: string }
-            >,
+            operatingHours: operatingHours,
             priceRange: priceRange,
             capacity: values[capacityIndex]
               ? parseInt(values[capacityIndex])
@@ -2065,7 +2477,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         results.imported++;
 
-        // Create audit log
         await prisma.auditLog.create({
           data: {
             adminId: adminUser.id,
@@ -2077,27 +2488,83 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           },
         });
       } catch (error) {
-        results.failed++;
+        results.skipped++;
         const errorMsg =
           error instanceof Error ? error.message : "Unknown error";
-        results.errors.push(`Row ${i}: ${errorMsg}`);
-        console.error(`Error importing row ${i}:`, error);
+        results.errors.push(`Row ${i + 1}: ${errorMsg}`);
+        console.error(`Error importing row ${i + 1}:`, error);
       }
     }
 
-    const response: ImportResponse = {
-      success: true,
-      results: {
-        total: results.total,
-        imported: results.imported,
-        failed: results.failed,
-        errors: results.errors.slice(0, 10),
-      },
-    };
+    let importStatus: ImportStatus = "COMPLETED";
+    if (results.imported === 0 && results.skipped > 0) {
+      importStatus = "FAILED";
+    } else if (results.skipped > 0 && results.imported > 0) {
+      importStatus = "PARTIAL";
+    }
 
-    return NextResponse.json(response);
+    try {
+      await prisma.barImport.create({
+        data: {
+          fileName: file.name,
+          fileSize: file.size,
+          totalRows: results.total,
+          importedRows: results.imported,
+          failedRows: results.skipped,
+          status: importStatus,
+          errors: results.errors.length > 0 ? results.errors : undefined,
+          importedBy: adminUser.id,
+        },
+      });
+    } catch (error) {
+      console.log("Note: barImport table audit skipped");
+    }
+
+    return NextResponse.json({
+      success: true,
+      imported: results.imported,
+      skipped: results.skipped,
+      total: results.total,
+      duplicates: results.duplicates,
+      errors: results.errors.slice(0, 10),
+      status: importStatus,
+      message:
+        importStatus === "COMPLETED"
+          ? `✅ Successfully imported all ${results.imported} bars!`
+          : importStatus === "PARTIAL"
+            ? `⚠️ Imported ${results.imported} bars, skipped ${results.skipped} duplicates`
+            : `❌ Failed to import ${results.skipped} bars`,
+    });
   } catch (error) {
     console.error("Import error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const adminUser = await verifyAdminToken(token);
+    if (!adminUser) {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    const imports = await prisma.barImport.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 50,
+    });
+
+    return NextResponse.json({ imports });
+  } catch (error) {
+    console.error("Error fetching import history:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

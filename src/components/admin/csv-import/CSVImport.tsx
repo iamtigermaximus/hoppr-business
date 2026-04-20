@@ -21,9 +21,9 @@
 //   updatedAt: string;
 // }
 
-// // Styled Components - UPDATED FOR RESPONSIVENESS
+// // Styled Components (keep all your existing styled components)
 // const Container = styled.div`
-//   max-width: 1200px;
+//   max-width: 1400px;
 //   margin: 0 auto;
 //   padding: 1rem;
 
@@ -33,11 +33,7 @@
 // `;
 
 // const Header = styled.div`
-//   margin-bottom: 1.5rem;
-
-//   @media (min-width: 768px) {
-//     margin-bottom: 2rem;
-//   }
+//   margin-bottom: 2rem;
 // `;
 
 // const BackButton = styled(Link)`
@@ -49,7 +45,7 @@
 //   font-weight: 500;
 //   margin-bottom: 1rem;
 //   padding: 0.5rem 0;
-//   min-height: 44px; /* Better touch target */
+//   min-height: 44px;
 
 //   &:hover {
 //     color: #2563eb;
@@ -74,24 +70,57 @@
 //   line-height: 1.4;
 
 //   @media (min-width: 768px) {
-//     font-size: 1.125rem;
+//     font-size: 1rem;
 //   }
 // `;
 
-// const Grid = styled.div`
-//   display: flex;
-//   flex-direction: column;
-//   gap: 1.5rem;
+// const StatsGrid = styled.div`
+//   display: grid;
+//   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+//   gap: 1rem;
+//   margin-bottom: 2rem;
+// `;
+
+// const StatCard = styled.div<{ $color?: string }>`
+//   background: white;
+//   border-radius: 0.5rem;
+//   padding: 1rem;
+//   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+//   border: 1px solid #e5e7eb;
+//   border-top: 4px solid ${({ $color }) => $color || "#3b82f6"};
+// `;
+
+// const StatValue = styled.div`
+//   font-size: 1.5rem;
+//   font-weight: 700;
+//   color: #1f2937;
+//   margin-bottom: 0.25rem;
 
 //   @media (min-width: 768px) {
-//     display: grid;
-//     grid-template-columns: 1fr 1fr;
-//     gap: 2rem;
+//     font-size: 2rem;
 //   }
 // `;
 
-// const UploadSection = styled.div`
-//   width: 100%;
+// const StatLabel = styled.div`
+//   color: #6b7280;
+//   font-size: 0.75rem;
+//   font-weight: 500;
+
+//   @media (min-width: 768px) {
+//     font-size: 0.875rem;
+//   }
+// `;
+
+// const TwoColumnLayout = styled.div`
+//   display: flex;
+//   flex-direction: column;
+//   gap: 2rem;
+
+//   @media (min-width: 1024px) {
+//     display: grid;
+//     grid-template-columns: 1fr 1.5fr;
+//     gap: 2rem;
+//   }
 // `;
 
 // const Card = styled.div`
@@ -103,6 +132,19 @@
 
 //   @media (min-width: 768px) {
 //     padding: 1.5rem;
+//   }
+// `;
+
+// const CardTitle = styled.h2`
+//   font-size: 1.125rem;
+//   font-weight: 600;
+//   color: #1f2937;
+//   margin-bottom: 1rem;
+//   padding-bottom: 0.5rem;
+//   border-bottom: 2px solid #e5e7eb;
+
+//   @media (min-width: 768px) {
+//     font-size: 1.25rem;
 //   }
 // `;
 
@@ -124,29 +166,14 @@
 //   align-items: center;
 
 //   @media (min-width: 768px) {
-//     padding: 3rem 2rem;
-//     min-height: 200px;
+//     padding: 2rem;
+//     min-height: 160px;
 //   }
 
 //   &:hover {
 //     border-color: #3b82f6;
 //     background: #f0f9ff;
 //   }
-// `;
-
-// const UploadIcon = styled.div<{ $hasFile: boolean }>`
-//   font-size: 2rem;
-//   margin-bottom: 0.5rem;
-//   color: ${({ $hasFile }) => ($hasFile ? "#10b981" : "#6b7280")};
-
-//   @media (min-width: 768px) {
-//     font-size: 3rem;
-//     margin-bottom: 1rem;
-//   }
-// `;
-
-// const FileInput = styled.input`
-//   display: none;
 // `;
 
 // const FileInfo = styled.div`
@@ -156,8 +183,6 @@
 //   border-radius: 0.375rem;
 //   border: 1px solid #e2e8f0;
 //   width: 100%;
-//   max-width: 100%;
-//   box-sizing: border-box;
 // `;
 
 // const FileName = styled.div`
@@ -165,35 +190,21 @@
 //   color: #1e293b;
 //   margin-bottom: 0.5rem;
 //   word-break: break-word;
-//   font-size: 0.875rem;
-
-//   @media (min-width: 768px) {
-//     font-size: 1rem;
-//   }
 // `;
 
 // const FileDetails = styled.div`
 //   display: flex;
-//   flex-direction: column;
-//   gap: 0.25rem;
+//   gap: 1rem;
 //   color: #64748b;
 //   font-size: 0.75rem;
-
-//   @media (min-width: 480px) {
-//     flex-direction: row;
-//     gap: 1rem;
-//   }
-
-//   @media (min-width: 768px) {
-//     font-size: 0.875rem;
-//   }
+//   flex-wrap: wrap;
 // `;
 
 // const ProgressBar = styled.div<{ $progress: number }>`
 //   width: 100%;
-//   height: 6px;
+//   height: 8px;
 //   background: #e5e7eb;
-//   border-radius: 3px;
+//   border-radius: 4px;
 //   margin-top: 1rem;
 //   overflow: hidden;
 
@@ -208,20 +219,17 @@
 // `;
 
 // const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
-//   padding: 0.75rem 1rem;
+//   padding: 0.5rem 1rem;
 //   border: none;
 //   border-radius: 0.375rem;
 //   font-weight: 600;
 //   cursor: pointer;
 //   transition: all 0.2s;
-//   min-height: 44px;
+//   min-height: 40px;
 //   display: inline-flex;
 //   align-items: center;
-//   justify-content: center;
 //   gap: 0.5rem;
 //   font-size: 0.875rem;
-//   flex: 1;
-//   min-width: 0;
 
 //   ${({ $variant }) => {
 //     switch ($variant) {
@@ -229,25 +237,19 @@
 //         return `
 //           background: #3b82f6;
 //           color: white;
-//           &:hover:not(:disabled) {
-//             background: #2563eb;
-//           }
+//           &:hover:not(:disabled) { background: #2563eb; }
 //         `;
 //       case "danger":
 //         return `
 //           background: #ef4444;
 //           color: white;
-//           &:hover:not(:disabled) {
-//             background: #dc2626;
-//           }
+//           &:hover:not(:disabled) { background: #dc2626; }
 //         `;
 //       default:
 //         return `
 //           background: #6b7280;
 //           color: white;
-//           &:hover:not(:disabled) {
-//             background: #4b5563;
-//           }
+//           &:hover:not(:disabled) { background: #4b5563; }
 //         `;
 //     }
 //   }}
@@ -256,82 +258,47 @@
 //     opacity: 0.6;
 //     cursor: not-allowed;
 //   }
-
-//   @media (min-width: 768px) {
-//     padding: 0.75rem 1.5rem;
-//     font-size: 1rem;
-//     flex: 0 1 auto;
-//   }
 // `;
 
 // const ButtonGroup = styled.div`
 //   display: flex;
-//   flex-direction: column;
 //   gap: 0.75rem;
-//   margin-top: 1.5rem;
-//   width: 100%;
-
-//   @media (min-width: 480px) {
-//     flex-direction: row;
-//     flex-wrap: wrap;
-//   }
-
-//   @media (min-width: 768px) {
-//     margin-top: 2rem;
-//     gap: 1rem;
-//   }
+//   margin-top: 1rem;
+//   flex-wrap: wrap;
 // `;
 
-// const ButtonRow = styled.div`
-//   display: flex;
-//   gap: 0.75rem;
-//   width: 100%;
-
-//   @media (min-width: 480px) {
-//     width: auto;
-//     flex: 1;
-//   }
-// `;
-
-// const RequirementsCard = styled(Card)`
-//   background: #fffbeb;
-//   border-color: #fef3c7;
-// `;
-
-// const RequirementList = styled.ul`
-//   list-style: none;
-//   padding: 0;
-//   margin: 0;
-// `;
-
-// const RequirementItem = styled.li`
-//   padding: 0.5rem 0;
-//   color: #b45309;
-//   display: flex;
-//   align-items: flex-start;
-//   gap: 0.5rem;
+// const Alert = styled.div<{ $type?: "success" | "error" | "warning" }>`
+//   padding: 0.75rem;
+//   border-radius: 0.375rem;
+//   margin-bottom: 1rem;
 //   font-size: 0.875rem;
-//   line-height: 1.4;
 
-//   &::before {
-//     content: "•";
-//     color: #d97706;
-//     font-weight: bold;
-//     flex-shrink: 0;
-//   }
-
-//   @media (min-width: 768px) {
-//     font-size: 1rem;
-//   }
+//   ${({ $type }) => {
+//     switch ($type) {
+//       case "success":
+//         return `
+//           background: #dcfce7;
+//           border: 1px solid #bbf7d0;
+//           color: #166534;
+//         `;
+//       case "error":
+//         return `
+//           background: #fee2e2;
+//           border: 1px solid #fecaca;
+//           color: #dc2626;
+//         `;
+//       default:
+//         return `
+//           background: #fef3c7;
+//           border: 1px solid #fde68a;
+//           color: #92400e;
+//         `;
+//     }
+//   }}
 // `;
 
-// const HistorySection = styled.div`
-//   width: 100%;
-//   margin-top: 1.5rem;
-
-//   @media (min-width: 768px) {
-//     margin-top: 2rem;
-//   }
+// const TableWrapper = styled.div`
+//   overflow-x: auto;
 // `;
 
 // const HistoryTable = styled.table`
@@ -344,30 +311,23 @@
 //   }
 // `;
 
-// const TableHeader = styled.th`
+// const Th = styled.th`
 //   text-align: left;
-//   padding: 0.5rem;
-//   border-bottom: 1px solid #e5e7eb;
+//   padding: 0.75rem 0.5rem;
+//   background: #f8f9fa;
 //   font-weight: 600;
 //   color: #374151;
-//   white-space: nowrap;
-
-//   @media (min-width: 768px) {
-//     padding: 0.75rem;
-//   }
+//   border-bottom: 1px solid #e5e7eb;
 // `;
 
-// const TableCell = styled.td`
-//   padding: 0.5rem;
+// const Td = styled.td`
+//   padding: 0.75rem 0.5rem;
 //   border-bottom: 1px solid #f3f4f6;
-//   word-break: break-word;
-
-//   @media (min-width: 768px) {
-//     padding: 0.75rem;
-//   }
+//   vertical-align: middle;
 // `;
 
 // const StatusBadge = styled.span<{ $status: string }>`
+//   display: inline-block;
 //   padding: 0.25rem 0.5rem;
 //   border-radius: 9999px;
 //   font-size: 0.625rem;
@@ -384,103 +344,77 @@
 //         return "background: #fee2e2; color: #991b1b;";
 //       case "PARTIAL":
 //         return "background: #fef3c7; color: #92400e;";
-//       case "PENDING":
-//         return "background: #f3f4f6; color: #374151;";
 //       default:
 //         return "background: #f3f4f6; color: #374151;";
 //     }
 //   }}
-
-//   @media (min-width: 768px) {
-//     font-size: 0.75rem;
-//     padding: 0.25rem 0.75rem;
-//   }
 // `;
 
-// const ErrorMessage = styled.div`
-//   color: #dc2626;
-//   background: #fef2f2;
-//   border: 1px solid #fecaca;
-//   padding: 0.75rem;
-//   border-radius: 0.375rem;
-//   margin-top: 1rem;
-//   font-size: 0.875rem;
-//   line-height: 1.4;
-
-//   @media (min-width: 768px) {
-//     padding: 1rem;
-//     font-size: 1rem;
-//   }
-// `;
-
-// const SuccessMessage = styled.div`
-//   color: #065f46;
-//   background: #d1fae5;
-//   border: 1px solid #a7f3d0;
-//   padding: 0.75rem;
-//   border-radius: 0.375rem;
-//   margin-top: 1rem;
-//   font-size: 0.875rem;
-//   line-height: 1.4;
-
-//   @media (min-width: 768px) {
-//     padding: 1rem;
-//     font-size: 1rem;
-//   }
-// `;
-
-// const ErrorState = styled.div`
-//   background: #fef2f2;
-//   border: 1px solid #fecaca;
-//   color: #dc2626;
-//   padding: 1rem;
-//   border-radius: 0.5rem;
-//   text-align: center;
-//   margin: 1.5rem 0;
-
-//   @media (min-width: 768px) {
-//     padding: 1.5rem;
-//     margin: 2rem 0;
-//   }
-// `;
-
-// // COMMENTED OUT: Debug info component - kept for future debugging needs
-// /*
-// const DebugInfo = styled.div`
+// const DetailButton = styled.button`
 //   background: #f3f4f6;
 //   border: 1px solid #d1d5db;
-//   padding: 0.75rem;
-//   border-radius: 0.375rem;
-//   margin-top: 1rem;
-//   font-family: monospace;
-//   font-size: 0.75rem;
+//   border-radius: 0.25rem;
+//   padding: 0.25rem 0.5rem;
+//   font-size: 0.7rem;
+//   cursor: pointer;
 //   color: #374151;
-//   overflow-x: auto;
-//   max-height: 200px;
-//   overflow-y: auto;
 
-//   @media (min-width: 768px) {
-//     padding: 1rem;
-//     font-size: 0.875rem;
-//   }
-// `;
-// */
-
-// // Mobile responsive table wrapper
-// const TableWrapper = styled.div`
-//   overflow-x: auto;
-//   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
-//   margin: 0 -1rem;
-//   padding: 0 1rem;
-
-//   @media (min-width: 768px) {
-//     margin: 0;
-//     padding: 0;
+//   &:hover {
+//     background: #e5e7eb;
 //   }
 // `;
 
-// // Main Component
+// const ModalOverlay = styled.div`
+//   position: fixed;
+//   top: 0;
+//   left: 0;
+//   right: 0;
+//   bottom: 0;
+//   background: rgba(0, 0, 0, 0.5);
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+//   z-index: 1000;
+//   padding: 1rem;
+// `;
+
+// const ModalContent = styled.div`
+//   background: white;
+//   border-radius: 0.5rem;
+//   max-width: 600px;
+//   width: 100%;
+//   max-height: 80vh;
+//   overflow: auto;
+//   padding: 1.5rem;
+// `;
+
+// const ModalTitle = styled.h3`
+//   font-size: 1.125rem;
+//   font-weight: 600;
+//   color: #1f2937;
+//   margin-bottom: 1rem;
+// `;
+
+// const ErrorList = styled.div`
+//   margin: 1rem 0;
+//   max-height: 300px;
+//   overflow: auto;
+// `;
+
+// const ErrorItem = styled.div`
+//   padding: 0.5rem;
+//   border-bottom: 1px solid #e5e7eb;
+//   font-size: 0.875rem;
+//   font-family: monospace;
+//   color: #dc2626;
+// `;
+
+// const FileInput = styled.input`
+//   display: none;
+// `;
+
 // const CSVImport = () => {
+//   const router = useRouter();
 //   const [isDragOver, setIsDragOver] = useState(false);
 //   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 //   const [isUploading, setIsUploading] = useState(false);
@@ -489,13 +423,12 @@
 //   const [error, setError] = useState<string | null>(null);
 //   const [success, setSuccess] = useState<string | null>(null);
 //   const [loading, setLoading] = useState(true);
-//   const [authError, setAuthError] = useState<string | null>(null);
-//   // COMMENTED OUT: Debug state - kept for future debugging needs
-//   // const [debugInfo, setDebugInfo] = useState("");
+//   const [lastImportResult, setLastImportResult] = useState<any>(null);
+//   const [showDetailsModal, setShowDetailsModal] = useState(false);
+//   const [selectedImport, setSelectedImport] = useState<BarImportHistory | null>(
+//     null,
+//   );
 
-//   const router = useRouter();
-
-//   // Token handling
 //   const getToken = (): string | null => {
 //     if (typeof window !== "undefined") {
 //       return localStorage.getItem("hoppr_token");
@@ -503,45 +436,17 @@
 //     return null;
 //   };
 
-//   // COMMENTED OUT: Enhanced debug function - kept for future debugging needs
-//   /*
-//   const checkAuthStatus = async () => {
-//     const token = getToken();
-//     const user = typeof window !== "undefined" ? localStorage.getItem("hoppr_user") : null;
-
-//     let debugText = "🔐 AUTH STATUS CHECK:\n";
-//     debugText += `Token exists: ${!!token}\n`;
-//     debugText += `User data exists: ${!!user}\n`;
-//     debugText += `Token value: ${token}\n`;
-
-//     if (user) {
-//       try {
-//         const userData = JSON.parse(user);
-//         debugText += `User data: ${JSON.stringify(userData, null, 2)}\n`;
-//       } catch (e) {
-//         debugText += `Failed to parse user data: ${e}\n`;
-//       }
-//     }
-
-//     // Test the debug endpoint
-//     if (token) {
-//       try {
-//         debugText += "\n🔐 TESTING DEBUG ENDPOINT:\n";
-//         const response = await fetch("/api/auth/admin/debug", {
-//           headers: { Authorization: `Bearer ${token}` },
-//         });
-//         const result = await response.json();
-//         debugText += `Debug endpoint status: ${response.status}\n`;
-//         debugText += `Debug response: ${JSON.stringify(result, null, 2)}\n`;
-//       } catch (e) {
-//         debugText += `Debug endpoint error: ${e}\n`;
-//       }
-//     }
-
-//     console.log(debugText);
-//     setDebugInfo(debugText);
+//   const stats = {
+//     totalImports: importHistory.length,
+//     totalBarsImported: importHistory.reduce(
+//       (sum, i) => sum + i.importedRows,
+//       0,
+//     ),
+//     successfulImports: importHistory.filter((i) => i.status === "COMPLETED")
+//       .length,
+//     failedImports: importHistory.filter((i) => i.status === "FAILED").length,
+//     partialImports: importHistory.filter((i) => i.status === "PARTIAL").length,
 //   };
-//   */
 
 //   const handleDragOver = (e: React.DragEvent) => {
 //     e.preventDefault();
@@ -558,7 +463,7 @@
 //     setIsDragOver(false);
 //     setError(null);
 //     setSuccess(null);
-//     setAuthError(null);
+//     setLastImportResult(null);
 
 //     const files = e.dataTransfer.files;
 //     if (files.length > 0) {
@@ -577,7 +482,7 @@
 //       setSelectedFile(files[0]);
 //       setError(null);
 //       setSuccess(null);
-//       setAuthError(null);
+//       setLastImportResult(null);
 //     }
 //   };
 
@@ -585,230 +490,83 @@
 //     if (!selectedFile) return;
 
 //     const token = getToken();
-//     console.log("🔍 DEBUG UPLOAD STARTED");
-//     console.log("🔍 Token exists:", !!token);
-//     console.log(
-//       "🔍 File:",
-//       selectedFile.name,
-//       selectedFile.size,
-//       selectedFile.type,
-//     );
+//     if (!token) {
+//       setError("No authentication token found. Please log in.");
+//       return;
+//     }
 
 //     setIsUploading(true);
 //     setUploadProgress(0);
 //     setError(null);
 //     setSuccess(null);
+//     setLastImportResult(null);
 
 //     try {
 //       const formData = new FormData();
 //       formData.append("csvFile", selectedFile);
 
-//       // Test the API endpoint first
-//       console.log("🔍 Testing API endpoint...");
-//       const testResponse = await fetch("/api/auth/admin/bars/import", {
-//         method: "HEAD",
-//       });
-//       console.log("🔍 API endpoint status:", testResponse.status);
+//       const progressInterval = setInterval(() => {
+//         setUploadProgress((prev) => Math.min(prev + 10, 90));
+//       }, 200);
 
-//       // Now do the actual upload
-//       console.log("🔍 Starting actual upload...");
 //       const response = await fetch("/api/auth/admin/bars/import", {
 //         method: "POST",
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//         },
+//         headers: { Authorization: `Bearer ${token}` },
 //         body: formData,
 //       });
 
-//       console.log("🔍 Upload response status:", response.status);
-//       console.log("🔍 Upload response ok:", response.ok);
+//       clearInterval(progressInterval);
+//       setUploadProgress(100);
 
 //       const result = await response.json();
-//       console.log("🔍 Upload result:", result);
 
-//       if (!response.ok) {
-//         throw new Error(result.error || `Upload failed: ${response.status}`);
+//       if (response.status === 401) {
+//         localStorage.removeItem("hoppr_token");
+//         localStorage.removeItem("hoppr_user");
+//         throw new Error("Your session has expired. Please log in again.");
 //       }
 
-//       setSuccess(`Successfully imported ${result.imported} bars!`);
+//       if (!response.ok) {
+//         throw new Error(result.error || `Import failed: ${response.status}`);
+//       }
+
+//       setLastImportResult(result);
+
+//       let message = `✅ Successfully imported ${result.imported} new bars!`;
+//       if (result.skipped > 0) {
+//         message += ` ⏭️ Skipped ${result.skipped} duplicates.`;
+//       }
+//       setSuccess(message);
+
 //       fetchImportHistory();
+//       setSelectedFile(null);
 //     } catch (error) {
-//       console.error("❌ UPLOAD ERROR:", error);
+//       console.error("Upload error:", error);
 //       setError(error instanceof Error ? error.message : "Upload failed");
 //     } finally {
 //       setIsUploading(false);
 //     }
 //   };
 
-//   // const handleUpload = async () => {
-//   //   if (!selectedFile) return;
-
-//   //   // COMMENTED OUT: Debug check - kept for future debugging needs
-//   //   // await checkAuthStatus();
-
-//   //   const token = getToken();
-//   //   if (!token) {
-//   //     setAuthError("No authentication token found. Please log in.");
-//   //     return;
-//   //   }
-
-//   //   setIsUploading(true);
-//   //   setUploadProgress(0);
-//   //   setError(null);
-//   //   setSuccess(null);
-//   //   setAuthError(null);
-
-//   //   try {
-//   //     const formData = new FormData();
-//   //     formData.append("csvFile", selectedFile);
-
-//   //     console.log("📤 Starting upload...");
-//   //     console.log("Token being sent:", token);
-//   //     console.log("File:", selectedFile.name);
-
-//   //     const response = await fetch("/api/auth/admin/bars/import", {
-//   //       method: "POST",
-//   //       headers: {
-//   //         Authorization: `Bearer ${token}`,
-//   //       },
-//   //       body: formData,
-//   //     });
-
-//   //     // Simulate progress
-//   //     const progressInterval = setInterval(() => {
-//   //       setUploadProgress((prev) => {
-//   //         if (prev >= 90) {
-//   //           clearInterval(progressInterval);
-//   //           return 90;
-//   //         }
-//   //         return prev + 10;
-//   //       });
-//   //     }, 200);
-
-//   //     const result = await response.json();
-//   //     clearInterval(progressInterval);
-//   //     setUploadProgress(100);
-
-//   //     console.log("📥 Upload response:", {
-//   //       status: response.status,
-//   //       ok: response.ok,
-//   //       result,
-//   //     });
-
-//   //     if (response.status === 401) {
-//   //       console.log("❌ Token rejected, clearing auth data...");
-//   //       if (typeof window !== "undefined") {
-//   //         localStorage.removeItem("hoppr_token");
-//   //         localStorage.removeItem("hoppr_user");
-//   //       }
-//   //       document.cookie =
-//   //         "hoppr_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-//   //       document.cookie =
-//   //         "hoppr_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-//   //       throw new Error("Your session has expired. Please log in again.");
-//   //     }
-
-//   //     if (!response.ok) {
-//   //       throw new Error(
-//   //         result.error || result.message || `Import failed: ${response.status}`
-//   //       );
-//   //     }
-
-//   //     const successMessage = `Successfully imported ${result.imported} bars!${
-//   //       result.failed > 0 ? ` ${result.failed} failed.` : ""
-//   //     }`;
-
-//   //     setSuccess(successMessage);
-//   //     fetchImportHistory();
-
-//   //     setTimeout(() => {
-//   //       router.push("/admin/bars");
-//   //     }, 2000);
-//   //   } catch (error) {
-//   //     console.error("Upload error:", error);
-//   //     const errorMessage =
-//   //       error instanceof Error
-//   //         ? error.message
-//   //         : "Upload failed - please try again";
-
-//   //     if (
-//   //       errorMessage.includes("session") ||
-//   //       errorMessage.includes("authentication") ||
-//   //       errorMessage.includes("token") ||
-//   //       errorMessage.includes("log in")
-//   //     ) {
-//   //       setAuthError(errorMessage);
-//   //     } else {
-//   //       setError(errorMessage);
-//   //     }
-//   //   } finally {
-//   //     setIsUploading(false);
-//   //   }
-//   // };
-
 //   const fetchImportHistory = async () => {
 //     try {
 //       setLoading(true);
 //       const token = getToken();
-
-//       if (!token) {
-//         setAuthError("No authentication token found. Please log in.");
-//         return;
-//       }
-
-//       console.log("📋 Fetching import history with token:", token);
+//       if (!token) return;
 
 //       const response = await fetch("/api/auth/admin/bars/import/history", {
-//         headers: {
-//           Authorization: `Bearer ${token}`,
-//         },
+//         headers: { Authorization: `Bearer ${token}` },
 //       });
 
-//       console.log("📋 History response status:", response.status);
-
-//       if (response.status === 401) {
-//         if (typeof window !== "undefined") {
-//           localStorage.removeItem("hoppr_token");
-//           localStorage.removeItem("hoppr_user");
-//         }
-//         setAuthError("Your session has expired. Please log in again.");
-//         return;
+//       if (response.ok) {
+//         const data = await response.json();
+//         setImportHistory(data.imports || []);
 //       }
-
-//       if (response.status === 404) {
-//         console.log("Import history endpoint not found, skipping...");
-//         return;
-//       }
-
-//       if (!response.ok) {
-//         throw new Error(`Failed to fetch import history: ${response.status}`);
-//       }
-
-//       const result = await response.json();
-//       setImportHistory(result.imports || []);
 //     } catch (error) {
 //       console.error("Failed to fetch import history:", error);
 //     } finally {
 //       setLoading(false);
 //     }
-//   };
-
-//   const handleRetry = () => {
-//     setAuthError(null);
-//     setError(null);
-//     fetchImportHistory();
-//   };
-
-//   const handleLogin = () => {
-//     router.push("/admin/login");
-//   };
-
-//   const formatFileSize = (bytes: number): string => {
-//     if (bytes === 0) return "0 Bytes";
-//     const k = 1024;
-//     const sizes = ["Bytes", "KB", "MB", "GB"];
-//     const i = Math.floor(Math.log(bytes) / Math.log(k));
-//     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 //   };
 
 //   const formatDate = (dateString: string): string => {
@@ -821,68 +579,63 @@
 //     });
 //   };
 
-//   // Load import history on component mount
+//   const formatFileSize = (bytes: number): string => {
+//     if (bytes === 0) return "0 Bytes";
+//     const k = 1024;
+//     const sizes = ["Bytes", "KB", "MB", "GB"];
+//     const i = Math.floor(Math.log(bytes) / Math.log(k));
+//     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+//   };
+
+//   const handleViewDetails = (importItem: BarImportHistory) => {
+//     setSelectedImport(importItem);
+//     setShowDetailsModal(true);
+//   };
+
 //   useEffect(() => {
-//     console.log("🔐 Component mounted, checking auth...");
-//     // COMMENTED OUT: Debug check - kept for future debugging needs
-//     // checkAuthStatus();
 //     fetchImportHistory();
 //   }, []);
-
-//   // Show error state
-//   if (authError) {
-//     return (
-//       <Container>
-//         <Header>
-//           <BackButton href="/admin/bars">← Back to Bars</BackButton>
-//           <Title>Import Bars from CSV</Title>
-//           <Subtitle>
-//             Bulk import bars using a CSV file. Download the template below to
-//             get started.
-//           </Subtitle>
-//         </Header>
-
-//         <ErrorState>
-//           <h3 style={{ marginBottom: "1rem" }}>Authentication Required</h3>
-//           <p style={{ marginBottom: "1rem" }}>{authError}</p>
-//           {/* COMMENTED OUT: Debug info display - kept for future debugging needs */}
-//           {/* <DebugInfo>{debugInfo}</DebugInfo> */}
-//           <div
-//             style={{
-//               display: "flex",
-//               flexDirection: "column",
-//               gap: "0.75rem",
-//               justifyContent: "center",
-//               marginTop: "1rem",
-//               width: "100%",
-//             }}
-//           >
-//             <Button $variant="primary" onClick={handleLogin}>
-//               🔐 Go to Login
-//             </Button>
-//             <Button $variant="secondary" onClick={handleRetry}>
-//               🔄 Try Again
-//             </Button>
-//           </div>
-//         </ErrorState>
-//       </Container>
-//     );
-//   }
 
 //   return (
 //     <Container>
 //       <Header>
 //         <BackButton href="/admin/bars">← Back to Bars</BackButton>
-//         <Title>Import Bars from CSV</Title>
+//         <Title>CSV Import</Title>
 //         <Subtitle>
-//           Bulk import bars using a CSV file. Download the template below to get
-//           started.
+//           Bulk import bars from CSV files. View your import history below.
 //         </Subtitle>
 //       </Header>
 
-//       <Grid>
-//         <UploadSection>
+//       {/* Stats Overview */}
+//       <StatsGrid>
+//         <StatCard $color="#3b82f6">
+//           <StatValue>{stats.totalImports}</StatValue>
+//           <StatLabel>Total Imports</StatLabel>
+//         </StatCard>
+//         <StatCard $color="#10b981">
+//           <StatValue>{stats.totalBarsImported}</StatValue>
+//           <StatLabel>Bars Imported</StatLabel>
+//         </StatCard>
+//         <StatCard $color="#10b981">
+//           <StatValue>{stats.successfulImports}</StatValue>
+//           <StatLabel>Successful</StatLabel>
+//         </StatCard>
+//         <StatCard $color="#f59e0b">
+//           <StatValue>{stats.partialImports}</StatValue>
+//           <StatLabel>Partial</StatLabel>
+//         </StatCard>
+//         <StatCard $color="#ef4444">
+//           <StatValue>{stats.failedImports}</StatValue>
+//           <StatLabel>Failed</StatLabel>
+//         </StatCard>
+//       </StatsGrid>
+
+//       <TwoColumnLayout>
+//         {/* Left Column - Upload Section */}
+//         <div>
 //           <Card>
+//             <CardTitle>📁 Upload CSV File</CardTitle>
+
 //             <DropZone
 //               $isDragOver={isDragOver}
 //               $hasFile={!!selectedFile}
@@ -891,10 +644,9 @@
 //               onDrop={handleDrop}
 //               onClick={() => document.getElementById("csv-file-input")?.click()}
 //             >
-//               <UploadIcon $hasFile={!!selectedFile}>
+//               <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
 //                 {selectedFile ? "✅" : "📁"}
-//               </UploadIcon>
-
+//               </div>
 //               {selectedFile ? (
 //                 <FileInfo>
 //                   <FileName>📄 {selectedFile.name}</FileName>
@@ -906,13 +658,7 @@
 //                 </FileInfo>
 //               ) : (
 //                 <div>
-//                   <p
-//                     style={{
-//                       fontWeight: 600,
-//                       marginBottom: "0.5rem",
-//                       fontSize: "1rem",
-//                     }}
-//                   >
+//                   <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
 //                     Drop CSV file here or click to browse
 //                   </p>
 //                   <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
@@ -920,7 +666,6 @@
 //                   </p>
 //                 </div>
 //               )}
-
 //               <FileInput
 //                 id="csv-file-input"
 //                 type="file"
@@ -929,142 +674,240 @@
 //               />
 //             </DropZone>
 
-//             {error && <ErrorMessage>{error}</ErrorMessage>}
+//             {error && <Alert $type="error">{error}</Alert>}
+//             {success && <Alert $type="success">{success}</Alert>}
 
-//             {success && (
-//               <SuccessMessage>
-//                 {success} Redirecting back to bars list...
-//               </SuccessMessage>
+//             {/* Import Results Summary */}
+//             {lastImportResult && (
+//               <Alert
+//                 $type={lastImportResult.skipped > 0 ? "warning" : "success"}
+//               >
+//                 <strong>Import Summary:</strong>
+//                 <ul
+//                   style={{
+//                     marginTop: "0.5rem",
+//                     marginBottom: 0,
+//                     paddingLeft: "1.5rem",
+//                   }}
+//                 >
+//                   <li>✅ Imported: {lastImportResult.imported} bars</li>
+//                   <li>⏭️ Skipped: {lastImportResult.skipped} duplicates</li>
+//                   <li>📊 Total processed: {lastImportResult.total} rows</li>
+//                 </ul>
+//               </Alert>
 //             )}
 
 //             <ButtonGroup>
-//               <ButtonRow>
+//               <Button
+//                 $variant="primary"
+//                 onClick={handleUpload}
+//                 disabled={!selectedFile || isUploading}
+//               >
+//                 {isUploading ? `Uploading... ${uploadProgress}%` : "Import CSV"}
+//               </Button>
+//               {selectedFile && !isUploading && (
 //                 <Button
-//                   $variant="primary"
-//                   onClick={handleUpload}
-//                   disabled={!selectedFile || isUploading}
+//                   $variant="secondary"
+//                   onClick={() => setSelectedFile(null)}
 //                 >
-//                   {isUploading ? (
-//                     <>
-//                       <span>Uploading... {uploadProgress}%</span>
-//                     </>
-//                   ) : (
-//                     "Import Bars"
-//                   )}
+//                   Clear
 //                 </Button>
-
-//                 {selectedFile && !isUploading && (
-//                   <Button
-//                     $variant="secondary"
-//                     onClick={() => {
-//                       setSelectedFile(null);
-//                       setError(null);
-//                       setSuccess(null);
-//                     }}
-//                   >
-//                     Clear
-//                   </Button>
-//                 )}
-//               </ButtonRow>
-
-//               <ButtonRow>
-//                 <a
-//                   href="/templates/bars-import-template.csv"
-//                   download
-//                   style={{ display: "flex", flex: 1, textDecoration: "none" }}
-//                 >
-//                   <Button $variant="secondary">Download Template</Button>
-//                 </a>
-
-//                 {/* COMMENTED OUT: Debug button - kept for future debugging needs */}
-//                 {/* <Button $variant="secondary" onClick={checkAuthStatus}>
-//                   🔍 Debug
-//                 </Button> */}
-//               </ButtonRow>
+//               )}
+//               <a
+//                 href="/templates/bars-import-template.csv"
+//                 download
+//                 style={{ textDecoration: "none" }}
+//               >
+//                 <Button $variant="secondary">📥 Download Template</Button>
+//               </a>
 //             </ButtonGroup>
-
-//             {/* COMMENTED OUT: Debug info display - kept for future debugging needs */}
-//             {/* {debugInfo && <DebugInfo>{debugInfo}</DebugInfo>} */}
 //           </Card>
-//         </UploadSection>
 
-//         <RequirementsCard>
-//           <h3
-//             style={{
-//               marginBottom: "1rem",
-//               color: "#92400e",
-//               fontSize: "1.125rem",
-//             }}
-//           >
-//             CSV Format Requirements
-//           </h3>
-//           <RequirementList>
-//             <RequirementItem>
-//               <strong>Required fields:</strong> name, type, address, city
-//             </RequirementItem>
-//             <RequirementItem>
-//               <strong>Bar types:</strong> PUB, CLUB, LOUNGE, COCKTAIL_BAR,
-//               RESTAURANT_BAR, SPORTS_BAR, KARAOKE, LIVE_MUSIC
-//             </RequirementItem>
-//             <RequirementItem>
-//               <strong>Price ranges:</strong> BUDGET, MODERATE, PREMIUM, LUXURY
-//             </RequirementItem>
-//             <RequirementItem>
-//               <strong>Location:</strong> Include both latitude and longitude for
-//               mapping
-//             </RequirementItem>
-//             <RequirementItem>
-//               <strong>Arrays:</strong> Separate multiple values with commas
-//             </RequirementItem>
-//             <RequirementItem>
-//               <strong>Operating hours:</strong> Use JSON format
-//             </RequirementItem>
-//             <RequirementItem>
-//               <strong>File encoding:</strong> UTF-8 recommended
-//             </RequirementItem>
-//           </RequirementList>
-//         </RequirementsCard>
+//           {/* CSV Requirements */}
+//           <Card style={{ marginTop: "1rem" }}>
+//             <CardTitle>📋 CSV Format Requirements</CardTitle>
+//             <ul
+//               style={{
+//                 margin: 0,
+//                 paddingLeft: "1.25rem",
+//                 color: "#6b7280",
+//                 fontSize: "0.875rem",
+//               }}
+//             >
+//               <li>
+//                 <strong>Required:</strong> name, type, address, city
+//               </li>
+//               <li>
+//                 <strong>Bar types:</strong> PUB, CLUB, LOUNGE, COCKTAIL_BAR,
+//                 RESTAURANT_BAR, SPORTS_BAR, KARAOKE, LIVE_MUSIC
+//               </li>
+//               <li>
+//                 <strong>Price ranges:</strong> BUDGET, MODERATE, PREMIUM, LUXURY
+//               </li>
+//               <li>
+//                 <strong>Arrays:</strong> Separate with commas (amenities,
+//                 imageUrls)
+//               </li>
+//               <li>
+//                 <strong>Operating hours:</strong> JSON format
+//               </li>
+//             </ul>
+//           </Card>
+//         </div>
 
-//         {importHistory.length > 0 && (
-//           <HistorySection>
-//             <h3 style={{ marginBottom: "1rem" }}>Import History</h3>
-//             <Card>
+//         {/* Right Column - History Section */}
+//         <div>
+//           <Card>
+//             <CardTitle>📜 Import History</CardTitle>
+
+//             {loading ? (
+//               <div
+//                 style={{
+//                   textAlign: "center",
+//                   padding: "2rem",
+//                   color: "#6b7280",
+//                 }}
+//               >
+//                 Loading history...
+//               </div>
+//             ) : importHistory.length === 0 ? (
+//               <div
+//                 style={{
+//                   textAlign: "center",
+//                   padding: "2rem",
+//                   color: "#6b7280",
+//                 }}
+//               >
+//                 <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
+//                   📭
+//                 </div>
+//                 <p>No import history yet</p>
+//                 <p style={{ fontSize: "0.875rem" }}>
+//                   Upload your first CSV file to get started
+//                 </p>
+//               </div>
+//             ) : (
 //               <TableWrapper>
 //                 <HistoryTable>
 //                   <thead>
 //                     <tr>
-//                       <TableHeader>File Name</TableHeader>
-//                       <TableHeader>Date</TableHeader>
-//                       <TableHeader>Status</TableHeader>
-//                       <TableHeader>Imported</TableHeader>
-//                       <TableHeader>Failed</TableHeader>
-//                       <TableHeader>Total</TableHeader>
+//                       <Th>File Name</Th>
+//                       <Th>Date</Th>
+//                       <Th>Status</Th>
+//                       <Th>Imported</Th>
+//                       <Th>Skipped</Th>
+//                       <Th>Total</Th>
+//                       <Th></Th>
 //                     </tr>
 //                   </thead>
 //                   <tbody>
 //                     {importHistory.map((importItem) => (
 //                       <tr key={importItem.id}>
-//                         <TableCell>{importItem.fileName}</TableCell>
-//                         <TableCell>
+//                         <Td
+//                           style={{
+//                             maxWidth: "200px",
+//                             overflow: "hidden",
+//                             textOverflow: "ellipsis",
+//                             whiteSpace: "nowrap",
+//                           }}
+//                         >
+//                           {importItem.fileName}
+//                         </Td>
+//                         <Td style={{ whiteSpace: "nowrap" }}>
 //                           {formatDate(importItem.createdAt)}
-//                         </TableCell>
-//                         <TableCell>
+//                         </Td>
+//                         <Td>
 //                           <StatusBadge $status={importItem.status}>
 //                             {importItem.status}
 //                           </StatusBadge>
-//                         </TableCell>
-//                         <TableCell>{importItem.importedRows}</TableCell>
-//                         <TableCell>{importItem.failedRows}</TableCell>
-//                         <TableCell>{importItem.totalRows}</TableCell>
+//                         </Td>
+//                         <Td style={{ color: "#065f46", fontWeight: "bold" }}>
+//                           {importItem.importedRows}
+//                         </Td>
+//                         <Td style={{ color: "#92400e" }}>
+//                           {importItem.failedRows}
+//                         </Td>
+//                         <Td>{importItem.totalRows}</Td>
+//                         <Td>
+//                           {((importItem.errors &&
+//                             importItem.errors.length > 0) ||
+//                             importItem.failedRows > 0) && (
+//                             <DetailButton
+//                               onClick={() => handleViewDetails(importItem)}
+//                             >
+//                               Details
+//                             </DetailButton>
+//                           )}
+//                         </Td>
 //                       </tr>
 //                     ))}
 //                   </tbody>
 //                 </HistoryTable>
 //               </TableWrapper>
-//             </Card>
-//           </HistorySection>
-//         )}
-//       </Grid>
+//             )}
+//           </Card>
+//         </div>
+//       </TwoColumnLayout>
+
+//       {/* Details Modal */}
+//       {showDetailsModal && selectedImport && (
+//         <ModalOverlay onClick={() => setShowDetailsModal(false)}>
+//           <ModalContent onClick={(e) => e.stopPropagation()}>
+//             <ModalTitle>Import Details: {selectedImport.fileName}</ModalTitle>
+
+//             <p>
+//               <strong>Date:</strong> {formatDate(selectedImport.createdAt)}
+//             </p>
+//             <p>
+//               <strong>Status:</strong> {selectedImport.status}
+//             </p>
+//             <p>
+//               <strong>Imported:</strong> {selectedImport.importedRows} bars
+//             </p>
+//             <p>
+//               <strong>Skipped:</strong> {selectedImport.failedRows} rows
+//             </p>
+//             <p>
+//               <strong>Total:</strong> {selectedImport.totalRows} rows
+//             </p>
+
+//             {selectedImport.errors && selectedImport.errors.length > 0 && (
+//               <>
+//                 <h4
+//                   style={{
+//                     marginTop: "1rem",
+//                     marginBottom: "0.5rem",
+//                     color: "#dc2626",
+//                   }}
+//                 >
+//                   Errors ({selectedImport.errors.length})
+//                 </h4>
+//                 <ErrorList>
+//                   {selectedImport.errors.slice(0, 20).map((error, idx) => (
+//                     <ErrorItem key={idx}>{error}</ErrorItem>
+//                   ))}
+//                   {selectedImport.errors.length > 20 && (
+//                     <ErrorItem>
+//                       ... and {selectedImport.errors.length - 20} more errors
+//                     </ErrorItem>
+//                   )}
+//                 </ErrorList>
+//               </>
+//             )}
+
+//             <ButtonGroup
+//               style={{ justifyContent: "flex-end", marginTop: "1rem" }}
+//             >
+//               <Button
+//                 $variant="primary"
+//                 onClick={() => setShowDetailsModal(false)}
+//               >
+//                 Close
+//               </Button>
+//             </ButtonGroup>
+//           </ModalContent>
+//         </ModalOverlay>
+//       )}
 //     </Container>
 //   );
 // };
@@ -1107,11 +950,12 @@ interface ImportResponse {
   duplicates: DuplicateInfo[];
   errors: string[];
   message: string;
+  status: string;
 }
 
 // Styled Components
 const Container = styled.div`
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 1rem;
 
@@ -1121,11 +965,7 @@ const Container = styled.div`
 `;
 
 const Header = styled.div`
-  margin-bottom: 1.5rem;
-
-  @media (min-width: 768px) {
-    margin-bottom: 2rem;
-  }
+  margin-bottom: 2rem;
 `;
 
 const BackButton = styled(Link)`
@@ -1162,24 +1002,57 @@ const Subtitle = styled.p`
   line-height: 1.4;
 
   @media (min-width: 768px) {
-    font-size: 1.125rem;
+    font-size: 1rem;
   }
 `;
 
-const Grid = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+const StatsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+`;
+
+const StatCard = styled.div<{ $color?: string }>`
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+  border-top: 4px solid ${({ $color }) => $color || "#3b82f6"};
+`;
+
+const StatValue = styled.div`
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
 
   @media (min-width: 768px) {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    font-size: 2rem;
   }
 `;
 
-const UploadSection = styled.div`
-  width: 100%;
+const StatLabel = styled.div`
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+
+  @media (min-width: 768px) {
+    font-size: 0.875rem;
+  }
+`;
+
+const TwoColumnLayout = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  @media (min-width: 1024px) {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 2rem;
+  }
 `;
 
 const Card = styled.div`
@@ -1191,6 +1064,19 @@ const Card = styled.div`
 
   @media (min-width: 768px) {
     padding: 1.5rem;
+  }
+`;
+
+const CardTitle = styled.h2`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e5e7eb;
+
+  @media (min-width: 768px) {
+    font-size: 1.25rem;
   }
 `;
 
@@ -1212,29 +1098,14 @@ const DropZone = styled.div<{ $isDragOver: boolean; $hasFile: boolean }>`
   align-items: center;
 
   @media (min-width: 768px) {
-    padding: 3rem 2rem;
-    min-height: 200px;
+    padding: 2rem;
+    min-height: 160px;
   }
 
   &:hover {
     border-color: #3b82f6;
     background: #f0f9ff;
   }
-`;
-
-const UploadIcon = styled.div<{ $hasFile: boolean }>`
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-  color: ${({ $hasFile }) => ($hasFile ? "#10b981" : "#6b7280")};
-
-  @media (min-width: 768px) {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-  }
-`;
-
-const FileInput = styled.input`
-  display: none;
 `;
 
 const FileInfo = styled.div`
@@ -1244,8 +1115,6 @@ const FileInfo = styled.div`
   border-radius: 0.375rem;
   border: 1px solid #e2e8f0;
   width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
 `;
 
 const FileName = styled.div`
@@ -1253,35 +1122,21 @@ const FileName = styled.div`
   color: #1e293b;
   margin-bottom: 0.5rem;
   word-break: break-word;
-  font-size: 0.875rem;
-
-  @media (min-width: 768px) {
-    font-size: 1rem;
-  }
 `;
 
 const FileDetails = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  gap: 1rem;
   color: #64748b;
   font-size: 0.75rem;
-
-  @media (min-width: 480px) {
-    flex-direction: row;
-    gap: 1rem;
-  }
-
-  @media (min-width: 768px) {
-    font-size: 0.875rem;
-  }
+  flex-wrap: wrap;
 `;
 
 const ProgressBar = styled.div<{ $progress: number }>`
   width: 100%;
-  height: 6px;
+  height: 8px;
   background: #e5e7eb;
-  border-radius: 3px;
+  border-radius: 4px;
   margin-top: 1rem;
   overflow: hidden;
 
@@ -1296,20 +1151,17 @@ const ProgressBar = styled.div<{ $progress: number }>`
 `;
 
 const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 0.375rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  min-height: 44px;
+  min-height: 40px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  flex: 1;
-  min-width: 0;
 
   ${({ $variant }) => {
     switch ($variant) {
@@ -1317,25 +1169,19 @@ const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
         return `
           background: #3b82f6;
           color: white;
-          &:hover:not(:disabled) {
-            background: #2563eb;
-          }
+          &:hover:not(:disabled) { background: #2563eb; }
         `;
       case "danger":
         return `
           background: #ef4444;
           color: white;
-          &:hover:not(:disabled) {
-            background: #dc2626;
-          }
+          &:hover:not(:disabled) { background: #dc2626; }
         `;
       default:
         return `
           background: #6b7280;
           color: white;
-          &:hover:not(:disabled) {
-            background: #4b5563;
-          }
+          &:hover:not(:disabled) { background: #4b5563; }
         `;
     }
   }}
@@ -1344,82 +1190,47 @@ const Button = styled.button<{ $variant?: "primary" | "secondary" | "danger" }>`
     opacity: 0.6;
     cursor: not-allowed;
   }
-
-  @media (min-width: 768px) {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    flex: 0 1 auto;
-  }
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
-  flex-direction: column;
   gap: 0.75rem;
-  margin-top: 1.5rem;
-  width: 100%;
-
-  @media (min-width: 480px) {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  @media (min-width: 768px) {
-    margin-top: 2rem;
-    gap: 1rem;
-  }
+  margin-top: 1rem;
+  flex-wrap: wrap;
 `;
 
-const ButtonRow = styled.div`
-  display: flex;
-  gap: 0.75rem;
-  width: 100%;
-
-  @media (min-width: 480px) {
-    width: auto;
-    flex: 1;
-  }
-`;
-
-const RequirementsCard = styled(Card)`
-  background: #fffbeb;
-  border-color: #fef3c7;
-`;
-
-const RequirementList = styled.ul`
-  list-style: none;
-  padding: 0;
-  margin: 0;
-`;
-
-const RequirementItem = styled.li`
-  padding: 0.5rem 0;
-  color: #b45309;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
+const Alert = styled.div<{ $type?: "success" | "error" | "warning" }>`
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
   font-size: 0.875rem;
-  line-height: 1.4;
 
-  &::before {
-    content: "•";
-    color: #d97706;
-    font-weight: bold;
-    flex-shrink: 0;
-  }
-
-  @media (min-width: 768px) {
-    font-size: 1rem;
-  }
+  ${({ $type }) => {
+    switch ($type) {
+      case "success":
+        return `
+          background: #dcfce7;
+          border: 1px solid #bbf7d0;
+          color: #166534;
+        `;
+      case "error":
+        return `
+          background: #fee2e2;
+          border: 1px solid #fecaca;
+          color: #dc2626;
+        `;
+      default:
+        return `
+          background: #fef3c7;
+          border: 1px solid #fde68a;
+          color: #92400e;
+        `;
+    }
+  }}
 `;
 
-const HistorySection = styled.div`
-  width: 100%;
-  margin-top: 1.5rem;
-
-  @media (min-width: 768px) {
-    margin-top: 2rem;
-  }
+const TableWrapper = styled.div`
+  overflow-x: auto;
 `;
 
 const HistoryTable = styled.table`
@@ -1432,30 +1243,23 @@ const HistoryTable = styled.table`
   }
 `;
 
-const TableHeader = styled.th`
+const Th = styled.th`
   text-align: left;
-  padding: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 0.75rem 0.5rem;
+  background: #f8f9fa;
   font-weight: 600;
   color: #374151;
-  white-space: nowrap;
-
-  @media (min-width: 768px) {
-    padding: 0.75rem;
-  }
+  border-bottom: 1px solid #e5e7eb;
 `;
 
-const TableCell = styled.td`
-  padding: 0.5rem;
+const Td = styled.td`
+  padding: 0.75rem 0.5rem;
   border-bottom: 1px solid #f3f4f6;
-  word-break: break-word;
-
-  @media (min-width: 768px) {
-    padding: 0.75rem;
-  }
+  vertical-align: middle;
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
+  display: inline-block;
   padding: 0.25rem 0.5rem;
   border-radius: 9999px;
   font-size: 0.625rem;
@@ -1472,140 +1276,10 @@ const StatusBadge = styled.span<{ $status: string }>`
         return "background: #fee2e2; color: #991b1b;";
       case "PARTIAL":
         return "background: #fef3c7; color: #92400e;";
-      case "PENDING":
-        return "background: #f3f4f6; color: #374151;";
       default:
         return "background: #f3f4f6; color: #374151;";
     }
   }}
-
-  @media (min-width: 768px) {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.75rem;
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: #dc2626;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 0.75rem;
-  border-radius: 0.375rem;
-  margin-top: 1rem;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  white-space: pre-line;
-
-  @media (min-width: 768px) {
-    padding: 1rem;
-    font-size: 1rem;
-  }
-`;
-
-const SuccessMessage = styled.div`
-  color: #065f46;
-  background: #d1fae5;
-  border: 1px solid #a7f3d0;
-  padding: 0.75rem;
-  border-radius: 0.375rem;
-  margin-top: 1rem;
-  font-size: 0.875rem;
-  line-height: 1.4;
-  white-space: pre-line;
-
-  @media (min-width: 768px) {
-    padding: 1rem;
-    font-size: 1rem;
-  }
-`;
-
-const ErrorState = styled.div`
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  text-align: center;
-  margin: 1.5rem 0;
-
-  @media (min-width: 768px) {
-    padding: 1.5rem;
-    margin: 2rem 0;
-  }
-`;
-
-const TableWrapper = styled.div`
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin: 0 -1rem;
-  padding: 0 1rem;
-
-  @media (min-width: 768px) {
-    margin: 0;
-    padding: 0;
-  }
-`;
-
-const ModalOverlay = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  background: white;
-  border-radius: 0.5rem;
-  padding: 1.5rem;
-  max-width: 500px;
-  width: 90%;
-  max-height: 80%;
-  overflow: auto;
-
-  @media (min-width: 768px) {
-    padding: 2rem;
-  }
-`;
-
-const ModalTitle = styled.h3`
-  margin-bottom: 1rem;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #1f2937;
-`;
-
-const ErrorList = styled.div`
-  max-height: 300px;
-  overflow: auto;
-`;
-
-const ErrorItem = styled.div`
-  padding: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 0.875rem;
-  font-family: monospace;
-  color: #374151;
-`;
-
-const CloseButton = styled.button`
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 0.25rem;
-  cursor: pointer;
-  width: 100%;
-
-  &:hover {
-    background: #2563eb;
-  }
 `;
 
 const DetailButton = styled.button`
@@ -1622,14 +1296,101 @@ const DetailButton = styled.button`
   }
 `;
 
-const StatusSubText = styled.div<{ $color: string }>`
-  font-size: 0.7rem;
-  color: ${({ $color }) => $color};
-  margin-top: 0.25rem;
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
 `;
 
-// Main Component
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 0.5rem;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow: auto;
+  padding: 1.5rem;
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+`;
+
+const DuplicateList = styled.div`
+  margin: 1rem 0;
+  max-height: 300px;
+  overflow: auto;
+`;
+
+const DuplicateItem = styled.div<{ $reason: string }>`
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+  font-family: monospace;
+  color: ${({ $reason }) =>
+    $reason === "within_file" ? "#92400e" : "#dc2626"};
+`;
+
+const ErrorList = styled.div`
+  margin: 1rem 0;
+  max-height: 300px;
+  overflow: auto;
+`;
+
+const ErrorItem = styled.div`
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.875rem;
+  font-family: monospace;
+  color: #dc2626;
+`;
+
+const FileInput = styled.input`
+  display: none;
+`;
+
+const getStatusDetails = (
+  status: string,
+  importedRows: number,
+  failedRows: number,
+) => {
+  if (status === "COMPLETED") {
+    return {
+      text: `All ${importedRows} bars imported successfully`,
+      color: "#065f46",
+      icon: "✅",
+    };
+  }
+  if (status === "PARTIAL") {
+    return {
+      text: `${importedRows} imported, ${failedRows} skipped (duplicates/existing)`,
+      color: "#92400e",
+      icon: "⚠️",
+    };
+  }
+  if (status === "FAILED") {
+    return {
+      text: `All ${failedRows} rows failed`,
+      color: "#991b1b",
+      icon: "❌",
+    };
+  }
+  return { text: status, color: "#374151", icon: "⏳" };
+};
+
 const CSVImport = () => {
+  const router = useRouter();
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -1638,19 +1399,32 @@ const CSVImport = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [authError, setAuthError] = useState<string | null>(null);
+  const [lastImportResult, setLastImportResult] =
+    useState<ImportResponse | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedImportErrors, setSelectedImportErrors] = useState<string[]>(
-    [],
+  const [selectedImport, setSelectedImport] = useState<BarImportHistory | null>(
+    null,
   );
-
-  const router = useRouter();
+  const [showDuplicatesModal, setShowDuplicatesModal] = useState(false);
+  const [duplicatesToShow, setDuplicatesToShow] = useState<DuplicateInfo[]>([]);
 
   const getToken = (): string | null => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("hoppr_token");
     }
     return null;
+  };
+
+  const stats = {
+    totalImports: importHistory.length,
+    totalBarsImported: importHistory.reduce(
+      (sum, i) => sum + i.importedRows,
+      0,
+    ),
+    successfulImports: importHistory.filter((i) => i.status === "COMPLETED")
+      .length,
+    failedImports: importHistory.filter((i) => i.status === "FAILED").length,
+    partialImports: importHistory.filter((i) => i.status === "PARTIAL").length,
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -1668,7 +1442,7 @@ const CSVImport = () => {
     setIsDragOver(false);
     setError(null);
     setSuccess(null);
-    setAuthError(null);
+    setLastImportResult(null);
 
     const files = e.dataTransfer.files;
     if (files.length > 0) {
@@ -1687,17 +1461,16 @@ const CSVImport = () => {
       setSelectedFile(files[0]);
       setError(null);
       setSuccess(null);
-      setAuthError(null);
+      setLastImportResult(null);
     }
   };
 
-  const handleUpload = async (): Promise<void> => {
+  const handleUpload = async () => {
     if (!selectedFile) return;
 
     const token = getToken();
-
     if (!token) {
-      setAuthError("No authentication token found. Please log in.");
+      setError("No authentication token found. Please log in.");
       return;
     }
 
@@ -1705,34 +1478,26 @@ const CSVImport = () => {
     setUploadProgress(0);
     setError(null);
     setSuccess(null);
-    setAuthError(null);
+    setLastImportResult(null);
 
     try {
       const formData = new FormData();
       formData.append("csvFile", selectedFile);
 
-      const progressInterval = setInterval((): void => {
-        setUploadProgress((prev: number): number => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 200);
 
       const response = await fetch("/api/auth/admin/bars/import", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      const result = (await response.json()) as ImportResponse;
+      const result = await response.json();
 
       if (response.status === 401) {
         localStorage.removeItem("hoppr_token");
@@ -1741,66 +1506,26 @@ const CSVImport = () => {
       }
 
       if (!response.ok) {
-        const errorMessage: string =
-          result.errors?.[0] || `Import failed: ${response.status}`;
-        throw new Error(errorMessage);
+        throw new Error(result.error || `Import failed: ${response.status}`);
       }
 
-      let message: string = `✅ Successfully imported ${result.imported} new bars!`;
+      setLastImportResult(result);
 
-      if (result.skipped > 0) {
-        message += `\n\n⏭️ Skipped ${result.skipped} duplicate bars:`;
-
-        if (result.duplicates && result.duplicates.length > 0) {
-          const fileDuplicates: DuplicateInfo[] = result.duplicates.filter(
-            (d: DuplicateInfo): boolean => d.reason === "within_file",
-          );
-          const dbDuplicates: DuplicateInfo[] = result.duplicates.filter(
-            (d: DuplicateInfo): boolean => d.reason === "already_in_database",
-          );
-
-          if (fileDuplicates.length > 0) {
-            message += `\n\n📁 Duplicates within the same CSV file (${fileDuplicates.length}):`;
-            message += `\n   ${fileDuplicates.map((d: DuplicateInfo): string => d.name).join(", ")}`;
-          }
-
-          if (dbDuplicates.length > 0) {
-            message += `\n\n💾 Bars already in database (${dbDuplicates.length}):`;
-            message += `\n   ${dbDuplicates.map((d: DuplicateInfo): string => d.name).join(", ")}`;
-          }
-        }
-      }
-
-      if (result.errors && result.errors.length > 0) {
-        message += `\n\n❌ Errors: ${result.errors.length} rows had issues.`;
-      }
-
-      setSuccess(message);
-      fetchImportHistory();
-
-      if (result.imported > 0 && result.skipped === 0) {
-        setTimeout((): void => {
-          router.push("/admin/bars");
-        }, 3000);
-      }
-    } catch (error: unknown) {
-      console.error("Upload error:", error);
-      const errorMessage: string =
-        error instanceof Error
-          ? error.message
-          : "Upload failed - please try again";
-
-      if (
-        errorMessage.includes("session") ||
-        errorMessage.includes("authentication") ||
-        errorMessage.includes("token") ||
-        errorMessage.includes("expired") ||
-        errorMessage.includes("log in")
-      ) {
-        setAuthError(errorMessage);
+      let message = "";
+      if (result.status === "COMPLETED") {
+        message = `✅ Successfully imported all ${result.imported} bars!`;
+      } else if (result.status === "PARTIAL") {
+        message = `⚠️ Imported ${result.imported} bars, skipped ${result.skipped} duplicates.`;
       } else {
-        setError(errorMessage);
+        message = `❌ Failed to import ${result.skipped} bars.`;
       }
+      setSuccess(message);
+
+      fetchImportHistory();
+      setSelectedFile(null);
+    } catch (error) {
+      console.error("Upload error:", error);
+      setError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setIsUploading(false);
     }
@@ -1810,70 +1535,21 @@ const CSVImport = () => {
     try {
       setLoading(true);
       const token = getToken();
-
-      if (!token) {
-        setAuthError("No authentication token found. Please log in.");
-        return;
-      }
-
-      console.log("📋 Fetching import history...");
+      if (!token) return;
 
       const response = await fetch("/api/auth/admin/bars/import/history", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      console.log("📋 History response status:", response.status);
-
-      if (response.status === 401) {
-        localStorage.removeItem("hoppr_token");
-        localStorage.removeItem("hoppr_user");
-        setAuthError("Your session has expired. Please log in again.");
-        return;
+      if (response.ok) {
+        const data = await response.json();
+        setImportHistory(data.imports || []);
       }
-
-      if (response.status === 404) {
-        console.log(
-          "Import history endpoint not found - table might not exist",
-        );
-        setImportHistory([]);
-        return;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch import history: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log("📋 History result:", result);
-      console.log("📋 Number of imports:", result.imports?.length || 0);
-
-      setImportHistory(result.imports || []);
     } catch (error) {
       console.error("Failed to fetch import history:", error);
-      setImportHistory([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRetry = () => {
-    setAuthError(null);
-    setError(null);
-    fetchImportHistory();
-  };
-
-  const handleLogin = () => {
-    router.push("/admin/login");
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const formatDate = (dateString: string): string => {
@@ -1886,109 +1562,68 @@ const CSVImport = () => {
     });
   };
 
-  const getStatusDetails = (
-    importItem: BarImportHistory,
-  ): { text: string; color: string } => {
-    if (importItem.status === "COMPLETED") {
-      return { text: "All bars imported successfully", color: "#065f46" };
-    }
-    if (importItem.status === "PARTIAL") {
-      if (importItem.failedRows > 0) {
-        return {
-          text: `${importItem.failedRows} duplicate(s) skipped`,
-          color: "#92400e",
-        };
-      }
-      return { text: "Partial import", color: "#92400e" };
-    }
-    if (importItem.status === "FAILED") {
-      return { text: "Import failed", color: "#991b1b" };
-    }
-    return { text: importItem.status, color: "#374151" };
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const handleViewDetails = (errors: string[] | undefined) => {
-    if (errors && errors.length > 0) {
-      setSelectedImportErrors(errors);
-      setShowDetailsModal(true);
-    }
+  const handleViewDetails = (importItem: BarImportHistory) => {
+    setSelectedImport(importItem);
+    setShowDetailsModal(true);
+  };
+
+  const handleViewDuplicates = (duplicates: DuplicateInfo[]) => {
+    setDuplicatesToShow(duplicates);
+    setShowDuplicatesModal(true);
   };
 
   useEffect(() => {
     fetchImportHistory();
   }, []);
 
-  const DetailsModal = () => {
-    if (!showDetailsModal) return null;
-
-    return (
-      <ModalOverlay onClick={() => setShowDetailsModal(false)}>
-        <ModalContent onClick={(e) => e.stopPropagation()}>
-          <ModalTitle>Import Details</ModalTitle>
-          <ErrorList>
-            {selectedImportErrors.map((error, idx) => (
-              <ErrorItem key={idx}>{error}</ErrorItem>
-            ))}
-          </ErrorList>
-          <CloseButton onClick={() => setShowDetailsModal(false)}>
-            Close
-          </CloseButton>
-        </ModalContent>
-      </ModalOverlay>
-    );
-  };
-
-  if (authError) {
-    return (
-      <Container>
-        <Header>
-          <BackButton href="/admin/bars">← Back to Bars</BackButton>
-          <Title>Import Bars from CSV</Title>
-          <Subtitle>
-            Bulk import bars using a CSV file. Download the template below to
-            get started.
-          </Subtitle>
-        </Header>
-
-        <ErrorState>
-          <h3 style={{ marginBottom: "1rem" }}>Authentication Required</h3>
-          <p style={{ marginBottom: "1rem" }}>{authError}</p>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "0.75rem",
-              justifyContent: "center",
-              marginTop: "1rem",
-              width: "100%",
-            }}
-          >
-            <Button $variant="primary" onClick={handleLogin}>
-              🔐 Go to Login
-            </Button>
-            <Button $variant="secondary" onClick={handleRetry}>
-              🔄 Try Again
-            </Button>
-          </div>
-        </ErrorState>
-      </Container>
-    );
-  }
-
   return (
     <Container>
       <Header>
         <BackButton href="/admin/bars">← Back to Bars</BackButton>
-        <Title>Import Bars from CSV</Title>
+        <Title>CSV Import</Title>
         <Subtitle>
-          Bulk import bars using a CSV file. Download the template below to get
-          started.
+          Bulk import bars from CSV files. View your import history below.
         </Subtitle>
       </Header>
 
-      <Grid>
-        <UploadSection>
+      {/* Stats Overview */}
+      <StatsGrid>
+        <StatCard $color="#3b82f6">
+          <StatValue>{stats.totalImports}</StatValue>
+          <StatLabel>Total Imports</StatLabel>
+        </StatCard>
+        <StatCard $color="#10b981">
+          <StatValue>{stats.totalBarsImported}</StatValue>
+          <StatLabel>Bars Imported</StatLabel>
+        </StatCard>
+        <StatCard $color="#10b981">
+          <StatValue>{stats.successfulImports}</StatValue>
+          <StatLabel>Successful</StatLabel>
+        </StatCard>
+        <StatCard $color="#f59e0b">
+          <StatValue>{stats.partialImports}</StatValue>
+          <StatLabel>Partial (w/ Duplicates)</StatLabel>
+        </StatCard>
+        <StatCard $color="#ef4444">
+          <StatValue>{stats.failedImports}</StatValue>
+          <StatLabel>Failed</StatLabel>
+        </StatCard>
+      </StatsGrid>
+
+      <TwoColumnLayout>
+        {/* Left Column - Upload Section */}
+        <div>
           <Card>
+            <CardTitle>📁 Upload CSV File</CardTitle>
+
             <DropZone
               $isDragOver={isDragOver}
               $hasFile={!!selectedFile}
@@ -1997,10 +1632,9 @@ const CSVImport = () => {
               onDrop={handleDrop}
               onClick={() => document.getElementById("csv-file-input")?.click()}
             >
-              <UploadIcon $hasFile={!!selectedFile}>
+              <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
                 {selectedFile ? "✅" : "📁"}
-              </UploadIcon>
-
+              </div>
               {selectedFile ? (
                 <FileInfo>
                   <FileName>📄 {selectedFile.name}</FileName>
@@ -2012,13 +1646,7 @@ const CSVImport = () => {
                 </FileInfo>
               ) : (
                 <div>
-                  <p
-                    style={{
-                      fontWeight: 600,
-                      marginBottom: "0.5rem",
-                      fontSize: "1rem",
-                    }}
-                  >
+                  <p style={{ fontWeight: 600, marginBottom: "0.5rem" }}>
                     Drop CSV file here or click to browse
                   </p>
                   <p style={{ color: "#6b7280", fontSize: "0.875rem" }}>
@@ -2026,7 +1654,6 @@ const CSVImport = () => {
                   </p>
                 </div>
               )}
-
               <FileInput
                 id="csv-file-input"
                 type="file"
@@ -2035,188 +1662,322 @@ const CSVImport = () => {
               />
             </DropZone>
 
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-
+            {error && <Alert $type="error">{error}</Alert>}
             {success && (
-              <SuccessMessage>
+              <Alert
+                $type={
+                  lastImportResult?.status === "PARTIAL" ? "warning" : "success"
+                }
+              >
                 {success}
-                {success.includes("imported") &&
-                  !success.includes("0 new bars") &&
-                  " Redirecting to bars list..."}
-              </SuccessMessage>
+              </Alert>
             )}
 
-            <ButtonGroup>
-              <ButtonRow>
-                <Button
-                  $variant="primary"
-                  onClick={handleUpload}
-                  disabled={!selectedFile || isUploading}
-                >
-                  {isUploading ? (
-                    <>
-                      <span>Uploading... {uploadProgress}%</span>
-                    </>
-                  ) : (
-                    "Import Bars"
-                  )}
-                </Button>
-
-                {selectedFile && !isUploading && (
-                  <Button
-                    $variant="secondary"
-                    onClick={() => {
-                      setSelectedFile(null);
-                      setError(null);
-                      setSuccess(null);
+            {/* Import Results Summary with Duplicates */}
+            {lastImportResult &&
+              lastImportResult.duplicates &&
+              lastImportResult.duplicates.length > 0 && (
+                <Alert $type="warning">
+                  <strong>
+                    ⚠️ Duplicates Found ({lastImportResult.duplicates.length}):
+                  </strong>
+                  <ul
+                    style={{
+                      marginTop: "0.5rem",
+                      marginBottom: 0,
+                      paddingLeft: "1.5rem",
                     }}
                   >
-                    Clear
-                  </Button>
-                )}
-              </ButtonRow>
+                    {lastImportResult.duplicates.slice(0, 5).map((dup, idx) => (
+                      <li key={idx}>
+                        Row {dup.row}: "{dup.name}" -{" "}
+                        {dup.reason === "within_file"
+                          ? "Duplicate within the same CSV file"
+                          : "Already exists in database"}
+                      </li>
+                    ))}
+                    {lastImportResult.duplicates.length > 5 && (
+                      <li>
+                        ... and {lastImportResult.duplicates.length - 5} more
+                        duplicates
+                      </li>
+                    )}
+                  </ul>
+                  {lastImportResult.duplicates.length > 0 && (
+                    <Button
+                      $variant="secondary"
+                      style={{
+                        marginTop: "0.5rem",
+                        padding: "0.25rem 0.5rem",
+                        fontSize: "0.75rem",
+                      }}
+                      onClick={() =>
+                        handleViewDuplicates(lastImportResult.duplicates)
+                      }
+                    >
+                      View All {lastImportResult.duplicates.length} Duplicates
+                    </Button>
+                  )}
+                </Alert>
+              )}
 
-              <ButtonRow>
-                <a
-                  href="/templates/bars-import-template.csv"
-                  download
-                  style={{ display: "flex", flex: 1, textDecoration: "none" }}
+            <ButtonGroup>
+              <Button
+                $variant="primary"
+                onClick={handleUpload}
+                disabled={!selectedFile || isUploading}
+              >
+                {isUploading ? `Uploading... ${uploadProgress}%` : "Import CSV"}
+              </Button>
+              {selectedFile && !isUploading && (
+                <Button
+                  $variant="secondary"
+                  onClick={() => setSelectedFile(null)}
                 >
-                  <Button $variant="secondary">Download Template</Button>
-                </a>
-              </ButtonRow>
+                  Clear
+                </Button>
+              )}
+              <a
+                href="/templates/bars-import-template.csv"
+                download
+                style={{ textDecoration: "none" }}
+              >
+                <Button $variant="secondary">📥 Download Template</Button>
+              </a>
             </ButtonGroup>
           </Card>
-        </UploadSection>
 
-        <RequirementsCard>
-          <h3
-            style={{
-              marginBottom: "1rem",
-              color: "#92400e",
-              fontSize: "1.125rem",
-            }}
-          >
-            CSV Format Requirements
-          </h3>
-          <RequirementList>
-            <RequirementItem>
-              <strong>Required fields:</strong> name, type, address, city
-            </RequirementItem>
-            <RequirementItem>
-              <strong>Bar types:</strong> PUB, CLUB, LOUNGE, COCKTAIL_BAR,
-              RESTAURANT_BAR, SPORTS_BAR, KARAOKE, LIVE_MUSIC
-            </RequirementItem>
-            <RequirementItem>
-              <strong>Price ranges:</strong> BUDGET, MODERATE, PREMIUM, LUXURY
-            </RequirementItem>
-            <RequirementItem>
-              <strong>Location:</strong> Include both latitude and longitude for
-              mapping
-            </RequirementItem>
-            <RequirementItem>
-              <strong>Arrays:</strong> Separate multiple values with commas
-            </RequirementItem>
-            <RequirementItem>
-              <strong>Operating hours:</strong> Use JSON format
-            </RequirementItem>
-            <RequirementItem>
-              <strong>File encoding:</strong> UTF-8 recommended
-            </RequirementItem>
-          </RequirementList>
-        </RequirementsCard>
+          {/* CSV Requirements */}
+          <Card style={{ marginTop: "1rem" }}>
+            <CardTitle>📋 CSV Format Requirements</CardTitle>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: "1.25rem",
+                color: "#6b7280",
+                fontSize: "0.875rem",
+              }}
+            >
+              <li>
+                <strong>Required:</strong> name, type, address, city
+              </li>
+              <li>
+                <strong>Bar types:</strong> PUB, CLUB, LOUNGE, COCKTAIL_BAR,
+                RESTAURANT_BAR, SPORTS_BAR, KARAOKE, LIVE_MUSIC
+              </li>
+              <li>
+                <strong>Price ranges:</strong> BUDGET, MODERATE, PREMIUM, LUXURY
+              </li>
+              <li>
+                <strong>Arrays:</strong> Separate with commas (amenities,
+                imageUrls)
+              </li>
+              <li>
+                <strong>Operating hours:</strong> JSON format
+              </li>
+            </ul>
+          </Card>
+        </div>
 
-        {importHistory.length > 0 && (
-          <HistorySection>
-            <h3 style={{ marginBottom: "1rem" }}>Import History</h3>
-            <Card>
+        {/* Right Column - History Section */}
+        <div>
+          <Card>
+            <CardTitle>📜 Import History</CardTitle>
+
+            {loading ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "2rem",
+                  color: "#6b7280",
+                }}
+              >
+                Loading history...
+              </div>
+            ) : importHistory.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "2rem",
+                  color: "#6b7280",
+                }}
+              >
+                <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>
+                  📭
+                </div>
+                <p>No import history yet</p>
+                <p style={{ fontSize: "0.875rem" }}>
+                  Upload your first CSV file to get started
+                </p>
+              </div>
+            ) : (
               <TableWrapper>
                 <HistoryTable>
                   <thead>
                     <tr>
-                      <TableHeader>File Name</TableHeader>
-                      <TableHeader>Date</TableHeader>
-                      <TableHeader>Status</TableHeader>
-                      <TableHeader>Imported</TableHeader>
-                      <TableHeader>Skipped</TableHeader>
-                      <TableHeader>Total</TableHeader>
-                      <TableHeader>Details</TableHeader>
+                      <Th>File Name</Th>
+                      <Th>Date</Th>
+                      <Th>Status</Th>
+                      <Th>Imported</Th>
+                      <Th>Skipped</Th>
+                      <Th>Total</Th>
+                      <Th></Th>
                     </tr>
                   </thead>
                   <tbody>
                     {importHistory.map((importItem) => {
-                      const statusDetails = getStatusDetails(importItem);
+                      const statusDetails = getStatusDetails(
+                        importItem.status,
+                        importItem.importedRows,
+                        importItem.failedRows,
+                      );
                       return (
                         <tr key={importItem.id}>
-                          <TableCell>{importItem.fileName}</TableCell>
-                          <TableCell>
+                          <Td
+                            style={{
+                              maxWidth: "200px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {importItem.fileName}
+                          </Td>
+                          <Td style={{ whiteSpace: "nowrap" }}>
                             {formatDate(importItem.createdAt)}
-                          </TableCell>
-                          <TableCell>
+                          </Td>
+                          <Td>
                             <StatusBadge $status={importItem.status}>
                               {importItem.status}
                             </StatusBadge>
-                            <StatusSubText $color={statusDetails.color}>
-                              {statusDetails.text}
-                            </StatusSubText>
-                          </TableCell>
-                          <TableCell
-                            style={{ color: "#065f46", fontWeight: "bold" }}
-                          >
+                            <div
+                              style={{
+                                fontSize: "0.7rem",
+                                color: statusDetails.color,
+                                marginTop: "0.25rem",
+                              }}
+                            >
+                              {statusDetails.icon} {statusDetails.text}
+                            </div>
+                          </Td>
+                          <Td style={{ color: "#065f46", fontWeight: "bold" }}>
                             {importItem.importedRows}
-                          </TableCell>
-                          <TableCell style={{ color: "#92400e" }}>
+                          </Td>
+                          <Td style={{ color: "#92400e" }}>
                             {importItem.failedRows}
-                          </TableCell>
-                          <TableCell>{importItem.totalRows}</TableCell>
-                          <TableCell>
-                            {importItem.errors &&
-                              importItem.errors.length > 0 && (
-                                <DetailButton
-                                  onClick={() =>
-                                    handleViewDetails(importItem.errors)
-                                  }
-                                >
-                                  View Details
-                                </DetailButton>
-                              )}
-                            {(!importItem.errors ||
-                              importItem.errors.length === 0) &&
-                              importItem.failedRows === 0 && (
-                                <span
-                                  style={{
-                                    fontSize: "0.7rem",
-                                    color: "#065f46",
-                                  }}
-                                >
-                                  ✓ All imported
-                                </span>
-                              )}
-                            {(!importItem.errors ||
-                              importItem.errors.length === 0) &&
-                              importItem.failedRows > 0 && (
-                                <span
-                                  style={{
-                                    fontSize: "0.7rem",
-                                    color: "#92400e",
-                                  }}
-                                >
-                                  {importItem.failedRows} duplicate(s)
-                                </span>
-                              )}
-                          </TableCell>
+                          </Td>
+                          <Td>{importItem.totalRows}</Td>
+                          <Td>
+                            {((importItem.errors &&
+                              importItem.errors.length > 0) ||
+                              importItem.failedRows > 0) && (
+                              <DetailButton
+                                onClick={() => handleViewDetails(importItem)}
+                              >
+                                Details
+                              </DetailButton>
+                            )}
+                          </Td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </HistoryTable>
               </TableWrapper>
-            </Card>
-          </HistorySection>
-        )}
-      </Grid>
+            )}
+          </Card>
+        </div>
+      </TwoColumnLayout>
 
-      <DetailsModal />
+      {/* Details Modal */}
+      {showDetailsModal && selectedImport && (
+        <ModalOverlay onClick={() => setShowDetailsModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>Import Details: {selectedImport.fileName}</ModalTitle>
+
+            <p>
+              <strong>Date:</strong> {formatDate(selectedImport.createdAt)}
+            </p>
+            <p>
+              <strong>Status:</strong> {selectedImport.status}
+            </p>
+            <p>
+              <strong>Imported:</strong> {selectedImport.importedRows} bars
+            </p>
+            <p>
+              <strong>Skipped:</strong> {selectedImport.failedRows} rows
+            </p>
+            <p>
+              <strong>Total:</strong> {selectedImport.totalRows} rows
+            </p>
+
+            {selectedImport.errors && selectedImport.errors.length > 0 && (
+              <>
+                <h4
+                  style={{
+                    marginTop: "1rem",
+                    marginBottom: "0.5rem",
+                    color: "#dc2626",
+                  }}
+                >
+                  Errors ({selectedImport.errors.length})
+                </h4>
+                <ErrorList>
+                  {selectedImport.errors.slice(0, 20).map((error, idx) => (
+                    <ErrorItem key={idx}>{error}</ErrorItem>
+                  ))}
+                  {selectedImport.errors.length > 20 && (
+                    <ErrorItem>
+                      ... and {selectedImport.errors.length - 20} more errors
+                    </ErrorItem>
+                  )}
+                </ErrorList>
+              </>
+            )}
+
+            <ButtonGroup
+              style={{ justifyContent: "flex-end", marginTop: "1rem" }}
+            >
+              <Button
+                $variant="primary"
+                onClick={() => setShowDetailsModal(false)}
+              >
+                Close
+              </Button>
+            </ButtonGroup>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* Duplicates Modal */}
+      {showDuplicatesModal && (
+        <ModalOverlay onClick={() => setShowDuplicatesModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>Duplicate Bars Found</ModalTitle>
+            <p>The following bars were skipped because they already exist:</p>
+            <DuplicateList>
+              {duplicatesToShow.map((dup, idx) => (
+                <DuplicateItem key={idx} $reason={dup.reason}>
+                  Row {dup.row}: "{dup.name}" -{" "}
+                  {dup.reason === "within_file"
+                    ? "📁 Duplicate within the same CSV file"
+                    : "💾 Already exists in database"}
+                </DuplicateItem>
+              ))}
+            </DuplicateList>
+            <ButtonGroup
+              style={{ justifyContent: "flex-end", marginTop: "1rem" }}
+            >
+              <Button
+                $variant="primary"
+                onClick={() => setShowDuplicatesModal(false)}
+              >
+                Close
+              </Button>
+            </ButtonGroup>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };
