@@ -814,13 +814,23 @@ const BarDetails = () => {
           )}
 
           {/* Operating Hours - Display Only (Edit via Edit button) */}
+          {/* Operating Hours - Display Only (Edit via Edit button) */}
           <Card>
             <CardHeader>
               <CardTitle>Operating Hours</CardTitle>
             </CardHeader>
             <SectionGrid>
-              {Object.entries(displayHours).map(
-                ([day, hours]: [string, any]) => (
+              {[
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+                "Sunday",
+              ].map((day) => {
+                const hours = displayHours[day as keyof OperatingHours];
+                return (
                   <InfoGroup key={day}>
                     <InfoLabel>{day}</InfoLabel>
                     <InfoValue>
@@ -829,8 +839,8 @@ const BarDetails = () => {
                         : "Closed"}
                     </InfoValue>
                   </InfoGroup>
-                ),
-              )}
+                );
+              })}
             </SectionGrid>
           </Card>
 
