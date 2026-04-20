@@ -2123,12 +2123,526 @@
 //     );
 //   }
 // }
+// import { NextRequest, NextResponse } from "next/server";
+// import {
+//   PrismaClient,
+//   BarType,
+//   PriceRange,
+//   ImportStatus,
+// } from "@prisma/client";
+// import { verify } from "jsonwebtoken";
+
+// const prisma = new PrismaClient();
+// const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+
+// interface JwtPayload {
+//   id: string;
+//   email: string;
+// }
+
+// async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
+//   try {
+//     const decoded = verify(token, JWT_SECRET) as JwtPayload;
+
+//     const adminUser = await prisma.adminUser.findFirst({
+//       where: {
+//         email: decoded.email,
+//         isActive: true,
+//       },
+//       select: { id: true },
+//     });
+
+//     return adminUser;
+//   } catch (error) {
+//     console.error("Token verification error:", error);
+//     return null;
+//   }
+// }
+
+// function parseOperatingHours(hoursStr: string) {
+//   const defaultHours = { open: "Closed", close: "Closed" };
+//   const operatingHours = {
+//     Monday: { ...defaultHours },
+//     Tuesday: { ...defaultHours },
+//     Wednesday: { ...defaultHours },
+//     Thursday: { ...defaultHours },
+//     Friday: { ...defaultHours },
+//     Saturday: { ...defaultHours },
+//     Sunday: { ...defaultHours },
+//   };
+
+//   if (!hoursStr || hoursStr.trim() === "" || hoursStr === "{}") {
+//     return operatingHours;
+//   }
+
+//   try {
+//     // Try to parse as JSON first
+//     const parsed = JSON.parse(hoursStr);
+//     if (typeof parsed === "object" && parsed !== null) {
+//       return parsed;
+//     }
+//   } catch (e) {
+//     // Not JSON, try to parse as string format
+//     const parts = hoursStr.split(",");
+//     for (const part of parts) {
+//       const match = part.match(
+//         /(\w+):\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*-\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i,
+//       );
+//       if (match) {
+//         const day = match[1] as keyof typeof operatingHours;
+//         let openTime = match[2];
+//         let closeTime = match[3];
+
+//         if (!openTime.includes(":")) openTime = `${openTime}:00`;
+//         if (!closeTime.includes(":")) closeTime = `${closeTime}:00`;
+
+//         if (operatingHours[day]) {
+//           operatingHours[day] = { open: openTime, close: closeTime };
+//         }
+//       }
+//     }
+//   }
+
+//   return operatingHours;
+// }
+
+// function parseAmenities(amenitiesStr: string): string[] {
+//   if (!amenitiesStr || amenitiesStr.trim() === "" || amenitiesStr === "[]") {
+//     return [];
+//   }
+
+//   try {
+//     // Try to parse as JSON array
+//     const parsed = JSON.parse(amenitiesStr);
+//     if (Array.isArray(parsed)) {
+//       return parsed;
+//     }
+//   } catch (e) {
+//     // Not JSON, split by comma
+//     return amenitiesStr
+//       .split(",")
+//       .map((a) => a.trim().replace(/['\[\]]/g, ""))
+//       .filter((a) => a.length > 0);
+//   }
+
+//   return [];
+// }
+
+// function parseImageUrls(urlsStr: string): string[] {
+//   if (!urlsStr || urlsStr.trim() === "" || urlsStr === "[]") {
+//     return [];
+//   }
+
+//   try {
+//     const parsed = JSON.parse(urlsStr);
+//     if (Array.isArray(parsed)) {
+//       return parsed;
+//     }
+//   } catch (e) {
+//     return urlsStr
+//       .split(",")
+//       .map((u) => u.trim())
+//       .filter((u) => u.length > 0);
+//   }
+
+//   return [];
+// }
+
+// function parsePriceRange(priceStr: string): PriceRange | undefined {
+//   const priceMap: Record<string, PriceRange> = {
+//     budget: "BUDGET",
+//     moderate: "MODERATE",
+//     premium: "PREMIUM",
+//     luxury: "LUXURY",
+//     $: "BUDGET",
+//     $$: "MODERATE",
+//     $$$: "PREMIUM",
+//     $$$$: "LUXURY",
+//   };
+
+//   const normalized = priceStr?.toLowerCase().trim() || "";
+//   const mapped = priceMap[normalized];
+//   if (mapped && Object.values(PriceRange).includes(mapped)) {
+//     return mapped;
+//   }
+//   return undefined;
+// }
+
+// function parseBarType(typeStr: string): BarType | undefined {
+//   if (!typeStr) return undefined;
+
+//   let normalized = typeStr.toLowerCase().trim();
+//   normalized = normalized.replace(/ /g, "_");
+
+//   const typeMap: Record<string, BarType> = {
+//     pub: "PUB",
+//     club: "CLUB",
+//     lounge: "LOUNGE",
+//     cocktail_bar: "COCKTAIL_BAR",
+//     restaurant_bar: "RESTAURANT_BAR",
+//     sports_bar: "SPORTS_BAR",
+//     karaoke: "KARAOKE",
+//     live_music: "LIVE_MUSIC",
+//   };
+
+//   if (typeMap[normalized]) {
+//     return typeMap[normalized];
+//   }
+
+//   const upperNormalized = normalized.toUpperCase();
+//   const validBarTypes: BarType[] = [
+//     "PUB",
+//     "CLUB",
+//     "LOUNGE",
+//     "COCKTAIL_BAR",
+//     "RESTAURANT_BAR",
+//     "SPORTS_BAR",
+//     "KARAOKE",
+//     "LIVE_MUSIC",
+//   ];
+
+//   if (validBarTypes.includes(upperNormalized as BarType)) {
+//     return upperNormalized as BarType;
+//   }
+
+//   console.log(`⚠️ Unknown bar type: "${typeStr}"`);
+//   return undefined;
+// }
+
+// export async function POST(request: NextRequest): Promise<NextResponse> {
+//   try {
+//     const token = request.headers.get("authorization")?.replace("Bearer ", "");
+
+//     if (!token) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
+
+//     const adminUser = await verifyAdminToken(token);
+//     if (!adminUser) {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+
+//     const formData = await request.formData();
+//     const file = (formData.get("file") ||
+//       formData.get("csvFile")) as File | null;
+
+//     if (!file) {
+//       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+//     }
+
+//     const fileContent = await file.text();
+//     const lines = fileContent.split("\n");
+
+//     // Get headers from first line
+//     const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+//     console.log("📋 CSV Headers:", headers);
+
+//     // Define column indexes based on your CSV headers
+//     const nameIndex = headers.indexOf("name");
+//     const typeIndex = headers.indexOf("type");
+//     const addressIndex = headers.indexOf("address");
+//     const cityIndex = headers.indexOf("city");
+//     const districtIndex = headers.indexOf("district");
+//     const latitudeIndex = headers.indexOf("latitude");
+//     const longitudeIndex = headers.indexOf("longitude");
+//     const phoneIndex = headers.indexOf("phone");
+//     const emailIndex = headers.indexOf("email");
+//     const websiteIndex = headers.indexOf("website");
+//     const instagramIndex = headers.indexOf("instagram");
+//     const priceRangeIndex = headers.indexOf("pricerange");
+//     const capacityIndex = headers.indexOf("capacity");
+//     const amenitiesIndex = headers.indexOf("amenities");
+//     const descriptionIndex = headers.indexOf("description");
+//     const operatingHoursIndex = headers.indexOf("operatinghours");
+//     const vipEnabledIndex = headers.indexOf("vipenabled");
+//     const coverImageIndex = headers.indexOf("coverimage");
+//     const imageUrlsIndex = headers.indexOf("imageurls");
+//     const logoUrlIndex = headers.indexOf("logourl");
+//     const statusIndex = headers.indexOf("status");
+//     const isVerifiedIndex = headers.indexOf("isverified");
+//     const isActiveIndex = headers.indexOf("isactive");
+
+//     console.log("📋 Column Indexes:", {
+//       name: nameIndex,
+//       type: typeIndex,
+//       address: addressIndex,
+//       city: cityIndex,
+//       district: districtIndex,
+//       latitude: latitudeIndex,
+//       longitude: longitudeIndex,
+//       phone: phoneIndex,
+//       email: emailIndex,
+//       website: websiteIndex,
+//       instagram: instagramIndex,
+//     });
+
+//     const results = {
+//       total: 0,
+//       imported: 0,
+//       skipped: 0,
+//       errors: [] as string[],
+//       duplicates: [] as { row: number; name: string; reason: string }[],
+//     };
+
+//     const processedNames = new Set<string>();
+
+//     for (let i = 1; i < lines.length; i++) {
+//       const line = lines[i].trim();
+//       if (!line) continue;
+
+//       results.total++;
+
+//       try {
+//         // Parse CSV line properly (handling quoted values)
+//         const values: string[] = [];
+//         let current = "";
+//         let inQuotes = false;
+
+//         for (let j = 0; j < line.length; j++) {
+//           const char = line[j];
+//           if (char === '"') {
+//             inQuotes = !inQuotes;
+//           } else if (char === "," && !inQuotes) {
+//             values.push(current.trim());
+//             current = "";
+//           } else {
+//             current += char;
+//           }
+//         }
+//         values.push(current.trim());
+
+//         // Clean values (remove quotes)
+//         const cleanValues = values.map((v) => v.replace(/^"|"$/g, "").trim());
+
+//         const name = cleanValues[nameIndex];
+//         if (!name) {
+//           throw new Error("Name is required");
+//         }
+
+//         const typeStr = cleanValues[typeIndex];
+//         const barType = parseBarType(typeStr);
+//         if (!barType) {
+//           throw new Error(`Invalid bar type: ${typeStr}`);
+//         }
+
+//         const address = cleanValues[addressIndex];
+//         if (!address) {
+//           throw new Error("Address is required");
+//         }
+
+//         const cityName = cleanValues[cityIndex];
+//         if (!cityName) {
+//           throw new Error("City is required");
+//         }
+
+//         // Check for duplicate within the same file
+//         if (processedNames.has(name.toLowerCase())) {
+//           results.duplicates.push({
+//             row: i + 1,
+//             name: name,
+//             reason: "within_file",
+//           });
+//           results.skipped++;
+//           continue;
+//         }
+
+//         // Check if bar already exists in database
+//         const existingBar = await prisma.bar.findFirst({
+//           where: { name: { equals: name, mode: "insensitive" } },
+//           select: { id: true, name: true },
+//         });
+
+//         if (existingBar) {
+//           results.duplicates.push({
+//             row: i + 1,
+//             name: name,
+//             reason: "already_in_database",
+//           });
+//           results.skipped++;
+//           continue;
+//         }
+
+//         processedNames.add(name.toLowerCase());
+
+//         // Parse values correctly
+//         const latitude = cleanValues[latitudeIndex]
+//           ? parseFloat(cleanValues[latitudeIndex])
+//           : null;
+//         const longitude = cleanValues[longitudeIndex]
+//           ? parseFloat(cleanValues[longitudeIndex])
+//           : null;
+//         const phone = cleanValues[phoneIndex] || null;
+//         const email = cleanValues[emailIndex] || null;
+//         const website = cleanValues[websiteIndex] || null;
+//         const instagram = cleanValues[instagramIndex] || null;
+//         const priceRange = parsePriceRange(cleanValues[priceRangeIndex]);
+//         const capacity = cleanValues[capacityIndex]
+//           ? parseInt(cleanValues[capacityIndex])
+//           : null;
+//         const amenities = parseAmenities(cleanValues[amenitiesIndex]);
+//         const description = cleanValues[descriptionIndex] || null;
+//         const operatingHours = parseOperatingHours(
+//           cleanValues[operatingHoursIndex] || "{}",
+//         );
+//         const vipEnabled =
+//           cleanValues[vipEnabledIndex]?.toLowerCase() === "true";
+//         const coverImage = cleanValues[coverImageIndex] || null;
+//         const imageUrls = parseImageUrls(cleanValues[imageUrlsIndex]);
+//         const logoUrl = cleanValues[logoUrlIndex] || null;
+//         const status = cleanValues[statusIndex] || "UNCLAIMED";
+//         const isVerified =
+//           cleanValues[isVerifiedIndex]?.toLowerCase() === "true";
+//         const isActive = cleanValues[isActiveIndex]?.toLowerCase() !== "false";
+
+//         // Find or create city
+//         let city = await prisma.city.findFirst({
+//           where: { name: { equals: cityName, mode: "insensitive" } },
+//         });
+
+//         if (!city) {
+//           city = await prisma.city.create({
+//             data: {
+//               name: cityName,
+//               country: "Finland",
+//               isActive: true,
+//             },
+//           });
+//         }
+
+//         const bar = await prisma.bar.create({
+//           data: {
+//             name: name,
+//             description: description,
+//             address: address,
+//             cityName: cityName,
+//             cityId: city.id,
+//             district: cleanValues[districtIndex] || null,
+//             type: barType,
+//             latitude: latitude,
+//             longitude: longitude,
+//             phone: phone,
+//             email: email,
+//             website: website,
+//             instagram: instagram,
+//             operatingHours: operatingHours,
+//             priceRange: priceRange,
+//             capacity: capacity,
+//             amenities: amenities,
+//             coverImage: coverImage,
+//             imageUrls: imageUrls,
+//             logoUrl: logoUrl,
+//             status: status,
+//             isVerified: isVerified,
+//             isActive: isActive,
+//             vipEnabled: vipEnabled,
+//             createdById: adminUser.id,
+//           },
+//         });
+
+//         results.imported++;
+
+//         // Create audit log
+//         await prisma.auditLog.create({
+//           data: {
+//             adminId: adminUser.id,
+//             barId: bar.id,
+//             action: "IMPORT",
+//             resource: "BAR",
+//             details: { barName: bar.name, source: "CSV_IMPORT" },
+//             createdAt: new Date(),
+//           },
+//         });
+//       } catch (error) {
+//         results.skipped++;
+//         const errorMsg =
+//           error instanceof Error ? error.message : "Unknown error";
+//         results.errors.push(`Row ${i + 1}: ${errorMsg}`);
+//         console.error(`Error importing row ${i + 1}:`, error);
+//       }
+//     }
+
+//     let importStatus: ImportStatus = "COMPLETED";
+//     if (results.imported === 0 && results.skipped > 0) {
+//       importStatus = "FAILED";
+//     } else if (results.skipped > 0 && results.imported > 0) {
+//       importStatus = "PARTIAL";
+//     }
+
+//     try {
+//       await prisma.barImport.create({
+//         data: {
+//           fileName: file.name,
+//           fileSize: file.size,
+//           totalRows: results.total,
+//           importedRows: results.imported,
+//           failedRows: results.skipped,
+//           status: importStatus,
+//           errors: results.errors.length > 0 ? results.errors : undefined,
+//           importedBy: adminUser.id,
+//         },
+//       });
+//     } catch (error) {
+//       console.log("Note: barImport table audit skipped");
+//     }
+
+//     return NextResponse.json({
+//       success: true,
+//       imported: results.imported,
+//       skipped: results.skipped,
+//       total: results.total,
+//       duplicates: results.duplicates,
+//       errors: results.errors.slice(0, 10),
+//       status: importStatus,
+//       message:
+//         importStatus === "COMPLETED"
+//           ? `✅ Successfully imported all ${results.imported} bars!`
+//           : importStatus === "PARTIAL"
+//             ? `⚠️ Imported ${results.imported} bars, skipped ${results.skipped} duplicates`
+//             : `❌ Failed to import ${results.skipped} bars`,
+//     });
+//   } catch (error) {
+//     console.error("Import error:", error);
+//     return NextResponse.json(
+//       { error: "Internal server error" },
+//       { status: 500 },
+//     );
+//   }
+// }
+
+// export async function GET(request: NextRequest): Promise<NextResponse> {
+//   try {
+//     const token = request.headers.get("authorization")?.replace("Bearer ", "");
+
+//     if (!token) {
+//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+//     }
+
+//     const adminUser = await verifyAdminToken(token);
+//     if (!adminUser) {
+//       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+//     }
+
+//     const imports = await prisma.barImport.findMany({
+//       orderBy: { createdAt: "desc" },
+//       take: 50,
+//     });
+
+//     return NextResponse.json({ imports });
+//   } catch (error) {
+//     console.error("Error fetching import history:", error);
+//     return NextResponse.json(
+//       { error: "Internal server error" },
+//       { status: 500 },
+//     );
+//   }
+// }
 import { NextRequest, NextResponse } from "next/server";
 import {
   PrismaClient,
   BarType,
   PriceRange,
   ImportStatus,
+  BarStatus,
 } from "@prisma/client";
 import { verify } from "jsonwebtoken";
 
@@ -2171,25 +2685,32 @@ function parseOperatingHours(hoursStr: string) {
     Sunday: { ...defaultHours },
   };
 
-  if (!hoursStr || hoursStr.trim() === "") {
+  if (!hoursStr || hoursStr.trim() === "" || hoursStr === "{}") {
     return operatingHours;
   }
 
-  const parts = hoursStr.split(",");
-  for (const part of parts) {
-    const match = part.match(
-      /(\w+):\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*-\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i,
-    );
-    if (match) {
-      const day = match[1] as keyof typeof operatingHours;
-      let openTime = match[2];
-      let closeTime = match[3];
+  try {
+    const parsed = JSON.parse(hoursStr);
+    if (typeof parsed === "object" && parsed !== null) {
+      return parsed;
+    }
+  } catch (e) {
+    const parts = hoursStr.split(",");
+    for (const part of parts) {
+      const match = part.match(
+        /(\w+):\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*-\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i,
+      );
+      if (match) {
+        const day = match[1] as keyof typeof operatingHours;
+        let openTime = match[2];
+        let closeTime = match[3];
 
-      if (!openTime.includes(":")) openTime = `${openTime}:00`;
-      if (!closeTime.includes(":")) closeTime = `${closeTime}:00`;
+        if (!openTime.includes(":")) openTime = `${openTime}:00`;
+        if (!closeTime.includes(":")) closeTime = `${closeTime}:00`;
 
-      if (operatingHours[day]) {
-        operatingHours[day] = { open: openTime, close: closeTime };
+        if (operatingHours[day]) {
+          operatingHours[day] = { open: openTime, close: closeTime };
+        }
       }
     }
   }
@@ -2198,23 +2719,43 @@ function parseOperatingHours(hoursStr: string) {
 }
 
 function parseAmenities(amenitiesStr: string): string[] {
-  if (!amenitiesStr || amenitiesStr.trim() === "") {
+  if (!amenitiesStr || amenitiesStr.trim() === "" || amenitiesStr === "[]") {
     return [];
   }
-  return amenitiesStr
-    .split(",")
-    .map((a) => a.trim())
-    .filter((a) => a.length > 0);
+
+  try {
+    const parsed = JSON.parse(amenitiesStr);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (e) {
+    return amenitiesStr
+      .split(",")
+      .map((a) => a.trim().replace(/['\[\]]/g, ""))
+      .filter((a) => a.length > 0);
+  }
+
+  return [];
 }
 
 function parseImageUrls(urlsStr: string): string[] {
-  if (!urlsStr || urlsStr.trim() === "") {
+  if (!urlsStr || urlsStr.trim() === "" || urlsStr === "[]") {
     return [];
   }
-  return urlsStr
-    .split(",")
-    .map((u) => u.trim())
-    .filter((u) => u.length > 0);
+
+  try {
+    const parsed = JSON.parse(urlsStr);
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (e) {
+    return urlsStr
+      .split(",")
+      .map((u) => u.trim())
+      .filter((u) => u.length > 0);
+  }
+
+  return [];
 }
 
 function parsePriceRange(priceStr: string): PriceRange | undefined {
@@ -2242,7 +2783,6 @@ function parseBarType(typeStr: string): BarType | undefined {
 
   let normalized = typeStr.toLowerCase().trim();
   normalized = normalized.replace(/ /g, "_");
-  normalized = normalized.replace(/_+/g, "_");
 
   const typeMap: Record<string, BarType> = {
     pub: "PUB",
@@ -2253,15 +2793,6 @@ function parseBarType(typeStr: string): BarType | undefined {
     sports_bar: "SPORTS_BAR",
     karaoke: "KARAOKE",
     live_music: "LIVE_MUSIC",
-    cocktail: "COCKTAIL_BAR",
-    cocktailbar: "COCKTAIL_BAR",
-    restaurant: "RESTAURANT_BAR",
-    restaurantbar: "RESTAURANT_BAR",
-    sports: "SPORTS_BAR",
-    sportsbar: "SPORTS_BAR",
-    karaokebaari: "KARAOKE",
-    livemusic: "LIVE_MUSIC",
-    music: "LIVE_MUSIC",
   };
 
   if (typeMap[normalized]) {
@@ -2284,9 +2815,7 @@ function parseBarType(typeStr: string): BarType | undefined {
     return upperNormalized as BarType;
   }
 
-  console.log(
-    `⚠️ Unknown bar type: "${typeStr}" (normalized: "${normalized}")`,
-  );
+  console.log(`⚠️ Unknown bar type: "${typeStr}"`);
   return undefined;
 }
 
@@ -2315,15 +2844,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const lines = fileContent.split("\n");
     const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
 
-    const requiredHeaders = ["name", "address", "city", "type"];
-    const missingHeaders = requiredHeaders.filter((h) => !headers.includes(h));
-
-    if (missingHeaders.length > 0) {
-      return NextResponse.json(
-        { error: `Missing required headers: ${missingHeaders.join(", ")}` },
-        { status: 400 },
-      );
-    }
+    const nameIndex = headers.indexOf("name");
+    const typeIndex = headers.indexOf("type");
+    const addressIndex = headers.indexOf("address");
+    const cityIndex = headers.indexOf("city");
+    const districtIndex = headers.indexOf("district");
+    const latitudeIndex = headers.indexOf("latitude");
+    const longitudeIndex = headers.indexOf("longitude");
+    const phoneIndex = headers.indexOf("phone");
+    const emailIndex = headers.indexOf("email");
+    const websiteIndex = headers.indexOf("website");
+    const instagramIndex = headers.indexOf("instagram");
+    const priceRangeIndex = headers.indexOf("pricerange");
+    const capacityIndex = headers.indexOf("capacity");
+    const amenitiesIndex = headers.indexOf("amenities");
+    const descriptionIndex = headers.indexOf("description");
+    const operatingHoursIndex = headers.indexOf("operatinghours");
+    const vipEnabledIndex = headers.indexOf("vipenabled");
+    const coverImageIndex = headers.indexOf("coverimage");
+    const imageUrlsIndex = headers.indexOf("imageurls");
+    const logoUrlIndex = headers.indexOf("logourl");
+    const statusIndex = headers.indexOf("status");
+    const isVerifiedIndex = headers.indexOf("isverified");
+    const isActiveIndex = headers.indexOf("isactive");
 
     const results = {
       total: 0,
@@ -2332,27 +2875,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       errors: [] as string[],
       duplicates: [] as { row: number; name: string; reason: string }[],
     };
-
-    const nameIndex = headers.indexOf("name");
-    const descriptionIndex = headers.indexOf("description");
-    const addressIndex = headers.indexOf("address");
-    const cityIndex = headers.indexOf("city");
-    const districtIndex = headers.indexOf("district");
-    const typeIndex = headers.indexOf("type");
-    const latitudeIndex = headers.indexOf("latitude");
-    const longitudeIndex = headers.indexOf("longitude");
-    const phoneIndex = headers.indexOf("phone");
-    const emailIndex = headers.indexOf("email");
-    const websiteIndex = headers.indexOf("website");
-    const instagramIndex = headers.indexOf("instagram");
-    const operatingHoursIndex = headers.indexOf("operatinghours");
-    const priceRangeIndex = headers.indexOf("pricerange");
-    const capacityIndex = headers.indexOf("capacity");
-    const amenitiesIndex = headers.indexOf("amenities");
-    const coverImageIndex = headers.indexOf("coverimage");
-    const imageUrlsIndex = headers.indexOf("imageurls");
-    const logoUrlIndex = headers.indexOf("logourl");
-    const vipEnabledIndex = headers.indexOf("vipenabled");
 
     const processedNames = new Set<string>();
 
@@ -2363,29 +2885,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       results.total++;
 
       try {
-        const values = line.split(",").map((v) => v.trim());
+        const values: string[] = [];
+        let current = "";
+        let inQuotes = false;
 
-        const name = values[nameIndex];
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === "," && !inQuotes) {
+            values.push(current.trim());
+            current = "";
+          } else {
+            current += char;
+          }
+        }
+        values.push(current.trim());
+
+        const cleanValues = values.map((v) => v.replace(/^"|"$/g, "").trim());
+
+        const name = cleanValues[nameIndex];
         if (!name) {
           throw new Error("Name is required");
         }
 
-        const address = values[addressIndex];
+        const typeStr = cleanValues[typeIndex];
+        const barType = parseBarType(typeStr);
+        if (!barType) {
+          throw new Error(`Invalid bar type: ${typeStr}`);
+        }
+
+        const address = cleanValues[addressIndex];
         if (!address) {
           throw new Error("Address is required");
         }
 
-        const cityName = values[cityIndex];
+        const cityName = cleanValues[cityIndex];
         if (!cityName) {
           throw new Error("City is required");
-        }
-
-        const typeStr = values[typeIndex];
-        const barType = parseBarType(typeStr);
-        if (!barType) {
-          throw new Error(
-            `Invalid bar type: ${typeStr}. Expected one of: PUB, CLUB, LOUNGE, COCKTAIL_BAR, RESTAURANT_BAR, SPORTS_BAR, KARAOKE, LIVE_MUSIC`,
-          );
         }
 
         if (processedNames.has(name.toLowerCase())) {
@@ -2415,19 +2952,44 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         processedNames.add(name.toLowerCase());
 
-        const latitude = values[latitudeIndex]
-          ? parseFloat(values[latitudeIndex])
+        const latitude = cleanValues[latitudeIndex]
+          ? parseFloat(cleanValues[latitudeIndex])
           : null;
-        const longitude = values[longitudeIndex]
-          ? parseFloat(values[longitudeIndex])
+        const longitude = cleanValues[longitudeIndex]
+          ? parseFloat(cleanValues[longitudeIndex])
           : null;
-
+        const phone = cleanValues[phoneIndex] || null;
+        const email = cleanValues[emailIndex] || null;
+        const website = cleanValues[websiteIndex] || null;
+        const instagram = cleanValues[instagramIndex] || null;
+        const priceRange = parsePriceRange(cleanValues[priceRangeIndex]);
+        const capacity = cleanValues[capacityIndex]
+          ? parseInt(cleanValues[capacityIndex])
+          : null;
+        const amenities = parseAmenities(cleanValues[amenitiesIndex]);
+        const description = cleanValues[descriptionIndex] || null;
         const operatingHours = parseOperatingHours(
-          values[operatingHoursIndex] || "",
+          cleanValues[operatingHoursIndex] || "{}",
         );
-        const amenities = parseAmenities(values[amenitiesIndex] || "");
-        const imageUrls = parseImageUrls(values[imageUrlsIndex] || "");
-        const priceRange = parsePriceRange(values[priceRangeIndex] || "");
+        const vipEnabled =
+          cleanValues[vipEnabledIndex]?.toLowerCase() === "true";
+        const coverImage = cleanValues[coverImageIndex] || null;
+        const imageUrls = parseImageUrls(cleanValues[imageUrlsIndex]);
+        const logoUrl = cleanValues[logoUrlIndex] || null;
+
+        // ✅ FIXED: Properly type the status as BarStatus enum
+        let status: BarStatus = "UNCLAIMED";
+        const statusValue = cleanValues[statusIndex];
+        if (
+          statusValue &&
+          Object.values(BarStatus).includes(statusValue as BarStatus)
+        ) {
+          status = statusValue as BarStatus;
+        }
+
+        const isVerified =
+          cleanValues[isVerifiedIndex]?.toLowerCase() === "true";
+        const isActive = cleanValues[isActiveIndex]?.toLowerCase() !== "false";
 
         let city = await prisma.city.findFirst({
           where: { name: { equals: cityName, mode: "insensitive" } },
@@ -2446,31 +3008,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const bar = await prisma.bar.create({
           data: {
             name: name,
-            description: values[descriptionIndex] || null,
+            description: description,
             address: address,
             cityName: cityName,
             cityId: city.id,
-            district: values[districtIndex] || null,
+            district: cleanValues[districtIndex] || null,
             type: barType,
             latitude: latitude,
             longitude: longitude,
-            phone: values[phoneIndex] || null,
-            email: values[emailIndex] || null,
-            website: values[websiteIndex] || null,
-            instagram: values[instagramIndex] || null,
+            phone: phone,
+            email: email,
+            website: website,
+            instagram: instagram,
             operatingHours: operatingHours,
             priceRange: priceRange,
-            capacity: values[capacityIndex]
-              ? parseInt(values[capacityIndex])
-              : null,
+            capacity: capacity,
             amenities: amenities,
-            coverImage: values[coverImageIndex] || null,
+            coverImage: coverImage,
             imageUrls: imageUrls,
-            logoUrl: values[logoUrlIndex] || null,
-            status: "UNCLAIMED",
-            isVerified: false,
-            isActive: true,
-            vipEnabled: values[vipEnabledIndex]?.toLowerCase() === "true",
+            logoUrl: logoUrl,
+            status: status,
+            isVerified: isVerified,
+            isActive: isActive,
+            vipEnabled: vipEnabled,
             createdById: adminUser.id,
           },
         });

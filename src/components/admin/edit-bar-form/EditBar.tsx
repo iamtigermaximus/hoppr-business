@@ -2567,6 +2567,27 @@ const HelperText = styled.div`
   margin-top: 0.5rem;
 `;
 
+// Default operating hours
+const DEFAULT_OPERATING_HOURS = {
+  Monday: { open: "16:00", close: "02:00" },
+  Tuesday: { open: "16:00", close: "02:00" },
+  Wednesday: { open: "16:00", close: "02:00" },
+  Thursday: { open: "16:00", close: "02:00" },
+  Friday: { open: "16:00", close: "04:00" },
+  Saturday: { open: "14:00", close: "04:00" },
+  Sunday: { open: "14:00", close: "02:00" },
+};
+
+interface OperatingHours {
+  Monday: { open: string; close: string };
+  Tuesday: { open: string; close: string };
+  Wednesday: { open: string; close: string };
+  Thursday: { open: string; close: string };
+  Friday: { open: string; close: string };
+  Saturday: { open: string; close: string };
+  Sunday: { open: string; close: string };
+}
+
 // Types based on your Prisma schema
 interface Bar {
   id: string;
@@ -2582,7 +2603,7 @@ interface Bar {
   email: string | null;
   website: string | null;
   instagram: string | null;
-  operatingHours: Record<string, unknown> | null;
+  operatingHours: OperatingHours | null;
   priceRange: string | null;
   capacity: number | null;
   amenities: string[];
@@ -2657,6 +2678,11 @@ const EditBar = () => {
   const [error, setError] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  // Operating Hours state
+  const [operatingHours, setOperatingHours] = useState<OperatingHours>(
+    DEFAULT_OPERATING_HOURS,
+  );
+
   // Image states
   const [coverImage, setCoverImage] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
@@ -2694,10 +2720,7 @@ const EditBar = () => {
       setLoading(true);
       setError(null);
 
-      const token =
-        localStorage.getItem("hoppr_token") ||
-        localStorage.getItem("admin_token") ||
-        localStorage.getItem("token");
+      const token = localStorage.getItem("hoppr_token");
 
       if (!token) {
         throw new Error("No authentication token found");
@@ -2712,7 +2735,7 @@ const EditBar = () => {
       }
 
       const result = await response.json();
-      const barData: Bar = result.bar;
+      const barData: Bar = result.bar || result.data || result;
       setBar(barData);
 
       // Populate form data
@@ -2736,17 +2759,20 @@ const EditBar = () => {
         vipEnabled: barData.vipEnabled,
       });
 
+      // Populate operating hours
+      if (
+        barData.operatingHours &&
+        Object.keys(barData.operatingHours).length > 0
+      ) {
+        setOperatingHours(barData.operatingHours);
+      } else {
+        setOperatingHours(DEFAULT_OPERATING_HOURS);
+      }
+
       // Populate image states
       setCoverImage(barData.coverImage || "");
       setLogoUrl(barData.logoUrl || "");
       setImageUrls(barData.imageUrls || []);
-
-      console.log("Loaded images:", {
-        coverImage: barData.coverImage,
-        logoUrl: barData.logoUrl,
-        imageUrls: barData.imageUrls,
-        count: barData.imageUrls?.length,
-      });
     } catch (error) {
       console.error("Error fetching bar:", error);
       setError(error instanceof Error ? error.message : "Failed to load bar");
@@ -2766,13 +2792,23 @@ const EditBar = () => {
       [name]: value,
     }));
 
-    // Clear error when user starts typing
     if (formErrors[name]) {
       setFormErrors((prev) => ({
         ...prev,
         [name]: "",
       }));
     }
+  };
+
+  const handleHourChange = (
+    day: string,
+    type: "open" | "close",
+    value: string,
+  ): void => {
+    setOperatingHours((prev) => ({
+      ...prev,
+      [day]: { ...prev[day as keyof OperatingHours], [type]: value },
+    }));
   };
 
   const handleCheckboxChange = (
@@ -2815,7 +2851,6 @@ const EditBar = () => {
   };
 
   const handleMultipleUpload = (urls: string[]): void => {
-    console.log("Multiple upload received:", urls);
     setImageUrls([...imageUrls, ...urls]);
   };
 
@@ -2869,12 +2904,8 @@ const EditBar = () => {
       setSaving(true);
       setError(null);
 
-      const token =
-        localStorage.getItem("hoppr_token") ||
-        localStorage.getItem("admin_token") ||
-        localStorage.getItem("token");
+      const token = localStorage.getItem("hoppr_token");
 
-      // Ensure imageUrls is an array
       const finalImageUrls = Array.isArray(imageUrls) ? imageUrls : [];
 
       const payload = {
@@ -2882,17 +2913,11 @@ const EditBar = () => {
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
         capacity: formData.capacity ? parseInt(formData.capacity) : null,
+        operatingHours: operatingHours,
         coverImage: coverImage || null,
         logoUrl: logoUrl || null,
         imageUrls: finalImageUrls,
       };
-
-      console.log("Submitting payload with images:", {
-        coverImage: payload.coverImage,
-        logoUrl: payload.logoUrl,
-        imageUrls: payload.imageUrls,
-        count: payload.imageUrls.length,
-      });
 
       const response = await fetch(`/api/auth/admin/bars/${barId}`, {
         method: "PUT",
@@ -2910,7 +2935,6 @@ const EditBar = () => {
         );
       }
 
-      // Redirect to bar details page
       router.push(`/admin/bars/${barId}`);
       router.refresh();
     } catch (error) {
@@ -3041,7 +3065,6 @@ const EditBar = () => {
                 name="description"
                 value={formData.description}
                 onChange={handleInputChange}
-                placeholder="Describe your bar, atmosphere, specialties..."
               />
             </FormGroup>
 
@@ -3071,7 +3094,6 @@ const EditBar = () => {
                 value={formData.capacity}
                 onChange={handleInputChange}
                 min="0"
-                placeholder="Maximum capacity"
               />
               {formErrors.capacity && (
                 <ErrorMessage>{formErrors.capacity}</ErrorMessage>
@@ -3138,7 +3160,6 @@ const EditBar = () => {
                 name="latitude"
                 value={formData.latitude}
                 onChange={handleInputChange}
-                placeholder="e.g., 60.1699"
               />
               {formErrors.latitude && (
                 <ErrorMessage>{formErrors.latitude}</ErrorMessage>
@@ -3154,7 +3175,6 @@ const EditBar = () => {
                 name="longitude"
                 value={formData.longitude}
                 onChange={handleInputChange}
-                placeholder="e.g., 24.9384"
               />
               {formErrors.longitude && (
                 <ErrorMessage>{formErrors.longitude}</ErrorMessage>
@@ -3175,7 +3195,6 @@ const EditBar = () => {
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                placeholder="+358 40 123 4567"
               />
             </FormGroup>
 
@@ -3187,7 +3206,6 @@ const EditBar = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                placeholder="info@bar.com"
               />
               {formErrors.email && (
                 <ErrorMessage>{formErrors.email}</ErrorMessage>
@@ -3202,7 +3220,6 @@ const EditBar = () => {
                 name="website"
                 value={formData.website}
                 onChange={handleInputChange}
-                placeholder="https://example.com"
               />
               {formErrors.website && (
                 <ErrorMessage>{formErrors.website}</ErrorMessage>
@@ -3217,10 +3234,77 @@ const EditBar = () => {
                 name="instagram"
                 value={formData.instagram}
                 onChange={handleInputChange}
-                placeholder="@username"
               />
             </FormGroup>
           </FormGrid>
+        </FormSection>
+
+        {/* Operating Hours - NEW SECTION */}
+        <FormSection>
+          <SectionTitle>Operating Hours</SectionTitle>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+              gap: "1rem",
+            }}
+          >
+            {[
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday",
+              "Sunday",
+            ].map((day) => (
+              <div
+                key={day}
+                style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+              >
+                <div style={{ width: "100px", fontWeight: 500 }}>{day}</div>
+                <input
+                  type="text"
+                  value={
+                    operatingHours[day as keyof OperatingHours]?.open || ""
+                  }
+                  onChange={(e) =>
+                    handleHourChange(day, "open", e.target.value)
+                  }
+                  placeholder="Open time"
+                  style={{
+                    flex: 1,
+                    padding: "0.5rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                  }}
+                />
+                <span>-</span>
+                <input
+                  type="text"
+                  value={
+                    operatingHours[day as keyof OperatingHours]?.close || ""
+                  }
+                  onChange={(e) =>
+                    handleHourChange(day, "close", e.target.value)
+                  }
+                  placeholder="Close time"
+                  style={{
+                    flex: 1,
+                    padding: "0.5rem",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "0.375rem",
+                    fontSize: "0.875rem",
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <HelperText>
+            Use &quot;Closed&quot; to mark as closed. Format like
+            &quot;16:00&quot; or &quot;4:00 PM&quot;
+          </HelperText>
         </FormSection>
 
         {/* Images Section */}
@@ -3308,7 +3392,6 @@ const EditBar = () => {
           {/* Gallery Images */}
           <FormGroup>
             <Label>Gallery Images</Label>
-
             <ImageUpload
               onUpload={(url: string) => {
                 setImageUrls([...imageUrls, url]);
@@ -3318,8 +3401,6 @@ const EditBar = () => {
               multiple={true}
               existingImages={imageUrls}
             />
-
-            {/* URL input for manual entry */}
             <div style={{ marginTop: "0.5rem" }}>
               <div
                 style={{
@@ -3345,7 +3426,6 @@ const EditBar = () => {
                 </Button>
               </div>
             </div>
-
             {imageUrls.length > 0 && (
               <GalleryGrid>
                 {imageUrls.map((url, index) => (
@@ -3414,7 +3494,6 @@ const EditBar = () => {
                 Bar is active and visible to users
               </CheckboxLabel>
             </FormGroup>
-
             <FormGroup>
               <CheckboxLabel>
                 <Checkbox
