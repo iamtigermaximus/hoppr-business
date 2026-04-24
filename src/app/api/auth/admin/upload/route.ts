@@ -110,9 +110,11 @@ function isBarStaffPayload(payload: JwtPayload): payload is BarStaffJwtPayload {
   return "barId" in payload && "staffRole" in payload;
 }
 
+// Single folder for ALL images
+const UPLOAD_FOLDER = "hoppr/images"; // ← Change this to your preferred folder name
+
 async function uploadToCloudinary(
   file: File,
-  folder: string,
 ): Promise<{ url: string; publicId: string }> {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
@@ -121,8 +123,10 @@ async function uploadToCloudinary(
     cloudinary.uploader
       .upload_stream(
         {
-          folder: folder,
+          folder: UPLOAD_FOLDER, // All images go to this same folder
           transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
+          use_filename: true,
+          unique_filename: true,
         },
         (error, uploadResult) => {
           if (error) reject(error);
@@ -141,7 +145,7 @@ async function uploadToCloudinary(
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    // Verify token (supports both admin and bar staff)
+    // Verify token
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -155,46 +159,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         process.env.JWT_SECRET || "your-secret-key",
       ) as JwtPayload;
 
-      // Check if user is either admin OR bar staff
       const isValidUser = isAdminPayload(decoded) || isBarStaffPayload(decoded);
       if (!isValidUser) {
-        console.error("Invalid user type in token:", decoded);
         return NextResponse.json(
           { error: "Invalid user permissions" },
           { status: 403 },
         );
       }
-
-      console.log(
-        `✅ Token verified for ${isAdminPayload(decoded) ? "Admin" : "Bar Staff"}`,
-      );
     } catch (error) {
-      console.error("Token verification failed:", error);
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const formData = await request.formData();
 
-    // Check for multiple files (key: "files") OR single file (key: "file")
+    // Check for multiple files or single file
     const multipleFiles = formData.getAll("files") as File[];
     const singleFile = formData.get("file") as File;
 
-    // Determine which upload method is being used
     const isMultiple = multipleFiles && multipleFiles.length > 0;
     const filesToUpload = isMultiple
       ? multipleFiles
       : singleFile
         ? [singleFile]
         : [];
-
-    console.log(
-      `📸 Upload request: ${isMultiple ? "Multiple" : "Single"} file(s)`,
-      {
-        fileCount: filesToUpload.length,
-        isMultiple,
-        hasSingleFile: !!singleFile,
-      },
-    );
 
     if (filesToUpload.length === 0) {
       return NextResponse.json(
@@ -220,13 +207,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Upload files
+    // Upload files to the single folder
     const results = [];
     for (const file of filesToUpload) {
       try {
-        console.log(`📤 Uploading: ${file.name}`);
-        const result = await uploadToCloudinary(file, "hoppr/bars");
-        console.log(`✅ Uploaded: ${file.name} -> ${result.url}`);
+        const result = await uploadToCloudinary(file);
         results.push({
           success: true,
           url: result.url,
@@ -234,7 +219,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           name: file.name,
         });
       } catch (error) {
-        console.error(`❌ Error uploading ${file.name}:`, error);
         results.push({
           success: false,
           name: file.name,
@@ -243,12 +227,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Return appropriate response based on upload type
+    // Return response
     if (isMultiple) {
       const successful = results.filter((r) => r.success);
       const failed = results.filter((r) => !r.success);
 
-      const response = {
+      return NextResponse.json({
         success: successful.length > 0,
         results: successful.map((r) => ({
           url: r.url,
@@ -258,16 +242,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         errors: failed.map((r) => ({ name: r.name, error: r.error })),
         totalUploaded: successful.length,
         totalFailed: failed.length,
-      };
-
-      console.log(
-        `📦 Multiple upload complete: ${successful.length} succeeded, ${failed.length} failed`,
-      );
-      return NextResponse.json(response);
+      });
     } else {
-      // Single file response (backward compatible)
       if (results[0]?.success) {
-        console.log(`📦 Single upload complete: ${results[0].url}`);
         return NextResponse.json({
           success: true,
           url: results[0].url,
