@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
 
 const Container = styled.div`
@@ -444,8 +445,11 @@ interface BarIntelligenceHubProps {
 interface BarStatus {
   overall: "excellent" | "good" | "warning" | "critical" | "no-data";
   revenue: number | null;
+  revenueTrend: number | null;
   customers: number | null;
+  customerTrend: number | null;
   vipEngagement: number | null;
+  engagementTrend: number | null;
   promotionPerformance: number | null;
   hasData: boolean;
 }
@@ -465,7 +469,6 @@ interface Alert {
   title: string;
   description: string;
   icon: string;
-  action?: string;
 }
 
 interface Trend {
@@ -475,13 +478,29 @@ interface Trend {
   isPlaceholder?: boolean;
 }
 
+interface IntelligenceResponse {
+  success: boolean;
+  hasData: boolean;
+  status: BarStatus;
+  suggestions: QuickSuggestion[];
+  alerts: Alert[];
+  trends: Trend[];
+  quickStats: {
+    bestDay: string;
+    topPromotion: string;
+    passFillRate: string;
+  };
+}
+
 const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [hasData, setHasData] = useState<boolean | null>(null);
   const [barStatus, setBarStatus] = useState<BarStatus | null>(null);
   const [suggestions, setSuggestions] = useState<QuickSuggestion[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [trends, setTrends] = useState<Trend[]>([]);
+  const [quickStats, setQuickStats] = useState<IntelligenceResponse["quickStats"] | null>(null);
 
   useEffect(() => {
     fetchIntelligenceData();
@@ -490,227 +509,37 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
   const fetchIntelligenceData = async () => {
     setLoading(true);
     try {
-      // Simulate API call to check for data
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const token = localStorage.getItem("hoppr_token");
+      const res = await fetch(`/api/auth/bar/${barId}/intelligence`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Check if bar has any data (customers, sales, promotions, etc.)
-      const barHasData = await checkIfBarHasData(barId);
+      if (!res.ok) throw new Error("Failed to fetch intelligence data");
 
-      setHasData(barHasData);
+      const json: IntelligenceResponse = await res.json();
 
-      if (barHasData) {
-        // Load real data
-        await loadRealData(barId);
-      } else {
-        // Show setup state
-        await loadSetupData();
-      }
+      setHasData(json.hasData);
+      setBarStatus(json.status);
+      setSuggestions(json.suggestions);
+      setAlerts(json.alerts);
+      setTrends(json.trends);
+      setQuickStats(json.quickStats);
     } catch (error) {
       console.error("Failed to fetch intelligence data:", error);
       setHasData(false);
-      await loadSetupData();
     } finally {
       setLoading(false);
     }
   };
 
-  const checkIfBarHasData = async (barId: string): Promise<boolean> => {
-    // In real implementation, check your database for:
-    // - Customer visits
-    // - Sales transactions
-    // - Promotion usage
-    // - Staff activity
-    // For now, we'll simulate a check
-    return Math.random() > 0.3; // 70% chance of having data for demo
-  };
-
-  const loadRealData = async (barId: string) => {
-    // Mock real data
-    const mockStatus: BarStatus = {
-      overall: "good",
-      revenue: 12540,
-      customers: 324,
-      vipEngagement: 72,
-      promotionPerformance: 65,
-      hasData: true,
-    };
-
-    const mockSuggestions: QuickSuggestion[] = [
-      {
-        id: "1",
-        icon: "🎯",
-        title: "Boost Weekend Sales",
-        description:
-          "Create exclusive weekend packages to increase VIP spending",
-        action: "create_promotion",
-        type: "optimization",
-      },
-      {
-        id: "2",
-        icon: "👥",
-        title: "Staff Optimization",
-        description: "Adjust staff schedule based on peak hours analysis",
-        action: "manage_staff",
-        type: "optimization",
-      },
-      {
-        id: "3",
-        icon: "📊",
-        title: "Performance Review",
-        description: "View detailed analytics for last month",
-        action: "view_analytics",
-        type: "maintenance",
-      },
-      {
-        id: "4",
-        icon: "🎪",
-        title: "Plan Event",
-        description: "Set up a themed night to attract new customers",
-        action: "create_event",
-        type: "growth",
-      },
-    ];
-
-    const mockAlerts: Alert[] = [
-      {
-        id: "1",
-        type: "warning",
-        title: "Low Tuesday Traffic",
-        description:
-          "Tuesday evenings are 45% below average. Consider adding themed events.",
-        icon: "📉",
-      },
-      {
-        id: "2",
-        type: "success",
-        title: "VIP Engagement High",
-        description:
-          "VIP customers are spending 35% more this month. Great job!",
-        icon: "👑",
-      },
-      {
-        id: "3",
-        type: "info",
-        title: "Promotion Ending Soon",
-        description:
-          "Friday Night Special ends in 2 days. Consider extending or replacing.",
-        icon: "⏰",
-      },
-    ];
-
-    const mockTrends: Trend[] = [
-      { label: "Weekend Revenue", value: "+18%", positive: true },
-      { label: "New Customers", value: "+12%", positive: true },
-      { label: "Staff Efficiency", value: "+8%", positive: true },
-      { label: "Promotion Clicks", value: "-5%", positive: false },
-      { label: "Average Spend", value: "$68", positive: undefined },
-    ];
-
-    setBarStatus(mockStatus);
-    setSuggestions(mockSuggestions);
-    setAlerts(mockAlerts);
-    setTrends(mockTrends);
-  };
-
-  const loadSetupData = async () => {
-    const setupStatus: BarStatus = {
-      overall: "no-data",
-      revenue: null,
-      customers: null,
-      vipEngagement: null,
-      promotionPerformance: null,
-      hasData: false,
-    };
-
-    const setupSuggestions: QuickSuggestion[] = [
-      {
-        id: "1",
-        icon: "📱",
-        title: "Set Up QR Scanner",
-        description:
-          "Configure your QR code scanner to start tracking customer visits",
-        action: "setup_scanner",
-        type: "setup",
-      },
-      {
-        id: "2",
-        icon: "🎯",
-        title: "Create First Promotion",
-        description: "Launch your first promotion to attract customers",
-        action: "create_promotion",
-        type: "setup",
-      },
-      {
-        id: "3",
-        icon: "👥",
-        title: "Add Staff Members",
-        description: "Invite your team members to help manage the bar",
-        action: "manage_staff",
-        type: "setup",
-      },
-      {
-        id: "4",
-        icon: "📊",
-        title: "Connect Your POS",
-        description:
-          "Link your point-of-sale system to track sales automatically",
-        action: "setup_pos",
-        type: "setup",
-      },
-    ];
-
-    const setupAlerts: Alert[] = [
-      {
-        id: "1",
-        type: "setup",
-        title: "Welcome to Bar Intelligence!",
-        description:
-          "Get started by setting up your bar systems to unlock powerful insights.",
-        icon: "👋",
-      },
-      {
-        id: "2",
-        type: "info",
-        title: "No Data Yet",
-        description:
-          "Start by scanning some QR codes or creating promotions to see insights.",
-        icon: "📈",
-      },
-      {
-        id: "3",
-        type: "success",
-        title: "Ready to Begin",
-        description: "Your bar is set up and ready to start collecting data.",
-        icon: "✅",
-      },
-    ];
-
-    const setupTrends: Trend[] = [
-      { label: "Customer Visits", value: "No data yet", isPlaceholder: true },
-      { label: "Revenue Tracking", value: "Setup needed", isPlaceholder: true },
-      {
-        label: "Promotion Performance",
-        value: "Not started",
-        isPlaceholder: true,
-      },
-      { label: "VIP Engagement", value: "Awaiting data", isPlaceholder: true },
-    ];
-
-    setBarStatus(setupStatus);
-    setSuggestions(setupSuggestions);
-    setAlerts(setupAlerts);
-    setTrends(setupTrends);
-  };
-
   const handleQuickAction = (action: string) => {
-    console.log("Quick action:", action);
-    // Navigate to appropriate page based on action
-    // router.push(`/bar/${barId}/${action}`)
+    if (action.startsWith("/bar/")) {
+      router.push(action);
+    }
   };
 
   const handleSetupBar = () => {
-    console.log("Starting bar setup...");
-    // Navigate to setup wizard
+    router.push(`/bar/${barId}/passes`);
   };
 
   const getStatusText = (status: string) => {
@@ -832,10 +661,13 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                 <StatLabel $isEmpty={!barStatus?.revenue}>
                   Monthly Revenue
                 </StatLabel>
-                <StatTrend $positive={true} $isEmpty={!barStatus?.revenue}>
-                  {barStatus?.revenue
-                    ? "+12% from last month"
-                    : "Start tracking sales"}
+                <StatTrend
+                  $positive={(barStatus?.revenueTrend ?? 0) >= 0}
+                  $isEmpty={!barStatus?.revenue}
+                >
+                  {barStatus?.revenueTrend != null
+                    ? `${(barStatus?.revenueTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.revenueTrend}% vs last month`
+                    : "No revenue data"}
                 </StatTrend>
               </StatCard>
 
@@ -846,9 +678,12 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                 <StatLabel $isEmpty={!barStatus?.customers}>
                   Active Customers
                 </StatLabel>
-                <StatTrend $positive={true} $isEmpty={!barStatus?.customers}>
-                  {barStatus?.customers
-                    ? "+8% growth"
+                <StatTrend
+                  $positive={(barStatus?.customerTrend ?? 0) >= 0}
+                  $isEmpty={!barStatus?.customers}
+                >
+                  {barStatus?.customerTrend != null
+                    ? `${(barStatus?.customerTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.customerTrend}% growth`
                     : "Awaiting customer data"}
                 </StatTrend>
               </StatCard>
@@ -864,10 +699,12 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                   VIP Engagement
                 </StatLabel>
                 <StatTrend
-                  $positive={(barStatus?.vipEngagement || 0) > 70}
+                  $positive={(barStatus?.engagementTrend ?? 0) >= 0}
                   $isEmpty={!barStatus?.vipEngagement}
                 >
-                  {barStatus?.vipEngagement ? "On target" : "No VIP data yet"}
+                  {barStatus?.engagementTrend != null
+                    ? `${(barStatus?.engagementTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.engagementTrend}% redemption rate`
+                    : "No VIP data yet"}
                 </StatTrend>
               </StatCard>
 
@@ -882,11 +719,11 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                   Promotion Performance
                 </StatLabel>
                 <StatTrend
-                  $positive={(barStatus?.promotionPerformance || 0) > 60}
+                  $positive={(barStatus?.promotionPerformance || 0) > 30}
                   $isEmpty={!barStatus?.promotionPerformance}
                 >
-                  {barStatus?.promotionPerformance
-                    ? "Good"
+                  {barStatus?.promotionPerformance != null
+                    ? `${barStatus?.promotionPerformance}% redemption rate`
                     : "Create promotions"}
                 </StatTrend>
               </StatCard>
@@ -915,73 +752,19 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
             </SectionHeader>
 
             <SuggestionList>
-              {barStatus?.hasData ? (
-                <>
-                  <SuggestionCard $type="optimization">
-                    <SuggestionHeader>
-                      <SuggestionIcon>🚀</SuggestionIcon>
-                      <SuggestionContent>
-                        <SuggestionTitle>
-                          Weekend VIP Experience
-                        </SuggestionTitle>
-                        <SuggestionDescription>
-                          Create exclusive VIP packages for Friday and Saturday
-                          nights. VIP customers spend 45% more on weekends and
-                          current utilization is only 60%.
-                        </SuggestionDescription>
-                      </SuggestionContent>
-                    </SuggestionHeader>
-                  </SuggestionCard>
-
-                  <SuggestionCard $type="growth">
-                    <SuggestionHeader>
-                      <SuggestionIcon>🎪</SuggestionIcon>
-                      <SuggestionContent>
-                        <SuggestionTitle>Themed Tuesday Events</SuggestionTitle>
-                        <SuggestionDescription>
-                          Launch trivia or live music nights on Tuesdays.
-                          Current Tuesday traffic is 65% below average but has
-                          40% higher spend per customer.
-                        </SuggestionDescription>
-                      </SuggestionContent>
-                    </SuggestionHeader>
-                  </SuggestionCard>
-                </>
-              ) : (
-                <>
-                  <SuggestionCard $type="setup">
-                    <SuggestionHeader>
-                      <SuggestionIcon>📱</SuggestionIcon>
-                      <SuggestionContent>
-                        <SuggestionTitle>
-                          Set Up QR Code Scanning
-                        </SuggestionTitle>
-                        <SuggestionDescription>
-                          Start by configuring your QR code scanner. This will
-                          track customer visits and help us provide personalized
-                          insights about your bar traffic.
-                        </SuggestionDescription>
-                      </SuggestionContent>
-                    </SuggestionHeader>
-                  </SuggestionCard>
-
-                  <SuggestionCard $type="setup">
-                    <SuggestionHeader>
-                      <SuggestionIcon>🎯</SuggestionIcon>
-                      <SuggestionContent>
-                        <SuggestionTitle>
-                          Create Your First Promotion
-                        </SuggestionTitle>
-                        <SuggestionDescription>
-                          Launch a simple promotion to attract customers.
-                          We&apos;ll track its performance and suggest
-                          optimizations based on real data.
-                        </SuggestionDescription>
-                      </SuggestionContent>
-                    </SuggestionHeader>
-                  </SuggestionCard>
-                </>
-              )}
+              {suggestions.slice(0, 4).map((suggestion) => (
+                <SuggestionCard key={suggestion.id} $type={suggestion.type}>
+                  <SuggestionHeader>
+                    <SuggestionIcon>{suggestion.icon}</SuggestionIcon>
+                    <SuggestionContent>
+                      <SuggestionTitle>{suggestion.title}</SuggestionTitle>
+                      <SuggestionDescription>
+                        {suggestion.description}
+                      </SuggestionDescription>
+                    </SuggestionContent>
+                  </SuggestionHeader>
+                </SuggestionCard>
+              ))}
             </SuggestionList>
           </Section>
         </MainContent>
@@ -1049,15 +832,9 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                   alignItems: "center",
                 }}
               >
-                <span
-                  style={{ color: barStatus?.hasData ? "#64748b" : "#94a3b8" }}
-                >
-                  {barStatus?.hasData ? "Best Performing Day:" : "First Step:"}
-                </span>
-                <strong
-                  style={{ color: barStatus?.hasData ? "#1e293b" : "#3b82f6" }}
-                >
-                  {barStatus?.hasData ? "Saturday" : "Setup Scanner"}
+                <span style={{ color: "#64748b" }}>Best Day:</span>
+                <strong style={{ color: "#1e293b" }}>
+                  {quickStats?.bestDay || "No data"}
                 </strong>
               </div>
               <div
@@ -1067,17 +844,9 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                   alignItems: "center",
                 }}
               >
-                <span
-                  style={{ color: barStatus?.hasData ? "#64748b" : "#94a3b8" }}
-                >
-                  {barStatus?.hasData ? "Top Promotion:" : "Next Step:"}
-                </span>
-                <strong
-                  style={{ color: barStatus?.hasData ? "#1e293b" : "#3b82f6" }}
-                >
-                  {barStatus?.hasData
-                    ? "Friday Night Special"
-                    : "Create Promotion"}
+                <span style={{ color: "#64748b" }}>Top Promotion:</span>
+                <strong style={{ color: "#1e293b" }}>
+                  {quickStats?.topPromotion || "None"}
                 </strong>
               </div>
               <div
@@ -1087,17 +856,9 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                   alignItems: "center",
                 }}
               >
-                <span
-                  style={{ color: barStatus?.hasData ? "#64748b" : "#94a3b8" }}
-                >
-                  {barStatus?.hasData
-                    ? "Customer Satisfaction:"
-                    : "Data Status:"}
-                </span>
-                <strong
-                  style={{ color: barStatus?.hasData ? "#10b981" : "#f59e0b" }}
-                >
-                  {barStatus?.hasData ? "4.8/5 ⭐" : "Awaiting Data"}
+                <span style={{ color: "#64748b" }}>Pass Fill Rate:</span>
+                <strong style={{ color: "#10b981" }}>
+                  {quickStats?.passFillRate || "N/A"}
                 </strong>
               </div>
             </div>
