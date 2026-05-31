@@ -31,14 +31,14 @@ export async function GET(request: NextRequest) {
       take: limit,
       orderBy: { createdAt: "desc" },
       include: {
-        admin: { select: { id: true, name: true, email: true } }, // FIXED: Added id to select
+        user: { select: { id: true, name: true, email: true } },
         bar: { select: { id: true, name: true } },
       },
     });
 
     const formattedLogs: AuditLog[] = auditLogs.map((log) => ({
       id: log.id,
-      adminId: log.adminId,
+      userId: log.userId,
       barId: log.barId,
       action: log.action,
       resource: log.resource,
@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
       ipAddress: log.ipAddress,
       userAgent: log.userAgent,
       createdAt: log.createdAt,
-      admin: log.admin
-        ? { id: log.admin.id, name: log.admin.name, email: log.admin.email }
+      admin: log.user
+        ? { id: log.user.id, name: log.user.name ?? "", email: log.user.email }
         : null,
       bar: log.bar ? { id: log.bar.id, name: log.bar.name } : null,
     }));

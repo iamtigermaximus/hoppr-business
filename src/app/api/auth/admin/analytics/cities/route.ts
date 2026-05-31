@@ -5,8 +5,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -68,8 +68,8 @@ const prisma = new PrismaClient();
 
 async function verifyAdminToken(token: string) {
   try {
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true },
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "SUPER_ADMIN" },
     });
     return adminUser;
   } catch (error) {

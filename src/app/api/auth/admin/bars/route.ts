@@ -27,7 +27,7 @@
 // // Helper function to verify admin token
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: {
 //         id: token,
 //         isActive: true,
@@ -135,7 +135,7 @@
 //     // Create audit log
 //     await prisma.auditLog.create({
 //       data: {
-//         adminId: adminUser.id,
+//         userId: adminUser.id,
 //         action: "CREATE",
 //         resource: "BAR",
 //         details: {
@@ -234,7 +234,7 @@
 //           _count: {
 //             select: {
 //               staff: true,
-//               promotions: { where: { isActive: true } },
+//               promotions: { where: { role: "SUPER_ADMIN" } },
 //             },
 //           },
 //         },
@@ -319,7 +319,7 @@
 //       return null;
 //     }
 
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: {
 //         id: userId,
 //         isActive: true,
@@ -411,7 +411,7 @@
 // //           _count: {
 // //             select: {
 // //               staff: true,
-// //               promotions: { where: { isActive: true } },
+// //               promotions: { where: { role: "SUPER_ADMIN" } },
 // //             },
 // //           },
 // //         },
@@ -643,7 +643,7 @@
 //     // Create audit log
 //     await prisma.auditLog.create({
 //       data: {
-//         adminId: adminUser.id,
+//         userId: adminUser.id,
 //         action: "CREATE",
 //         resource: "BAR",
 //         details: {
@@ -699,8 +699,8 @@ interface BarFilters {
 async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   try {
     const decoded = verify(token, JWT_SECRET) as { role: string };
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true },
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "SUPER_ADMIN" },
       select: { id: true },
     });
     return adminUser;
@@ -910,7 +910,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        adminId: adminUser.id,
+        userId: adminUser.id,
         barId: bar.id,
         action: "CREATE",
         resource: "BAR",

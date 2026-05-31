@@ -4,57 +4,64 @@ import {
   verifyPassword,
   generateAdminToken,
   generateBarStaffToken,
-  type AdminJWTPayload,
-  type BarStaffJWTPayload,
 } from "@/lib/auth";
 
 export class AuthService {
-  // Admin authentication
+  // Admin authentication — admins are Users with role SUPER_ADMIN
   async authenticateAdmin(email: string, password: string) {
-    const admin = await prisma.adminUser.findFirst({
+    const user = await prisma.user.findFirst({
       where: {
         email: email.toLowerCase(),
-        isActive: true,
+        role: "SUPER_ADMIN",
       },
     });
 
-    if (!admin || !admin.hashedPassword) {
+    if (!user || !user.hashedPassword) {
       throw new Error("Invalid credentials");
     }
 
-    const isValid = await verifyPassword(password, admin.hashedPassword);
+    const isValid = await verifyPassword(password, user.hashedPassword);
     if (!isValid) {
       throw new Error("Invalid credentials");
     }
 
-    // Update last login
-    await prisma.adminUser.update({
-      where: { id: admin.id },
-      data: { lastLogin: new Date() },
-    });
-
     const token = generateAdminToken({
-      id: admin.id,
-      role: admin.role,
+      id: user.id,
+      role: user.role,
     });
 
     return {
       token,
       user: {
-        id: admin.id,
-        email: admin.email,
-        name: admin.name,
+        id: user.id,
+        email: user.email,
+        name: user.name || user.email,
         role: "admin" as const,
-        adminRole: admin.role,
+        adminRole: user.role,
       },
     };
   }
 
-  // Bar staff authentication
+  // Bar staff authentication — auth via User record, bar context via BarStaff
   async authenticateBarStaff(email: string, password: string, barId?: string) {
+    // Step 1: Authenticate via User record
+    const user = await prisma.user.findFirst({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!user || !user.hashedPassword) {
+      throw new Error("Invalid credentials");
+    }
+
+    const isValid = await verifyPassword(password, user.hashedPassword);
+    if (!isValid) {
+      throw new Error("Invalid credentials");
+    }
+
+    // Step 2: Find BarStaff record for bar context
     const staff = await prisma.barStaff.findFirst({
       where: {
-        email: email.toLowerCase(),
+        userId: user.id,
         isActive: true,
         ...(barId && { barId }),
       },
@@ -69,17 +76,12 @@ export class AuthService {
       },
     });
 
-    if (!staff || !staff.hashedPassword) {
-      throw new Error("Invalid credentials");
+    if (!staff) {
+      throw new Error("No bar association found for this account");
     }
 
     if (!staff.bar.isActive) {
       throw new Error("Bar account is inactive");
-    }
-
-    const isValid = await verifyPassword(password, staff.hashedPassword);
-    if (!isValid) {
-      throw new Error("Invalid credentials");
     }
 
     // Update last login
@@ -122,22 +124,22 @@ export class AuthService {
     }
 
     if (isAdminToken(payload)) {
-      const admin = await prisma.adminUser.findUnique({
-        where: { id: payload.userId },
+      const user = await prisma.user.findFirst({
+        where: { id: payload.userId, role: "SUPER_ADMIN" },
       });
 
-      if (!admin || !admin.isActive) {
-        throw new Error("Admin user not found");
+      if (!user) {
+        throw new Error("Admin user not found or inactive");
       }
 
       return {
         type: "admin" as const,
         user: {
-          id: admin.id,
-          email: admin.email,
-          name: admin.name,
+          id: user.id,
+          email: user.email,
+          name: user.name || user.email,
           role: "admin" as const,
-          adminRole: admin.role,
+          adminRole: user.role,
         },
       };
     }

@@ -340,14 +340,14 @@
 //             ? "FAILED"
 //             : "PARTIAL",
 //         errors: errors.length > 0 ? errors : undefined,
-//         importedBy: adminUser.id,
+//         importedById: adminUser.id,
 //       },
 //     });
 
 //     // Create audit log
 //     await prisma.auditLog.create({
 //       data: {
-//         adminId: adminUser.id,
+//         userId: adminUser.id,
 //         action: "BULK_IMPORT",
 //         resource: "BAR",
 //         details: {
@@ -393,7 +393,7 @@
 // // Helper function to verify admin token
 // async function verifyAdminToken(token: string): Promise<AdminUser | null> {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: {
 //         id: token,
 //         isActive: true,
@@ -515,7 +515,7 @@
 //       return null;
 //     }
 
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: {
 //         id: userId,
 //         isActive: true,
@@ -914,7 +914,7 @@
 //               ? "FAILED"
 //               : "PARTIAL",
 //           errors: errors.length > 0 ? errors : undefined,
-//           importedBy: adminUser.id,
+//           importedById: adminUser.id,
 //         },
 //       });
 //       console.log("📝 IMPORT API - Audit record created");
@@ -928,7 +928,7 @@
 //     try {
 //       await prisma.auditLog.create({
 //         data: {
-//           adminId: adminUser.id,
+//           userId: adminUser.id,
 //           action: "BULK_IMPORT",
 //           resource: "BAR",
 //           details: {
@@ -1019,8 +1019,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -1308,7 +1308,7 @@
 //               ? "FAILED"
 //               : "PARTIAL",
 //           errors: errors.length > 0 ? errors : undefined,
-//           importedBy: adminUser.id,
+//           importedById: adminUser.id,
 //         },
 //       });
 //     } catch (error) {
@@ -1394,8 +1394,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -1728,7 +1728,7 @@
 //                   (d) =>
 //                     `Row ${d.row}: Duplicate bar "${d.name}" (${d.reason === "within_file" ? "duplicate in file" : "already in database"})`,
 //                 ),
-//           importedBy: adminUser.id,
+//           importedById: adminUser.id,
 //         },
 //       });
 //     } catch (error) {
@@ -1776,7 +1776,7 @@
 //   try {
 //     const decoded = verify(token, JWT_SECRET) as JwtPayload;
 
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: {
 //         email: decoded.email,
 //         isActive: true,
@@ -2067,7 +2067,7 @@
 //         // Create audit log
 //         await prisma.auditLog.create({
 //           data: {
-//             adminId: adminUser.id,
+//             userId: adminUser.id,
 //             barId: bar.id,
 //             action: "IMPORT",
 //             resource: "BAR",
@@ -2100,7 +2100,7 @@
 //                 ? "PARTIAL"
 //                 : "FAILED",
 //           errors: results.errors.length > 0 ? results.errors : undefined,
-//           importedBy: adminUser.id,
+//           importedById: adminUser.id,
 //         },
 //       });
 //     } catch (error) {
@@ -2144,7 +2144,7 @@
 //   try {
 //     const decoded = verify(token, JWT_SECRET) as JwtPayload;
 
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: {
 //         email: decoded.email,
 //         isActive: true,
@@ -2544,7 +2544,7 @@
 //         // Create audit log
 //         await prisma.auditLog.create({
 //           data: {
-//             adminId: adminUser.id,
+//             userId: adminUser.id,
 //             barId: bar.id,
 //             action: "IMPORT",
 //             resource: "BAR",
@@ -2578,7 +2578,7 @@
 //           failedRows: results.skipped,
 //           status: importStatus,
 //           errors: results.errors.length > 0 ? results.errors : undefined,
-//           importedBy: adminUser.id,
+//           importedById: adminUser.id,
 //         },
 //       });
 //     } catch (error) {
@@ -2658,10 +2658,10 @@ async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   try {
     const decoded = verify(token, JWT_SECRET) as JwtPayload;
 
-    const adminUser = await prisma.adminUser.findFirst({
+    const adminUser = await prisma.user.findFirst({
       where: {
         email: decoded.email,
-        isActive: true,
+        role: "SUPER_ADMIN",
       },
       select: { id: true },
     });
@@ -2991,27 +2991,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           cleanValues[isVerifiedIndex]?.toLowerCase() === "true";
         const isActive = cleanValues[isActiveIndex]?.toLowerCase() !== "false";
 
-        let city = await prisma.city.findFirst({
-          where: { name: { equals: cityName, mode: "insensitive" } },
-        });
-
-        if (!city) {
-          city = await prisma.city.create({
-            data: {
-              name: cityName,
-              country: "Finland",
-              isActive: true,
-            },
-          });
-        }
-
         const bar = await prisma.bar.create({
           data: {
             name: name,
             description: description,
             address: address,
             cityName: cityName,
-            cityId: city.id,
             district: cleanValues[districtIndex] || null,
             type: barType,
             latitude: latitude,
@@ -3039,7 +3024,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         await prisma.auditLog.create({
           data: {
-            adminId: adminUser.id,
+            userId: adminUser.id,
             barId: bar.id,
             action: "IMPORT",
             resource: "BAR",
@@ -3073,7 +3058,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           failedRows: results.skipped,
           status: importStatus,
           errors: results.errors.length > 0 ? results.errors : undefined,
-          importedBy: adminUser.id,
+          importedById: adminUser.id,
         },
       });
     } catch (error) {

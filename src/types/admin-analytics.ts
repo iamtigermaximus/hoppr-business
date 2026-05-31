@@ -511,7 +511,7 @@ export interface AuditLogBar {
 
 export interface AuditLog {
   id: string;
-  adminId: string | null;
+  userId: string | null;
   barId: string | null;
   action: string;
   resource: string;

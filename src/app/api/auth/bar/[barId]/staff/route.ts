@@ -104,18 +104,28 @@ export async function POST(
       );
     }
 
-    // Hash password and create staff
+    // Create user account, then link to bar as staff
     const hashedPassword = await hashPassword(password);
+
+    const user = await prisma.user.upsert({
+      where: { email: email.toLowerCase() },
+      update: { hashedPassword, name, role: "BAR_STAFF" },
+      create: {
+        email: email.toLowerCase(),
+        name,
+        hashedPassword,
+        role: "BAR_STAFF",
+      },
+    });
 
     const staff = await prisma.barStaff.create({
       data: {
         barId: barId,
+        userId: user.id,
         email: email.toLowerCase(),
         name,
         role,
         permissions: getPermissionsForRole(role),
-        hashedPassword,
-        isActive: true,
       },
       select: {
         id: true,

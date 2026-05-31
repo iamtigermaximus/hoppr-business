@@ -74,7 +74,7 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: { id: token, isActive: true },
 //     });
 //     return adminUser;
@@ -122,7 +122,7 @@
 //       return null;
 //     }
 
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: {
 //         id: userId,
 //         isActive: true,
@@ -258,8 +258,8 @@ const prisma = new PrismaClient();
 async function verifyAdminToken(token: string) {
   try {
     // Simple token check - same as your import route
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true },
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "SUPER_ADMIN" },
     });
     return adminUser;
   } catch (error) {
@@ -304,7 +304,7 @@ export async function GET(request: NextRequest) {
       // Check if BarImport model exists
       const imports = await prisma.barImport.findMany({
         where: {
-          importedBy: adminUser.id,
+          importedById: adminUser.id,
         },
         orderBy: {
           createdAt: "desc",
@@ -315,7 +315,7 @@ export async function GET(request: NextRequest) {
 
       const total = await prisma.barImport.count({
         where: {
-          importedBy: adminUser.id,
+          importedById: adminUser.id,
         },
       });
 

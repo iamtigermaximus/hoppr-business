@@ -22,8 +22,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -104,9 +104,9 @@
 //     // Get summary data
 //     const [totalBars, activeBars, totalUsers, activeUsers] = await Promise.all([
 //       prisma.bar.count(),
-//       prisma.bar.count({ where: { isActive: true } }),
+//       prisma.bar.count({ where: { role: "SUPER_ADMIN" } }),
 //       prisma.barStaff.count(),
-//       prisma.barStaff.count({ where: { isActive: true } }),
+//       prisma.barStaff.count({ where: { role: "SUPER_ADMIN" } }),
 //     ]);
 
 //     // Get new bars in current period
@@ -229,8 +229,8 @@ const prisma = new PrismaClient();
 
 async function verifyAdminToken(token: string) {
   try {
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true },
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "SUPER_ADMIN" },
     });
     return adminUser;
   } catch (error) {

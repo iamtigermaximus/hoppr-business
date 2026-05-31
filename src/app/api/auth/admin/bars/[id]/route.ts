@@ -349,7 +349,7 @@
 //     // FIXED: Cast the role string to AdminRole enum
 //     const adminRole = decoded.role as AdminRole;
 
-//     const adminUser = await prisma.adminUser.findFirst({
+//     const adminUser = await prisma.user.findFirst({
 //       where: { isActive: true, role: adminRole },
 //     });
 //     return adminUser;
@@ -391,7 +391,7 @@
 //           },
 //         },
 //         promotions: {
-//           where: { isActive: true },
+//           where: { role: "SUPER_ADMIN" },
 //           select: {
 //             id: true,
 //             title: true,
@@ -403,7 +403,7 @@
 //           },
 //         },
 //         vipPassesEnhanced: {
-//           where: { isActive: true },
+//           where: { role: "SUPER_ADMIN" },
 //           select: {
 //             id: true,
 //             name: true,
@@ -603,42 +603,24 @@ import {
   BarType,
   BarStatus,
   PriceRange,
-  AdminRole,
 } from "@prisma/client";
 import { verify } from "jsonwebtoken";
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
-// Map of valid role strings to AdminRole enum
-const roleMap: Record<string, AdminRole> = {
-  admin: "SUPER_ADMIN",
-  super_admin: "SUPER_ADMIN",
-  SUPER_ADMIN: "SUPER_ADMIN",
-  content_moderator: "CONTENT_MODERATOR",
-  CONTENT_MODERATOR: "CONTENT_MODERATOR",
-  analytics_viewer: "ANALYTICS_VIEWER",
-  ANALYTICS_VIEWER: "ANALYTICS_VIEWER",
-  support: "SUPPORT",
-  SUPPORT: "SUPPORT",
-};
-
 async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   try {
-    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string };
+    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string; userId?: string };
 
-    const mappedRole = roleMap[decoded.role];
+    const userId = decoded.id || decoded.userId;
+    if (!userId) return null;
 
-    if (!mappedRole) {
-      console.error("Invalid admin role:", decoded.role);
-      return null;
-    }
-
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true, role: mappedRole },
+    const user = await prisma.user.findFirst({
+      where: { id: userId, role: "SUPER_ADMIN" },
       select: { id: true },
     });
-    return adminUser;
+    return user;
   } catch (error) {
     console.error("Token verification error:", error);
     return null;
@@ -709,7 +691,6 @@ export async function GET(
           },
         },
         promotions: {
-          where: { isActive: true },
           select: {
             id: true,
             title: true,
@@ -721,7 +702,6 @@ export async function GET(
           },
         },
         vipPassesEnhanced: {
-          where: { isActive: true },
           select: {
             id: true,
             name: true,
@@ -864,7 +844,7 @@ export async function PUT(
     // Create audit log - FIXED: Convert updateData to a compatible format
     await prisma.auditLog.create({
       data: {
-        adminId: adminUser.id,
+        userId: adminUser.id,
         barId: updatedBar.id,
         action: "UPDATE",
         resource: "BAR",
@@ -946,7 +926,7 @@ export async function PATCH(
 
     await prisma.auditLog.create({
       data: {
-        adminId: adminUser.id,
+        userId: adminUser.id,
         barId: updatedBar.id,
         action: "PATCH",
         resource: "BAR",
@@ -1007,7 +987,7 @@ export async function DELETE(
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        adminId: adminUser.id,
+        userId: adminUser.id,
         barId: id,
         action: "DELETE",
         resource: "BAR",

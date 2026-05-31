@@ -10,8 +10,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -74,7 +74,7 @@
 
 //     // Get current period data
 //     const totalBars = await prisma.bar.count();
-//     const activeBars = await prisma.bar.count({ where: { isActive: true } });
+//     const activeBars = await prisma.bar.count({ where: { role: "SUPER_ADMIN" } });
 //     const pendingVerification = await prisma.bar.count({
 //       where: { status: "UNCLAIMED", isVerified: false },
 //     });
@@ -85,7 +85,7 @@
 
 //     // Get active users (bar staff)
 //     const activeUsers = await prisma.barStaff.count({
-//       where: { isActive: true },
+//       where: { role: "SUPER_ADMIN" },
 //     });
 
 //     // Get new users (bar staff created in period)
@@ -155,8 +155,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -219,7 +219,7 @@
 
 //     // Get current period data
 //     const totalBars = await prisma.bar.count();
-//     const activeBars = await prisma.bar.count({ where: { isActive: true } });
+//     const activeBars = await prisma.bar.count({ where: { role: "SUPER_ADMIN" } });
 //     const pendingVerification = await prisma.bar.count({
 //       where: { status: "UNCLAIMED", isVerified: false },
 //     });
@@ -279,7 +279,7 @@
 //     }
 
 //     const activeUsers = await prisma.barStaff.count({
-//       where: { isActive: true },
+//       where: { role: "SUPER_ADMIN" },
 //     });
 
 //     const newUsers = await prisma.barStaff.count({
@@ -393,8 +393,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -457,7 +457,7 @@
 
 //     // Get current period data
 //     const totalBars = await prisma.bar.count();
-//     const activeBars = await prisma.bar.count({ where: { isActive: true } });
+//     const activeBars = await prisma.bar.count({ where: { role: "SUPER_ADMIN" } });
 //     const pendingVerification = await prisma.bar.count({
 //       where: { status: "UNCLAIMED", isVerified: false },
 //     });
@@ -525,7 +525,7 @@
 //     }
 
 //     const activeUsers = await prisma.barStaff.count({
-//       where: { isActive: true },
+//       where: { role: "SUPER_ADMIN" },
 //     });
 
 //     const newUsers = await prisma.barStaff.count({
@@ -646,8 +646,8 @@
 
 // async function verifyAdminToken(token: string) {
 //   try {
-//     const adminUser = await prisma.adminUser.findFirst({
-//       where: { isActive: true },
+//     const adminUser = await prisma.user.findFirst({
+//       where: { role: "SUPER_ADMIN" },
 //     });
 //     return adminUser;
 //   } catch (error) {
@@ -710,7 +710,7 @@
 
 //     // Get current period data
 //     const totalBars = await prisma.bar.count();
-//     const activeBars = await prisma.bar.count({ where: { isActive: true } });
+//     const activeBars = await prisma.bar.count({ where: { role: "SUPER_ADMIN" } });
 //     const pendingVerification = await prisma.bar.count({
 //       where: { status: "UNCLAIMED", isVerified: false },
 //     });
@@ -1045,7 +1045,7 @@
 //     }
 
 //     const activeUsers = await prisma.barStaff.count({
-//       where: { isActive: true },
+//       where: { role: "SUPER_ADMIN" },
 //     });
 
 //     const newUsers = await prisma.barStaff.count({
@@ -1190,8 +1190,8 @@ const prisma = new PrismaClient();
 
 async function verifyAdminToken(token: string) {
   try {
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { isActive: true },
+    const adminUser = await prisma.user.findFirst({
+      where: { role: "SUPER_ADMIN" },
     });
     return adminUser;
   } catch (error) {

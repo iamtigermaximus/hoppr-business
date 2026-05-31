@@ -25,14 +25,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const adminUsers = await prisma.adminUser.findMany({
+    const adminUsers = await prisma.user.findMany({
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
-        isActive: true,
-        lastLogin: true,
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
@@ -79,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingAdmin = await prisma.adminUser.findUnique({
+    const existingAdmin = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
     });
 
@@ -93,7 +91,7 @@ export async function POST(request: NextRequest) {
     // Hash password and create user
     const hashedPassword = await hashPassword(password);
 
-    const admin = await prisma.adminUser.create({
+    const admin = await prisma.user.create({
       data: {
         email: email.toLowerCase(),
         name,
@@ -151,7 +149,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { email, name, role, password, isActive } = await request.json();
+    const { email, name, role, password } = await request.json();
 
     if (!email || !name || !role) {
       return NextResponse.json(
@@ -161,7 +159,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if user exists
-    const existingAdmin = await prisma.adminUser.findUnique({
+    const existingAdmin = await prisma.user.findUnique({
       where: { id: userId },
     });
 
@@ -173,7 +171,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Check if email is already taken by another user
-    const emailExists = await prisma.adminUser.findFirst({
+    const emailExists = await prisma.user.findFirst({
       where: {
         email: email.toLowerCase(),
         id: { not: userId },
@@ -192,7 +190,6 @@ export async function PUT(request: NextRequest) {
       email: email.toLowerCase(),
       name,
       role,
-      isActive: isActive !== undefined ? isActive : existingAdmin.isActive,
     };
 
     // Only update password if provided
@@ -200,7 +197,7 @@ export async function PUT(request: NextRequest) {
       updateData.hashedPassword = await hashPassword(password);
     }
 
-    const updatedAdmin = await prisma.adminUser.update({
+    const updatedAdmin = await prisma.user.update({
       where: { id: userId },
       data: updateData,
     });
@@ -212,7 +209,6 @@ export async function PUT(request: NextRequest) {
         email: updatedAdmin.email,
         name: updatedAdmin.name,
         role: updatedAdmin.role,
-        isActive: updatedAdmin.isActive,
       },
     });
   } catch (error) {
@@ -264,7 +260,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check if user exists
-    const existingAdmin = await prisma.adminUser.findUnique({
+    const existingAdmin = await prisma.user.findUnique({
       where: { id: userId },
     });
 
@@ -276,7 +272,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the user
-    await prisma.adminUser.delete({
+    await prisma.user.delete({
       where: { id: userId },
     });
 
