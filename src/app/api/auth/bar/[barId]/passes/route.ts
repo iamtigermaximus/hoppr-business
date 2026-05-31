@@ -31,6 +31,8 @@ interface CreatePassBody {
   validDays?: string[];
   totalQuantity: number;
   maxPerUser?: number;
+  redemptionMode?: string;
+  maxRedemptions?: number | null;
 }
 
 const VALID_TYPES = ["SKIP_LINE", "COVER_INCLUDED", "PREMIUM_ENTRY", "DRINK_PACKAGE"];
@@ -85,6 +87,8 @@ export async function GET(
       totalQuantity: p.totalQuantity,
       soldCount: p.soldCount,
       maxPerUser: p.maxPerUser,
+      redemptionMode: p.redemptionMode,
+      maxRedemptions: p.maxRedemptions,
       isActive: p.isActive,
       createdAt: p.createdAt.toISOString(),
     }));
@@ -158,6 +162,8 @@ export async function POST(
         validDays: body.validDays || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
         totalQuantity: body.totalQuantity,
         maxPerUser: body.maxPerUser ?? 1,
+        redemptionMode: (body.redemptionMode as any) || "SINGLE_USE",
+        maxRedemptions: body.maxRedemptions || null,
         isActive: true,
         soldCount: 0,
       },
@@ -173,6 +179,8 @@ export async function POST(
         priceCents: pass.priceCents,
         totalQuantity: pass.totalQuantity,
         soldCount: pass.soldCount,
+        redemptionMode: pass.redemptionMode,
+        maxRedemptions: pass.maxRedemptions,
         isActive: pass.isActive,
       },
     });

@@ -32,6 +32,8 @@ interface UpdatePassBody {
   totalQuantity?: number;
   maxPerUser?: number;
   isActive?: boolean;
+  redemptionMode?: string;
+  maxRedemptions?: number | null;
 }
 
 const VALID_TYPES = ["SKIP_LINE", "COVER_INCLUDED", "PREMIUM_ENTRY", "DRINK_PACKAGE"];
@@ -95,6 +97,8 @@ export async function GET(
         totalQuantity: pass.totalQuantity,
         soldCount: pass.soldCount,
         maxPerUser: pass.maxPerUser,
+        redemptionMode: pass.redemptionMode,
+        maxRedemptions: pass.maxRedemptions,
         isActive: pass.isActive,
         createdAt: pass.createdAt.toISOString(),
         revenueCents: revenue,
@@ -179,6 +183,8 @@ export async function PUT(
     if (body.totalQuantity !== undefined) updateData.totalQuantity = body.totalQuantity;
     if (body.maxPerUser !== undefined) updateData.maxPerUser = body.maxPerUser;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.redemptionMode !== undefined) updateData.redemptionMode = body.redemptionMode;
+    if (body.maxRedemptions !== undefined) updateData.maxRedemptions = body.maxRedemptions;
 
     const pass = await prisma.vIPPassEnhanced.update({
       where: { id },
@@ -195,6 +201,8 @@ export async function PUT(
         priceCents: pass.priceCents,
         totalQuantity: pass.totalQuantity,
         soldCount: pass.soldCount,
+        redemptionMode: pass.redemptionMode,
+        maxRedemptions: pass.maxRedemptions,
         isActive: pass.isActive,
       },
     });

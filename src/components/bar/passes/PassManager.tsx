@@ -453,6 +453,7 @@ const ErrorBox = styled.div`
 // ---- Types ----
 
 type PassType = "SKIP_LINE" | "COVER_INCLUDED" | "PREMIUM_ENTRY" | "DRINK_PACKAGE";
+type RedemptionMode = "SINGLE_USE" | "ONCE_PER_DAY" | "MULTI_USE" | "LIMITED_MULTI";
 
 interface PassItem {
   id: string;
@@ -471,6 +472,8 @@ interface PassItem {
   totalQuantity: number;
   soldCount: number;
   maxPerUser: number;
+  redemptionMode: RedemptionMode;
+  maxRedemptions: number | null;
   isActive: boolean;
   createdAt: string;
 }
@@ -507,6 +510,8 @@ interface PassFormData {
   validDays: string[];
   totalQuantity: string;
   maxPerUser: string;
+  redemptionMode: RedemptionMode;
+  maxRedemptions: string;
 }
 
 const PASS_TYPE_LABELS: Record<PassType, string> = {
@@ -575,6 +580,8 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       validDays: [...ALL_DAYS],
       totalQuantity: "100",
       maxPerUser: "1",
+      redemptionMode: "SINGLE_USE",
+      maxRedemptions: "1",
     };
   };
 
@@ -647,6 +654,8 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
         validDays: detail.validDays || [],
         totalQuantity: detail.totalQuantity.toString(),
         maxPerUser: detail.maxPerUser.toString(),
+        redemptionMode: detail.redemptionMode || "SINGLE_USE",
+        maxRedemptions: detail.maxRedemptions?.toString() || "1",
       });
       setShowForm(true);
     } catch (err) {
@@ -681,6 +690,8 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       validDays: formData.validDays,
       totalQuantity: parseInt(formData.totalQuantity, 10),
       maxPerUser: parseInt(formData.maxPerUser, 10) || 1,
+      redemptionMode: formData.redemptionMode,
+      maxRedemptions: formData.redemptionMode === "LIMITED_MULTI" ? parseInt(formData.maxRedemptions, 10) || null : null,
     };
 
     try {
@@ -852,6 +863,13 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
                 <PassMeta>
                   <span>Valid: {formatDate(pass.validityStart)} – {formatDate(pass.validityEnd)}</span>
                   <span>Max {pass.maxPerUser}/person</span>
+                  <span>
+                    {pass.redemptionMode === "SINGLE_USE" ? "🔹 Single Use" :
+                     pass.redemptionMode === "ONCE_PER_DAY" ? "🔸 Once/Day" :
+                     pass.redemptionMode === "MULTI_USE" ? "🟢 Unlimited" :
+                     pass.redemptionMode === "LIMITED_MULTI" ? `🔺 ${pass.maxRedemptions || "?"} uses` :
+                     ""}
+                  </span>
                 </PassMeta>
 
                 <PassActions>
@@ -962,6 +980,23 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
                 <Input type="number" min="1" value={formData.maxPerUser} onChange={(e) => setFormData({ ...formData, maxPerUser: e.target.value })} />
               </FormGroup>
             </InlineRow>
+
+            <FormGroup>
+              <Label>Redemption Mode</Label>
+              <Select value={formData.redemptionMode} onChange={(e) => setFormData({ ...formData, redemptionMode: e.target.value as RedemptionMode })}>
+                <option value="SINGLE_USE">Single Use — scan once, then consumed</option>
+                <option value="ONCE_PER_DAY">Once Per Day — reset each calendar day</option>
+                <option value="MULTI_USE">Multi Use — unlimited redemptions</option>
+                <option value="LIMITED_MULTI">Limited Multi — up to N total redemptions</option>
+              </Select>
+            </FormGroup>
+
+            {formData.redemptionMode === "LIMITED_MULTI" && (
+              <FormGroup>
+                <Label>Max Redemptions</Label>
+                <Input type="number" min="1" value={formData.maxRedemptions} onChange={(e) => setFormData({ ...formData, maxRedemptions: e.target.value })} placeholder="e.g. 5" />
+              </FormGroup>
+            )}
 
             <FormGroup>
               <CheckboxLabel>

@@ -1,9 +1,10 @@
-// src/components/bar/qr/QRScanner.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { Html5QrcodeScanner } from "html5-qrcode";
+
+// ---- Styled Components ----
 
 const ScannerContainer = styled.div`
   padding: 1.5rem;
@@ -19,7 +20,7 @@ const ScannerContainer = styled.div`
 const ScannerTitle = styled.h1`
   font-size: 2rem;
   font-weight: 700;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   color: #1f2937;
   text-align: center;
 
@@ -32,6 +33,10 @@ const ScannerSubtitle = styled.p`
   color: #6b7280;
   text-align: center;
   margin-bottom: 2rem;
+
+  @media (max-width: 768px) {
+    font-size: 0.875rem;
+  }
 `;
 
 const ScannerWrapper = styled.div`
@@ -52,37 +57,110 @@ const ResultContainer = styled.div`
   margin-top: 2rem;
   padding: 1.5rem;
   background: white;
-  border-radius: 0.5rem;
+  border-radius: 0.75rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   border: 1px solid #e5e7eb;
 `;
 
-const ResultTitle = styled.h3`
-  font-size: 1.25rem;
-  font-weight: 600;
+const StatusBanner = styled.div<{ $success: boolean }>`
+  padding: 1rem 1.25rem;
+  border-radius: 0.5rem;
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: ${({ $success }) => ($success ? "#dcfce7" : "#fef2f2")};
+  color: ${({ $success }) => ($success ? "#166534" : "#dc2626")};
+  border: 1px solid ${({ $success }) => ($success ? "#bbf7d0" : "#fecaca")};
+  font-weight: 600;
+  font-size: 0.9375rem;
+`;
+
+const ResultGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ResultField = styled.div`
+  padding: 0.625rem 0.75rem;
+  background: #f9fafb;
+  border-radius: 0.375rem;
+  border: 1px solid #f3f4f6;
+`;
+
+const FieldLabel = styled.div`
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.1875rem;
+`;
+
+const FieldValue = styled.div`
+  font-size: 0.9375rem;
+  font-weight: 600;
   color: #1f2937;
 `;
 
-const ResultData = styled.div`
-  background: #f8f9fa;
-  padding: 1rem;
-  border-radius: 0.375rem;
-  border: 1px solid #e5e7eb;
-  font-size: 0.875rem;
+const CounterDisplay = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: #ede9fe;
+  border-radius: 0.5rem;
+  border: 1px solid #c4b5fd;
 `;
 
-const StatusMessage = styled.div<{ $success: boolean }>`
-  padding: 1rem;
-  border-radius: 0.375rem;
-  margin-bottom: 1rem;
-  background: ${(props) => (props.$success ? "#dcfce7" : "#fef2f2")};
-  color: ${(props) => (props.$success ? "#166534" : "#dc2626")};
-  border: 1px solid ${(props) => (props.$success ? "#bbf7d0" : "#fecaca")};
+const CounterNumber = styled.span`
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #7c3aed;
+`;
+
+const CounterLabel = styled.span`
+  font-size: 0.8125rem;
+  color: #6b7280;
+`;
+
+const ModeBadge = styled.span<{ $mode: string }>`
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: ${({ $mode }) => {
+    switch ($mode) {
+      case "SINGLE_USE": return "#fef2f2";
+      case "ONCE_PER_DAY": return "#fef3c7";
+      case "MULTI_USE": return "#dcfce7";
+      case "LIMITED_MULTI": return "#ede9fe";
+      default: return "#f3f4f6";
+    }
+  }};
+  color: ${({ $mode }) => {
+    switch ($mode) {
+      case "SINGLE_USE": return "#dc2626";
+      case "ONCE_PER_DAY": return "#92400e";
+      case "MULTI_USE": return "#166534";
+      case "LIMITED_MULTI": return "#7c3aed";
+      default: return "#6b7280";
+    }
+  }};
 `;
 
 const ActionButtons = styled.div`
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
 `;
 
 const Button = styled.button<{ $variant: "primary" | "secondary" }>`
@@ -92,67 +170,60 @@ const Button = styled.button<{ $variant: "primary" | "secondary" }>`
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
-  margin-right: 0.5rem;
+  font-size: 0.875rem;
 
-  ${(props) =>
-    props.$variant === "primary"
+  ${({ $variant }) =>
+    $variant === "primary"
       ? `
-    background: #3b82f6;
+    background: #7c3aed;
     color: white;
-    
-    &:hover {
-      background: #2563eb;
-    }
+    &:hover { background: #6d28d9; }
   `
       : `
     background: #6b7280;
     color: white;
-    
-    &:hover {
-      background: #4b5563;
-    }
+    &:hover { background: #4b5563; }
   `}
 `;
 
-interface QRScannerProps {
-  barId: string;
-}
+// ---- Types ----
 
-interface CustomerData {
+interface ScanPassResult {
   id: string;
   name: string;
-  email: string;
-  vipStatus: boolean;
-  promotionsUsed: string[];
-}
-
-interface PromotionData {
-  id: string;
-  title: string;
   type: string;
-  validUntil: string;
-  usageCount: number;
-}
-
-interface ScanPayload {
-  customer: CustomerData;
-  promotion?: PromotionData;
-  timestamp: string;
-  signature: string;
+  redemptionMode: string;
+  redemptionModeLabel?: string;
+  remainingUses?: number;
+  totalUsed?: number;
 }
 
 interface ScanResultData {
-  customer: CustomerData;
-  promotion?: PromotionData;
   isValid: boolean;
   message: string;
-  remainingUses?: number;
+  customer?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  pass?: ScanPassResult;
+  promotion?: {
+    id: string;
+    title: string;
+    type: string;
+  };
 }
 
 interface ScanResult {
   success: boolean;
   data?: ScanResultData;
   error?: string;
+}
+
+// ---- Component ----
+
+interface QRScannerProps {
+  barId: string;
 }
 
 const QRScanner = ({ barId }: QRScannerProps) => {
@@ -175,14 +246,11 @@ const QRScanner = ({ barId }: QRScannerProps) => {
     scannerRef.current = new Html5QrcodeScanner(
       "qr-reader",
       {
-        qrbox: {
-          width: 250,
-          height: 250,
-        },
+        qrbox: { width: 250, height: 250 },
         fps: 5,
         supportedScanTypes: [],
       },
-      false
+      false,
     );
 
     scannerRef.current.render(
@@ -196,19 +264,15 @@ const QRScanner = ({ barId }: QRScannerProps) => {
             setIsScanning(false);
           }
         } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : "Failed to process QR code";
           setScanResult({
             success: false,
-            error: errorMessage,
+            error: error instanceof Error ? error.message : "Failed to process QR code",
           });
         }
       },
       (error: string) => {
-        console.warn(`QR Code scan error: ${error}`);
-      }
+        console.warn(`QR scan warning: ${error}`);
+      },
     );
   };
 
@@ -219,48 +283,33 @@ const QRScanner = ({ barId }: QRScannerProps) => {
     }
   };
 
-  const processQRCode = async (qrData: string): Promise<ScanResult> => {
+  const processQRCode = async (rawQr: string): Promise<ScanResult> => {
     try {
       const token = localStorage.getItem("hoppr_token");
 
-      const qrPayload: ScanPayload = JSON.parse(qrData);
-
-      if (
-        !qrPayload.customer ||
-        !qrPayload.customer.id ||
-        !qrPayload.timestamp
-      ) {
-        throw new Error("Invalid QR code format");
-      }
-
-      const response = await fetch(`/api/bar/${barId}/scan`, {
+      // Send raw QR string — server handles format detection
+      const response = await fetch(`/api/auth/bar/${barId}/scan`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          qrData: qrPayload,
-          scannedAt: new Date().toISOString(),
-        }),
+        body: JSON.stringify({ qrData: rawQr }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to process scan");
+        throw new Error(errorData.error || "Failed to process scan");
       }
 
-      const result: ScanResultData = await response.json();
+      const json = await response.json();
+      const data = json.data as ScanResultData;
 
-      return {
-        success: true,
-        data: result,
-      };
+      return { success: true, data };
     } catch (error) {
       return {
         success: false,
-        error:
-          error instanceof Error ? error.message : "Unknown error occurred",
+        error: error instanceof Error ? error.message : "Unknown error occurred",
       };
     }
   };
@@ -272,11 +321,21 @@ const QRScanner = ({ barId }: QRScannerProps) => {
     }
   };
 
+  const passTypeLabel = (type: string): string => {
+    const labels: Record<string, string> = {
+      SKIP_LINE: "Skip Line",
+      COVER_INCLUDED: "Cover Included",
+      PREMIUM_ENTRY: "Premium Entry",
+      DRINK_PACKAGE: "Drink Package",
+    };
+    return labels[type] || type;
+  };
+
   return (
     <ScannerContainer>
-      <ScannerTitle>QR Code Scanner</ScannerTitle>
+      <ScannerTitle>QR Scanner</ScannerTitle>
       <ScannerSubtitle>
-        Scan customer QR codes to validate promotions and VIP passes
+        Scan customer QR codes to validate VIP passes and promotions
       </ScannerSubtitle>
 
       {!isScanning && !scanResult && (
@@ -290,7 +349,7 @@ const QRScanner = ({ barId }: QRScannerProps) => {
       {isScanning && (
         <>
           <ScannerWrapper>
-            <div id="qr-reader" style={{ width: "100%" }}></div>
+            <div id="qr-reader" style={{ width: "100%" }} />
           </ScannerWrapper>
           <ScannerControls>
             <Button $variant="secondary" onClick={stopScanner}>
@@ -302,47 +361,91 @@ const QRScanner = ({ barId }: QRScannerProps) => {
 
       {scanResult && (
         <ResultContainer>
-          <StatusMessage $success={scanResult.success}>
-            {scanResult.success
-              ? "✅ Scan successful!"
-              : `❌ Scan failed: ${scanResult.error}`}
-          </StatusMessage>
+          <StatusBanner $success={!!(scanResult.data?.isValid)}>
+            {scanResult.data?.isValid ? "✅" : "❌"}{" "}
+            {scanResult.data?.message || scanResult.error || "Unknown result"}
+          </StatusBanner>
 
           {scanResult.data && (
             <>
-              <ResultTitle>Scan Result:</ResultTitle>
-              <ResultData>
-                <div>
-                  <strong>Customer:</strong> {scanResult.data.customer.name}
-                </div>
-                <div>
-                  <strong>Email:</strong> {scanResult.data.customer.email}
-                </div>
-                <div>
-                  <strong>VIP Status:</strong>{" "}
-                  {scanResult.data.customer.vipStatus ? "Yes" : "No"}
-                </div>
-                {scanResult.data.promotion && (
-                  <>
-                    <div>
-                      <strong>Promotion:</strong>{" "}
-                      {scanResult.data.promotion.title}
-                    </div>
-                    <div>
-                      <strong>Type:</strong> {scanResult.data.promotion.type}
-                    </div>
-                    {scanResult.data.remainingUses !== undefined && (
-                      <div>
-                        <strong>Remaining Uses:</strong>{" "}
-                        {scanResult.data.remainingUses}
-                      </div>
+              {/* Customer Info */}
+              {scanResult.data.customer && (
+                <ResultGrid>
+                  <ResultField>
+                    <FieldLabel>Customer</FieldLabel>
+                    <FieldValue>{scanResult.data.customer.name}</FieldValue>
+                  </ResultField>
+                  <ResultField>
+                    <FieldLabel>Email</FieldLabel>
+                    <FieldValue>{scanResult.data.customer.email}</FieldValue>
+                  </ResultField>
+                </ResultGrid>
+              )}
+
+              {/* VIP Pass Details */}
+              {scanResult.data.pass && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <ResultGrid>
+                    <ResultField>
+                      <FieldLabel>Pass</FieldLabel>
+                      <FieldValue>{scanResult.data.pass.name}</FieldValue>
+                    </ResultField>
+                    <ResultField>
+                      <FieldLabel>Type</FieldLabel>
+                      <FieldValue>{passTypeLabel(scanResult.data.pass.type)}</FieldValue>
+                    </ResultField>
+                    <ResultField>
+                      <FieldLabel>Redemption Mode</FieldLabel>
+                      <FieldValue>
+                        <ModeBadge $mode={scanResult.data.pass.redemptionMode}>
+                          {scanResult.data.pass.redemptionModeLabel || scanResult.data.pass.redemptionMode}
+                        </ModeBadge>
+                      </FieldValue>
+                    </ResultField>
+                    {scanResult.data.pass.totalUsed !== undefined && (
+                      <ResultField>
+                        <FieldLabel>Times Used</FieldLabel>
+                        <FieldValue>{scanResult.data.pass.totalUsed}</FieldValue>
+                      </ResultField>
                     )}
-                  </>
-                )}
-                <div>
-                  <strong>Message:</strong> {scanResult.data.message}
+                  </ResultGrid>
+
+                  {/* Live Counter for limited-multi passes */}
+                  {scanResult.data.pass.redemptionMode === "LIMITED_MULTI" &&
+                    scanResult.data.pass.remainingUses !== undefined && (
+                      <CounterDisplay>
+                        <CounterNumber>{scanResult.data.pass.remainingUses}</CounterNumber>
+                        <CounterLabel>redemptions remaining</CounterLabel>
+                      </CounterDisplay>
+                    )}
+
+                  {scanResult.data.pass.redemptionMode === "MULTI_USE" &&
+                    scanResult.data.pass.totalUsed !== undefined && (
+                      <CounterDisplay style={{ background: "#dcfce7", border: "1px solid #86efac" }}>
+                        <CounterNumber style={{ color: "#16a34a" }}>
+                          {scanResult.data.pass.totalUsed}
+                        </CounterNumber>
+                        <CounterLabel>total redemptions (unlimited)</CounterLabel>
+                      </CounterDisplay>
+                    )}
                 </div>
-              </ResultData>
+              )}
+
+              {/* Promotion Details */}
+              {scanResult.data.promotion && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <ResultGrid>
+                    <ResultField>
+                      <FieldLabel>Promotion</FieldLabel>
+                      <FieldValue>{scanResult.data.promotion.title}</FieldValue>
+                    </ResultField>
+                    <ResultField>
+                      <FieldLabel>Type</FieldLabel>
+                      <FieldValue>{scanResult.data.promotion.type}</FieldValue>
+                    </ResultField>
+                  </ResultGrid>
+                </div>
+              )}
             </>
           )}
 
