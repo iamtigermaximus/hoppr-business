@@ -296,6 +296,7 @@ const AdminNavbar = () => {
     { href: "/admin/dashboard", label: "Dashboard" },
     { href: "/admin/claims", label: "Claims" },
     { href: "/admin/outreach", label: "Outreach" },
+    { href: "/admin/health", label: "Health" },
     { href: "/admin/users", label: "Users" },
     { href: "/admin/bars", label: "Bars" },
     { href: "/admin/analytics", label: "Analytics" },
