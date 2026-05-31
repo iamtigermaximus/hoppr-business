@@ -388,6 +388,7 @@ const ModalButton = styled.button<{ $variant: "primary" | "outline" | "danger" }
 // Sales table
 const SalesTable = styled.table`
   width: 100%;
+  min-width: 480px;
   border-collapse: collapse;
   font-size: 0.8125rem;
   margin-bottom: 1rem;
@@ -1063,7 +1064,7 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
                 {salesData.purchasers.length === 0 ? (
                   <div style={{ color: "#9ca3af", fontSize: "0.875rem", padding: "1rem 0" }}>No purchases yet</div>
                 ) : (
-                  <div style={{ maxHeight: "300px", overflowY: "auto" }}>
+                  <div style={{ maxHeight: "300px", overflow: "auto" }}>
                     <SalesTable>
                       <thead>
                         <tr>

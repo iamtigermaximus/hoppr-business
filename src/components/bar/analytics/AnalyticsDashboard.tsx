@@ -135,13 +135,17 @@ const BarLabel = styled.div`
   color: #6b7280;
 `;
 
+const TableWrapper = styled.div`
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+`;
+
 const Table = styled.table`
   width: 100%;
+  min-width: 500px;
   border-collapse: collapse;
   background: white;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 `;
 
 const TableHeader = styled.th`
@@ -427,24 +431,26 @@ const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
       <ChartContainer>
         <ChartTitle>Top Performing Promotions</ChartTitle>
         {hasData ? (
-          <Table>
-            <thead>
-              <tr>
-                <TableHeader>Promotion Name</TableHeader>
-                <TableHeader>Usage</TableHeader>
-                <TableHeader>Revenue</TableHeader>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topPromotions.map((promotion, index) => (
-                <tr key={index}>
-                  <TableCell>{promotion.name}</TableCell>
-                  <TableCell>{promotion.usage} times</TableCell>
-                  <TableCell>€{formatNumber(promotion.revenue)}</TableCell>
+          <TableWrapper>
+            <Table>
+              <thead>
+                <tr>
+                  <TableHeader>Promotion Name</TableHeader>
+                  <TableHeader>Usage</TableHeader>
+                  <TableHeader>Revenue</TableHeader>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
+              </thead>
+              <tbody>
+                {data.topPromotions.map((promotion, index) => (
+                  <tr key={index}>
+                    <TableCell>{promotion.name}</TableCell>
+                    <TableCell>{promotion.usage} times</TableCell>
+                    <TableCell>€{formatNumber(promotion.revenue)}</TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrapper>
         ) : (
           <EmptyState style={{ padding: "2rem", margin: 0 }}>
             <EmptyStateIcon>🎯</EmptyStateIcon>

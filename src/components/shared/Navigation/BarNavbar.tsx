@@ -134,8 +134,17 @@ const BarNavItemsContainer = styled.div<BarNavItemsContainerProps>`
   align-items: center;
   flex: 1;
   justify-content: center;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  /* Hide scrollbar but keep scroll functionality */
+  &::-webkit-scrollbar {
+    height: 0;
+  }
+  scrollbar-width: none;
 
   @media (max-width: 768px) {
+    overflow-x: hidden;
     position: absolute;
     top: 100%;
     left: 0;

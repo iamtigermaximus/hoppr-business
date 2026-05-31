@@ -7,6 +7,10 @@ import styled from "styled-components";
 
 const Container = styled.div`
   padding: 1rem;
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+  }
 `;
 
 const StatsGrid = styled.div`
@@ -14,6 +18,12 @@ const StatsGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
 `;
 
 const StatCard = styled.div`
@@ -22,18 +32,34 @@ const StatCard = styled.div`
   border-radius: 0.5rem;
   border: 1px solid #e5e7eb;
   text-align: center;
+
+  @media (max-width: 480px) {
+    padding: 0.75rem 0.5rem;
+  }
 `;
 
 const StatValue = styled.div`
   font-size: 2rem;
   font-weight: 700;
   color: #1f2937;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.25rem;
+  }
 `;
 
 const StatLabel = styled.div`
   font-size: 0.75rem;
   color: #6b7280;
   margin-top: 0.25rem;
+
+  @media (max-width: 480px) {
+    font-size: 0.65rem;
+  }
 `;
 
 const Section = styled.div`
@@ -51,16 +77,26 @@ const SectionHeader = styled.div`
   font-weight: 600;
   font-size: 1rem;
   color: #1f2937;
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
 `;
 
 const SectionContent = styled.div`
   padding: 1rem;
   overflow-x: auto;
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+  }
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
+  min-width: 600px;
 `;
 
 const Th = styled.th`
@@ -70,6 +106,12 @@ const Th = styled.th`
   font-weight: 600;
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
+  white-space: nowrap;
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    font-size: 0.65rem;
+  }
 `;
 
 const Td = styled.td`
@@ -77,6 +119,11 @@ const Td = styled.td`
   font-size: 0.875rem;
   color: #6b7280;
   border-bottom: 1px solid #e5e7eb;
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    font-size: 0.75rem;
+  }
 `;
 
 const Badge = styled.span<{ $status: string }>`
@@ -122,12 +169,21 @@ const EmptyState = styled.div`
   background: #f9fafb;
   border-radius: 0.5rem;
   color: #6b7280;
+
+  @media (max-width: 480px) {
+    padding: 1.5rem 1rem;
+  }
 `;
 
 const LoadingState = styled.div`
   text-align: center;
   padding: 2rem;
   color: #6b7280;
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    font-size: 0.875rem;
+  }
 `;
 
 interface BarStats {

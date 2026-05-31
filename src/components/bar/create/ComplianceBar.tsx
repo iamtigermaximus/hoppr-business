@@ -9,6 +9,7 @@ import type { ComplianceResult } from "@/lib/compliance-engine";
 
 const Bar = styled.div<{ $status: "compliant" | "flagged" | "clean" }>`
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
   padding: 0.625rem 1rem;
@@ -27,6 +28,11 @@ const Bar = styled.div<{ $status: "compliant" | "flagged" | "clean" }>`
         : $status === "flagged"
           ? "#fde68a"
           : "#e5e7eb"};
+
+  @media (max-width: 480px) {
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
 `;
 
 const StatusDot = styled.span<{ $severity: "high" | "medium" | "low" | "none" }>`
