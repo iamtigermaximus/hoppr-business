@@ -3,6 +3,7 @@
 import AIPromotionGenerator from "@/components/promotions/AIPromotionGenerator";
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import ComplianceIndicator from "@/components/shared/ComplianceIndicator";
 
 // Styled Components with Responsive Design
 const Container = styled.div`
@@ -1525,6 +1526,11 @@ const PromotionsWizard = ({
           required
         />
       </FormGroup>
+
+      <ComplianceIndicator
+        title={formData.title}
+        description={formData.description}
+      />
 
       <FormGroup>
         <Label>Promotion Type *</Label>

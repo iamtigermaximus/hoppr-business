@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
+import ComplianceIndicator from "@/components/shared/ComplianceIndicator";
 
 // ---- Styled Components ----
 
@@ -767,6 +768,11 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
                 placeholder="What's happening at this event?"
               />
             </FormGroup>
+
+            <ComplianceIndicator
+              title={formData.title}
+              description={formData.description}
+            />
 
             <FormGroup>
               <Label>Start Time *</Label>
