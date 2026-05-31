@@ -250,6 +250,7 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
       label: "👥 Staff",
       restricted: ["OWNER", "MANAGER"],
     },
+    { href: `/bar/${barId}/events`, label: "📅 Events" },
     { href: `/bar/${barId}/promotions`, label: " Promotions" },
     { href: `/bar/${barId}/scanner`, label: " QR Scanner" },
     { href: `/bar/${barId}/analytics`, label: " Analytics" },
