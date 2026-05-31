@@ -175,7 +175,11 @@ export async function POST(
       return NextResponse.json({ error: "Bar not found" }, { status: 404 });
     }
 
-    // 6. Create record and compliance check based on content type
+    // 6. Resolve compliance status for persistence
+    const resolvedComplianceStatus =
+      compliance.status === "FLAGGED_AUTO" ? "FLAGGED_AUTO" : "COMPLIANT";
+
+    // 7. Create record and compliance check based on content type
     let record: Record<string, unknown> | null = null;
 
     if (body.contentType === "event") {
@@ -193,10 +197,6 @@ export async function POST(
 
       const finalStatus =
         compliance.status === "FLAGGED_AUTO" ? "FLAGGED_AUTO" : baseStatus;
-
-      const priceCents = body.priceEuros
-        ? Math.round(parseFloat(body.priceEuros) * 100)
-        : null;
 
       const event = await prisma.event.create({
         data: {
@@ -247,13 +247,8 @@ export async function POST(
             break;
           default:
             validDays = [
-              "Monday",
-              "Tuesday",
-              "Wednesday",
-              "Thursday",
-              "Friday",
-              "Saturday",
-              "Sunday",
+              "Monday", "Tuesday", "Wednesday", "Thursday",
+              "Friday", "Saturday", "Sunday",
             ];
         }
       }
@@ -273,6 +268,7 @@ export async function POST(
           imageUrl: body.imageUrl || null,
           isActive: true,
           isApproved: isAutoApproved,
+          complianceStatus: resolvedComplianceStatus,
           priority: 1,
           views: 0,
           clicks: 0,
@@ -283,10 +279,7 @@ export async function POST(
       await prisma.complianceCheck.create({
         data: {
           promotionId: promotion.id,
-          status:
-            compliance.status === "FLAGGED_AUTO"
-              ? "FLAGGED_AUTO"
-              : "COMPLIANT",
+          status: resolvedComplianceStatus,
           violations: compliance.violations as unknown as object[],
           checkedAt: compliance.checkedAt,
         },
@@ -297,7 +290,7 @@ export async function POST(
         type: "promotion",
         title: promotion.title,
         isApproved: promotion.isApproved,
-        complianceStatus: compliance.status === "FLAGGED_AUTO" ? "FLAGGED_AUTO" : "COMPLIANT",
+        complianceStatus: resolvedComplianceStatus,
       };
     } else if (body.contentType === "pass") {
       const priceCents = Math.round(parseFloat(body.priceEuros || "0") * 100);
@@ -338,10 +331,7 @@ export async function POST(
       await prisma.complianceCheck.create({
         data: {
           passId: pass.id,
-          status:
-            compliance.status === "FLAGGED_AUTO"
-              ? "FLAGGED_AUTO"
-              : "COMPLIANT",
+          status: resolvedComplianceStatus,
           violations: compliance.violations as unknown as object[],
           checkedAt: compliance.checkedAt,
         },
@@ -352,11 +342,11 @@ export async function POST(
         type: "pass",
         title: pass.name,
         priceCents: pass.priceCents,
-        complianceStatus: compliance.status === "FLAGGED_AUTO" ? "FLAGGED_AUTO" : "COMPLIANT",
+        complianceStatus: resolvedComplianceStatus,
       };
     }
 
-    // 7. Return success response
+    // 8. Return success response
     return NextResponse.json({
       success: true,
       message: `${body.contentType.charAt(0).toUpperCase() + body.contentType.slice(1)} created successfully`,
