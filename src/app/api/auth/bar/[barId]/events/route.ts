@@ -138,7 +138,11 @@ export async function POST(
         isPrivate: body.isPrivate || false,
         imageUrl: body.imageUrl || null,
         creatorId: decoded.id,
-        complianceStatus: "COMPLIANT",
+        // Staff-created events need manager approval
+        complianceStatus:
+          decoded.staffRole === "OWNER" || decoded.staffRole === "MANAGER"
+            ? "COMPLIANT"
+            : "PENDING_REVIEW",
       },
       include: {
         _count: { select: { participants: true } },

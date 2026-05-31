@@ -143,7 +143,8 @@ export async function POST(
         endDate: new Date(body.endDate),
         validDays: validDays,
         isActive: true,
-        isApproved: false, // Always starts as pending approval
+        isApproved:
+          decoded.staffRole === "OWNER" || decoded.staffRole === "MANAGER", // Auto-approve for managers
         priority: 1,
         views: 0,
         clicks: 0,

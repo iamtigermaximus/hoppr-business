@@ -177,6 +177,74 @@ export async function PUT(
   }
 }
 
+// PATCH — approve or reject an event (manager only)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ barId: string; id: string }> },
+) {
+  try {
+    const token = request.headers.get("authorization")?.replace("Bearer ", "");
+    const { barId, id } = await params;
+
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const decoded = verify(token, JWT_SECRET) as JWTPayload;
+    if (decoded.barId !== barId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const allowedRoles = ["OWNER", "MANAGER"];
+    if (!decoded.staffRole || !allowedRoles.includes(decoded.staffRole)) {
+      return NextResponse.json(
+        { error: "Only owners and managers can approve or reject events" },
+        { status: 403 },
+      );
+    }
+
+    const existing = await prisma.event.findFirst({
+      where: { id, venueId: barId },
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    const { action } = await request.json();
+
+    if (action !== "approve" && action !== "reject") {
+      return NextResponse.json(
+        { error: "Action must be 'approve' or 'reject'" },
+        { status: 400 },
+      );
+    }
+
+    const newStatus = action === "approve" ? "COMPLIANT" : "REJECTED";
+
+    const event = await prisma.event.update({
+      where: { id },
+      data: { complianceStatus: newStatus },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: action === "approve" ? "Event approved" : "Event rejected",
+      event: {
+        id: event.id,
+        title: event.title,
+        complianceStatus: event.complianceStatus,
+      },
+    });
+  } catch (error) {
+    console.error("Approve/reject event error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Internal server error" },
+      { status: 500 },
+    );
+  }
+}
+
 // DELETE — cancel/delete an event
 export async function DELETE(
   request: NextRequest,
