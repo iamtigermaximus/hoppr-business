@@ -256,6 +256,7 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
     { href: `/bar/${barId}/passes`, label: "🎟️ Passes" },
     { href: `/bar/${barId}/scanner`, label: " QR Scanner" },
     { href: `/bar/${barId}/analytics`, label: " Analytics" },
+    { href: `/bar/${barId}/preview`, label: "👁️ Preview" },
   ];
 
   const handleLogout = () => {
