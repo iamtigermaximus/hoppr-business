@@ -1686,6 +1686,33 @@ const DashboardContent = () => {
     fetchActivities();
   }, []);
 
+  const [recalculating, setRecalculating] = useState(false);
+
+  const handleRecalculateScores = async () => {
+    setRecalculating(true);
+    try {
+      const token = getToken();
+      if (!token) return;
+      const res = await fetch("/api/auth/admin/bars/calculate-scores", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(
+          `Scores recalculated for ${data.processed} bars!\n\n` +
+            `Average: ${data.stats.averageScore}/100\n` +
+            `Active: ${data.tierDistribution.ACTIVE} | Growing: ${data.tierDistribution.GROWING} | ` +
+            `Stagnant: ${data.tierDistribution.STAGNANT} | Dead: ${data.tierDistribution.DEAD} | New: ${data.tierDistribution.NEW}`
+        );
+      }
+    } catch (err) {
+      console.error("Recalculate error:", err);
+    } finally {
+      setRecalculating(false);
+    }
+  };
+
   const quickActions = [
     {
       title: "View Analytics",
@@ -1704,6 +1731,12 @@ const DashboardContent = () => {
       description: "View and manage platform users and permissions",
       icon: "👥",
       onClick: () => router.push("/admin/users"),
+    },
+    {
+      title: recalculating ? "Calculating..." : "Recalculate Scores",
+      description: "Recompute quality scores and performance tiers for all bars",
+      icon: "📈",
+      onClick: () => handleRecalculateScores(),
     },
   ];
 

@@ -401,6 +401,75 @@ const QuickActionsContainer = styled.div`
   gap: 0.75rem;
 `;
 
+// Quality Score specific components
+const ScoreContainer = styled.div`
+  margin-top: 0.5rem;
+`;
+
+const ScoreHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+`;
+
+const ScoreValue = styled.span<{ $score: number }>`
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: ${({ $score }) => {
+    if ($score >= 70) return "#16a34a";
+    if ($score >= 50) return "#f59e0b";
+    if ($score >= 30) return "#f97316";
+    return "#dc2626";
+  }};
+`;
+
+const ScoreBar = styled.div`
+  width: 100%;
+  height: 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
+  overflow: hidden;
+`;
+
+const ScoreFill = styled.div<{ $score: number }>`
+  height: 100%;
+  width: ${({ $score }) => $score}%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  background: ${({ $score }) => {
+    if ($score >= 70) return "#16a34a";
+    if ($score >= 50) return "#f59e0b";
+    if ($score >= 30) return "#f97316";
+    return "#dc2626";
+  }};
+`;
+
+const TierBadge = styled.span<{ $tier: string }>`
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  ${({ $tier }) => {
+    switch ($tier) {
+      case "ACTIVE":
+        return "background: #dcfce7; color: #166534;";
+      case "GROWING":
+        return "background: #dbeafe; color: #1e40af;";
+      case "STAGNANT":
+        return "background: #fef3c7; color: #92400e;";
+      case "DEAD":
+        return "background: #fef2f2; color: #dc2626;";
+      case "NEW":
+        return "background: #f3e8ff; color: #7c3aed;";
+      default:
+        return "background: #f3f4f6; color: #6b7280;";
+    }
+  }}
+`;
+
 // Default operating hours for display only
 const DEFAULT_OPERATING_HOURS = {
   Monday: { open: "16:00", close: "02:00" },
@@ -448,6 +517,12 @@ interface Bar {
   isActive: boolean;
   vipEnabled: boolean;
   profileViews: number;
+  directionClicks: number;
+  websiteClicks: number;
+  callClicks: number;
+  shareCount: number;
+  qualityScore: number | null;
+  performanceTier: string | null;
   createdAt: string;
   updatedAt: string;
   claimedAt: string | null;
@@ -589,6 +664,21 @@ const BarDetails = () => {
       alert("Failed to send invitation");
     } finally {
       setInviting(false);
+    }
+  };
+
+  const fetchScores = async () => {
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const res = await fetch(`/api/auth/admin/bars/calculate-scores?barId=${barId}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        fetchBar(); // Refresh bar data to show new scores
+      }
+    } catch (err) {
+      console.error("Failed to calculate scores:", err);
     }
   };
 
@@ -949,6 +1039,58 @@ const BarDetails = () => {
                 <InfoLabel>Profile Views</InfoLabel>
                 <InfoValue>{bar.profileViews?.toLocaleString() || 0}</InfoValue>
               </InfoGroup>
+            </ColumnFlex>
+          </Card>
+
+          {/* Quality Score Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quality Score</CardTitle>
+            </CardHeader>
+            <ColumnFlex>
+              {bar.qualityScore !== null && bar.qualityScore !== undefined ? (
+                <>
+                  <ScoreContainer>
+                    <ScoreHeader>
+                      <ScoreValue $score={bar.qualityScore}>
+                        {bar.qualityScore}/100
+                      </ScoreValue>
+                      {bar.performanceTier && (
+                        <TierBadge $tier={bar.performanceTier}>
+                          {bar.performanceTier}
+                        </TierBadge>
+                      )}
+                    </ScoreHeader>
+                    <ScoreBar>
+                      <ScoreFill $score={bar.qualityScore} />
+                    </ScoreBar>
+                  </ScoreContainer>
+                  <InfoGroup>
+                    <InfoLabel>Engagement Clicks</InfoLabel>
+                    <InfoValue>
+                      {((bar.directionClicks || 0) + (bar.websiteClicks || 0) + (bar.callClicks || 0)).toLocaleString()} total
+                    </InfoValue>
+                  </InfoGroup>
+                  <InfoGroup>
+                    <InfoLabel>Shares</InfoLabel>
+                    <InfoValue>{bar.shareCount?.toLocaleString() || 0}</InfoValue>
+                  </InfoGroup>
+                </>
+              ) : (
+                <div style={{ color: "#9ca3af", fontSize: "0.875rem", padding: "0.5rem 0" }}>
+                  Quality scores not yet calculated.{" "}
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      fetchScores();
+                    }}
+                    style={{ color: "#7c3aed", textDecoration: "underline" }}
+                  >
+                    Calculate now
+                  </a>
+                </div>
+              )}
             </ColumnFlex>
           </Card>
 
