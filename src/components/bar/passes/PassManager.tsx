@@ -791,7 +791,9 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       <Header>
         <Title>VIP Passes</Title>
         {canManage && (
-          <CreateButton onClick={handleCreate}>+ Create Pass</CreateButton>
+          <CreateButton as="a" href={`/bar/${barId}/create`}>
+            + Create Pass
+          </CreateButton>
         )}
       </Header>
 

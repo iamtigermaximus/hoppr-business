@@ -90,7 +90,8 @@ export async function PATCH(
       where: { id },
       data: {
         isApproved,
-        isActive: true,
+        // Approving makes it visible; rejecting hides it from consumers
+        isActive: isApproved === true ? true : false,
       },
     });
 

@@ -9,7 +9,7 @@ import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 interface JWTPayload {
-  id: string;
+  userId: string;
   email: string;
   barId: string;
   name: string;
@@ -132,6 +132,20 @@ export async function POST(
         ? "COMPLIANT"
         : "PENDING_REVIEW";
 
+    // Resolve the real User.id from BarStaff (JWT stores BarStaff.id, but Event.creatorId references User.id)
+    const barStaff = await prisma.barStaff.findUnique({
+      where: { id: decoded.userId },
+      select: { userId: true },
+    });
+    const creatorUserId = barStaff?.userId;
+
+    if (!creatorUserId) {
+      return NextResponse.json(
+        { error: "Cannot create event: no linked user account found for this staff member" },
+        { status: 400 },
+      );
+    }
+
     const event = await prisma.event.create({
       data: {
         title: body.title,
@@ -144,7 +158,7 @@ export async function POST(
         maxAttendees: body.maxAttendees || null,
         isPrivate: body.isPrivate || false,
         imageUrl: body.imageUrl || null,
-        creatorId: decoded.id,
+        creatorId: creatorUserId,
         complianceStatus: baseStatus,
       },
       include: {

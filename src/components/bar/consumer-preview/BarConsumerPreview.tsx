@@ -266,11 +266,11 @@ interface ConsumerPreview {
     capacity: number | null;
     amenities: string[];
     imageUrl: string | null;
-    imageUrls: string[];
+    imageUrls: string[] | Record<string, unknown>;
     logoUrl: string | null;
     lat: number | null;
     lng: number | null;
-    hours: Record<string, string> | null;
+    hours: Record<string, { open: string; close: string } | string> | null;
   };
   promotions: Array<{
     id: string;
@@ -526,18 +526,28 @@ export default function BarConsumerPreview({ barId }: BarConsumerPreviewProps) {
             <SectionTitle style={{ margin: 0 }}>Opening Hours</SectionTitle>
           </div>
           <HoursGrid>
-            {days.map((day) => (
-              <HourRow key={day} $today={day === today}>
-                <span style={{ textTransform: "capitalize" }}>{day}</span>
-                <span>
-                  {venue.hours?.[day] ||
-                    venue.hours?.[
-                      day.charAt(0).toUpperCase() + day.slice(1)
-                    ] ||
-                    "Closed"}
-                </span>
-              </HourRow>
-            ))}
+            {days.map((day) => {
+              const capitalized = day.charAt(0).toUpperCase() + day.slice(1);
+              const raw = venue.hours?.[day] ?? venue.hours?.[capitalized];
+              let display = "Closed";
+              if (raw) {
+                if (typeof raw === "object" && "open" in raw && "close" in raw) {
+                  if (raw.open.toLowerCase() === "closed" && raw.close.toLowerCase() === "closed") {
+                    display = "Closed";
+                  } else {
+                    display = `${raw.open} – ${raw.close}`;
+                  }
+                } else if (typeof raw === "string") {
+                  display = raw;
+                }
+              }
+              return (
+                <HourRow key={day} $today={day === today}>
+                  <span style={{ textTransform: "capitalize" }}>{day}</span>
+                  <span>{display}</span>
+                </HourRow>
+              );
+            })}
           </HoursGrid>
         </SectionCard>
       )}

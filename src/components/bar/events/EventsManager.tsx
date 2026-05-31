@@ -649,7 +649,9 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
       <Header>
         <Title>Events</Title>
         {canManage && (
-          <CreateButton onClick={handleCreate}>+ Create Event</CreateButton>
+          <CreateButton as="a" href={`/bar/${barId}/create`}>
+            + Create Event
+          </CreateButton>
         )}
       </Header>
 

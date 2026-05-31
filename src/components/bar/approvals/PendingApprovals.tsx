@@ -285,11 +285,12 @@ interface PendingItem {
 interface ApprovalData {
   promotions: PendingItem[];
   events: PendingItem[];
-  counts: {
-    promotions: number;
-    events: number;
-    total: number;
-  };
+}
+
+interface ApprovalCounts {
+  promotions: number;
+  events: number;
+  total: number;
 }
 
 // ---- Helpers ----
@@ -332,6 +333,7 @@ interface PendingApprovalsProps {
 
 const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
   const [approvals, setApprovals] = useState<ApprovalData | null>(null);
+  const [counts, setCounts] = useState<ApprovalCounts>({ promotions: 0, events: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null); // id of item being acted on
@@ -350,6 +352,7 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       const data = await res.json();
       setApprovals(data.approvals);
+      setCounts(data.counts ?? { promotions: 0, events: 0, total: 0 });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load approvals");
     } finally {
@@ -395,16 +398,16 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
 
       // Remove from list optimistically
       if (approvals) {
+        const itemKey = item.itemType === "promotion" ? "promotions" : "events";
         setApprovals({
           promotions: approvals.promotions.filter((p) => p.id !== item.id),
           events: approvals.events.filter((e) => e.id !== item.id),
-          counts: {
-            ...approvals.counts,
-            [item.itemType === "promotion" ? "promotions" : "events"]:
-              approvals.counts[item.itemType === "promotion" ? "promotions" : "events"] - 1,
-            total: approvals.counts.total - 1,
-          },
         });
+        setCounts((prev) => ({
+          ...prev,
+          [itemKey]: prev[itemKey] - 1,
+          total: prev.total - 1,
+        }));
       }
       showToast(`"${item.title}" approved`, "success");
     } catch (err) {
@@ -443,16 +446,16 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
 
       // Remove from list optimistically
       if (approvals) {
+        const itemKey = item.itemType === "promotion" ? "promotions" : "events";
         setApprovals({
           promotions: approvals.promotions.filter((p) => p.id !== item.id),
           events: approvals.events.filter((e) => e.id !== item.id),
-          counts: {
-            ...approvals.counts,
-            [item.itemType === "promotion" ? "promotions" : "events"]:
-              approvals.counts[item.itemType === "promotion" ? "promotions" : "events"] - 1,
-            total: approvals.counts.total - 1,
-          },
         });
+        setCounts((prev) => ({
+          ...prev,
+          [itemKey]: prev[itemKey] - 1,
+          total: prev.total - 1,
+        }));
       }
       showToast(`"${item.title}" rejected`, "success");
     } catch (err) {
@@ -491,8 +494,8 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
         <Title>
           Approvals
           {approvals && (
-            <CountBadge $hasItems={approvals.counts.total > 0}>
-              {approvals.counts.total}
+            <CountBadge $hasItems={counts.total > 0}>
+              {counts.total}
             </CountBadge>
           )}
         </Title>
@@ -525,7 +528,7 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
             <Section>
               <SectionHeader>
                 <SectionTitle>Promotions</SectionTitle>
-                <SectionCount>({approvals.counts.promotions} pending)</SectionCount>
+                <SectionCount>({counts.promotions} pending)</SectionCount>
               </SectionHeader>
               <ApprovalList>
                 {approvals.promotions.map((item) => (
@@ -570,7 +573,7 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
             <Section>
               <SectionHeader>
                 <SectionTitle>Events</SectionTitle>
-                <SectionCount>({approvals.counts.events} pending)</SectionCount>
+                <SectionCount>({counts.events} pending)</SectionCount>
               </SectionHeader>
               <ApprovalList>
                 {approvals.events.map((item) => (

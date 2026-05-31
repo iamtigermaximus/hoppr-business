@@ -1459,47 +1459,22 @@ const PromotionsWizard = ({
     );
   };
 
-  const renderModeSelection = () => (
+  const renderHeader = () => (
     <div>
-      <Title>Create Promotion</Title>
-      <Subtitle>Choose how you&apos;d like to create your promotion</Subtitle>
-
-      <ModeSelector>
-        <ModeCard
-          $selected={showAIGenerator}
-          onClick={() => setShowAIGenerator(true)}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div>
+          <Title>Promotions</Title>
+          <Subtitle>Manage your bar&apos;s promotions</Subtitle>
+        </div>
+        <Button
+          $variant="primary"
+          as="a"
+          href={`/bar/${barId}/create`}
+          style={{ textDecoration: "none" }}
         >
-          <ModeIcon>🤖</ModeIcon>
-          <ModeTitle>AI Assistant</ModeTitle>
-          <AITag>NEW</AITag>
-          <ModeDescription>
-            Let AI create the perfect promotion for your bar
-          </ModeDescription>
-          <ModeFeatures>
-            • Smart suggestions based on your bar
-            <br />• One-click generation
-            <br />• Professional copy
-            <br />• No writing needed
-          </ModeFeatures>
-        </ModeCard>
-
-        <ModeCard
-          $selected={mode === "manual"}
-          onClick={() => setMode("manual")}
-        >
-          <ModeIcon>✏️</ModeIcon>
-          <ModeTitle>Manual Creation</ModeTitle>
-          <ModeDescription>
-            Create promotions from scratch with full control
-          </ModeDescription>
-          <ModeFeatures>
-            • Full creative control
-            <br />• Custom everything
-            <br />• For experts
-          </ModeFeatures>
-        </ModeCard>
-      </ModeSelector>
-
+          + Create Promotion
+        </Button>
+      </div>
       {renderPromotionsList()}
     </div>
   );
@@ -1692,102 +1667,11 @@ const PromotionsWizard = ({
     }
   };
 
-  // AI Generator Mode
-  if (showAIGenerator) {
-    return (
-      <>
-        <Container>
-          <BackButton onClick={() => setShowAIGenerator(false)}>
-            ← Back to Mode Selection
-          </BackButton>
-          <Title>AI Promotion Generator</Title>
-          <Subtitle>Let AI create the perfect promotion for your bar</Subtitle>
-          {error && <ErrorMessage>❌ {error}</ErrorMessage>}
-          {success && <SuccessMessage>✅ {success}</SuccessMessage>}
-          <AIPromotionGenerator
-            barId={barId}
-            onGenerate={handleAIGenerate}
-            currentType={formData.type}
-            currentAudience={formData.targetAudience}
-          />
-          <ButtonGroup style={{ marginTop: "2rem" }}>
-            <Button
-              $variant="outline"
-              onClick={() => setShowAIGenerator(false)}
-            >
-              Back to Mode Selection
-            </Button>
-          </ButtonGroup>
-        </Container>
-        {renderModal()}
-      </>
-    );
-  }
-
-  if (!mode) {
-    return (
-      <>
-        <Container>{renderModeSelection()}</Container>
-        {renderModal()}
-      </>
-    );
-  }
-
-  // Manual mode
+  // Always show the promotions list with link to unified create hub
   return (
     <>
       <Container>
-        <BackButton onClick={() => setMode(null)}>
-          ← Back to Mode Selection
-        </BackButton>
-
-        <Title>Create Promotion</Title>
-        <Subtitle>Manual creation with full control</Subtitle>
-
-        {error && <ErrorMessage>❌ {error}</ErrorMessage>}
-        {success && <SuccessMessage>✅ {success}</SuccessMessage>}
-
-        <WizardContainer>
-          <WizardHeader>
-            {steps.map((step) => (
-              <WizardStep
-                key={step.id}
-                $active={currentStep === step.id}
-                $completed={currentStep > step.id}
-                onClick={() => setCurrentStep(step.id)}
-              >
-                {step.title}
-              </WizardStep>
-            ))}
-          </WizardHeader>
-
-          <WizardContent>
-            {renderManualWizard()}
-
-            <ButtonGroup>
-              <Button
-                $variant="outline"
-                onClick={prevStep}
-                disabled={currentStep === 1}
-              >
-                Previous
-              </Button>
-              {currentStep < steps.length ? (
-                <Button $variant="primary" onClick={nextStep}>
-                  Next
-                </Button>
-              ) : (
-                <Button
-                  $variant="secondary"
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                >
-                  {submitting ? "Creating..." : "Create Draft Promotion"}
-                </Button>
-              )}
-            </ButtonGroup>
-          </WizardContent>
-        </WizardContainer>
+        {renderHeader()}
       </Container>
       {renderModal()}
     </>
