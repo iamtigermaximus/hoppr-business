@@ -5,6 +5,8 @@
 import { useState, useEffect } from "react";
 import styled from "styled-components";
 import PerformanceDashboard from "./PerformanceDashboard";
+import FollowersAnalytics from "./FollowersAnalytics";
+import CrowdAnalytics from "./CrowdAnalytics";
 
 const Container = styled.div`
   padding: 1.5rem;
@@ -289,7 +291,7 @@ interface AnalyticsDashboardProps {
   barId: string;
 }
 
-type TabType = "overview" | "promotions" | "customers" | "performance";
+type TabType = "overview" | "promotions" | "customers" | "followers" | "performance" | "crowd";
 
 const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
   const [activeTab, setActiveTab] = useState<TabType>("overview");
@@ -595,17 +597,31 @@ const AnalyticsDashboard = ({ barId }: AnalyticsDashboardProps) => {
           Customers
         </Tab>
         <Tab
+          $active={activeTab === "followers"}
+          onClick={() => setActiveTab("followers")}
+        >
+          👥 Followers
+        </Tab>
+        <Tab
           $active={activeTab === "performance"}
           onClick={() => setActiveTab("performance")}
         >
           📊 Performance
+        </Tab>
+        <Tab
+          $active={activeTab === "crowd"}
+          onClick={() => setActiveTab("crowd")}
+        >
+          👥 Crowd
         </Tab>
       </Tabs>
 
       {activeTab === "overview" && renderOverviewTab(analyticsData)}
       {activeTab === "promotions" && renderPromotionsTab(analyticsData)}
       {activeTab === "customers" && renderCustomersTab(analyticsData)}
+      {activeTab === "followers" && <FollowersAnalytics barId={barId} />}
       {activeTab === "performance" && <PerformanceDashboard barId={barId} />}
+      {activeTab === "crowd" && <CrowdAnalytics barId={barId} />}
     </Container>
   );
 };

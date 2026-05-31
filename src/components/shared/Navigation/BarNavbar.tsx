@@ -484,6 +484,7 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
       { href: `/bar/${barId}/promotions`, label: "🎁 Promotions" },
       { href: `/bar/${barId}/passes`, label: "🎟️ Passes" },
       { href: `/bar/${barId}/scanner`, label: "📷 QR Scanner" },
+      { href: `/bar/${barId}/calendar`, label: "📆 Calendar" },
     ],
   };
 
@@ -675,13 +676,23 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
           {showTeamDropdown &&
             renderDropdown(teamDropdown, isTeamActive, teamRef)}
 
-          {/* Preview */}
+          {/* Ads (restricted to OWNER/MANAGER) */}
+        {["OWNER", "MANAGER"].includes(userRole) && (
           <BarNavItem
-            $active={pathname === `/bar/${barId}/preview`}
-            onClick={() => handleNavClick(`/bar/${barId}/preview`)}
+            $active={pathname === `/bar/${barId}/campaigns`}
+            onClick={() => handleNavClick(`/bar/${barId}/campaigns`)}
           >
-            👁️ Preview
+            📢 Ads
           </BarNavItem>
+        )}
+
+        {/* Preview */}
+        <BarNavItem
+          $active={pathname === `/bar/${barId}/preview`}
+          onClick={() => handleNavClick(`/bar/${barId}/preview`)}
+        >
+          👁️ Preview
+        </BarNavItem>
 
           {/* User menu */}
           <BarUserMenu>

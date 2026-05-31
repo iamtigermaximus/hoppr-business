@@ -161,6 +161,16 @@ enum AnalyticsEventType {
   BAR_SHARE
   SEARCH
   FEED_SCROLL
+  FOLLOW
+  UNFOLLOW
+}
+
+enum CrowdLevel {
+  QUIET
+  GETTING_BUSY
+  BUSY
+  PACKED
+  AT_CAPACITY
 }
 
 enum OutreachMethod {
@@ -200,6 +210,8 @@ enum NotificationType {
   STAFF_APPROVED
   SUBMISSION_APPROVED
   SUBMISSION_REJECTED
+  BAR_FOLLOWED
+  BAR_NEW_CONTENT
 }
 
 // ============================================
@@ -270,6 +282,10 @@ model User {
   barImports         BarImport[]
   outreachLogs       OutreachLog[]
   reviewedClaims     BarClaim[]        @relation("BarClaimReviewer")
+
+  // Followed bars (consumer)
+  followedBars BarFollow[]
+  crowdReports CrowdReport[]
 
   @@map("users")
 }
@@ -416,7 +432,42 @@ model Bar {
   analyticsEvents AnalyticsEvent[]
   auditLogs       AuditLog[]
 
+  // Followers
+  followers BarFollow[]
+
+  // Crowd reports
+  crowdReports CrowdReport[]
+
   @@map("bars")
+}
+
+model BarFollow {
+  id        String   @id @default(cuid())
+  userId    String
+  barId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bar  Bar  @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, barId])
+  @@map("bar_follows")
+}
+
+model CrowdReport {
+  id         String    @id @default(cuid())
+  barId      String
+  level      CrowdLevel
+  reportedBy String
+  reportedAt DateTime  @default(now())
+  expiresAt  DateTime
+
+  bar      Bar  @relation(fields: [barId], references: [id], onDelete: Cascade)
+  reporter User @relation(fields: [reportedBy], references: [id], onDelete: Cascade)
+
+  @@index([barId, reportedAt])
+  @@index([barId, expiresAt])
+  @@map("crowd_reports")
 }
 
 model BusinessAccount {
@@ -586,6 +637,7 @@ model Event {
   creator      User               @relation("EventCreator", fields: [creatorId], references: [id])
   venue        Bar                @relation(fields: [venueId], references: [id])
   participants EventParticipant[]
+  crawlStops   EventCrawlStop[]
   chatRoom     EventChatRoom?
   complianceChecks ComplianceCheck[]
 
@@ -605,6 +657,23 @@ model EventParticipant {
   @@id([userId, eventId])
   @@index([eventId])
   @@map("event_participants")
+}
+
+model EventCrawlStop {
+  id        String    @id @default(cuid())
+  eventId   String
+  venueId   String
+  venueName String
+  venueType String?
+  order     Int
+  arriveAt  DateTime?
+  leaveAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_crawl_stops")
 }
 
 model EventChatRoom {
