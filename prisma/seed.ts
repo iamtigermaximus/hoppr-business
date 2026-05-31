@@ -55,6 +55,38 @@ async function main() {
   }
 
   console.log(`\n🎉 Done!`);
+
+  // Create a test claim for the first bar
+  if (bars.length > 0) {
+    const claimBar = bars[0];
+    const ownerEmail = `owner@${claimBar.name.toLowerCase().replace(/[^a-z0-9]/g, "")}.fi`;
+    const owner = await prisma.user.upsert({
+      where: { email: ownerEmail },
+      update: {},
+      create: {
+        email: ownerEmail,
+        name: `${claimBar.name} Owner`,
+        hashedPassword,
+        role: "BAR_STAFF",
+      },
+    });
+
+    await prisma.barClaim.upsert({
+      where: { id: `test-claim-${claimBar.id}` },
+      update: {},
+      create: {
+        id: `test-claim-${claimBar.id}`,
+        barId: claimBar.id,
+        userId: owner.id,
+        documentUrls: [],
+        notes: "I am the owner of this bar. Please verify my claim.",
+        status: "CLAIMED",
+      },
+    });
+    console.log(`✅ Test claim created for ${claimBar.name}`);
+  }
+
+  console.log(`\n🎉 Done!`);
 }
 
 main()
