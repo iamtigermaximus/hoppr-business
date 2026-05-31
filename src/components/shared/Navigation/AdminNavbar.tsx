@@ -300,6 +300,7 @@ const AdminNavbar = () => {
     { href: "/admin/users", label: "Users" },
     { href: "/admin/bars", label: "Bars" },
     { href: "/admin/analytics", label: "Analytics" },
+    { href: "/admin/revenue", label: "Revenue" },
   ];
 
   const handleLogout = () => {
