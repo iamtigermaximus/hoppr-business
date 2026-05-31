@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient, PromotionType } from "@prisma/client";
 import { verify } from "jsonwebtoken";
+import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
@@ -152,7 +153,32 @@ export async function POST(
       },
     });
 
-    console.log(`✅ Promotion created for bar ${barId}: ${promotion.title}`);
+    // ---- Compliance check ----
+    const compliance = scanCompliance(body.title, body.description);
+
+    let finalComplianceStatus = promotion.complianceStatus;
+    if (compliance.status === "FLAGGED_AUTO") {
+      finalComplianceStatus = "FLAGGED_AUTO";
+      await prisma.barPromotion.update({
+        where: { id: promotion.id },
+        data: { complianceStatus: "FLAGGED_AUTO" },
+      });
+    }
+
+    // Store compliance check record for audit trail
+    await prisma.complianceCheck.create({
+      data: {
+        promotionId: promotion.id,
+        status: finalComplianceStatus,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        violations: compliance.violations as any,
+        checkedAt: compliance.checkedAt,
+      },
+    });
+
+    console.log(
+      `✅ Promotion created for bar ${barId}: ${promotion.title} — ${complianceSummary(compliance)}`,
+    );
 
     return NextResponse.json({
       success: true,
@@ -164,6 +190,10 @@ export async function POST(
         startDate: promotion.startDate,
         endDate: promotion.endDate,
         isApproved: promotion.isApproved,
+        complianceStatus: finalComplianceStatus,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        violations: compliance.violations as any,
+        complianceSummary: complianceSummary(compliance),
       },
     });
   } catch (error) {

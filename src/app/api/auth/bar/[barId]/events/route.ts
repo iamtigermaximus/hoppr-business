@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verify } from "jsonwebtoken";
+import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -125,6 +126,12 @@ export async function POST(
       return NextResponse.json({ error: "Bar not found" }, { status: 404 });
     }
 
+    // Determine base compliance status by role
+    const baseStatus =
+      decoded.staffRole === "OWNER" || decoded.staffRole === "MANAGER"
+        ? "COMPLIANT"
+        : "PENDING_REVIEW";
+
     const event = await prisma.event.create({
       data: {
         title: body.title,
@@ -138,14 +145,34 @@ export async function POST(
         isPrivate: body.isPrivate || false,
         imageUrl: body.imageUrl || null,
         creatorId: decoded.id,
-        // Staff-created events need manager approval
-        complianceStatus:
-          decoded.staffRole === "OWNER" || decoded.staffRole === "MANAGER"
-            ? "COMPLIANT"
-            : "PENDING_REVIEW",
+        complianceStatus: baseStatus,
       },
       include: {
         _count: { select: { participants: true } },
+      },
+    });
+
+    // ---- Compliance check ----
+    const compliance = scanCompliance(body.title, body.description);
+
+    let finalComplianceStatus = event.complianceStatus;
+    if (compliance.status === "FLAGGED_AUTO") {
+      // Auto-flag overrides even manager-created content
+      finalComplianceStatus = "FLAGGED_AUTO";
+      await prisma.event.update({
+        where: { id: event.id },
+        data: { complianceStatus: "FLAGGED_AUTO" },
+      });
+    }
+
+    // Store compliance check record
+    await prisma.complianceCheck.create({
+      data: {
+        eventId: event.id,
+        status: finalComplianceStatus,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        violations: compliance.violations as any,
+        checkedAt: compliance.checkedAt,
       },
     });
 
@@ -162,7 +189,10 @@ export async function POST(
         isPrivate: event.isPrivate,
         imageUrl: event.imageUrl,
         attendeeCount: event._count.participants,
-        complianceStatus: event.complianceStatus,
+        complianceStatus: finalComplianceStatus,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        violations: compliance.violations as any,
+        complianceSummary: complianceSummary(compliance),
         createdAt: event.createdAt.toISOString(),
       },
     });
