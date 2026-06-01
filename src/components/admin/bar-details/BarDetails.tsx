@@ -401,6 +401,58 @@ const QuickActionsContainer = styled.div`
   gap: 0.75rem;
 `;
 
+const PendingRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+`;
+
+const PendingInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const PendingName = styled.span`
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.875rem;
+`;
+
+const PendingEmail = styled.span`
+  color: #6b7280;
+  font-size: 0.75rem;
+`;
+
+const ApproveButton = styled.button`
+  padding: 0.5rem 1rem;
+  background: #16a34a;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 36px;
+
+  &:hover {
+    background: #15803d;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
 // Quality Score specific components
 const ScoreContainer = styled.div`
   margin-top: 0.5rem;
@@ -547,11 +599,59 @@ const BarDetails = () => {
   const [inviteName, setInviteName] = useState("");
   const [inviting, setInviting] = useState(false);
 
+  // Pending owner approvals
+  const [pendingOwners, setPendingOwners] = useState<any[]>([]);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
   const barId = params.id as string;
 
   useEffect(() => {
     fetchBar();
+    fetchPendingOwners();
   }, [barId]);
+
+  const fetchPendingOwners = async () => {
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const res = await fetch(`/api/auth/admin/staff/pending`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Filter to only show pending owners for this bar
+        setPendingOwners(
+          (data.pending || []).filter((s: any) => s.barId === barId),
+        );
+      }
+    } catch {
+      // Best-effort
+    }
+  };
+
+  const handleApproveOwner = async (staffId: string) => {
+    setApprovingId(staffId);
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const res = await fetch(`/api/auth/admin/staff/pending`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ staffId }),
+      });
+      if (res.ok) {
+        setPendingOwners((prev) => prev.filter((s) => s.id !== staffId));
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to approve");
+      }
+    } catch {
+      alert("Failed to approve owner");
+    } finally {
+      setApprovingId(null);
+    }
+  };
 
   const fetchBar = async () => {
     try {
@@ -1116,6 +1216,29 @@ const BarDetails = () => {
               )}
             </ColumnFlex>
           </Card>
+
+          {/* Pending Owner Approvals */}
+          {pendingOwners.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Pending Owner Approvals</CardTitle>
+              </CardHeader>
+              {pendingOwners.map((owner: any) => (
+                <PendingRow key={owner.id}>
+                  <PendingInfo>
+                    <PendingName>{owner.name}</PendingName>
+                    <PendingEmail>{owner.email}</PendingEmail>
+                  </PendingInfo>
+                  <ApproveButton
+                    onClick={() => handleApproveOwner(owner.id)}
+                    disabled={approvingId === owner.id}
+                  >
+                    {approvingId === owner.id ? "Approving..." : "Approve"}
+                  </ApproveButton>
+                </PendingRow>
+              ))}
+            </Card>
+          )}
 
           {/* Quick Actions */}
           <Card>

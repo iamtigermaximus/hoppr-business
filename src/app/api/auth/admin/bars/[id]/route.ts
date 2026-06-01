@@ -616,11 +616,11 @@ async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
     const userId = decoded.id || decoded.userId;
     if (!userId) return null;
 
-    const user = await prisma.user.findFirst({
-      where: { id: userId, role: "SUPER_ADMIN" },
+    const adminUser = await prisma.adminUser.findFirst({
+      where: { id: userId, isActive: true },
       select: { id: true },
     });
-    return user;
+    return adminUser;
   } catch (error) {
     console.error("Token verification error:", error);
     return null;

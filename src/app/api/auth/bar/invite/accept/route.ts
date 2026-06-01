@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         name: name,
         role: invitation.role,
         permissions: invitation.role === "OWNER" ? ["*"] : [],
+        isActive: false,
       },
     });
 
@@ -86,7 +87,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Account created successfully",
+      message: "Account created successfully. Your registration is pending admin approval.",
+      pendingApproval: true,
     });
   } catch (error) {
     console.error("Accept invitation error:", error);

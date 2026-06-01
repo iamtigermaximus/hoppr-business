@@ -2652,17 +2652,17 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 interface JwtPayload {
   id: string;
   email: string;
+  userId?: string;
 }
 
 async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   try {
     const decoded = verify(token, JWT_SECRET) as JwtPayload;
+    const userId = decoded.id || decoded.userId;
+    if (!userId) return null;
 
-    const adminUser = await prisma.user.findFirst({
-      where: {
-        email: decoded.email,
-        role: "SUPER_ADMIN",
-      },
+    const adminUser = await prisma.adminUser.findFirst({
+      where: { id: userId, isActive: true },
       select: { id: true },
     });
 

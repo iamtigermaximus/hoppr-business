@@ -698,9 +698,12 @@ interface BarFilters {
 
 async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
   try {
-    const decoded = verify(token, JWT_SECRET) as { role: string };
-    const adminUser = await prisma.user.findFirst({
-      where: { role: "SUPER_ADMIN" },
+    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string; userId?: string };
+    const userId = decoded.id || decoded.userId;
+    if (!userId) return null;
+
+    const adminUser = await prisma.adminUser.findFirst({
+      where: { id: userId, isActive: true },
       select: { id: true },
     });
     return adminUser;

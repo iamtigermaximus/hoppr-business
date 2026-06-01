@@ -140,6 +140,7 @@ export default function InvitePage() {
   });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [pendingApproval, setPendingApproval] = useState(false);
 
   useEffect(() => {
     const verifyToken = async () => {
@@ -150,7 +151,7 @@ export default function InvitePage() {
       }
 
       try {
-        const response = await fetch(`/api/bar/invite/verify?token=${token}`);
+        const response = await fetch(`/api/auth/bar/invite/verify?token=${token}`);
         const data = await response.json();
 
         if (response.ok) {
@@ -192,7 +193,7 @@ export default function InvitePage() {
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/bar/invite/accept", {
+      const response = await fetch("/api/auth/bar/invite/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -208,11 +209,15 @@ export default function InvitePage() {
         throw new Error(data.error || "Failed to accept invitation");
       }
 
-      setSuccess("Account created successfully! Redirecting to login...");
-
-      setTimeout(() => {
-        router.push("/login");
-      }, 2000);
+      if (data.pendingApproval) {
+        setPendingApproval(true);
+        setSuccess("");
+      } else {
+        setSuccess("Account created successfully! Redirecting to login...");
+        setTimeout(() => {
+          router.push("/login");
+        }, 2000);
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to accept invitation",
@@ -259,6 +264,17 @@ export default function InvitePage() {
         {success && <SuccessMessage>{success}</SuccessMessage>}
         {error && <ErrorMessage>{error}</ErrorMessage>}
 
+        {pendingApproval && (
+          <SuccessMessage>
+            <strong>Registration submitted!</strong>
+            <br />
+            Your account for <strong>{invitation.barName}</strong> is pending admin
+            approval. You&apos;ll receive an email when your account is activated —
+            usually within 1 business day.
+          </SuccessMessage>
+        )}
+
+        {!pendingApproval && (
         <Form onSubmit={handleSubmit}>
           <FormGroup>
             <Label>Full Name</Label>
@@ -306,6 +322,7 @@ export default function InvitePage() {
             {submitting ? "Creating Account..." : "Create Account"}
           </Button>
         </Form>
+        )}
       </Card>
     </Container>
   );

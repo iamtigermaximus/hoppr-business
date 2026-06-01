@@ -61,17 +61,23 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { verify } from "jsonwebtoken";
 import {
   BarsWithNoStaffResponse,
   BarWithNoStaff,
 } from "@/types/admin-analytics";
 
 const prisma = new PrismaClient();
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 async function verifyAdminToken(token: string) {
   try {
-    const adminUser = await prisma.user.findFirst({
-      where: { role: "SUPER_ADMIN" },
+    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string; userId?: string };
+    const userId = decoded.id || decoded.userId;
+    if (!userId) return null;
+
+    const adminUser = await prisma.adminUser.findFirst({
+      where: { id: userId, isActive: true },
     });
     return adminUser;
   } catch (error) {
