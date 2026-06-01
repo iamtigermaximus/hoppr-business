@@ -4,6 +4,12 @@ import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
 import { hashPassword } from "@/lib/auth";
 
+export type AdminRole =
+  | "SUPER_ADMIN"
+  | "CONTENT_MODERATOR"
+  | "ANALYTICS_VIEWER"
+  | "SUPPORT";
+
 // GET - List all admin users
 export async function GET(request: NextRequest) {
   try {
@@ -25,12 +31,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const adminUsers = await prisma.user.findMany({
+    const adminUsers = await prisma.adminUser.findMany({
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
+        isActive: true,
+        lastLogin: true,
         createdAt: true,
       },
       orderBy: { createdAt: "desc" },
@@ -76,8 +84,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already exists
-    const existingAdmin = await prisma.user.findUnique({
+    // Check if admin already exists
+    const existingAdmin = await prisma.adminUser.findUnique({
       where: { email: email.toLowerCase() },
     });
 
@@ -88,10 +96,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash password and create user
     const hashedPassword = await hashPassword(password);
 
-    const admin = await prisma.user.create({
+    const adminUser = await prisma.adminUser.create({
       data: {
         email: email.toLowerCase(),
         name,
@@ -103,10 +110,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       user: {
-        id: admin.id,
-        email: admin.email,
-        name: admin.name,
-        role: admin.role,
+        id: adminUser.id,
+        email: adminUser.email,
+        name: adminUser.name,
+        role: adminUser.role,
       },
     });
   } catch (error) {
@@ -158,8 +165,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check if user exists
-    const existingAdmin = await prisma.user.findUnique({
+    const existingAdmin = await prisma.adminUser.findUnique({
       where: { id: userId },
     });
 
@@ -170,8 +176,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check if email is already taken by another user
-    const emailExists = await prisma.user.findFirst({
+    // Check if email is already taken by another admin
+    const emailExists = await prisma.adminUser.findFirst({
       where: {
         email: email.toLowerCase(),
         id: { not: userId },
@@ -180,24 +186,22 @@ export async function PUT(request: NextRequest) {
 
     if (emailExists) {
       return NextResponse.json(
-        { error: "Email already taken by another user" },
+        { error: "Email already taken by another admin" },
         { status: 409 }
       );
     }
 
-    // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       email: email.toLowerCase(),
       name,
       role,
     };
 
-    // Only update password if provided
     if (password) {
       updateData.hashedPassword = await hashPassword(password);
     }
 
-    const updatedAdmin = await prisma.user.update({
+    const updatedAdmin = await prisma.adminUser.update({
       where: { id: userId },
       data: updateData,
     });
@@ -251,7 +255,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Prevent users from deleting their own account
+    // Prevent self-deletion
     if (userId === authResult.user.id) {
       return NextResponse.json(
         { error: "Cannot delete your own account" },
@@ -259,8 +263,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if user exists
-    const existingAdmin = await prisma.user.findUnique({
+    const existingAdmin = await prisma.adminUser.findUnique({
       where: { id: userId },
     });
 
@@ -271,8 +274,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Delete the user
-    await prisma.user.delete({
+    await prisma.adminUser.delete({
       where: { id: userId },
     });
 

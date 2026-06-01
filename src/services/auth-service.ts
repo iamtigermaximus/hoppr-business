@@ -7,37 +7,43 @@ import {
 } from "@/lib/auth";
 
 export class AuthService {
-  // Admin authentication — admins are Users with role SUPER_ADMIN
+  // Admin authentication — uses dedicated AdminUser model
   async authenticateAdmin(email: string, password: string) {
-    const user = await prisma.user.findFirst({
+    const adminUser = await prisma.adminUser.findFirst({
       where: {
         email: email.toLowerCase(),
-        role: "SUPER_ADMIN",
+        isActive: true,
       },
     });
 
-    if (!user || !user.hashedPassword) {
+    if (!adminUser || !adminUser.hashedPassword) {
       throw new Error("Invalid credentials");
     }
 
-    const isValid = await verifyPassword(password, user.hashedPassword);
+    const isValid = await verifyPassword(password, adminUser.hashedPassword);
     if (!isValid) {
       throw new Error("Invalid credentials");
     }
 
+    // Update last login
+    await prisma.adminUser.update({
+      where: { id: adminUser.id },
+      data: { lastLogin: new Date() },
+    });
+
     const token = generateAdminToken({
-      id: user.id,
-      role: user.role,
+      id: adminUser.id,
+      role: adminUser.role,
     });
 
     return {
       token,
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name || user.email,
+        id: adminUser.id,
+        email: adminUser.email,
+        name: adminUser.name,
         role: "admin" as const,
-        adminRole: user.role,
+        adminRole: adminUser.role,
       },
     };
   }
@@ -124,22 +130,22 @@ export class AuthService {
     }
 
     if (isAdminToken(payload)) {
-      const user = await prisma.user.findFirst({
-        where: { id: payload.userId, role: "SUPER_ADMIN" },
+      const adminUser = await prisma.adminUser.findFirst({
+        where: { id: payload.userId, isActive: true },
       });
 
-      if (!user) {
+      if (!adminUser) {
         throw new Error("Admin user not found or inactive");
       }
 
       return {
         type: "admin" as const,
         user: {
-          id: user.id,
-          email: user.email,
-          name: user.name || user.email,
+          id: adminUser.id,
+          email: adminUser.email,
+          name: adminUser.name,
           role: "admin" as const,
-          adminRole: user.role,
+          adminRole: adminUser.role,
         },
       };
     }

@@ -558,7 +558,7 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
 
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/auth/admin/users/${selectedUser.id}`, {
+      const response = await fetch(`/api/auth/admin/users?id=${selectedUser.id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -604,7 +604,7 @@ const AdminUsersManager = ({ user }: AdminUsersManagerProps) => {
 
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/auth/admin/users/${selectedUser.id}`, {
+      const response = await fetch(`/api/auth/admin/users?id=${selectedUser.id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
