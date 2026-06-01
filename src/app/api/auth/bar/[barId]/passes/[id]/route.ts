@@ -32,6 +32,7 @@ interface UpdatePassBody {
   totalQuantity?: number;
   maxPerUser?: number;
   isActive?: boolean;
+  isApproved?: boolean;
   redemptionMode?: string;
   maxRedemptions?: number | null;
 }
@@ -100,6 +101,7 @@ export async function GET(
         redemptionMode: pass.redemptionMode,
         maxRedemptions: pass.maxRedemptions,
         isActive: pass.isActive,
+        isApproved: pass.isApproved,
         createdAt: pass.createdAt.toISOString(),
         revenueCents: revenue,
         purchasers: pass.userPasses.map((up) => ({
@@ -183,6 +185,10 @@ export async function PUT(
     if (body.totalQuantity !== undefined) updateData.totalQuantity = body.totalQuantity;
     if (body.maxPerUser !== undefined) updateData.maxPerUser = body.maxPerUser;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.isApproved !== undefined) {
+      updateData.isApproved = body.isApproved;
+      updateData.approvedAt = body.isApproved ? new Date() : null;
+    }
     if (body.redemptionMode !== undefined) updateData.redemptionMode = body.redemptionMode;
     if (body.maxRedemptions !== undefined) updateData.maxRedemptions = body.maxRedemptions;
 

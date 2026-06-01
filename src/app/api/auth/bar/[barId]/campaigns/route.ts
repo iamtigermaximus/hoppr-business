@@ -131,6 +131,10 @@ export async function POST(
       );
     }
 
+    // OWNER/MANAGER get auto-approved (only they can create campaigns)
+    const initialStatus = "ACTIVE";
+    const initialCompliance = "COMPLIANT";
+
     const campaign = await prisma.adCampaign.create({
       data: {
         barId,
@@ -138,7 +142,7 @@ export async function POST(
         description: description || null,
         type: type as any,
         budgetCents,
-        status: "DRAFT",
+        status: initialStatus,
         spentCents: 0,
         impressions: 0,
         clicks: 0,
@@ -148,7 +152,7 @@ export async function POST(
         imageUrl: imageUrl || null,
         targetUrl: targetUrl || null,
         promotedItemId: promotedItemId || null,
-        complianceStatus: "PENDING_REVIEW",
+        complianceStatus: initialCompliance,
       },
     });
 

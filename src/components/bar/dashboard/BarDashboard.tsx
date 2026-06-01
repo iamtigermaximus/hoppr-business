@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { InsightCard } from "./InsightCard";
+import { ChatPanel } from "./ChatPanel";
 
 // ── Styled Components ──────────────────────────────────────────
 
@@ -62,7 +64,7 @@ const Subtitle = styled.p`
   }
 `;
 
-// ── Quick Actions ──────────────────────────────────────────────
+// ── Status Cards ───────────────────────────────────────────────
 
 const SectionLabel = styled.h2`
   font-size: 1rem;
@@ -78,7 +80,7 @@ const SectionLabel = styled.h2`
   }
 `;
 
-const QuickActionsGrid = styled.div`
+const StatusGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
@@ -101,24 +103,35 @@ const QuickActionsGrid = styled.div`
   }
 `;
 
-const QuickActionCard = styled.button`
+interface StatusCardProps {
+  $accent: "red" | "amber" | "green" | "blue";
+}
+
+const accentColors: Record<StatusCardProps["$accent"], { border: string; bg: string; text: string }> = {
+  red:    { border: "#ef4444", bg: "#fef2f2", text: "#991b1b" },
+  amber:  { border: "#f59e0b", bg: "#fffbeb", text: "#92400e" },
+  green:  { border: "#10b981", bg: "#ecfdf5", text: "#065f46" },
+  blue:   { border: "#3b82f6", bg: "#eff6ff", text: "#1e40af" },
+};
+
+const StatusCard = styled.button<StatusCardProps>`
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
   padding: 1.5rem 1rem;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-  cursor: pointer;
+  background: ${(p) => accentColors[p.$accent].bg};
+  border: 1px solid ${(p) => accentColors[p.$accent].border};
+  border-left: 4px solid ${(p) => accentColors[p.$accent].border};
+  border-radius: 0.5rem;
+  cursor: ${(p) => (p.onClick ? "pointer" : "default")};
   transition: all 0.2s;
   text-align: center;
 
   &:hover {
-    border-color: #10b981;
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 
   @media (max-width: 768px) {
@@ -130,26 +143,32 @@ const QuickActionCard = styled.button`
   }
 `;
 
-const QuickActionIcon = styled.span`
-  font-size: 1.75rem;
+const StatusValue = styled.div<{ $accent: StatusCardProps["$accent"] }>`
+  font-size: 2rem;
+  font-weight: 700;
+  color: ${(p) => accentColors[p.$accent].text};
+
+  @media (max-width: 768px) {
+    font-size: 1.75rem;
+  }
 
   @media (max-width: 480px) {
     font-size: 1.5rem;
   }
 `;
 
-const QuickActionLabel = styled.span`
-  font-size: 0.875rem;
+const StatusLabel = styled.span`
+  font-size: 0.85rem;
   font-weight: 600;
   color: #374151;
 
   @media (max-width: 480px) {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
   }
 `;
 
-const QuickActionHint = styled.span`
-  font-size: 0.75rem;
+const StatusHint = styled.span`
+  font-size: 0.72rem;
   color: #9ca3af;
 
   @media (max-width: 480px) {
@@ -378,6 +397,23 @@ const timeAgo = (dateStr: string): string => {
   return date.toLocaleDateString();
 };
 
+const isToday = (dateStr: string): boolean => {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+};
+
+const expiresWithinDays = (dateStr: string, days: number): boolean => {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = d.getTime() - now.getTime();
+  return diffMs > 0 && diffMs <= days * 86400000;
+};
+
 // ── Component ──────────────────────────────────────────────────
 
 const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
@@ -385,6 +421,17 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
   const [dashboardStats, setDashboardStats] = useState<BarStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<ActivityEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [latestInsight, setLatestInsight] = useState<any>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+
+  // Status card data
+  const [pendingApprovals, setPendingApprovals] = useState(0);
+  const [todayEvents, setTodayEvents] = useState(0);
+  const [activePromos, setActivePromos] = useState(0);
+  const [expiringCount, setExpiringCount] = useState(0);
+
+  const isManager =
+    user.staffRole === "OWNER" || user.staffRole === "MANAGER";
 
   const getToken = (): string | null => {
     if (typeof window !== "undefined") {
@@ -393,14 +440,16 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     return null;
   };
 
-  // Fetch dashboard stats + recent activity
+  // Fetch all dashboard data
   useEffect(() => {
     const fetchAll = async () => {
       const token = getToken();
       if (!token) return;
 
+      const activities: ActivityEntry[] = [];
+
       try {
-        // Fetch stats
+        // ── Stats ──────────────────────────────────────────────
         const statsRes = await fetch(
           `/api/auth/bar/${user.barId}/dashboard/stats`,
           { headers: { Authorization: `Bearer ${token}` } },
@@ -410,33 +459,36 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
           setDashboardStats(data);
         }
 
-        // Build activity feed from multiple sources
-        const activities: ActivityEntry[] = [];
-
-        // Fetch upcoming events
+        // ── Upcoming events (for activity + today count) ──────
+        let upcomingEvents: any[] = [];
         try {
           const eventsRes = await fetch(
             `/api/auth/bar/${user.barId}/events?filter=upcoming`,
             { headers: { Authorization: `Bearer ${token}` } },
           );
           if (eventsRes.ok) {
-            const events = await eventsRes.json();
-            // Show 3 most recent upcoming events
-            (Array.isArray(events) ? events.slice(0, 3) : []).forEach(
+            const data = await eventsRes.json();
+            upcomingEvents = Array.isArray(data) ? data : data.events || [];
+
+            // Today's events
+            const today = upcomingEvents.filter((e: any) =>
+              isToday(e.startTime),
+            );
+            setTodayEvents(today.length);
+
+            // Activity feed: 3 most recent upcoming
+            upcomingEvents.slice(0, 3).forEach(
               (event: {
                 id: string;
                 title: string;
                 startTime: string;
-                _count?: { participants: number };
+                attendeeCount?: number;
               }) => {
+                const attrs = event.attendeeCount ?? 0;
                 activities.push({
                   id: `event-${event.id}`,
                   icon: "📅",
-                  text: `Event "${event.title}" is upcoming${
-                    event._count?.participants
-                      ? ` with ${event._count.participants} attending`
-                      : ""
-                  }`,
+                  text: `Event "${event.title}" is upcoming${attrs ? ` with ${attrs} attending` : ""}`,
                   time: timeAgo(event.startTime),
                   href: `/bar/${user.barId}/events`,
                 });
@@ -444,10 +496,32 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
             );
           }
         } catch {
-          // Events fetch failed — skip
+          // skip
         }
 
-        // Fetch passes (check for recent sales)
+        // ── Promotions (for active count + expiring) ──────────
+        try {
+          const promosRes = await fetch(
+            `/api/auth/bar/${user.barId}/promotions?status=active`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (promosRes.ok) {
+            const data = await promosRes.json();
+            const promos = Array.isArray(data)
+              ? data
+              : data.promotions || [];
+            setActivePromos(promos.length);
+
+            const expiring = promos.filter((p: any) =>
+              expiresWithinDays(p.endDate, 7),
+            );
+            setExpiringCount((prev) => prev + expiring.length);
+          }
+        } catch {
+          // skip
+        }
+
+        // ── Passes (for activity + expiring count) ────────────
         try {
           const passesRes = await fetch(
             `/api/auth/bar/${user.barId}/passes?status=active`,
@@ -456,22 +530,61 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
           if (passesRes.ok) {
             const data = await passesRes.json();
             const passes = Array.isArray(data) ? data : data.passes || [];
-            // Show up to 2 passes with sales
+
+            // Expiring passes
+            const expiring = passes.filter((p: any) =>
+              expiresWithinDays(p.validityEnd, 7),
+            );
+            setExpiringCount((prev) => prev + expiring.length);
+
+            // Activity: passes with sales
             passes
               .filter((p: { soldCount?: number }) => (p.soldCount || 0) > 0)
               .slice(0, 2)
-              .forEach((p: { id: string; name: string; soldCount: number }) => {
-                activities.push({
-                  id: `pass-${p.id}`,
-                  icon: "🎟️",
-                  text: `"${p.name}" — ${p.soldCount} sold`,
-                  time: "recent",
-                  href: `/bar/${user.barId}/passes`,
-                });
-              });
+              .forEach(
+                (p: { id: string; name: string; soldCount: number }) => {
+                  activities.push({
+                    id: `pass-${p.id}`,
+                    icon: "🎟️",
+                    text: `"${p.name}" — ${p.soldCount} sold`,
+                    time: "recent",
+                    href: `/bar/${user.barId}/passes`,
+                  });
+                },
+              );
           }
         } catch {
-          // Passes fetch failed — skip
+          // skip
+        }
+
+        // ── Pending approvals (managers only) ─────────────────
+        if (isManager) {
+          try {
+            const approvalsRes = await fetch(
+              `/api/auth/bar/${user.barId}/approvals`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (approvalsRes.ok) {
+              const data = await approvalsRes.json();
+              setPendingApprovals(data.counts?.total || 0);
+            }
+          } catch {
+            // skip
+          }
+        }
+
+        // ── Latest insight ────────────────────────────────────
+        try {
+          const insightRes = await fetch(
+            `/api/auth/bar/${user.barId}/insights`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (insightRes.ok) {
+            const insightData = await insightRes.json();
+            setLatestInsight(insightData.latest);
+          }
+        } catch {
+          // skip
         }
 
         setRecentActivity(activities);
@@ -487,35 +600,6 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
 
   const displayStats = dashboardStats || stats;
 
-  // ── Quick actions ──────────────────────────────────────────
-
-  const quickActions = [
-    {
-      icon: "➕",
-      label: "Create Content",
-      hint: "Event, promo, or pass",
-      href: `/bar/${user.barId}/create`,
-    },
-    {
-      icon: "📷",
-      label: "Scan QR",
-      hint: "Redeem passes & promos",
-      href: `/bar/${user.barId}/scanner`,
-    },
-    {
-      icon: "📈",
-      label: "Analytics",
-      hint: "Performance & trends",
-      href: `/bar/${user.barId}/analytics`,
-    },
-    {
-      icon: "👁️",
-      label: "Preview",
-      hint: "See what customers see",
-      href: `/bar/${user.barId}/preview`,
-    },
-  ];
-
   // ── Loading state ──────────────────────────────────────────
 
   if (isLoading) {
@@ -529,6 +613,88 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
     );
   }
 
+  // ── Insight handlers ────────────────────────────────────────
+
+  const handleDismiss = async (insightId: string) => {
+    const token = getToken();
+    await fetch(`/api/auth/bar/${user.barId}/insights`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ insightId, action: "dismiss" }),
+    });
+    setLatestInsight(null);
+  };
+
+  const handleAct = async (insightId: string, route?: string) => {
+    if (insightId) {
+      const token = getToken();
+      await fetch(`/api/auth/bar/${user.barId}/insights`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ insightId, action: "act" }),
+      });
+    }
+    if (route) {
+      router.push(route);
+    }
+  };
+
+  // ── Build status cards ─────────────────────────────────────
+
+  interface StatusCardDef {
+    accent: StatusCardProps["$accent"];
+    value: string;
+    label: string;
+    hint: string;
+    href?: string;
+  }
+
+  const statusCards: StatusCardDef[] = [];
+
+  // Pending approvals (managers only)
+  if (isManager) {
+    statusCards.push({
+      accent: pendingApprovals > 0 ? "red" : "green",
+      value: String(pendingApprovals),
+      label: "Pending Approvals",
+      hint: pendingApprovals > 0 ? "Needs your review" : "All clear",
+      href: `/bar/${user.barId}/approvals`,
+    });
+  }
+
+  // Today's events
+  statusCards.push({
+    accent: todayEvents > 0 ? "blue" : "green",
+    value: String(todayEvents),
+    label: "Events Today",
+    hint: todayEvents > 0 ? "Happening now or later" : "Nothing scheduled",
+    href: `/bar/${user.barId}/events`,
+  });
+
+  // Active promotions
+  statusCards.push({
+    accent: activePromos > 0 ? "green" : "amber",
+    value: String(activePromos),
+    label: "Active Promos",
+    hint: activePromos > 0 ? "Live and visible" : "Create your first",
+    href: `/bar/${user.barId}/promotions`,
+  });
+
+  // Expiring soon
+  statusCards.push({
+    accent: expiringCount > 0 ? "amber" : "green",
+    value: String(expiringCount),
+    label: "Expiring This Week",
+    hint: expiringCount > 0 ? "Promos or passes ending soon" : "Nothing expiring",
+    href: `/bar/${user.barId}/promotions`,
+  });
+
   // ── Render ─────────────────────────────────────────────────
 
   return (
@@ -537,24 +703,25 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
       <WelcomeSection>
         <Title>Welcome to {user.barName}! 🎉</Title>
         <Subtitle>
-          Hello, {user.name}! Here&apos;s your bar performance overview.
+          Hello, {user.name}! Here&apos;s how your bar is doing.
         </Subtitle>
       </WelcomeSection>
 
-      {/* Quick Actions */}
-      <SectionLabel>Quick Actions</SectionLabel>
-      <QuickActionsGrid>
-        {quickActions.map((action) => (
-          <QuickActionCard
-            key={action.label}
-            onClick={() => router.push(action.href)}
+      {/* Status cards */}
+      <SectionLabel>At a Glance</SectionLabel>
+      <StatusGrid>
+        {statusCards.map((card) => (
+          <StatusCard
+            key={card.label}
+            $accent={card.accent}
+            onClick={card.href ? () => router.push(card.href!) : undefined}
           >
-            <QuickActionIcon>{action.icon}</QuickActionIcon>
-            <QuickActionLabel>{action.label}</QuickActionLabel>
-            <QuickActionHint>{action.hint}</QuickActionHint>
-          </QuickActionCard>
+            <StatusValue $accent={card.accent}>{card.value}</StatusValue>
+            <StatusLabel>{card.label}</StatusLabel>
+            <StatusHint>{card.hint}</StatusHint>
+          </StatusCard>
         ))}
-      </QuickActionsGrid>
+      </StatusGrid>
 
       {/* Stats */}
       <SectionLabel>Performance at a Glance</SectionLabel>
@@ -589,6 +756,20 @@ const BarDashboardContent = ({ user, stats }: BarDashboardContentProps) => {
           <StatLabel>Promotion Clicks</StatLabel>
         </StatCard>
       </StatsGrid>
+
+      {/* Insights */}
+      <InsightCard
+        insight={latestInsight}
+        onDismiss={handleDismiss}
+        onAct={handleAct}
+        onExpand={() => setChatOpen(true)}
+      />
+
+      <ChatPanel
+        barId={user.barId}
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+      />
 
       {/* Recent Activity */}
       <SectionLabel>Recent Activity</SectionLabel>

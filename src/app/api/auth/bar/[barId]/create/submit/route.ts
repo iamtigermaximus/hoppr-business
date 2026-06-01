@@ -298,6 +298,9 @@ export async function POST(
         ? Math.round(parseFloat(body.originalPriceEuros) * 100)
         : null;
 
+      const isAutoApproved =
+        payload.staffRole === "OWNER" || payload.staffRole === "MANAGER";
+
       const pass = await prisma.vIPPassEnhanced.create({
         data: {
           barId,
@@ -323,7 +326,9 @@ export async function POST(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           redemptionMode: (body.redemptionMode as any) || "SINGLE_USE",
           maxRedemptions: body.maxRedemptions || null,
-          isActive: true,
+          isActive: isAutoApproved,
+          isApproved: isAutoApproved,
+          complianceStatus: resolvedComplianceStatus,
           soldCount: 0,
         },
       });

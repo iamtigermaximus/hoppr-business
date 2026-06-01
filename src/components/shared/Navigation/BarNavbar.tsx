@@ -134,16 +134,11 @@ const BarNavItemsContainer = styled.div<BarNavItemsContainerProps>`
   align-items: center;
   flex: 1;
   justify-content: center;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-
-  /* Hide scrollbar but keep scroll functionality */
-  &::-webkit-scrollbar {
-    height: 0;
-  }
-  scrollbar-width: none;
+  flex-wrap: wrap;
+  overflow: visible;
 
   @media (max-width: 768px) {
+    flex-wrap: nowrap;
     overflow-x: hidden;
     position: absolute;
     top: 100%;
@@ -269,7 +264,8 @@ const DropdownTrigger = styled.a<{ $active?: boolean; $isOpen: boolean }>`
 
   svg {
     transition: transform 0.2s;
-    transform: ${(props) => (props.$isOpen ? "rotate(180deg)" : "rotate(0deg)")};
+    transform: ${(props) =>
+      props.$isOpen ? "rotate(180deg)" : "rotate(0deg)"};
   }
 
   @media (max-width: 768px) {
@@ -431,6 +427,19 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [userName, setUserName] = useState("Staff");
+
+  useEffect(() => {
+    const userData = localStorage.getItem("hoppr_user");
+    if (userData) {
+      try {
+        const user = JSON.parse(userData);
+        setUserName(user.name || "Staff");
+      } catch {
+        // keep "Staff"
+      }
+    }
+  }, []);
 
   // Refs for outside-click detection on each dropdown
   const manageRef = useRef<HTMLDivElement>(null);
@@ -478,39 +487,39 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
   // Manage dropdown: list pages + QR scanner
   const manageDropdown: NavDropdown = {
     id: "manage",
-    label: "📋 Manage",
+    label: "Manage",
     items: [
-      { href: `/bar/${barId}/events`, label: "📅 Events" },
-      { href: `/bar/${barId}/promotions`, label: "🎁 Promotions" },
-      { href: `/bar/${barId}/passes`, label: "🎟️ Passes" },
-      { href: `/bar/${barId}/scanner`, label: "📷 QR Scanner" },
-      { href: `/bar/${barId}/calendar`, label: "📆 Calendar" },
+      { href: `/bar/${barId}/events`, label: "Events" },
+      { href: `/bar/${barId}/promotions`, label: "Promotions" },
+      { href: `/bar/${barId}/passes`, label: "Passes" },
+      { href: `/bar/${barId}/scanner`, label: "QR Scanner" },
+      { href: `/bar/${barId}/calendar`, label: "Calendar" },
     ],
   };
 
   // Insights dropdown
   const insightsDropdown: NavDropdown = {
     id: "insights",
-    label: "📊 Insights",
+    label: "Insights",
     items: [
-      { href: `/bar/${barId}/intelligence`, label: "🧠 Intelligence" },
-      { href: `/bar/${barId}/analytics`, label: "📈 Analytics" },
+      { href: `/bar/${barId}/intelligence`, label: "Intelligence" },
+      { href: `/bar/${barId}/analytics`, label: "Analytics" },
     ],
   };
 
   // Team dropdown (restricted)
   const teamDropdown: NavDropdown = {
     id: "team",
-    label: "👥 Team",
+    label: "Team",
     items: [
       {
         href: `/bar/${barId}/users`,
-        label: "👥 Staff",
+        label: "Staff",
         restricted: ["OWNER", "MANAGER"],
       },
       {
         href: `/bar/${barId}/approvals`,
-        label: "✅ Approvals",
+        label: "Approvals",
         restricted: ["OWNER", "MANAGER"],
       },
     ],
@@ -537,9 +546,7 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
   const isInsightsActive = filteredInsightsItems.some(
     (item) => pathname === item.href,
   );
-  const isTeamActive = filteredTeamItems.some(
-    (item) => pathname === item.href,
-  );
+  const isTeamActive = filteredTeamItems.some((item) => pathname === item.href);
 
   // ── Toggle handler ─────────────────────────────────────────
 
@@ -563,21 +570,6 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
     localStorage.removeItem("hoppr_token");
     localStorage.removeItem("hoppr_user");
     router.push("/login");
-  };
-
-  const getUserName = () => {
-    if (typeof window !== "undefined") {
-      const userData = localStorage.getItem("hoppr_user");
-      if (userData) {
-        try {
-          const user = JSON.parse(userData);
-          return user.name || "Staff";
-        } catch {
-          return "Staff";
-        }
-      }
-    }
-    return "Staff";
   };
 
   // ── Render a dropdown ──────────────────────────────────────
@@ -655,16 +647,8 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
             $active={pathname === `/bar/${barId}/dashboard`}
             onClick={() => handleNavClick(`/bar/${barId}/dashboard`)}
           >
-            📊 Dashboard
+            Dashboard
           </BarNavItem>
-
-          {/* Create (prominent CTA) */}
-          <CreateButton
-            $active={isCreateActive}
-            onClick={() => handleNavClick(`/bar/${barId}/create`)}
-          >
-            ➕ Create
-          </CreateButton>
 
           {/* Manage dropdown */}
           {renderDropdown(manageDropdown, isManageActive, manageRef)}
@@ -677,26 +661,42 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
             renderDropdown(teamDropdown, isTeamActive, teamRef)}
 
           {/* Ads (restricted to OWNER/MANAGER) */}
-        {["OWNER", "MANAGER"].includes(userRole) && (
-          <BarNavItem
-            $active={pathname === `/bar/${barId}/campaigns`}
-            onClick={() => handleNavClick(`/bar/${barId}/campaigns`)}
-          >
-            📢 Ads
-          </BarNavItem>
-        )}
+          {["OWNER", "MANAGER"].includes(userRole) && (
+            <BarNavItem
+              $active={pathname === `/bar/${barId}/campaigns`}
+              onClick={() => handleNavClick(`/bar/${barId}/campaigns`)}
+            >
+              Ads
+            </BarNavItem>
+          )}
 
-        {/* Preview */}
-        <BarNavItem
-          $active={pathname === `/bar/${barId}/preview`}
-          onClick={() => handleNavClick(`/bar/${barId}/preview`)}
-        >
-          👁️ Preview
-        </BarNavItem>
+          {/* Profile */}
+          <BarNavItem
+            $active={pathname === `/bar/${barId}/profile`}
+            onClick={() => handleNavClick(`/bar/${barId}/profile`)}
+          >
+            Profile
+          </BarNavItem>
+
+          {/* Preview */}
+          <BarNavItem
+            $active={pathname === `/bar/${barId}/preview`}
+            onClick={() => handleNavClick(`/bar/${barId}/preview`)}
+          >
+            Preview
+          </BarNavItem>
+
+          {/* Create (prominent CTA) */}
+          <CreateButton
+            $active={isCreateActive}
+            onClick={() => handleNavClick(`/bar/${barId}/create`)}
+          >
+            Create
+          </CreateButton>
 
           {/* User menu */}
           <BarUserMenu>
-            <BarUserName>Welcome, {getUserName()}</BarUserName>
+            <BarUserName>Welcome, {userName}</BarUserName>
             <BarLogoutButton onClick={handleLogout}>Logout</BarLogoutButton>
           </BarUserMenu>
         </BarNavItems>

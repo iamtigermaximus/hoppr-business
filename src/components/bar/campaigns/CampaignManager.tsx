@@ -26,11 +26,11 @@ interface Campaign {
   updatedAt: string;
 }
 
-const typeLabels: Record<string, { label: string; icon: string }> = {
-  FEATURED_LISTING: { label: "Featured Listing", icon: "📌" },
-  BANNER_AD: { label: "Banner Ad", icon: "🎯" },
-  BOOSTED_PROMO: { label: "Boosted Promo", icon: "📢" },
-  SPONSORED_EVENT: { label: "Sponsored Event", icon: "⭐" },
+const typeLabels: Record<string, string> = {
+  FEATURED_LISTING: "Featured Listing",
+  BANNER_AD: "Banner Ad",
+  BOOSTED_PROMO: "Boosted Promo",
+  SPONSORED_EVENT: "Sponsored Event",
 };
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
@@ -45,82 +45,103 @@ const statusConfig: Record<string, { color: string; bg: string }> = {
 // ── Styled ──
 
 const Container = styled.div`
-  max-width: 680px;
+  padding: 1.5rem;
+  max-width: 1000px;
   margin: 0 auto;
-  padding: 16px;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
 `;
 
 const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
 `;
 
 const Title = styled.h1`
-  color: #fff;
-  font-weight: 800;
-  font-size: 22px;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+  }
 `;
 
 const FilterBar = styled.div`
   display: flex;
-  gap: 6px;
-  margin-bottom: 16px;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
   flex-wrap: wrap;
 `;
 
 const FilterChip = styled.button<{ $active: boolean }>`
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#262626")};
-  background: ${({ $active }) => ($active ? "rgba(124,58,237,0.15)" : "transparent")};
-  color: ${({ $active }) => ($active ? "#a78bfa" : "#737373")};
-  font-size: 12px;
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.375rem;
+  border: 1px solid ${({ $active }) => ($active ? "#10b981" : "#e5e7eb")};
+  background: ${({ $active }) => ($active ? "#d1fae5" : "white")};
+  color: ${({ $active }) => ($active ? "#065f46" : "#6b7280")};
+  font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
+
+  &:hover {
+    border-color: #10b981;
+    background: ${({ $active }) => ($active ? "#d1fae5" : "#f0fdf4")};
+  }
 `;
 
 const CardGrid = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 0.75rem;
 `;
 
 const CampaignCard = styled.div<{ $active?: boolean }>`
-  background: ${({ $active }) => ($active ? "rgba(16,185,129,0.04)" : "#1a1a1a")};
-  border: 1px solid ${({ $active }) => ($active ? "rgba(16,185,129,0.2)" : "#262626")};
-  border-radius: 14px;
-  padding: 16px;
+  background: ${({ $active }) => ($active ? "#f0fdf4" : "white")};
+  border: 1px solid ${({ $active }) => ($active ? "#a7f3d0" : "#e5e7eb")};
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  transition: box-shadow 0.2s;
+
+  &:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  }
 `;
 
 const CardTop = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 10px;
+  margin-bottom: 0.75rem;
 `;
 
 const CardTitle = styled.div`
-  color: #fff;
+  color: #1f2937;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 0.9375rem;
 `;
 
 const CardType = styled.span`
-  color: #a3a3a3;
-  font-size: 11px;
+  color: #6b7280;
+  font-size: 0.75rem;
 `;
 
 const StatusBadge = styled.span<{ $color: string; $bg: string }>`
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 10px;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: ${({ $color }) => $color};
   background: ${({ $bg }) => $bg};
@@ -128,36 +149,36 @@ const StatusBadge = styled.span<{ $color: string; $bg: string }>`
 
 const BudgetBar = styled.div`
   height: 4px;
-  background: #262626;
+  background: #e5e7eb;
   border-radius: 2px;
-  margin-bottom: 8px;
+  margin-bottom: 0.75rem;
   overflow: hidden;
 `;
 
 const BudgetFill = styled.div<{ $pct: number }>`
   height: 100%;
   width: ${({ $pct }) => Math.min($pct, 100)}%;
-  background: #7c3aed;
+  background: #10b981;
   border-radius: 2px;
   transition: width 0.3s;
 `;
 
 const StatsRow = styled.div`
   display: flex;
-  gap: 16px;
-  margin-bottom: 8px;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
   flex-wrap: wrap;
 `;
 
 const Stat = styled.div`
-  font-size: 11px;
-  color: #737373;
-  span { color: #a3a3a3; font-weight: 600; }
+  font-size: 0.75rem;
+  color: #6b7280;
+  span { color: #374151; font-weight: 600; }
 `;
 
 const Actions = styled.div`
   display: flex;
-  gap: 6px;
+  gap: 0.375rem;
   flex-wrap: wrap;
 `;
 
@@ -165,18 +186,22 @@ const ActionBtn = styled.button<{ $variant?: "primary" | "danger" }>`
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 10px;
-  border-radius: 7px;
-  border: 1px solid ${({ $variant }) => ($variant === "danger" ? "rgba(239,68,68,0.3)" : "#262626")};
-  background: ${({ $variant }) => ($variant === "primary" ? "#7c3aed" : "transparent")};
-  color: ${({ $variant }) => ($variant === "primary" ? "#fff" : $variant === "danger" ? "#ef4444" : "#a3a3a3")};
-  font-size: 11px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid ${({ $variant }) => ($variant === "danger" ? "#fecaca" : "#e5e7eb")};
+  background: ${({ $variant }) => ($variant === "primary" ? "#10b981" : "white")};
+  color: ${({ $variant }) => ($variant === "primary" ? "#fff" : $variant === "danger" ? "#dc2626" : "#374151")};
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  &:hover {
-    border-color: ${({ $variant }) => ($variant === "danger" ? "#ef4444" : "#7c3aed")};
-    background: ${({ $variant }) => ($variant === "primary" ? "#6d28d9" : "rgba(124,58,237,0.1)")};
+  &:hover:not(:disabled) {
+    border-color: ${({ $variant }) => ($variant === "danger" ? "#ef4444" : "#10b981")};
+    background: ${({ $variant }) => ($variant === "primary" ? "#059669" : "#f0fdf4")};
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 `;
 
@@ -185,7 +210,7 @@ const ActionBtn = styled.button<{ $variant?: "primary" | "danger" }>`
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.5);
   z-index: 100;
   display: flex;
   align-items: flex-start;
@@ -195,77 +220,66 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalCard = styled.div`
-  background: #1a1a1a;
-  border: 1px solid #262626;
-  border-radius: 16px;
-  padding: 24px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
   width: 100%;
   max-width: 520px;
   margin-bottom: 60px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
 `;
 
 const ModalTitle = styled.h2`
-  color: #fff;
+  color: #1f2937;
   font-weight: 700;
-  font-size: 18px;
-  margin: 0 0 20px;
+  font-size: 1.125rem;
+  margin: 0 0 1.25rem;
 `;
 
 const FormGroup = styled.div`
-  margin-bottom: 14px;
+  margin-bottom: 0.875rem;
 `;
 
 const Label = styled.label`
   display: block;
-  color: #a3a3a3;
-  font-size: 12px;
+  color: #6b7280;
+  font-size: 0.75rem;
   font-weight: 600;
-  margin-bottom: 4px;
+  margin-bottom: 0.25rem;
+`;
+
+const inputStyles = `
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #1f2937;
+  font-size: 0.875rem;
+  box-sizing: border-box;
+  &:focus { outline: none; border-color: #10b981; }
 `;
 
 const Input = styled.input`
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #262626;
-  background: #0a0a0a;
-  color: #fff;
-  font-size: 14px;
-  box-sizing: border-box;
-  &:focus { outline: none; border-color: #7c3aed; }
+  ${inputStyles}
 `;
 
 const Select = styled.select`
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #262626;
-  background: #0a0a0a;
-  color: #fff;
-  font-size: 14px;
-  box-sizing: border-box;
-  &:focus { outline: none; border-color: #7c3aed; }
+  ${inputStyles}
 `;
 
 const Textarea = styled.textarea`
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid #262626;
-  background: #0a0a0a;
-  color: #fff;
-  font-size: 14px;
+  ${inputStyles}
   resize: vertical;
   min-height: 60px;
-  box-sizing: border-box;
-  &:focus { outline: none; border-color: #7c3aed; }
 `;
 
 const ModalActions = styled.div`
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   justify-content: flex-end;
-  margin-top: 20px;
+  margin-top: 1.25rem;
 `;
 
 // ── Helpers ──
@@ -429,12 +443,12 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
   const formatBudget = (cents: number) => `€${(cents / 100).toFixed(0)}`;
   const ctr = (c: Campaign) => (c.impressions > 0 ? ((c.clicks / c.impressions) * 100).toFixed(1) : "0.0");
 
-  if (loading) return <Container><div style={{ color: "#737373" }}>Loading...</div></Container>;
+  if (loading) return <Container><div style={{ color: "#6b7280", padding: "2rem", textAlign: "center" }}>Loading campaigns...</div></Container>;
 
   return (
     <Container>
       <Header>
-        <Title>📢 Ad Campaigns</Title>
+        <Title>Ad Campaigns</Title>
         {canManage && (
           <ActionBtn $variant="primary" onClick={openCreate}>
             + New Campaign
@@ -451,22 +465,22 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
       </FilterBar>
 
       {campaigns.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "48px 16px", color: "#737373" }}>
-          <p style={{ fontSize: "14px" }}>No campaigns yet.</p>
-          <p style={{ fontSize: "12px", marginTop: "4px" }}>Create your first ad campaign to promote your venue.</p>
+        <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#9ca3af" }}>
+          <p style={{ fontSize: "0.9375rem", marginBottom: "0.25rem" }}>No campaigns yet</p>
+          <p style={{ fontSize: "0.8125rem" }}>Create your first ad campaign to promote your venue.</p>
         </div>
       ) : (
         <CardGrid>
           {campaigns.map((c) => {
             const sc = statusConfig[c.status] || statusConfig.DRAFT;
-            const tp = typeLabels[c.type] || { label: c.type, icon: "📌" };
+            const tp = typeLabels[c.type] || c.type;
             const spentPct = c.budgetCents > 0 ? (c.spentCents / c.budgetCents) * 100 : 0;
             return (
               <CampaignCard key={c.id} $active={c.status === "ACTIVE"}>
                 <CardTop>
                   <div>
                     <CardTitle>{c.title}</CardTitle>
-                    <CardType>{tp.icon} {tp.label}</CardType>
+                    <CardType>{tp}</CardType>
                   </div>
                   <StatusBadge $color={sc.color} $bg={sc.bg}>
                     {c.status.replace(/_/g, " ")}
@@ -480,8 +494,8 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
                 <StatsRow>
                   <Stat>Budget: <span>{formatBudget(c.budgetCents)}</span></Stat>
                   <Stat>Spent: <span>{formatBudget(c.spentCents)}</span></Stat>
-                  <Stat>👁 <span>{c.impressions.toLocaleString()}</span></Stat>
-                  <Stat>🎯 <span>{c.clicks.toLocaleString()}</span></Stat>
+                  <Stat>Impressions: <span>{c.impressions.toLocaleString()}</span></Stat>
+                  <Stat>Clicks: <span>{c.clicks.toLocaleString()}</span></Stat>
                   <Stat>CTR: <span>{ctr(c)}%</span></Stat>
                 </StatsRow>
 
@@ -494,33 +508,33 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
                 {canManage && (
                   <Actions>
                     {(c.status === "DRAFT" || c.status === "PENDING_REVIEW") && (
-                      <ActionBtn onClick={() => openEdit(c)}>✏️ Edit</ActionBtn>
+                      <ActionBtn onClick={() => openEdit(c)}>Edit</ActionBtn>
                     )}
                     {c.status === "DRAFT" && (
                       <>
-                        <ActionBtn onClick={() => changeStatus(c.id, "PENDING_REVIEW")}>✅ Submit</ActionBtn>
-                        <ActionBtn onClick={() => deleteCampaign(c.id)} $variant="danger">🗑 Delete</ActionBtn>
+                        <ActionBtn onClick={() => changeStatus(c.id, "PENDING_REVIEW")}>Submit</ActionBtn>
+                        <ActionBtn onClick={() => deleteCampaign(c.id)} $variant="danger">Delete</ActionBtn>
                       </>
                     )}
                     {c.status === "PENDING_REVIEW" && (
                       <ActionBtn $variant="primary" onClick={() => changeStatus(c.id, "ACTIVE")}>
-                        ▶ Approve
+                        Approve
                       </ActionBtn>
                     )}
                     {c.status === "ACTIVE" && (
                       <>
-                        <ActionBtn onClick={() => changeStatus(c.id, "PAUSED")}>⏸ Pause</ActionBtn>
-                        <ActionBtn onClick={() => changeStatus(c.id, "COMPLETED")}>✅ Complete</ActionBtn>
+                        <ActionBtn onClick={() => changeStatus(c.id, "PAUSED")}>Pause</ActionBtn>
+                        <ActionBtn onClick={() => changeStatus(c.id, "COMPLETED")}>Complete</ActionBtn>
                       </>
                     )}
                     {c.status === "PAUSED" && (
                       <ActionBtn $variant="primary" onClick={() => changeStatus(c.id, "ACTIVE")}>
-                        ▶ Resume
+                        Resume
                       </ActionBtn>
                     )}
                     {(c.status === "ACTIVE" || c.status === "PAUSED") && (
                       <ActionBtn $variant="danger" onClick={() => changeStatus(c.id, "CANCELLED")}>
-                        ❌ Cancel
+                        Cancel
                       </ActionBtn>
                     )}
                   </Actions>
@@ -551,7 +565,7 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
               <Label>Type</Label>
               <Select value={type} onChange={(e) => setType(e.target.value)}>
                 {Object.entries(typeLabels).map(([k, v]) => (
-                  <option key={k} value={k}>{v.icon} {v.label}</option>
+                  <option key={k} value={k}>{v}</option>
                 ))}
               </Select>
             </FormGroup>

@@ -141,6 +141,21 @@ const ItemMeta = styled.div`
   flex-wrap: wrap;
 `;
 
+const typeBadgeStyle = ($type: string) => {
+  switch ($type) {
+    case "promotion":
+      return { bg: "#dbeafe", color: "#1e40af" };
+    case "event":
+      return { bg: "#ede9fe", color: "#7c3aed" };
+    case "pass":
+      return { bg: "#d1fae5", color: "#065f46" };
+    case "ad":
+      return { bg: "#fef3c7", color: "#92400e" };
+    default:
+      return { bg: "#f3f4f6", color: "#6b7280" };
+  }
+};
+
 const ItemTypeBadge = styled.span<{ $type: string }>`
   display: inline-block;
   padding: 0.125rem 0.5rem;
@@ -148,8 +163,8 @@ const ItemTypeBadge = styled.span<{ $type: string }>`
   font-size: 0.625rem;
   font-weight: 600;
   text-transform: uppercase;
-  background: ${({ $type }) => ($type === "promotion" ? "#dbeafe" : "#ede9fe")};
-  color: ${({ $type }) => ($type === "promotion" ? "#1e40af" : "#7c3aed")};
+  background: ${({ $type }) => typeBadgeStyle($type).bg};
+  color: ${({ $type }) => typeBadgeStyle($type).color};
 `;
 
 const ActionGroup = styled.div`
@@ -270,26 +285,38 @@ interface PendingItem {
   id: string;
   title: string;
   description: string | null;
-  itemType: "promotion" | "event";
+  itemType: "promotion" | "event" | "pass" | "ad";
   // promotion-specific
   type?: string;
   discount?: number | null;
+  // pass-specific
+  priceCents?: number;
+  totalQuantity?: number;
+  soldCount?: number;
   // event-specific
   startTime?: string;
   endTime?: string | null;
   maxAttendees?: number | null;
   attendeeCount?: number;
+  // ad-specific
+  budgetCents?: number;
+  startDate?: string;
+  endDate?: string;
   createdAt: string;
 }
 
 interface ApprovalData {
   promotions: PendingItem[];
   events: PendingItem[];
+  passes: PendingItem[];
+  campaigns: PendingItem[];
 }
 
 interface ApprovalCounts {
   promotions: number;
   events: number;
+  passes: number;
+  campaigns: number;
   total: number;
 }
 
@@ -333,7 +360,7 @@ interface PendingApprovalsProps {
 
 const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
   const [approvals, setApprovals] = useState<ApprovalData | null>(null);
-  const [counts, setCounts] = useState<ApprovalCounts>({ promotions: 0, events: 0, total: 0 });
+  const [counts, setCounts] = useState<ApprovalCounts>({ promotions: 0, events: 0, passes: 0, campaigns: 0, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actioning, setActioning] = useState<string | null>(null); // id of item being acted on
@@ -369,46 +396,93 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const getItemKey = (itemType: string): keyof ApprovalData => {
+    switch (itemType) {
+      case "promotion": return "promotions";
+      case "event": return "events";
+      case "pass": return "passes";
+      case "ad": return "campaigns";
+      default: return "promotions";
+    }
+  };
+
+  const getCountKey = (itemType: string): keyof ApprovalCounts => {
+    switch (itemType) {
+      case "promotion": return "promotions";
+      case "event": return "events";
+      case "pass": return "passes";
+      case "ad": return "campaigns";
+      default: return "promotions";
+    }
+  };
+
+  const removeItem = (item: PendingItem) => {
+    if (!approvals) return;
+    const itemKey = getItemKey(item.itemType);
+    const countKey = getCountKey(item.itemType);
+    setApprovals({
+      ...approvals,
+      [itemKey]: (approvals[itemKey] as PendingItem[]).filter((p) => p.id !== item.id),
+    });
+    setCounts((prev) => ({
+      ...prev,
+      [countKey]: Math.max(0, prev[countKey] - 1),
+      total: Math.max(0, prev.total - 1),
+    }));
+  };
+
   const handleApprove = async (item: PendingItem) => {
     if (!token) return;
     setActioning(item.id);
     try {
       let res: Response;
-      if (item.itemType === "promotion") {
-        res = await fetch(`/api/auth/bar/${barId}/promotions/${item.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ isApproved: true }),
-        });
-      } else {
-        res = await fetch(`/api/auth/bar/${barId}/events/${item.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ action: "approve" }),
-        });
+      switch (item.itemType) {
+        case "promotion":
+          res = await fetch(`/api/auth/bar/${barId}/promotions/${item.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ isApproved: true }),
+          });
+          break;
+        case "event":
+          res = await fetch(`/api/auth/bar/${barId}/events/${item.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: "approve" }),
+          });
+          break;
+        case "pass":
+          res = await fetch(`/api/auth/bar/${barId}/passes/${item.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ isApproved: true, isActive: true }),
+          });
+          break;
+        case "ad":
+          res = await fetch(`/api/auth/bar/${barId}/campaigns/${item.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: "ACTIVE" }),
+          });
+          break;
+        default:
+          throw new Error("Unknown item type");
       }
 
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
-
-      // Remove from list optimistically
-      if (approvals) {
-        const itemKey = item.itemType === "promotion" ? "promotions" : "events";
-        setApprovals({
-          promotions: approvals.promotions.filter((p) => p.id !== item.id),
-          events: approvals.events.filter((e) => e.id !== item.id),
-        });
-        setCounts((prev) => ({
-          ...prev,
-          [itemKey]: prev[itemKey] - 1,
-          total: prev.total - 1,
-        }));
-      }
+      removeItem(item);
       showToast(`"${item.title}" approved`, "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to approve", "error");
@@ -422,41 +496,53 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
     setActioning(item.id);
     try {
       let res: Response;
-      if (item.itemType === "promotion") {
-        res = await fetch(`/api/auth/bar/${barId}/promotions/${item.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ isApproved: false }),
-        });
-      } else {
-        res = await fetch(`/api/auth/bar/${barId}/events/${item.id}`, {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ action: "reject" }),
-        });
+      switch (item.itemType) {
+        case "promotion":
+          res = await fetch(`/api/auth/bar/${barId}/promotions/${item.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ isApproved: false }),
+          });
+          break;
+        case "event":
+          res = await fetch(`/api/auth/bar/${barId}/events/${item.id}`, {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: "reject" }),
+          });
+          break;
+        case "pass":
+          res = await fetch(`/api/auth/bar/${barId}/passes/${item.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ isApproved: false }),
+          });
+          break;
+        case "ad":
+          res = await fetch(`/api/auth/bar/${barId}/campaigns/${item.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: "DRAFT" }),
+          });
+          break;
+        default:
+          throw new Error("Unknown item type");
       }
 
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
-
-      // Remove from list optimistically
-      if (approvals) {
-        const itemKey = item.itemType === "promotion" ? "promotions" : "events";
-        setApprovals({
-          promotions: approvals.promotions.filter((p) => p.id !== item.id),
-          events: approvals.events.filter((e) => e.id !== item.id),
-        });
-        setCounts((prev) => ({
-          ...prev,
-          [itemKey]: prev[itemKey] - 1,
-          total: prev.total - 1,
-        }));
-      }
+      removeItem(item);
       showToast(`"${item.title}" rejected`, "success");
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to reject", "error");
@@ -483,7 +569,12 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
   }
 
   const allItems: PendingItem[] = approvals
-    ? [...approvals.promotions, ...approvals.events].sort(
+    ? [
+        ...approvals.promotions,
+        ...approvals.events,
+        ...(approvals.passes || []),
+        ...(approvals.campaigns || []),
+      ].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       )
     : [];
@@ -586,6 +677,98 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
                         {item.attendeeCount !== undefined && (
                           <span>{item.attendeeCount} attending</span>
                         )}
+                        <span>Created {timeAgo(item.createdAt)}</span>
+                      </ItemMeta>
+                      {item.description && (
+                        <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                          {item.description.slice(0, 120)}
+                          {item.description.length > 120 && "..."}
+                        </div>
+                      )}
+                    </ItemInfo>
+                    <ActionGroup>
+                      <RejectButton
+                        onClick={() => handleReject(item)}
+                        disabled={actioning === item.id}
+                      >
+                        {actioning === item.id ? "..." : "Reject"}
+                      </RejectButton>
+                      <ApproveButton
+                        onClick={() => handleApprove(item)}
+                        disabled={actioning === item.id}
+                      >
+                        {actioning === item.id ? "..." : "✓ Approve"}
+                      </ApproveButton>
+                    </ActionGroup>
+                  </ApprovalCard>
+                ))}
+              </ApprovalList>
+            </Section>
+          )}
+
+          {/* Passes Section */}
+          {approvals && (approvals.passes || []).length > 0 && (
+            <Section>
+              <SectionHeader>
+                <SectionTitle>Passes</SectionTitle>
+                <SectionCount>({counts.passes} pending)</SectionCount>
+              </SectionHeader>
+              <ApprovalList>
+                {(approvals.passes || []).map((item) => (
+                  <ApprovalCard key={item.id}>
+                    <ItemInfo>
+                      <ItemTitle>{item.title}</ItemTitle>
+                      <ItemMeta>
+                        <ItemTypeBadge $type="pass">Pass</ItemTypeBadge>
+                        <span>{item.type?.replace(/_/g, " ")}</span>
+                        {item.priceCents && <span>€{(item.priceCents / 100).toFixed(2)}</span>}
+                        {item.totalQuantity && <span>{item.totalQuantity} qty</span>}
+                        <span>Created {timeAgo(item.createdAt)}</span>
+                      </ItemMeta>
+                      {item.description && (
+                        <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                          {item.description.slice(0, 120)}
+                          {item.description.length > 120 && "..."}
+                        </div>
+                      )}
+                    </ItemInfo>
+                    <ActionGroup>
+                      <RejectButton
+                        onClick={() => handleReject(item)}
+                        disabled={actioning === item.id}
+                      >
+                        {actioning === item.id ? "..." : "Reject"}
+                      </RejectButton>
+                      <ApproveButton
+                        onClick={() => handleApprove(item)}
+                        disabled={actioning === item.id}
+                      >
+                        {actioning === item.id ? "..." : "✓ Approve"}
+                      </ApproveButton>
+                    </ActionGroup>
+                  </ApprovalCard>
+                ))}
+              </ApprovalList>
+            </Section>
+          )}
+
+          {/* Ad Campaigns Section */}
+          {approvals && (approvals.campaigns || []).length > 0 && (
+            <Section>
+              <SectionHeader>
+                <SectionTitle>Ad Campaigns</SectionTitle>
+                <SectionCount>({counts.campaigns} pending)</SectionCount>
+              </SectionHeader>
+              <ApprovalList>
+                {(approvals.campaigns || []).map((item) => (
+                  <ApprovalCard key={item.id}>
+                    <ItemInfo>
+                      <ItemTitle>{item.title}</ItemTitle>
+                      <ItemMeta>
+                        <ItemTypeBadge $type="ad">Ad</ItemTypeBadge>
+                        <span>{item.type?.replace(/_/g, " ")}</span>
+                        {item.budgetCents && <span>€{(item.budgetCents / 100).toFixed(0)} budget</span>}
+                        {item.startDate && <span>{formatDate(item.startDate)} – {item.endDate ? formatDate(item.endDate) : ""}</span>}
                         <span>Created {timeAgo(item.createdAt)}</span>
                       </ItemMeta>
                       {item.description && (

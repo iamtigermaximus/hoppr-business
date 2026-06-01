@@ -58,6 +58,18 @@ export async function GET(
       },
     });
 
+    // Fetch pending passes (isApproved: false)
+    const pendingPasses = await prisma.vIPPassEnhanced.findMany({
+      where: { barId, isApproved: false },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Fetch pending ad campaigns (status: PENDING_REVIEW)
+    const pendingCampaigns = await prisma.adCampaign.findMany({
+      where: { barId, status: "PENDING_REVIEW" },
+      orderBy: { createdAt: "desc" },
+    });
+
     return NextResponse.json({
       success: true,
       approvals: {
@@ -81,11 +93,39 @@ export async function GET(
           createdAt: e.createdAt.toISOString(),
           itemType: "event" as const,
         })),
+        passes: pendingPasses.map((p) => ({
+          id: p.id,
+          title: p.name,
+          description: p.description,
+          type: p.type,
+          priceCents: p.priceCents,
+          totalQuantity: p.totalQuantity,
+          soldCount: p.soldCount,
+          createdAt: p.createdAt.toISOString(),
+          itemType: "pass" as const,
+        })),
+        campaigns: pendingCampaigns.map((c) => ({
+          id: c.id,
+          title: c.title,
+          description: c.description,
+          type: c.type,
+          budgetCents: c.budgetCents,
+          startDate: c.startDate.toISOString(),
+          endDate: c.endDate.toISOString(),
+          createdAt: c.createdAt.toISOString(),
+          itemType: "ad" as const,
+        })),
       },
       counts: {
         promotions: pendingPromotions.length,
         events: pendingEvents.length,
-        total: pendingPromotions.length + pendingEvents.length,
+        passes: pendingPasses.length,
+        campaigns: pendingCampaigns.length,
+        total:
+          pendingPromotions.length +
+          pendingEvents.length +
+          pendingPasses.length +
+          pendingCampaigns.length,
       },
     });
   } catch (error) {
