@@ -1,6 +1,12 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend(): Resend {
+  if (!_resend) {
+    _resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return _resend;
+}
 
 const FROM = "Hoppr Business <onboarding@resend.dev>";
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3001";
@@ -14,7 +20,7 @@ export async function sendInviteEmail(params: {
 }) {
   const inviteUrl = `${BASE_URL}/bar/invite?token=${params.token}`;
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResend().emails.send({
     from: FROM,
     to: params.to,
     subject: `You're invited to manage ${params.barName} on Hoppr`,
@@ -59,7 +65,7 @@ export async function sendWelcomeEmail(params: {
   const loginUrl = `${BASE_URL}/bar/login`;
   const dashboardUrl = `${BASE_URL}/bar/${params.barId}/dashboard`;
 
-  const { data, error } = await resend.emails.send({
+  const { data, error } = await getResend().emails.send({
     from: FROM,
     to: params.to,
     subject: `Welcome to Hoppr — start managing ${params.barName}`,
