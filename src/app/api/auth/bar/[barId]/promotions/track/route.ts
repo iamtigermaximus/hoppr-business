@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     // User tokens have type: "user" instead of role: "bar_staff" or role: "admin"
-    const tokenData = payload as { type?: string; id?: string };
+    const tokenData = payload as unknown as { type?: string; id: string };
     if (tokenData.type !== "user") {
       return NextResponse.json(
         { error: "Invalid token type" },

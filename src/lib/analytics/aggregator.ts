@@ -150,7 +150,6 @@ export async function aggregateYesterday(): Promise<{
           barId_date: { barId: bar.id, date: yesterdayStart },
         },
         create: {
-          barId: bar.id,
           date: yesterdayStart,
           ...aggregate,
         },
@@ -248,7 +247,6 @@ export async function aggregateDateRange(
           barId_date: { barId: bar.id, date: startDate },
         },
         create: {
-          barId: bar.id,
           date: startDate,
           ...aggregate,
         },
