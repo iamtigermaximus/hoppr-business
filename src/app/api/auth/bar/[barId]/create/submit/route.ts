@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 
 // ---- Types ----
 
@@ -82,6 +83,15 @@ export async function POST(
       );
     }
 
+    // Rate limit: 10 content creations per minute per bar
+    const rateCheck = checkRateLimit(`create:${barId}`, RateLimits.CREATE);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Content creation rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
+    }
+
     // 2. Parse and validate request body
     const body = (await request.json()) as SubmitBody;
 
@@ -157,6 +167,23 @@ export async function POST(
 
     // 3. Run server-side compliance scan (authoritative)
     const compliance = scanCompliance(body.title, body.description);
+
+    // 3a. Block HIGH-severity violations — user must fix before publishing
+    const highViolations = compliance.violations.filter(
+      (v) => v.severity === "high",
+    );
+    if (highViolations.length > 0) {
+      return NextResponse.json(
+        {
+          error: "Compliance violations must be fixed before publishing",
+          blocked: true,
+          violations: highViolations,
+          message:
+            "This content contains language that violates Finnish alcohol advertising regulations. Please use the compliance suggestions or AI alternatives to fix these issues, then re-submit.",
+        },
+        { status: 422 },
+      );
+    }
 
     // 4. Resolve the real User.id from BarStaff (JWT stores BarStaff.id, but Event.creatorId references User.id)
     const barStaff = await prisma.barStaff.findUnique({

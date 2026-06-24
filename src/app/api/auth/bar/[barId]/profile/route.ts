@@ -137,11 +137,8 @@
 // }
 //src/app/api/auth/bar/[barId]/profile/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { verify } from "jsonwebtoken";
-
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { prisma } from "@/lib/database";
+import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 
 // GET - Fetch bar profile
 export async function GET(
@@ -149,15 +146,12 @@ export async function GET(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as { barId: string };
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -206,24 +200,18 @@ export async function PUT(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as {
-      barId: string;
-      staffRole: string;
-    };
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Only OWNER and MANAGER can edit profile
     const allowedRoles = ["OWNER", "MANAGER"];
-    if (!allowedRoles.includes(decoded.staffRole)) {
+    if (!allowedRoles.includes(payload.staffRole)) {
       return NextResponse.json(
         {
           error:

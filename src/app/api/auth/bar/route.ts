@@ -2,8 +2,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { authService } from "@/services/auth-service";
+import { checkRateLimit, RateLimits, getRateLimitKey } from "@/lib/rate-limiter";
 
 export async function POST(request: NextRequest) {
+  // Rate limit: 5 login attempts per minute per IP
+  const rateKey = getRateLimitKey(request, "bar-login");
+  const rateCheck = checkRateLimit(rateKey, RateLimits.AUTH);
+  if (!rateCheck.allowed) {
+    return NextResponse.json(
+      { error: `Too many login attempts. Try again in ${rateCheck.retryAfter} seconds.` },
+      { status: 429 },
+    );
+  }
+
   try {
     const { email, password, barId } = await request.json();
 

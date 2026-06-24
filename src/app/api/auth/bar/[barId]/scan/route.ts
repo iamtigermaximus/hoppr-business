@@ -3,20 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
-import { verify } from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JWTPayload {
-  id: string;
-  email: string;
-  barId: string;
-  name: string;
-  role: string;
-  staffRole?: string;
-  iat?: number;
-  exp?: number;
-}
+import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 
 // ---- POST ----
 
@@ -25,17 +13,27 @@ export async function POST(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
     const { barId } = await params;
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Rate limit: 30 scans per minute per bar
+    const rateCheck = checkRateLimit(`scan:${barId}`, RateLimits.SCAN);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Scan rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
     }
 
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    // Auth via shared lib
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const scannedById = payload.userId;
 
     const { qrData } = await request.json();
     const rawQr: string = typeof qrData === "string" ? qrData : JSON.stringify(qrData);
@@ -45,14 +43,14 @@ export async function POST(
     // VIP pass format: purchaseId:epoch:hash (from consumer app wallet QR)
     const vipMatch = rawQr.match(/^([a-zA-Z0-9_-]+):(\d+):([a-f0-9]+)$/);
     if (vipMatch) {
-      return handleVipPassScan(vipMatch[1], barId, decoded.id, rawQr);
+      return handleVipPassScan(vipMatch[1], barId, payload.userId, rawQr);
     }
 
     // Try promotion JSON format (legacy)
     try {
-      const payload = JSON.parse(rawQr);
-      if (payload.customer) {
-        return handlePromotionScan(payload, barId, decoded.id, rawQr);
+      const qrPayload = JSON.parse(rawQr);
+      if (qrPayload.customer) {
+        return handlePromotionScan(qrPayload, barId, scannedById, rawQr);
       }
     } catch {
       // Not JSON — fall through

@@ -1,48 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
-import { v2 as cloudinary } from "cloudinary";
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-const UPLOAD_FOLDER = "hoppr/bars";
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
-
-async function uploadToCloudinary(
-  file: File,
-  barId: string,
-): Promise<{ url: string; publicId: string }> {
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
-  const result = await new Promise((resolve, reject) => {
-    cloudinary.uploader
-      .upload_stream(
-        {
-          folder: `${UPLOAD_FOLDER}/${barId}`,
-          transformation: [{ quality: "auto" }, { fetch_format: "auto" }],
-          use_filename: true,
-          unique_filename: true,
-        },
-        (error, uploadResult) => {
-          if (error) reject(error);
-          else resolve(uploadResult);
-        },
-      )
-      .end(buffer);
-  });
-
-  const uploadResult = result as { secure_url: string; public_id: string };
-  return {
-    url: uploadResult.secure_url,
-    publicId: uploadResult.public_id,
-  };
-}
+import {
+  uploadToCloudinary,
+  UPLOAD_FOLDER_BARS,
+  MAX_FILE_SIZE,
+  ALLOWED_TYPES,
+} from "@/lib/cloudinary";
 
 export async function POST(
   request: NextRequest,
@@ -111,7 +74,7 @@ export async function POST(
     }
 
     // 5. Upload to Cloudinary
-    const result = await uploadToCloudinary(file, barId);
+    const result = await uploadToCloudinary(file, `${UPLOAD_FOLDER_BARS}/${barId}`);
 
     return NextResponse.json({
       success: true,

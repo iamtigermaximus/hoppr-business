@@ -3,18 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
-import { verify } from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JWTPayload {
-  id: string;
-  email: string;
-  barId: string;
-  name: string;
-  role: string;
-  staffRole?: string;
-}
+import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 
 interface UpdatePassBody {
   name?: string;
@@ -45,15 +34,12 @@ export async function GET(
   { params }: { params: Promise<{ barId: string; id: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId, id } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId, id } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -132,20 +118,17 @@ export async function PUT(
   { params }: { params: Promise<{ barId: string; id: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId, id } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId, id } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const allowedRoles = ["OWNER", "MANAGER"];
-    if (!decoded.staffRole || !allowedRoles.includes(decoded.staffRole)) {
+    if (!payload.staffRole || !allowedRoles.includes(payload.staffRole)) {
       return NextResponse.json(
         { error: "Only owners and managers can update VIP passes" },
         { status: 403 },
@@ -227,20 +210,17 @@ export async function DELETE(
   { params }: { params: Promise<{ barId: string; id: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId, id } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId, id } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const allowedRoles = ["OWNER", "MANAGER"];
-    if (!decoded.staffRole || !allowedRoles.includes(decoded.staffRole)) {
+    if (!payload.staffRole || !allowedRoles.includes(payload.staffRole)) {
       return NextResponse.json(
         { error: "Only owners and managers can deactivate VIP passes" },
         { status: 403 },

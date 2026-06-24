@@ -305,7 +305,7 @@
 //           status: "UNCLAIMED",
 //           isVerified: false,
 //           isActive: true,
-//           createdById: adminUser.id,
+//           createdById: payload.userId,
 //         };
 
 //         // Create the bar
@@ -340,14 +340,14 @@
 //             ? "FAILED"
 //             : "PARTIAL",
 //         errors: errors.length > 0 ? errors : undefined,
-//         importedById: adminUser.id,
+//         importedById: payload.userId,
 //       },
 //     });
 
 //     // Create audit log
 //     await prisma.auditLog.create({
 //       data: {
-//         userId: adminUser.id,
+//         userId: payload.userId,
 //         action: "BULK_IMPORT",
 //         resource: "BAR",
 //         details: {
@@ -549,7 +549,7 @@
 
 //     console.log("🔐 IMPORT API - Admin user found:", !!adminUser);
 //     if (adminUser) {
-//       console.log("🔐 IMPORT API - Admin user ID:", adminUser.id);
+//       console.log("🔐 IMPORT API - Admin user ID:", payload.userId);
 //       console.log("🔐 IMPORT API - Admin user email:", adminUser.email);
 //     } else {
 //       console.log("❌ IMPORT API - No admin user found with this token");
@@ -874,7 +874,7 @@
 //           status: "UNCLAIMED",
 //           isVerified: false,
 //           isActive: true,
-//           createdById: adminUser.id,
+//           createdById: payload.userId,
 //         };
 
 //         // Create the bar
@@ -914,7 +914,7 @@
 //               ? "FAILED"
 //               : "PARTIAL",
 //           errors: errors.length > 0 ? errors : undefined,
-//           importedById: adminUser.id,
+//           importedById: payload.userId,
 //         },
 //       });
 //       console.log("📝 IMPORT API - Audit record created");
@@ -928,7 +928,7 @@
 //     try {
 //       await prisma.auditLog.create({
 //         data: {
-//           userId: adminUser.id,
+//           userId: payload.userId,
 //           action: "BULK_IMPORT",
 //           resource: "BAR",
 //           details: {
@@ -1272,7 +1272,7 @@
 //             status: "UNCLAIMED",
 //             isVerified: false,
 //             isActive: true,
-//             createdById: adminUser.id,
+//             createdById: payload.userId,
 //           },
 //         });
 
@@ -1308,7 +1308,7 @@
 //               ? "FAILED"
 //               : "PARTIAL",
 //           errors: errors.length > 0 ? errors : undefined,
-//           importedById: adminUser.id,
+//           importedById: payload.userId,
 //         },
 //       });
 //     } catch (error) {
@@ -1678,7 +1678,7 @@
 //             status: "UNCLAIMED",
 //             isVerified: false,
 //             isActive: true,
-//             createdById: adminUser.id,
+//             createdById: payload.userId,
 //           },
 //         });
 
@@ -1728,7 +1728,7 @@
 //                   (d) =>
 //                     `Row ${d.row}: Duplicate bar "${d.name}" (${d.reason === "within_file" ? "duplicate in file" : "already in database"})`,
 //                 ),
-//           importedById: adminUser.id,
+//           importedById: payload.userId,
 //         },
 //       });
 //     } catch (error) {
@@ -2058,7 +2058,7 @@
 //             isVerified: false,
 //             isActive: true,
 //             vipEnabled: values[vipEnabledIndex]?.toLowerCase() === "true",
-//             createdById: adminUser.id,
+//             createdById: payload.userId,
 //           },
 //         });
 
@@ -2067,7 +2067,7 @@
 //         // Create audit log
 //         await prisma.auditLog.create({
 //           data: {
-//             userId: adminUser.id,
+//             userId: payload.userId,
 //             barId: bar.id,
 //             action: "IMPORT",
 //             resource: "BAR",
@@ -2100,7 +2100,7 @@
 //                 ? "PARTIAL"
 //                 : "FAILED",
 //           errors: results.errors.length > 0 ? results.errors : undefined,
-//           importedById: adminUser.id,
+//           importedById: payload.userId,
 //         },
 //       });
 //     } catch (error) {
@@ -2535,7 +2535,7 @@
 //             isVerified: isVerified,
 //             isActive: isActive,
 //             vipEnabled: vipEnabled,
-//             createdById: adminUser.id,
+//             createdById: payload.userId,
 //           },
 //         });
 
@@ -2544,7 +2544,7 @@
 //         // Create audit log
 //         await prisma.auditLog.create({
 //           data: {
-//             userId: adminUser.id,
+//             userId: payload.userId,
 //             barId: bar.id,
 //             action: "IMPORT",
 //             resource: "BAR",
@@ -2578,7 +2578,7 @@
 //           failedRows: results.skipped,
 //           status: importStatus,
 //           errors: results.errors.length > 0 ? results.errors : undefined,
-//           importedById: adminUser.id,
+//           importedById: payload.userId,
 //         },
 //       });
 //     } catch (error) {
@@ -2644,34 +2644,9 @@ import {
   ImportStatus,
   BarStatus,
 } from "@prisma/client";
-import { verify } from "jsonwebtoken";
+import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JwtPayload {
-  id: string;
-  email: string;
-  userId?: string;
-}
-
-async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
-  try {
-    const decoded = verify(token, JWT_SECRET) as JwtPayload;
-    const userId = decoded.id || decoded.userId;
-    if (!userId) return null;
-
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { id: userId, isActive: true },
-      select: { id: true },
-    });
-
-    return adminUser;
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return null;
-  }
-}
 
 function parseOperatingHours(hoursStr: string) {
   const defaultHours = { open: "Closed", close: "Closed" };
@@ -2821,15 +2796,9 @@ function parseBarType(typeStr: string): BarType | undefined {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const formData = await request.formData();
@@ -3016,7 +2985,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             isVerified: isVerified,
             isActive: isActive,
             vipEnabled: vipEnabled,
-            createdById: adminUser.id,
+            createdById: payload.userId,
           },
         });
 
@@ -3024,7 +2993,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
         await prisma.auditLog.create({
           data: {
-            userId: adminUser.id,
+            userId: payload.userId,
             barId: bar.id,
             action: "IMPORT",
             resource: "BAR",
@@ -3058,7 +3027,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           failedRows: results.skipped,
           status: importStatus,
           errors: results.errors.length > 0 ? results.errors : undefined,
-          importedById: adminUser.id,
+          importedById: payload.userId,
         },
       });
     } catch (error) {
@@ -3091,15 +3060,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const imports = await prisma.barImport.findMany({

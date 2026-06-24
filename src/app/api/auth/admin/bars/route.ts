@@ -128,14 +128,14 @@
 //         status: "UNCLAIMED",
 //         isVerified: false,
 //         isActive: true,
-//         createdById: adminUser.id,
+//         createdById: payload.userId,
 //       },
 //     });
 
 //     // Create audit log
 //     await prisma.auditLog.create({
 //       data: {
-//         userId: adminUser.id,
+//         userId: payload.userId,
 //         action: "CREATE",
 //         resource: "BAR",
 //         details: {
@@ -636,14 +636,14 @@
 //         status: "UNCLAIMED",
 //         isVerified: false,
 //         isActive: true,
-//         createdById: adminUser.id,
+//         createdById: payload.userId,
 //       },
 //     });
 
 //     // Create audit log
 //     await prisma.auditLog.create({
 //       data: {
-//         userId: adminUser.id,
+//         userId: payload.userId,
 //         action: "CREATE",
 //         resource: "BAR",
 //         details: {
@@ -685,10 +685,9 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient, BarType, BarStatus } from "@prisma/client";
-import { verify } from "jsonwebtoken";
+import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
 interface BarFilters {
   status?: BarStatus;
@@ -696,34 +695,11 @@ interface BarFilters {
   city?: string;
 }
 
-async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
-  try {
-    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string; userId?: string };
-    const userId = decoded.id || decoded.userId;
-    if (!userId) return null;
-
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { id: userId, isActive: true },
-      select: { id: true },
-    });
-    return adminUser;
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return null;
-  }
-}
-
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -845,15 +821,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 // POST - Create a new bar (for admin use)
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -906,14 +876,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         isActive: body.isActive !== undefined ? body.isActive : true,
         vipEnabled: body.vipEnabled || false,
         vipPrice: body.vipPrice ? parseFloat(body.vipPrice) : null,
-        createdById: adminUser.id,
+        createdById: payload.userId,
       },
     });
 
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        userId: adminUser.id,
+        userId: payload.userId,
         barId: bar.id,
         action: "CREATE",
         resource: "BAR",

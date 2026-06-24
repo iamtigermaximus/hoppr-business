@@ -1,17 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { verify } from "jsonwebtoken";
-
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JWTPayload {
-  id: string;
-  email: string;
-  barId: string;
-  name: string;
-  role: string;
-}
+import { prisma } from "@/lib/database";
+import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 
 // POST /api/auth/bar/[barId]/crowd-report — submit a crowd report
 export async function POST(
@@ -19,15 +8,12 @@ export async function POST(
   { params }: { params: Promise<{ barId: string }> },
 ): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -43,7 +29,7 @@ export async function POST(
       data: {
         barId,
         level,
-        reportedBy: decoded.id,
+        reportedBy: payload.userId,
         reportedAt: now,
         expiresAt: new Date(now.getTime() + 2 * 3600000), // 2 hours
       },
@@ -68,15 +54,12 @@ export async function GET(
   { params }: { params: Promise<{ barId: string }> },
 ): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

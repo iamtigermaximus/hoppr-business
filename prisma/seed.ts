@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, BarStaffRole } from "@prisma/client";
 import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
@@ -22,7 +22,10 @@ async function main() {
   console.log(`✅ SUPER_ADMIN: ${admin.email}`);
 
   // Create bar staff records linked to existing bars
-  const bars = await prisma.bar.findMany({ take: 5, select: { id: true, name: true } });
+  const bars = await prisma.bar.findMany({
+    take: 5,
+    select: { id: true, name: true },
+  });
   if (bars.length > 0) {
     for (const bar of bars) {
       const staffEmail = `staff@${bar.name.toLowerCase().replace(/[^a-z0-9]/g, "")}.fi`;
@@ -45,7 +48,7 @@ async function main() {
           userId: user.id,
           email: staffEmail,
           name: `${bar.name} Staff`,
-          role: "MANAGER",
+          role: BarStaffRole.MANAGER,
           permissions: ["manage_promos", "manage_events", "view_analytics"],
         },
       });
@@ -53,41 +56,146 @@ async function main() {
     }
   }
 
-  console.log(`\n🎉 Done!`);
+  // Create Midnight Club staff credentials
+  console.log("\n🎯 Creating Midnight Club staff...");
 
-  // Create a test claim for the first bar
-  if (bars.length > 0) {
-    const claimBar = bars[0];
-    const ownerEmail = `owner@${claimBar.name.toLowerCase().replace(/[^a-z0-9]/g, "")}.fi`;
+  // Find Midnight Club bar
+  const midnightClub = await prisma.bar.findFirst({
+    where: {
+      name: {
+        contains: "Midnight Club",
+        mode: "insensitive",
+      },
+    },
+    select: { id: true, name: true },
+  });
+
+  if (midnightClub) {
+    // Create multiple staff members for Midnight Club
+    // Using actual enum values from your schema
+    const staffMembers = [
+      {
+        email: "manager@midnightclub.fi",
+        name: "Midnight Club Manager",
+        role: BarStaffRole.MANAGER,
+      },
+      {
+        email: "promotions@midnightclub.fi",
+        name: "Midnight Club Promotions Manager",
+        role: BarStaffRole.PROMOTIONS_MANAGER,
+      },
+      {
+        email: "bartender1@midnightclub.fi",
+        name: "Midnight Club Bartender",
+        role: BarStaffRole.STAFF,
+      },
+      {
+        email: "bartender2@midnightclub.fi",
+        name: "Midnight Club Senior Bartender",
+        role: BarStaffRole.STAFF,
+      },
+      {
+        email: "security@midnightclub.fi",
+        name: "Midnight Club Security",
+        role: BarStaffRole.STAFF,
+      },
+    ];
+
+    for (const staff of staffMembers) {
+      // Create user
+      const user = await prisma.user.upsert({
+        where: { email: staff.email },
+        update: {},
+        create: {
+          email: staff.email,
+          name: staff.name,
+          hashedPassword,
+          role: "BAR_STAFF",
+        },
+      });
+
+      // Create bar staff record
+      let permissions: string[] = [];
+
+      if (staff.role === BarStaffRole.MANAGER) {
+        permissions = [
+          "manage_promos",
+          "manage_events",
+          "view_analytics",
+          "manage_staff",
+        ];
+      } else if (staff.role === BarStaffRole.PROMOTIONS_MANAGER) {
+        permissions = ["manage_promos", "manage_events", "view_analytics"];
+      } else {
+        permissions = ["view_promos", "view_events"];
+      }
+
+      await prisma.barStaff.upsert({
+        where: { barId_email: { barId: midnightClub.id, email: staff.email } },
+        update: {
+          userId: user.id,
+          name: staff.name,
+          role: staff.role,
+          permissions: permissions,
+        },
+        create: {
+          barId: midnightClub.id,
+          userId: user.id,
+          email: staff.email,
+          name: staff.name,
+          role: staff.role,
+          permissions: permissions,
+        },
+      });
+      console.log(`✅ Midnight Club Staff: ${staff.email} (${staff.role})`);
+    }
+
+    // Create a test claim for Midnight Club
+    const ownerEmail = "owner@midnightclub.fi";
     const owner = await prisma.user.upsert({
       where: { email: ownerEmail },
       update: {},
       create: {
         email: ownerEmail,
-        name: `${claimBar.name} Owner`,
+        name: "Midnight Club Owner",
         hashedPassword,
         role: "BAR_STAFF",
       },
     });
 
     await prisma.barClaim.upsert({
-      where: { id: `test-claim-${claimBar.id}` },
+      where: { id: `test-claim-midnightclub` },
       update: {},
       create: {
-        id: `test-claim-${claimBar.id}`,
-        barId: claimBar.id,
+        id: `test-claim-midnightclub`,
+        barId: midnightClub.id,
         userId: owner.id,
         documentUrls: [],
-        notes: "I am the owner of this bar. Please verify my claim.",
+        notes: "I am the owner of Midnight Club. Please verify my claim.",
         status: "CLAIMED",
       },
     });
-    console.log(`✅ Test claim created for ${claimBar.name}`);
+    console.log(`✅ Midnight Club test claim created`);
+
+    console.log(`\n📋 Midnight Club Staff Credentials:`);
+    console.log(`   Manager:           manager@midnightclub.fi / admin123`);
+    console.log(`   Promotions Mgr:    promotions@midnightclub.fi / admin123`);
+    console.log(`   Bartender:         bartender1@midnightclub.fi / admin123`);
+    console.log(`   Bartender:         bartender2@midnightclub.fi / admin123`);
+    console.log(`   Security:          security@midnightclub.fi / admin123`);
+    console.log(`   Owner:             owner@midnightclub.fi / admin123`);
+  } else {
+    console.log(
+      `⚠️ Midnight Club bar not found in database. Please create it first.`,
+    );
   }
 
   console.log(`\n🎉 Done!`);
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
   .finally(() => prisma.$disconnect());

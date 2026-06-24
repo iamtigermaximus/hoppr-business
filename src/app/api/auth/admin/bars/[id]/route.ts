@@ -604,28 +604,9 @@ import {
   BarStatus,
   PriceRange,
 } from "@prisma/client";
-import { verify } from "jsonwebtoken";
+import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-async function verifyAdminToken(token: string): Promise<{ id: string } | null> {
-  try {
-    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string; userId?: string };
-
-    const userId = decoded.id || decoded.userId;
-    if (!userId) return null;
-
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { id: userId, isActive: true },
-      select: { id: true },
-    });
-    return adminUser;
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return null;
-  }
-}
 
 // GET - Fetch single bar
 export async function GET(
@@ -633,20 +614,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { id } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json(
-        { error: "Invalid token or insufficient permissions" },
-        { status: 401 },
-      );
-    }
+    const { id } = await params;
 
     const bar = await prisma.bar.findUnique({
       where: { id },
@@ -784,20 +756,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { id } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json(
-        { error: "Invalid token or insufficient permissions" },
-        { status: 401 },
-      );
-    }
+    const { id } = await params;
 
     const body = await request.json();
 
@@ -856,7 +819,7 @@ export async function PUT(
     // Create audit log - FIXED: Convert updateData to a compatible format
     await prisma.auditLog.create({
       data: {
-        userId: adminUser.id,
+        userId: payload.userId,
         barId: updatedBar.id,
         action: "UPDATE",
         resource: "BAR",
@@ -892,20 +855,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { id } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json(
-        { error: "Invalid token or insufficient permissions" },
-        { status: 401 },
-      );
-    }
+    const { id } = await params;
 
     const body = await request.json();
 
@@ -938,7 +892,7 @@ export async function PATCH(
 
     await prisma.auditLog.create({
       data: {
-        userId: adminUser.id,
+        userId: payload.userId,
         barId: updatedBar.id,
         action: "PATCH",
         resource: "BAR",
@@ -967,20 +921,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<NextResponse> {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { id } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json(
-        { error: "Invalid token or insufficient permissions" },
-        { status: 401 },
-      );
-    }
+    const { id } = await params;
 
     // Get bar name for audit log before deleting
     const bar = await prisma.bar.findUnique({
@@ -999,7 +944,7 @@ export async function DELETE(
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        userId: adminUser.id,
+        userId: payload.userId,
         barId: id,
         action: "DELETE",
         resource: "BAR",

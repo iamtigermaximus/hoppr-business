@@ -99,7 +99,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { verify } from "jsonwebtoken";
+import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 import {
   BarCompletionScoresResponse,
   BarCompletionScore,
@@ -107,34 +107,12 @@ import {
 } from "@/types/admin-analytics";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-async function verifyAdminToken(token: string) {
-  try {
-    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string; userId?: string };
-    const userId = decoded.id || decoded.userId;
-    if (!userId) return null;
-
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { id: userId, isActive: true },
-    });
-    return adminUser;
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return null;
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const adminUser = await verifyAdminToken(token);
-    if (!adminUser) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const allBars = await prisma.bar.findMany({

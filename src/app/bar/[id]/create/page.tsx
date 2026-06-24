@@ -2,21 +2,9 @@
 // Unified AI-First Creation Hub — single page for creating events, promotions, and passes
 
 import { prisma } from "@/lib/database";
-import { verify } from "jsonwebtoken";
-import { cookies } from "next/headers";
+import { verifyAuthCookie, isBarStaffToken } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
 import CreateHubClient from "@/components/bar/create/CreateHubClient";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JWTPayload {
-  id: string;
-  email: string;
-  barId: string;
-  name: string;
-  role: string;
-  staffRole?: string;
-}
 
 export default async function CreateHubPage({
   params,
@@ -25,23 +13,14 @@ export default async function CreateHubPage({
 }) {
   const { id: barId } = await params;
 
-  // 1. Verify auth via token cookie (following existing page patterns)
-  const cookieStore = await cookies();
-  const tokenCookie = cookieStore.get("hoppr_token");
-
-  if (!tokenCookie?.value) {
-    redirect("/login");
-  }
-
-  let decoded: JWTPayload;
-  try {
-    decoded = verify(tokenCookie.value, JWT_SECRET) as JWTPayload;
-  } catch {
+  // 1. Verify auth via token cookie using the shared auth lib
+  const payload = await verifyAuthCookie();
+  if (!payload || !isBarStaffToken(payload)) {
     redirect("/login");
   }
 
   // Verify bar access
-  if (decoded.barId !== barId) {
+  if (payload.barId !== barId) {
     redirect("/login");
   }
 
@@ -56,7 +35,7 @@ export default async function CreateHubPage({
   }
 
   // All authenticated bar staff can create content
-  const userRole = decoded.staffRole || "STAFF";
+  const userRole = payload.staffRole || "STAFF";
 
   return <CreateHubClient barId={barId} userRole={userRole} />;
 }

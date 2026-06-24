@@ -193,9 +193,26 @@ export default function SuggestionPanel({
   const showAiOption = hasHighSeverity || hasMultipleRules;
 
   const handleAcceptFix = (suggestion: string) => {
-    // For now, accept the violation's suggestion by clearing the flagged keyword
-    // In a full implementation, we'd do NLP replacement
-    onAcceptFix(title, description);
+    // Parse "Replace X with Y" patterns from the suggestion and apply them
+    let newTitle = title;
+    let newDescription = description;
+
+    const replacePattern = /Replace\s+"([^"]+)"\s+with\s+"([^"]+)"/gi;
+    let match;
+    while ((match = replacePattern.exec(suggestion)) !== null) {
+      const find = match[1];
+      const replace = match[2];
+      // Escape special regex characters in the find string, then do case-insensitive global replacement
+      const findRegex = new RegExp(
+        find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+        "gi",
+      );
+      // Use a function replacer to avoid $ interpolation issues
+      newTitle = newTitle.replace(findRegex, () => replace);
+      newDescription = newDescription.replace(findRegex, () => replace);
+    }
+
+    onAcceptFix(newTitle, newDescription);
   };
 
   const handleGenerateAI = async () => {

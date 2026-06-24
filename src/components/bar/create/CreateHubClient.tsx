@@ -340,7 +340,8 @@ export default function CreateHubClient({ barId, userRole }: CreateHubClientProp
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Failed to create");
+        const errorMsg = data.blocked && data.message ? data.message : data.error || "Failed to create";
+throw new Error(errorMsg);
       }
 
       const data = await res.json();

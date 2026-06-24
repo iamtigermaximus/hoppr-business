@@ -28,7 +28,7 @@
 //     const [imports, total] = await Promise.all([
 //       prisma.barImport.findMany({
 //         where: {
-//           importedBy: adminUser.id,
+//           importedBy: payload.userId,
 //         },
 //         orderBy: {
 //           createdAt: "desc",
@@ -49,7 +49,7 @@
 //       }),
 //       prisma.barImport.count({
 //         where: {
-//           importedBy: adminUser.id,
+//           importedBy: payload.userId,
 //         },
 //       }),
 //     ]);
@@ -156,7 +156,7 @@
 
 //     console.log("🔐 HISTORY API - Admin user found:", !!adminUser);
 //     if (adminUser) {
-//       console.log("🔐 HISTORY API - Admin user ID:", adminUser.id);
+//       console.log("🔐 HISTORY API - Admin user ID:", payload.userId);
 //       console.log("🔐 HISTORY API - Admin user email:", adminUser.email);
 //     } else {
 //       console.log("❌ HISTORY API - No admin user found with this token");
@@ -177,7 +177,7 @@
 //     const skip = (page - 1) * limit;
 
 //     console.log(
-//       `📋 HISTORY API - Fetching history for user ${adminUser.id}, page ${page}, limit ${limit}`
+//       `📋 HISTORY API - Fetching history for user ${payload.userId}, page ${page}, limit ${limit}`
 //     );
 
 //     try {
@@ -185,7 +185,7 @@
 //       const [imports, total] = await Promise.all([
 //         prisma.barImport.findMany({
 //           where: {
-//             importedBy: adminUser.id,
+//             importedBy: payload.userId,
 //           },
 //           orderBy: {
 //             createdAt: "desc",
@@ -206,7 +206,7 @@
 //         }),
 //         prisma.barImport.count({
 //           where: {
-//             importedBy: adminUser.id,
+//             importedBy: payload.userId,
 //           },
 //         }),
 //       ]);
@@ -251,50 +251,21 @@
 // }
 import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
-import { verify } from "jsonwebtoken";
+import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 
 const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-// Helper function to verify admin token
-async function verifyAdminToken(token: string) {
-  try {
-    const decoded = verify(token, JWT_SECRET) as { role: string; id?: string; userId?: string };
-    const userId = decoded.id || decoded.userId;
-    if (!userId) return null;
-
-    const adminUser = await prisma.adminUser.findFirst({
-      where: { id: userId, isActive: true },
-    });
-    return adminUser;
-  } catch (error) {
-    console.error("Token verification error:", error);
-    return null;
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
     console.log("🔐 HISTORY API - Starting history fetch...");
 
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-
-    if (!token) {
-      console.log("❌ HISTORY API - No token provided");
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isAdminToken(payload)) {
+      console.log("❌ HISTORY API - Unauthorized");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const adminUser = await verifyAdminToken(token);
-
-    if (!adminUser) {
-      console.log("❌ HISTORY API - No admin user found with this token");
-      return NextResponse.json(
-        { error: "Invalid or expired token" },
-        { status: 401 }
-      );
-    }
-
-    console.log("✅ HISTORY API - Token verified for user:", adminUser.email);
+    console.log("✅ HISTORY API - Token verified for user:", payload.userId);
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50");
@@ -302,14 +273,14 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     console.log(
-      `📋 HISTORY API - Fetching history for user ${adminUser.id}, page ${page}, limit ${limit}`
+      `📋 HISTORY API - Fetching history for user ${payload.userId}, page ${page}, limit ${limit}`
     );
 
     try {
       // Check if BarImport model exists
       const imports = await prisma.barImport.findMany({
         where: {
-          importedById: adminUser.id,
+          importedById: payload.userId,
         },
         orderBy: {
           createdAt: "desc",
@@ -320,7 +291,7 @@ export async function GET(request: NextRequest) {
 
       const total = await prisma.barImport.count({
         where: {
-          importedById: adminUser.id,
+          importedById: payload.userId,
         },
       });
 

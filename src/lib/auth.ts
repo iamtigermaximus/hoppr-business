@@ -2,6 +2,17 @@
 import { hash, compare } from "bcryptjs";
 import { sign, verify } from "jsonwebtoken";
 
+/** Returns the JWT secret or throws immediately — no fallback. */
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error(
+      "JWT_SECRET environment variable is not set. Authentication cannot function without it.",
+    );
+  }
+  return secret;
+}
+
 const JWT_SECRET = process.env.JWT_SECRET!;
 
 // Define proper TypeScript interfaces
@@ -90,4 +101,38 @@ export function isBarStaffToken(
   payload: JWTPayload
 ): payload is BarStaffJWTPayload {
   return payload.role === "bar_staff";
+}
+
+// ---- Standardized auth helpers for API routes & server pages ----
+
+/**
+ * Verify a JWT from an Authorization: Bearer <token> header.
+ * Use this in API routes instead of inline `verify()` + hardcoded secret.
+ * Returns the decoded payload or null if missing/invalid.
+ */
+export function verifyAuthHeader(
+  request: Request,
+): JWTPayload | null {
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7);
+  return verifyToken(token);
+}
+
+/**
+ * Verify a JWT from the `hoppr_token` cookie.
+ * Use this in server-rendered pages.
+ * Returns the decoded payload or null if missing/invalid.
+ */
+export async function verifyAuthCookie(): Promise<JWTPayload | null> {
+  try {
+    // Dynamic import to avoid bundling next/headers in client code
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const tokenCookie = cookieStore.get("hoppr_token");
+    if (!tokenCookie?.value) return null;
+    return verifyToken(tokenCookie.value);
+  } catch {
+    return null;
+  }
 }

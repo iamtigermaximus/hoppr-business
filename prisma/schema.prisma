@@ -890,6 +890,45 @@ model AnalyticsEvent {
   @@map("analytics_events")
 }
 
+// Pre-aggregated daily analytics per bar — populated by cron job
+model BarDailyStats {
+  id            String   @id @default(cuid())
+  barId         String
+  date          DateTime @map("stats_date") // midnight of the stats day
+  // Page & bar views
+  pageViews     Int      @default(0)
+  barViews      Int      @default(0)
+  // Promotion metrics
+  promoViews    Int      @default(0)
+  promoClicks   Int      @default(0)
+  promoRedemptions Int   @default(0)
+  // Event metrics
+  eventViews    Int      @default(0)
+  eventJoins    Int      @default(0)
+  // Pass metrics
+  passViews     Int      @default(0)
+  passPurchases Int      @default(0)
+  passScans     Int      @default(0)
+  // Engagement
+  barDirections Int      @default(0)
+  barCalls      Int      @default(0)
+  barWebsites   Int      @default(0)
+  barShares     Int      @default(0)
+  searches      Int      @default(0)
+  // Unique visitors
+  uniqueVisitors Int     @default(0)
+  // Metadata
+  aggregatedAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  bar Bar @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([barId, date])
+  @@index([barId, date])
+  @@index([date])
+  @@map("bar_daily_stats")
+}
+
 // ============================================
 // COMPLIANCE
 // ============================================

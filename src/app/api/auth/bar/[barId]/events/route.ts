@@ -3,19 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
-import { verify } from "jsonwebtoken";
+import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JWTPayload {
-  userId: string;
-  email: string;
-  barId: string;
-  name: string;
-  role: string;
-  staffRole?: string;
-}
 
 interface CreateEventBody {
   title: string;
@@ -33,15 +22,12 @@ export async function GET(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -95,15 +81,12 @@ export async function POST(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -128,13 +111,13 @@ export async function POST(
 
     // Determine base compliance status by role
     const baseStatus =
-      decoded.staffRole === "OWNER" || decoded.staffRole === "MANAGER"
+      payload.staffRole === "OWNER" || payload.staffRole === "MANAGER"
         ? "COMPLIANT"
         : "PENDING_REVIEW";
 
     // Resolve the real User.id from BarStaff (JWT stores BarStaff.id, but Event.creatorId references User.id)
     const barStaff = await prisma.barStaff.findUnique({
-      where: { id: decoded.userId },
+      where: { id: payload.userId },
       select: { userId: true },
     });
     const creatorUserId = barStaff?.userId;

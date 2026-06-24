@@ -1,20 +1,9 @@
 // src/app/api/auth/bar/[barId]/promotions/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, PromotionType } from "@prisma/client";
-import { verify } from "jsonwebtoken";
+import { PromotionType } from "@prisma/client";
+import { prisma } from "@/lib/database";
+import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
-
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-interface JWTPayload {
-  id: string;
-  email: string;
-  barId: string;
-  name: string;
-  role: string;
-  staffRole?: string;
-}
 
 interface CreatePromotionBody {
   title: string;
@@ -33,15 +22,12 @@ export async function GET(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -85,15 +71,12 @@ export async function POST(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    const token = request.headers.get("authorization")?.replace("Bearer ", "");
-    const { barId } = await params;
-
-    if (!token) {
+    const payload = verifyAuthHeader(request);
+    if (!payload || !isBarStaffToken(payload)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const decoded = verify(token, JWT_SECRET) as JWTPayload;
-    if (decoded.barId !== barId) {
+    const { barId } = await params;
+    if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -145,7 +128,7 @@ export async function POST(
         validDays: validDays,
         isActive: true,
         isApproved:
-          decoded.staffRole === "OWNER" || decoded.staffRole === "MANAGER", // Auto-approve for managers
+          payload.staffRole === "OWNER" || payload.staffRole === "MANAGER", // Auto-approve for managers
         priority: 1,
         views: 0,
         clicks: 0,

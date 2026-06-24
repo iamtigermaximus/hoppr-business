@@ -1,26 +1,26 @@
 //src/app/api/auth/bar/[barId]/promotions/track/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { verify } from "jsonwebtoken";
-
-const prisma = new PrismaClient();
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+import { prisma } from "@/lib/database";
+import { verifyToken } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
     const { promotionId, action } = await request.json();
 
-    // User app sends its own JWT token
+    // Verify user token (different from bar staff token)
     const token = request.headers.get("authorization")?.replace("Bearer ", "");
     if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Verify user token (different from bar staff token)
-    const decoded = verify(token, JWT_SECRET) as { id: string; type: string };
+    const payload = verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    // Ensure it's a user token, not bar staff
-    if (decoded.type !== "user") {
+    // User tokens have type: "user" instead of role: "bar_staff" or role: "admin"
+    const tokenData = payload as { type?: string; id?: string };
+    if (tokenData.type !== "user") {
       return NextResponse.json(
         { error: "Invalid token type" },
         { status: 403 },
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
           where: {
             promotionId_userId: {
               promotionId: promotionId,
-              userId: decoded.id,
+              userId: tokenData.id,
             },
           },
           update: {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
           },
           create: {
             promotionId: promotionId,
-            userId: decoded.id,
+            userId: tokenData.id,
             barId: promotion.barId,
             usageCount: 1,
             firstUsedAt: new Date(),
