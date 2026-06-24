@@ -608,6 +608,27 @@ const BarsDatabase = () => {
     );
   }
 
+  if (!loading && bars.length === 0 && !error) {
+    return (
+      <Container>
+        <Header>
+          <Title>Bars Database</Title>
+          <ActionButtons>
+            <LinkButton href="/admin/bars/import" $variant="secondary">
+              📁 Import CSV
+            </LinkButton>
+            <LinkButton href="/admin/bars/create" $variant="primary">
+              ➕ Add Bar
+            </LinkButton>
+          </ActionButtons>
+        </Header>
+        <LoadingState>
+          No bars found. Import bars from a CSV file or add one manually to get started.
+        </LoadingState>
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <Header>

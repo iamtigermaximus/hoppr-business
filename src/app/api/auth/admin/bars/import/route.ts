@@ -2985,7 +2985,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             isVerified: isVerified,
             isActive: isActive,
             vipEnabled: vipEnabled,
-            createdById: payload.userId,
+            // createdById omitted — admin users live in admin_users
+            // while Bar.createdByUser references User table (FK mismatch)
           },
         });
 
@@ -3011,7 +3012,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     let importStatus: ImportStatus = "COMPLETED";
-    if (results.imported === 0 && results.skipped > 0) {
+    if (results.imported === 0 && results.errors.length > 0) {
       importStatus = "FAILED";
     } else if (results.skipped > 0 && results.imported > 0) {
       importStatus = "PARTIAL";
@@ -3027,11 +3028,15 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           failedRows: results.skipped,
           status: importStatus,
           errors: results.errors.length > 0 ? results.errors : undefined,
-          importedById: payload.userId,
+          // Note: importedById omitted — admin users live in admin_users table
+          // while BarImport.importedBy references User table (FK mismatch)
         },
       });
     } catch (error) {
-      console.log("Note: barImport table audit skipped");
+      console.error(
+        "Failed to create barImport record — table may not exist. Run: npx prisma db push",
+      );
+      console.error("Error details:", error);
     }
 
     return NextResponse.json({
@@ -3072,10 +3077,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     return NextResponse.json({ imports });
   } catch (error) {
-    console.error("Error fetching import history:", error);
+    console.error(
+      "Failed to query barImport — table may not exist. Run: npx prisma db push",
+    );
+    console.error("Error details:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      { imports: [], error: "bar_imports table not found — run prisma db push" },
+      { status: 200 },
     );
   }
 }

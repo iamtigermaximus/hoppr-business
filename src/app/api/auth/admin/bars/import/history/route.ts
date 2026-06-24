@@ -279,9 +279,6 @@ export async function GET(request: NextRequest) {
     try {
       // Check if BarImport model exists
       const imports = await prisma.barImport.findMany({
-        where: {
-          importedById: payload.userId,
-        },
         orderBy: {
           createdAt: "desc",
         },
@@ -289,11 +286,7 @@ export async function GET(request: NextRequest) {
         take: limit,
       });
 
-      const total = await prisma.barImport.count({
-        where: {
-          importedById: payload.userId,
-        },
-      });
+      const total = await prisma.barImport.count();
 
       console.log(
         `✅ HISTORY API - Found ${imports.length} import records, total: ${total}`
@@ -309,11 +302,11 @@ export async function GET(request: NextRequest) {
         },
       });
     } catch (error) {
-      // If BarImport model doesn't exist, return empty array
-      console.log(
-        "⚠️ HISTORY API - BarImport model not available, returning empty history..."
+      console.error(
+        "⚠️ HISTORY API - Failed to query barImport table. The bar_imports table may not exist.",
       );
-      console.log("Error details:", error);
+      console.error("Run: npx prisma db push");
+      console.error("Error details:", error);
 
       return NextResponse.json({
         imports: [],
