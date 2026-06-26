@@ -531,16 +531,23 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
 
       const data = await res.json();
-      const detail = data.event as EventDetail;
+      const detail = data.event as EventDetail | null;
+
+      // Guard against missing or malformed event data
+      if (!detail || !detail.id || !detail.startTime) {
+        setError("Failed to load event — it may have been deleted.");
+        return;
+      }
+
       setEditingEvent(detail);
 
       setFormData({
-        title: detail.title,
+        title: detail.title || "",
         description: detail.description || "",
         startTime: toDatetimeLocal(detail.startTime),
         endTime: detail.endTime ? toDatetimeLocal(detail.endTime) : "",
         maxAttendees: detail.maxAttendees?.toString() || "",
-        isPrivate: detail.isPrivate,
+        isPrivate: detail.isPrivate ?? false,
       });
       setShowForm(true);
     } catch (err) {

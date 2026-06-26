@@ -45,6 +45,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { authService } from "@/services/auth-service";
 import BarNavbar from "@/components/shared/Navigation/BarNavbar";
+import { BarErrorBoundary } from "@/components/bar/BarErrorBoundary";
 
 async function getBarData() {
   const cookieStore = await cookies();
@@ -101,7 +102,7 @@ export default async function BarLayout({ children, params }: BarLayoutProps) {
         userRole={data.user.role}
       />
       <main style={{ margin: 0, padding: 0, minHeight: "100vh" }}>
-        {children}
+        <BarErrorBoundary>{children}</BarErrorBoundary>
       </main>
     </div>
   );
