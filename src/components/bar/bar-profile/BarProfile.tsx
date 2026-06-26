@@ -390,6 +390,8 @@ interface BarData {
   website: string | null;
   instagram: string | null;
   priceRange: string | null;
+  coverCharge: number | null;
+  musicTags: string[];
   capacity: number | null;
   amenities: string[];
   coverImage: string | null;
@@ -425,6 +427,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
   const [coverImage, setCoverImage] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [newMusicTag, setNewMusicTag] = useState("");
 
   const canEdit = ["OWNER", "MANAGER"].includes(userRole);
   const isReadOnly = !canEdit;
@@ -460,6 +463,9 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
       if (logoUrl !== (bar.logoUrl || "")) changed.add("logoUrl");
       if (JSON.stringify(imageUrls) !== JSON.stringify(bar.imageUrls || []))
         changed.add("imageUrls");
+      if (formData.coverCharge !== bar.coverCharge) changed.add("coverCharge");
+      if (JSON.stringify(formData.musicTags) !== JSON.stringify(bar.musicTags || []))
+        changed.add("musicTags");
 
       setDirtyFields(changed);
     }
@@ -471,6 +477,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
     logoUrl,
     imageUrls,
     bar,
+    newMusicTag,
   ]);
 
   const fetchBarProfile = async () => {
@@ -499,6 +506,8 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           website: barData.website || "",
           instagram: barData.instagram || "",
           priceRange: barData.priceRange || "MODERATE",
+          coverCharge: barData.coverCharge || null,
+          musicTags: barData.musicTags || [],
           capacity: barData.capacity || null,
           amenities: barData.amenities || [],
           vipEnabled: barData.vipEnabled || false,
@@ -527,7 +536,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
 
   const handleInputChange = (
     field: keyof BarData,
-    value: string | number | boolean | string[],
+    value: string | number | boolean | string[] | null,
   ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -577,6 +586,21 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
     setTimeout(() => setSuccess(null), 3000);
   };
 
+  // Music tag handlers
+  const handleAddMusicTag = (): void => {
+    const tag = newMusicTag.trim();
+    const currentTags = formData.musicTags || [];
+    if (tag && !currentTags.includes(tag)) {
+      handleInputChange("musicTags", [...currentTags, tag]);
+    }
+    setNewMusicTag("");
+  };
+
+  const handleRemoveMusicTag = (tag: string): void => {
+    const currentTags = formData.musicTags || [];
+    handleInputChange("musicTags", currentTags.filter((t) => t !== tag));
+  };
+
   const handleReset = () => {
     if (bar) {
       const cleanCity = cleanCityName(bar.cityName || "");
@@ -593,6 +617,8 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
         website: bar.website || "",
         instagram: bar.instagram || "",
         priceRange: bar.priceRange || "MODERATE",
+        coverCharge: bar.coverCharge || null,
+        musicTags: bar.musicTags || [],
         capacity: bar.capacity || null,
         amenities: bar.amenities || [],
         vipEnabled: bar.vipEnabled || false,
@@ -602,6 +628,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
       setCoverImage(bar.coverImage || "");
       setLogoUrl(bar.logoUrl || "");
       setImageUrls(bar.imageUrls || []);
+      setNewMusicTag("");
 
       setIsDirty(false);
       setDirtyFields(new Set());
@@ -639,6 +666,8 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           website: formData.website,
           instagram: formData.instagram,
           priceRange: formData.priceRange,
+          coverCharge: formData.coverCharge,
+          musicTags: formData.musicTags,
           capacity: formData.capacity,
           amenities: formData.amenities,
           coverImage: coverImage,
@@ -669,6 +698,8 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           website: updatedBar.website || "",
           instagram: updatedBar.instagram || "",
           priceRange: updatedBar.priceRange || "MODERATE",
+          coverCharge: updatedBar.coverCharge || null,
+          musicTags: updatedBar.musicTags || [],
           capacity: updatedBar.capacity || null,
           amenities: updatedBar.amenities || [],
           vipEnabled: updatedBar.vipEnabled || false,
@@ -822,6 +853,109 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
               $isDirty={isFieldDirty("capacity")}
               placeholder="Maximum capacity"
             />
+          </FormGroup>
+        </FormSection>
+
+        <FormSection>
+          <SectionTitle>Business Details</SectionTitle>
+          <SectionDescription>
+            Cover charge and music genres help customers find the right vibe
+          </SectionDescription>
+
+          <FormGroup>
+            <Label>Cover Charge (€)</Label>
+            <Input
+              type="number"
+              value={formData.coverCharge || ""}
+              onChange={(e) =>
+                handleInputChange(
+                  "coverCharge",
+                  e.target.value ? parseInt(e.target.value) : null,
+                )
+              }
+              disabled={isReadOnly}
+              $isDirty={isFieldDirty("coverCharge")}
+              min="0"
+              placeholder="0 = free entry"
+            />
+            <HelperText>
+              Entry fee in euros. Leave empty or 0 for free entry.
+            </HelperText>
+          </FormGroup>
+
+          <FormGroup>
+            <Label>Music / Genre Tags</Label>
+            {canEdit && (
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <Input
+                  type="text"
+                  placeholder="e.g. techno, house, live music"
+                  value={newMusicTag}
+                  onChange={(e) => setNewMusicTag(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddMusicTag();
+                    }
+                  }}
+                  $isDirty={isFieldDirty("musicTags")}
+                  style={{ flex: 1 }}
+                />
+                <SmallButton
+                  type="button"
+                  onClick={handleAddMusicTag}
+                  disabled={!newMusicTag.trim()}
+                >
+                  Add
+                </SmallButton>
+              </div>
+            )}
+            {(formData.musicTags || []).length > 0 && (
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                {(formData.musicTags || []).map((tag) => (
+                  <span
+                    key={tag}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background: "#eef2ff",
+                      color: "#4338ca",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      padding: "4px 10px",
+                      borderRadius: "16px",
+                    }}
+                  >
+                    {tag}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMusicTag(tag)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#6366f1",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          lineHeight: 1,
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </span>
+                ))}
+              </div>
+            )}
+            <HelperText>
+              {(formData.musicTags || []).length > 0
+                ? `${(formData.musicTags || []).length} tag(s). Press Enter or click Add.`
+                : "Add music genres or vibes (e.g. techno, hip-hop, live music, karaoke)"}
+            </HelperText>
           </FormGroup>
         </FormSection>
 

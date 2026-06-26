@@ -559,6 +559,8 @@ interface Bar {
   instagram: string | null;
   operatingHours: OperatingHours | null;
   priceRange: string | null;
+  coverCharge: number | null;
+  musicTags: string[];
   capacity: number | null;
   amenities: string[];
   coverImage: string | null;
@@ -908,6 +910,24 @@ const BarDetails = () => {
                 <InfoLabel>Capacity</InfoLabel>
                 <InfoValue>
                   {bar.capacity ? `${bar.capacity} people` : "Not specified"}
+                </InfoValue>
+              </InfoGroup>
+              <InfoGroup>
+                <InfoLabel>Cover Charge</InfoLabel>
+                <InfoValue>
+                  {bar.coverCharge != null
+                    ? bar.coverCharge === 0
+                      ? "Free entry"
+                      : `€${bar.coverCharge}`
+                    : "Not specified"}
+                </InfoValue>
+              </InfoGroup>
+              <InfoGroup>
+                <InfoLabel>Music Tags</InfoLabel>
+                <InfoValue>
+                  {bar.musicTags?.length > 0
+                    ? bar.musicTags.join(", ")
+                    : "Not specified"}
                 </InfoValue>
               </InfoGroup>
             </SectionGrid>

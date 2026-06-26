@@ -488,6 +488,8 @@ interface Bar {
   instagram: string | null;
   operatingHours: OperatingHours | null;
   priceRange: string | null;
+  coverCharge: number | null;
+  musicTags: string[];
   capacity: number | null;
   amenities: string[];
   coverImage: string | null;
@@ -514,6 +516,8 @@ interface BarFormData {
   website: string;
   instagram: string;
   priceRange: string;
+  coverCharge: string;
+  musicTags: string[];
   capacity: string;
   amenities: string[];
   isActive: boolean;
@@ -571,6 +575,7 @@ const EditBar = () => {
   const [logoUrl, setLogoUrl] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [newImageUrl, setNewImageUrl] = useState("");
+  const [newMusicTag, setNewMusicTag] = useState("");
 
   const barId = params.id as string;
 
@@ -588,6 +593,8 @@ const EditBar = () => {
     website: "",
     instagram: "",
     priceRange: "",
+    coverCharge: "",
+    musicTags: [],
     capacity: "",
     amenities: [],
     isActive: true,
@@ -636,6 +643,8 @@ const EditBar = () => {
         website: barData.website || "",
         instagram: barData.instagram || "",
         priceRange: barData.priceRange || "",
+        coverCharge: barData.coverCharge?.toString() || "",
+        musicTags: barData.musicTags || [],
         capacity: barData.capacity?.toString() || "",
         amenities: barData.amenities || [],
         isActive: barData.isActive,
@@ -737,6 +746,25 @@ const EditBar = () => {
     setImageUrls([...imageUrls, ...urls]);
   };
 
+  // Music tag handlers
+  const handleAddMusicTag = (): void => {
+    const tag = newMusicTag.trim();
+    if (tag && !formData.musicTags.includes(tag)) {
+      setFormData((prev) => ({
+        ...prev,
+        musicTags: [...prev.musicTags, tag],
+      }));
+    }
+    setNewMusicTag("");
+  };
+
+  const handleRemoveMusicTag = (tag: string): void => {
+    setFormData((prev) => ({
+      ...prev,
+      musicTags: prev.musicTags.filter((t) => t !== tag),
+    }));
+  };
+
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
 
@@ -795,6 +823,7 @@ const EditBar = () => {
         ...formData,
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+        coverCharge: formData.coverCharge ? parseInt(formData.coverCharge) : null,
         capacity: formData.capacity ? parseInt(formData.capacity) : null,
         operatingHours: operatingHours,
         coverImage: coverImage || null,
@@ -1164,6 +1193,97 @@ const EditBar = () => {
           <HelperText>
             Use "Closed" to mark as closed. Format like "16:00" or "4:00 PM"
           </HelperText>
+        </FormSection>
+
+        {/* Business Details */}
+        <FormSection>
+          <SectionTitle>Business Details</SectionTitle>
+          <FormGrid>
+            <FormGroup>
+              <Label htmlFor="coverCharge">Cover Charge (€)</Label>
+              <Input
+                type="number"
+                id="coverCharge"
+                name="coverCharge"
+                value={formData.coverCharge}
+                onChange={handleInputChange}
+                min="0"
+                placeholder="0 = free entry"
+              />
+              <HelperText>Entry fee in euros. Leave empty or 0 for free entry.</HelperText>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Music / Genre Tags</Label>
+              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                <Input
+                  type="text"
+                  placeholder="e.g. techno, house, live music"
+                  value={newMusicTag}
+                  onChange={(e) => setNewMusicTag(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddMusicTag();
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  type="button"
+                  $variant="secondary"
+                  onClick={handleAddMusicTag}
+                  disabled={!newMusicTag.trim()}
+                >
+                  Add
+                </Button>
+              </div>
+              {formData.musicTags.length > 0 && (
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                  {formData.musicTags.map((tag) => (
+                    <span
+                      key={tag}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        background: "#eef2ff",
+                        color: "#4338ca",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        padding: "4px 10px",
+                        borderRadius: "16px",
+                      }}
+                    >
+                      {tag}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMusicTag(tag)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "#6366f1",
+                          cursor: "pointer",
+                          fontSize: "14px",
+                          lineHeight: 1,
+                          padding: 0,
+                          display: "flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <HelperText>
+                {formData.musicTags.length > 0
+                  ? `${formData.musicTags.length} tag(s). Press Enter or click Add.`
+                  : "Add music genres or vibes (e.g. techno, hip-hop, live music, karaoke)"}
+              </HelperText>
+            </FormGroup>
+          </FormGrid>
         </FormSection>
 
         {/* Images Section */}

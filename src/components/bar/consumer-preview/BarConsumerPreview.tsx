@@ -16,6 +16,7 @@ import {
   Facebook,
   Navigation,
   Eye,
+  Ticket,
 } from "lucide-react";
 
 // ---- Type labels matching consumer app ----
@@ -263,6 +264,8 @@ interface ConsumerPreview {
     instagram: string | null;
     facebook: string | null;
     priceRange: string | null;
+    coverCharge: number | null;
+    musicTags: string[];
     capacity: number | null;
     amenities: string[];
     imageUrl: string | null;
@@ -432,6 +435,9 @@ export default function BarConsumerPreview({ barId }: BarConsumerPreviewProps) {
                   {priceLabels[venue.priceRange]?.split("·")[0]}
                 </span>
               )}
+              {venue.musicTags?.length > 0 && venue.musicTags.map((tag: string) => (
+                <span key={tag} style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc", fontSize: "10px", fontWeight: 600, padding: "2px 8px", borderRadius: "4px" }}>{tag}</span>
+              ))}
             </div>
           </div>
           {venue.capacity && (
@@ -567,8 +573,8 @@ export default function BarConsumerPreview({ barId }: BarConsumerPreviewProps) {
         </SectionCard>
       )}
 
-      {/* Price + Capacity Overview */}
-      {(venue.priceRange || venue.capacity) && (
+      {/* Price + Capacity + Cover Overview */}
+      {(venue.priceRange || venue.capacity || venue.coverCharge != null) && (
         <SectionCard>
           <SectionTitle>Overview</SectionTitle>
           <div style={{ display: "flex", gap: "24px" }}>
@@ -577,6 +583,14 @@ export default function BarConsumerPreview({ barId }: BarConsumerPreviewProps) {
                 <DollarSign size={18} color="#737373" />
                 <span style={{ color: "#a3a3a3", fontSize: "13px" }}>
                   {priceLabels[venue.priceRange] || venue.priceRange}
+                </span>
+              </div>
+            )}
+            {venue.coverCharge != null && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Ticket size={18} color="#737373" />
+                <span style={{ color: "#a3a3a3", fontSize: "13px" }}>
+                  {venue.coverCharge === 0 ? "Free entry" : `Entry: €${venue.coverCharge}`}
                 </span>
               </div>
             )}

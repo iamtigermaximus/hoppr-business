@@ -172,6 +172,8 @@ export async function GET(
         priceRange: true,
         capacity: true,
         amenities: true,
+        coverCharge: true,
+        musicTags: true,
         coverImage: true,
         imageUrls: true, // ✅ ADD THIS - was missing
         logoUrl: true,
@@ -239,6 +241,8 @@ export async function PUT(
         priceRange: body.priceRange,
         capacity: body.capacity,
         amenities: body.amenities || [],
+        coverCharge: body.coverCharge != null ? parseInt(body.coverCharge) : null,
+        musicTags: body.musicTags || [],
         coverImage: body.coverImage,
         imageUrls: body.imageUrls || [], // ✅ ADD THIS - was missing
         logoUrl: body.logoUrl,
