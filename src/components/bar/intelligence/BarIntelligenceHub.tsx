@@ -444,13 +444,13 @@ interface BarIntelligenceHubProps {
 
 interface BarStatus {
   overall: "excellent" | "good" | "warning" | "critical" | "no-data";
-  revenue: number | null;
-  revenueTrend: number | null;
-  customers: number | null;
-  customerTrend: number | null;
-  vipEngagement: number | null;
-  engagementTrend: number | null;
-  promotionPerformance: number | null;
+  profileViews: number | null;
+  uniqueVisitors: number | null;
+  viewsTrend: number | null;
+  visitorsTrend: number | null;
+  promoConversion: number | null;
+  eventConversion: number | null;
+  profileScore: number;
   hasData: boolean;
 }
 
@@ -488,7 +488,7 @@ interface IntelligenceResponse {
   quickStats: {
     bestDay: string;
     topPromotion: string;
-    passFillRate: string;
+    profileScore: string;
   };
 }
 
@@ -538,10 +538,6 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
     }
   };
 
-  const handleSetupBar = () => {
-    router.push(`/bar/${barId}/passes`);
-  };
-
   const getStatusText = (status: string) => {
     switch (status) {
       case "excellent":
@@ -561,13 +557,11 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
 
   const formatStatValue = (
     value: number | null,
-    format: "currency" | "number" | "percentage" = "number"
+    format: "number" | "percentage" = "number"
   ) => {
     if (value === null) return "No data";
 
     switch (format) {
-      case "currency":
-        return `$${value.toLocaleString()}`;
       case "percentage":
         return `${value}%`;
       default:
@@ -602,7 +596,7 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
             insights. Start by setting up your systems and tracking customer
             activity to unlock powerful analytics.
           </EmptyStateDescription>
-          <SetupButton onClick={handleSetupBar}>Start Setup Wizard</SetupButton>
+          <SetupButton onClick={() => router.push(`/bar/${barId}/profile`)}>Complete Your Profile</SetupButton>
         </EmptyState>
 
         {/* Show setup suggestions even when no data */}
@@ -654,77 +648,71 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
             </SectionHeader>
 
             <StatsGrid>
-              <StatCard $isEmpty={!barStatus?.revenue}>
-                <StatValue $isEmpty={!barStatus?.revenue}>
-                  {formatStatValue(barStatus?.revenue || null, "currency")}
+              <StatCard $isEmpty={!barStatus?.profileViews}>
+                <StatValue $isEmpty={!barStatus?.profileViews}>
+                  {formatStatValue(barStatus?.profileViews || null)}
                 </StatValue>
-                <StatLabel $isEmpty={!barStatus?.revenue}>
-                  Monthly Revenue
+                <StatLabel $isEmpty={!barStatus?.profileViews}>
+                  Profile Views (7d)
                 </StatLabel>
                 <StatTrend
-                  $positive={(barStatus?.revenueTrend ?? 0) >= 0}
-                  $isEmpty={!barStatus?.revenue}
+                  $positive={(barStatus?.viewsTrend ?? 0) >= 0}
+                  $isEmpty={!barStatus?.profileViews}
                 >
-                  {barStatus?.revenueTrend != null
-                    ? `${(barStatus?.revenueTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.revenueTrend}% vs last month`
-                    : "No revenue data"}
+                  {barStatus?.viewsTrend != null
+                    ? `${(barStatus?.viewsTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.viewsTrend}% vs last week`
+                    : "No traffic data"}
                 </StatTrend>
               </StatCard>
 
-              <StatCard $isEmpty={!barStatus?.customers}>
-                <StatValue $isEmpty={!barStatus?.customers}>
-                  {formatStatValue(barStatus?.customers || null)}
+              <StatCard $isEmpty={!barStatus?.uniqueVisitors}>
+                <StatValue $isEmpty={!barStatus?.uniqueVisitors}>
+                  {formatStatValue(barStatus?.uniqueVisitors || null)}
                 </StatValue>
-                <StatLabel $isEmpty={!barStatus?.customers}>
-                  Active Customers
+                <StatLabel $isEmpty={!barStatus?.uniqueVisitors}>
+                  Unique Visitors (7d)
                 </StatLabel>
                 <StatTrend
-                  $positive={(barStatus?.customerTrend ?? 0) >= 0}
-                  $isEmpty={!barStatus?.customers}
+                  $positive={(barStatus?.visitorsTrend ?? 0) >= 0}
+                  $isEmpty={!barStatus?.uniqueVisitors}
                 >
-                  {barStatus?.customerTrend != null
-                    ? `${(barStatus?.customerTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.customerTrend}% growth`
-                    : "Awaiting customer data"}
+                  {barStatus?.visitorsTrend != null
+                    ? `${(barStatus?.visitorsTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.visitorsTrend}% vs last week`
+                    : "Awaiting visitor data"}
                 </StatTrend>
               </StatCard>
 
-              <StatCard $isEmpty={!barStatus?.vipEngagement}>
-                <StatValue $isEmpty={!barStatus?.vipEngagement}>
-                  {formatStatValue(
-                    barStatus?.vipEngagement || null,
-                    "percentage"
-                  )}
+              <StatCard $isEmpty={!barStatus?.promoConversion}>
+                <StatValue $isEmpty={!barStatus?.promoConversion}>
+                  {formatStatValue(barStatus?.promoConversion || null, "percentage")}
                 </StatValue>
-                <StatLabel $isEmpty={!barStatus?.vipEngagement}>
-                  VIP Engagement
+                <StatLabel $isEmpty={!barStatus?.promoConversion}>
+                  Promo Click Rate
                 </StatLabel>
                 <StatTrend
-                  $positive={(barStatus?.engagementTrend ?? 0) >= 0}
-                  $isEmpty={!barStatus?.vipEngagement}
+                  $positive={(barStatus?.promoConversion || 0) >= 30}
+                  $isEmpty={!barStatus?.promoConversion}
                 >
-                  {barStatus?.engagementTrend != null
-                    ? `${(barStatus?.engagementTrend ?? 0) >= 0 ? "+" : ""}${barStatus?.engagementTrend}% redemption rate`
-                    : "No VIP data yet"}
-                </StatTrend>
-              </StatCard>
-
-              <StatCard $isEmpty={!barStatus?.promotionPerformance}>
-                <StatValue $isEmpty={!barStatus?.promotionPerformance}>
-                  {formatStatValue(
-                    barStatus?.promotionPerformance || null,
-                    "percentage"
-                  )}
-                </StatValue>
-                <StatLabel $isEmpty={!barStatus?.promotionPerformance}>
-                  Promotion Performance
-                </StatLabel>
-                <StatTrend
-                  $positive={(barStatus?.promotionPerformance || 0) > 30}
-                  $isEmpty={!barStatus?.promotionPerformance}
-                >
-                  {barStatus?.promotionPerformance != null
-                    ? `${barStatus?.promotionPerformance}% redemption rate`
+                  {barStatus?.promoConversion != null
+                    ? `${barStatus?.promoConversion}% of views → clicks`
                     : "Create promotions"}
+                </StatTrend>
+              </StatCard>
+
+              <StatCard $isEmpty={barStatus?.profileScore === 0}>
+                <StatValue $isEmpty={barStatus?.profileScore === 0}>
+                  {formatStatValue(barStatus?.profileScore || null, "percentage")}
+                </StatValue>
+                <StatLabel $isEmpty={barStatus?.profileScore === 0}>
+                  Profile Complete
+                </StatLabel>
+                <StatTrend
+                  $positive={(barStatus?.profileScore || 0) >= 50}
+                  $isEmpty={barStatus?.profileScore === 0}
+                >
+                  {barStatus?.profileScore != null
+                    ? `${barStatus?.profileScore}% complete`
+                    : "Setup required"}
                 </StatTrend>
               </StatCard>
             </StatsGrid>
@@ -856,9 +844,9 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                   alignItems: "center",
                 }}
               >
-                <span style={{ color: "#64748b" }}>Pass Fill Rate:</span>
+                <span style={{ color: "#64748b" }}>Profile Score:</span>
                 <strong style={{ color: "#10b981" }}>
-                  {quickStats?.passFillRate || "N/A"}
+                  {quickStats?.profileScore || "N/A"}
                 </strong>
               </div>
             </div>

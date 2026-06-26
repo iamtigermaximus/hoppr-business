@@ -30,15 +30,7 @@ async function getBarDashboardData(barId: string) {
       staffRole: authResult.user.staffRole,
     };
 
-    const stats = {
-      profileViews: 1234,
-      vipPassSales: 89,
-      revenue: 2225,
-      promotionClicks: 456,
-      socialCheckins: 342,
-    };
-
-    return { user, stats };
+    return { user };
   } catch (error) {
     redirect("/login");
   }
@@ -52,5 +44,5 @@ export default async function BarDashboardPage({ params }: PageProps) {
   const { id } = await params; // ✅ FIX: await the params
   const data = await getBarDashboardData(id);
 
-  return <BarDashboardContent user={data.user} stats={data.stats} />;
+  return <BarDashboardContent user={data.user} />;
 }
