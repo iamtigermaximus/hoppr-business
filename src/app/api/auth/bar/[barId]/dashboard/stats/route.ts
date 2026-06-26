@@ -70,10 +70,30 @@ export async function GET(
     const totalEvents = Object.values(totals).reduce((sum, v) => sum + v, 0);
     const hasData = totalEvents > 0;
 
+    // Follower metrics — live count + weekly net change from raw events
+    const [totalFollowers, weeklyFollowEvents] = await Promise.all([
+      prisma.barFollow.count({ where: { barId } }),
+      prisma.analyticsEvent.count({
+        where: {
+          barId,
+          createdAt: { gte: sevenDaysAgo },
+          type: { in: ["FOLLOW", "UNFOLLOW"] },
+        },
+      }),
+    ]);
+
+    const newFollowers = typeCounts["FOLLOW"] || 0;
+    const lostFollowers = typeCounts["UNFOLLOW"] || 0;
+    const netFollowers = newFollowers - lostFollowers;
+
     return NextResponse.json({
       ...totals,
       activePromos,
       hasData,
+      totalFollowers,
+      newFollowers,
+      lostFollowers,
+      netFollowers,
     });
   } catch (error) {
     console.error("Dashboard stats error:", error);

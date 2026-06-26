@@ -5,6 +5,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 
+/** Normalize operatingHours from stored format to consumer format. */
+function normalizeHours(raw: unknown): Record<string, string> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const src = raw as Record<string, unknown>;
+  const days = ["monday","tuesday","wednesday","thursday","friday","saturday","sunday"];
+  const result: Record<string, string> = {};
+  for (const day of days) {
+    const lower = src[day];
+    if (typeof lower === "string" && lower.length > 0) { result[day] = lower; continue; }
+    const cap = day.charAt(0).toUpperCase() + day.slice(1);
+    const capVal = src[cap];
+    if (capVal && typeof capVal === "object") {
+      const o = (capVal as Record<string,unknown>).open as string | undefined;
+      const c = (capVal as Record<string,unknown>).close as string | undefined;
+      if (o && c) result[day] = `${o} - ${c}`;
+      else result[day] = "Closed";
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
+
 // GET — returns bar profile + active content in consumer-app shape
 export async function GET(
   request: NextRequest,
@@ -124,7 +145,7 @@ export async function GET(
         logoUrl: bar.logoUrl,
         lat: bar.latitude,
         lng: bar.longitude,
-        hours: bar.operatingHours,
+        hours: normalizeHours(bar.operatingHours),
       },
       promotions: promotions.map((p) => ({
         id: p.id,

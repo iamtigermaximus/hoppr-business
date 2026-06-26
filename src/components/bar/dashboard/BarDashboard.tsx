@@ -194,6 +194,10 @@ interface DashboardStats {
   eventJoins: number;
   uniqueVisitors: number;
   activePromos: number;
+  totalFollowers: number;
+  newFollowers: number;
+  lostFollowers: number;
+  netFollowers: number;
   hasData: boolean;
 }
 
@@ -572,6 +576,23 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
             <StatValue>{formatNumber(stats?.eventJoins ?? 0)}</StatValue>
             <StatLabel>Event Joins</StatLabel>
           </StatCard>
+          <StatCard>
+            <StatValue>{formatNumber(stats?.totalFollowers ?? 0)}</StatValue>
+            <StatLabel>Followers</StatLabel>
+            {stats && stats.netFollowers !== undefined && (
+              <StatChange $positive={stats.netFollowers >= 0}>
+                {stats.netFollowers >= 0 ? "+" : ""}{stats.netFollowers} this week
+              </StatChange>
+            )}
+          </StatCard>
+          <StatCard>
+            <StatValue>{formatNumber(stats?.newFollowers ?? 0)}</StatValue>
+            <StatLabel>New Followers</StatLabel>
+          </StatCard>
+          <StatCard>
+            <StatValue>{formatNumber(stats?.lostFollowers ?? 0)}</StatValue>
+            <StatLabel>Unfollowed</StatLabel>
+          </StatCard>
         </StatsGrid>
       ) : (
         <>
@@ -621,6 +642,8 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
                 { icon: "📅", label: "Event Views", example: "~40" },
                 { icon: "✅", label: "Event Joins", example: "~15" },
                 { icon: "👤", label: "Unique Visitors", example: "~90" },
+                { icon: "❤️", label: "Followers", example: "~35" },
+                { icon: "➕", label: "New Followers", example: "~5" },
               ].map((m) => (
                 <PreviewStat key={m.label}>
                   <PreviewIcon>{m.icon}</PreviewIcon>
