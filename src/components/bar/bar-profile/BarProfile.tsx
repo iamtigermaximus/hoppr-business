@@ -552,6 +552,26 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
     }));
   };
 
+  const isDayClosed = (day: string): boolean => {
+    const entry = operatingHours[day as keyof OperatingHours];
+    if (!entry) return false;
+    // Closed when both fields are empty, or open is empty and close is empty
+    return (!entry.open && !entry.close);
+  };
+
+  const handleClosedToggle = (day: string) => {
+    setOperatingHours((prev) => {
+      const entry = prev[day as keyof OperatingHours];
+      const nowClosed = !entry?.open && !entry?.close;
+      return {
+        ...prev,
+        [day]: nowClosed
+          ? { open: "", close: "" } // opening — leave blank for user to fill
+          : { open: "", close: "" }, // closing — clear both
+      };
+    });
+  };
+
   const handleAmenityChange = (amenity: string) => {
     const currentAmenities = formData.amenities || [];
     const newAmenities = currentAmenities.includes(amenity)
@@ -1250,43 +1270,74 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
             "Friday",
             "Saturday",
             "Sunday",
-          ].map((day) => (
-            <FormGroup key={day}>
-              <Label>{day}</Label>
-              <div style={{ display: "flex", gap: "0.5rem" }}>
-                <Input
-                  type="text"
-                  value={
-                    operatingHours[day as keyof OperatingHours]?.open || ""
-                  }
-                  onChange={(e) =>
-                    handleHourChange(day, "open", e.target.value)
-                  }
-                  disabled={isReadOnly}
-                  placeholder="Open time"
-                  style={{ flex: 1 }}
-                  $isDirty={isFieldDirty("operatingHours")}
-                />
-                <span style={{ alignSelf: "center" }}>-</span>
-                <Input
-                  type="text"
-                  value={
-                    operatingHours[day as keyof OperatingHours]?.close || ""
-                  }
-                  onChange={(e) =>
-                    handleHourChange(day, "close", e.target.value)
-                  }
-                  disabled={isReadOnly}
-                  placeholder="Close time"
-                  style={{ flex: 1 }}
-                  $isDirty={isFieldDirty("operatingHours")}
-                />
-              </div>
-            </FormGroup>
-          ))}
+          ].map((day) => {
+            const closed = isDayClosed(day);
+            return (
+              <FormGroup key={day}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <Label>{day}</Label>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.35rem",
+                      fontSize: "0.8rem",
+                      color: closed ? "#ef4444" : "#6b7280",
+                      fontWeight: 500,
+                      cursor: isReadOnly ? "default" : "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={closed}
+                      onChange={() => handleClosedToggle(day)}
+                      disabled={isReadOnly}
+                      style={{ accentColor: "#ef4444" }}
+                    />
+                    Closed
+                  </label>
+                </div>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <Input
+                    type="text"
+                    value={
+                      operatingHours[day as keyof OperatingHours]?.open || ""
+                    }
+                    onChange={(e) =>
+                      handleHourChange(day, "open", e.target.value)
+                    }
+                    disabled={isReadOnly || closed}
+                    placeholder="Open time"
+                    style={{ flex: 1, opacity: closed ? 0.4 : 1 }}
+                    $isDirty={isFieldDirty("operatingHours")}
+                  />
+                  <span style={{ alignSelf: "center" }}>-</span>
+                  <Input
+                    type="text"
+                    value={
+                      operatingHours[day as keyof OperatingHours]?.close || ""
+                    }
+                    onChange={(e) =>
+                      handleHourChange(day, "close", e.target.value)
+                    }
+                    disabled={isReadOnly || closed}
+                    placeholder="Close time"
+                    style={{ flex: 1, opacity: closed ? 0.4 : 1 }}
+                    $isDirty={isFieldDirty("operatingHours")}
+                  />
+                </div>
+              </FormGroup>
+            );
+          })}
           <HelperText>
-            Use &quot;Closed&quot; to mark as closed. Format like
-            &quot;16:00&quot; or &quot;4:00 PM&quot;
+            Check &quot;Closed&quot; for days your bar isn&apos;t open.
+            Times like &quot;16:00&quot; or &quot;4:00 PM&quot;.
           </HelperText>
         </FormSection>
 
