@@ -1525,6 +1525,7 @@ const DashboardContent = () => {
   const [user, setUser] = useState<User | null>(null);
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loadingActivities, setLoadingActivities] = useState(true);
 
@@ -1606,8 +1607,9 @@ const DashboardContent = () => {
             });
           }
         }
-      } catch (error) {
-        console.error("Error fetching stats:", error);
+      } catch (fetchError) {
+        console.error("Error fetching stats:", fetchError);
+        setError("Could not load dashboard data. Please check your connection and try again.");
       } finally {
         setLoading(false);
       }
@@ -1761,7 +1763,97 @@ const DashboardContent = () => {
     return num.toLocaleString();
   };
 
-  if (loading || !user || !stats) {
+  const handleRetry = () => {
+    setError(null);
+    setLoading(true);
+    const token = getToken();
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    fetch(`/api/auth/admin/analytics/summary?range=30d`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then((res) => res.json())
+      .then((result) => {
+        if (result.success && result.data) {
+          setStats({
+            totalBars: result.data.totalBars,
+            activeBars: result.data.activeBars,
+            pendingVerification: result.data.pendingVerification,
+            vipPassSales: result.data.vipPassSales,
+            totalRevenue: result.data.totalRevenue,
+            userGrowth: result.data.userGrowth,
+            barGrowth: result.data.barGrowth,
+            revenueGrowth: result.data.revenueGrowth,
+            newUsers: result.data.newUsers,
+          });
+          setError(null);
+        } else {
+          setError("Unexpected response from server. Please try again.");
+        }
+      })
+      .catch(() => setError("Could not load dashboard data. Please check your connection and try again."))
+      .finally(() => setLoading(false));
+  };
+
+  if (error) {
+    return (
+      <Container>
+        <Header>
+          <Title>Welcome back!</Title>
+          <Subtitle>Something went wrong loading your dashboard</Subtitle>
+        </Header>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "3rem 1.5rem",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>⚠️</div>
+          <p
+            style={{
+              color: "#6b7280",
+              fontSize: "1.125rem",
+              marginBottom: "1.5rem",
+              maxWidth: "400px",
+            }}
+          >
+            {error}
+          </p>
+          <button
+            onClick={handleRetry}
+            style={{
+              padding: "0.75rem 2rem",
+              backgroundColor: "#3b82f6",
+              color: "white",
+              border: "none",
+              borderRadius: "0.5rem",
+              fontSize: "1rem",
+              fontWeight: 500,
+              cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = "#2563eb")
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = "#3b82f6")
+            }
+          >
+            Try Again
+          </button>
+        </div>
+      </Container>
+    );
+  }
+
+  if (loading) {
     return (
       <Container>
         <Header>
@@ -1771,6 +1863,66 @@ const DashboardContent = () => {
         <LoadingState>
           <div>Loading your dashboard...</div>
         </LoadingState>
+      </Container>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Container>
+        <Header>
+          <Title>Welcome back!</Title>
+          <Subtitle>Please sign in to view your dashboard</Subtitle>
+        </Header>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            padding: "2rem",
+          }}
+        >
+          <button
+            onClick={() => router.push("/login")}
+            style={{
+              padding: "0.75rem 2rem",
+              backgroundColor: "#3b82f6",
+              color: "white",
+              border: "none",
+              borderRadius: "0.5rem",
+              fontSize: "1rem",
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Go to Login
+          </button>
+        </div>
+      </Container>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <Container>
+        <Header>
+          <Title>Welcome back{user.name ? `, ${user.name}` : ""}!</Title>
+          <Subtitle>No dashboard data available yet</Subtitle>
+        </Header>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "3rem 1.5rem",
+            textAlign: "center",
+            color: "#6b7280",
+          }}
+        >
+          <p style={{ fontSize: "1.125rem", marginBottom: "1.5rem" }}>
+            Stats will appear here once there&apos;s activity on the platform.
+          </p>
+        </div>
       </Container>
     );
   }
