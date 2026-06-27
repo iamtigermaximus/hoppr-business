@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
+import {
+  buildComplianceSystemPrompt,
+  buildUserReminder,
+} from "@/lib/compliance/prompts";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -83,16 +87,24 @@ export async function POST(
       );
     }
 
-    // 5. Build AI prompt
-    const systemPrompt = `You are an expert at understanding bar and nightlife content. Given a natural language description, determine whether the user wants to create an EVENT, PROMOTION, or VIP PASS. Then extract all relevant fields.
+    // 5. Build AI prompt — compliance rules injected from canonical source
+    const complianceRules = buildComplianceSystemPrompt();
+
+    const systemPrompt = `You are an expert at understanding bar and nightlife content. Given a natural language description, determine whether the user wants to create an EVENT, PROMOTION, VIP PASS, or AD CAMPAIGN. Then extract all relevant fields.
+
+${complianceRules}
+
+For promotions: prefer FOOD_SPECIAL or non-alcohol-focused types when possible. Food promotions have no advertising restrictions.
+For events: focus on the entertainment (music, games, atmosphere) rather than drinking.
+For ad campaigns: infer when the user asks to "feature", "boost", "advertise", "promote my bar", or "run a campaign."
 
 Return ONLY valid JSON with this structure — no other text:
 
 {
-  "inferredType": "event" | "promotion" | "pass",
+  "inferredType": "event" | "promotion" | "pass" | "campaign",
   "confidence": 0.0-1.0,
-  "title": "Catchy title (max 60 chars)",
-  "description": "Compelling description (max 200 chars)",
+  "title": "Catchy title (max 60 chars) — MUST be Finland-compliant",
+  "description": "Compelling description (max 200 chars) — MUST be Finland-compliant",
   "reasoning": "Brief explanation of why you inferred this type",
 
   // Include for events:
@@ -106,7 +118,13 @@ Return ONLY valid JSON with this structure — no other text:
   "discountValue": number 0-100 or null,
   "startDate": "ISO date or null",
   "endDate": "ISO date or null",
-  "conditions": "Terms and conditions",
+  "conditions": "Terms and conditions — compliant wording only",
+
+  // Include for campaigns:
+  "campaignType": "FEATURED_LISTING | BANNER_AD | BOOSTED_PROMO | SPONSORED_EVENT",
+  "campaignBudget": number (10-500, default 50),
+  "campaignStartDate": "ISO date or null",
+  "campaignEndDate": "ISO date or null",
 
   // Include for passes:
   "passType": "SKIP_LINE | COVER_INCLUDED | PREMIUM_ENTRY | DRINK_PACKAGE",
@@ -131,7 +149,9 @@ Bar context:
 - VIP Available: ${bar.vipEnabled ? "Yes" : "No"}
 - Current Date: ${new Date().toISOString()}
 
-Analyze the text and determine: event, promotion, or VIP pass? Extract all relevant fields.`;
+Analyze the text and determine: event, promotion, or VIP pass? Extract all relevant fields.
+
+${buildUserReminder()}`;
 
     // 6. Call DeepSeek API
     const response = await fetch(DEEPSEEK_API_URL, {
@@ -176,7 +196,7 @@ Analyze the text and determine: event, promotion, or VIP pass? Extract all relev
     }
 
     // 8. Validate and normalize inferred type
-    const validTypes = ["event", "promotion", "pass"];
+    const validTypes = ["event", "promotion", "pass", "campaign"];
     const inferredType = validTypes.includes(result.inferredType)
       ? result.inferredType
       : "promotion";
@@ -203,6 +223,11 @@ Analyze the text and determine: event, promotion, or VIP pass? Extract all relev
       response_.startDate = result.startDate || null;
       response_.endDate = result.endDate || null;
       response_.conditions = result.conditions || "";
+    } else if (inferredType === "campaign") {
+      response_.campaignType = result.campaignType || "FEATURED_LISTING";
+      response_.campaignBudget = typeof result.campaignBudget === "number" ? result.campaignBudget : 50;
+      response_.campaignStartDate = result.campaignStartDate || null;
+      response_.campaignEndDate = result.campaignEndDate || null;
     } else if (inferredType === "pass") {
       response_.passType = result.passType || "SKIP_LINE";
       response_.priceEuros = result.priceEuros || null;

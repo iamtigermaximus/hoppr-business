@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
+import { buildGeneratePrompt } from "@/lib/compliance/prompts";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -88,38 +89,25 @@ export async function POST(
       );
     }
 
-    // 6. Build the AI prompt with bar context
-    const systemPrompt = `You are a marketing expert specializing in bar and nightlife promotions. 
+    // 6. Build the AI prompt using the canonical prompt builder
+    const userPrompt = buildGeneratePrompt(
+      {
+        name: bar.name,
+        type: bar.type,
+        district: bar.district ?? undefined,
+        cityName: bar.cityName ?? undefined,
+        priceRange: bar.priceRange ?? undefined,
+        amenities: bar.amenities ?? undefined,
+        description: bar.description ?? undefined,
+      },
+      recentPromotions.map((p) => p.title),
+      prompt || "",
+      type || "unique",
+      targetAudience || undefined,
+    );
+
+    const systemPrompt = `You are a marketing expert specializing in bar and nightlife promotions.
 Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
-
-    const userPrompt = `
-Create a ${type || "unique"} promotion for ${bar.name}, a ${bar.type} bar located in ${bar.district}, ${bar.cityName}.
-
-Bar Details:
-- Type: ${bar.type}
-- Price Range: ${bar.priceRange || "Moderate"}
-- Amenities: ${bar.amenities?.join(", ") || "Standard bar amenities"}
-- Description: ${bar.description || "A great place to enjoy nightlife"}
-- VIP Available: ${bar.vipEnabled ? "Yes" : "No"}
-
-Target Audience: ${targetAudience || "All customers"}
-Current Date: ${new Date().toLocaleDateString()}
-
-Recent promotions (avoid similar titles/concepts):
-${recentPromotions.map((p) => `- ${p.title} (${p.type})`).join("\n") || "No recent promotions"}
-
-${prompt ? `Additional requirements: ${prompt}` : ""}
-
-Generate a promotion with this exact JSON structure (no extra text outside JSON):
-{
-  "title": "Catchy promotion title (max 40 chars)",
-  "description": "Compelling description of the offer (max 150 chars)",
-  "type": "HAPPY_HOUR or DRINK_SPECIAL or FOOD_SPECIAL or LADIES_NIGHT or THEME_NIGHT or VIP_OFFER or COVER_DISCOUNT",
-  "discount": number between 0-100 (or null if no discount),
-  "callToAction": "Action text like 'Book Now', 'Get Offer', 'Join Now'",
-  "accentColor": "Hex color code for branding (e.g., #8b5cf6 or #0ea5e9)",
-  "conditions": "Terms and conditions (max 100 chars)"
-}`;
 
     // 7. Call DeepSeek API
     const response = await fetch(DEEPSEEK_API_URL, {

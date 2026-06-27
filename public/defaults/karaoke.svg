@@ -1,19 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a0a2e"/>
-      <stop offset="100%" style="stop-color:#0f0f1a"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0818"/>
+      <stop offset="50%" style="stop-color:#1a0a20"/>
+      <stop offset="100%" style="stop-color:#0f0a18"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
+    <radialGradient id="glow1" cx="40%" cy="35%" r="40%">
+      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.55"/>
+      <stop offset="50%" style="stop-color:#ec4899;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="65%" cy="55%" r="35%">
+      <stop offset="0%" style="stop-color:#a855f7;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#a855f7;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="big"><feGaussianBlur stdDeviation="10"/></filter>
   </defs>
-  <rect width="800" height="400" fill="url(#g)"/>
-  <rect x="40" y="40" width="720" height="320" rx="12" fill="none" stroke="#ec4899" stroke-width="1" opacity="0.3"/>
-  <circle cx="400" cy="160" r="70" fill="#ec4899" opacity="0.1"/>
-  <text x="400" y="185" text-anchor="middle" font-size="70" filter="url(#glow)">🎤</text>
-  <text x="400" y="260" text-anchor="middle" font-size="28" fill="#ec4899" font-family="system-ui, sans-serif" font-weight="700">Karaoke Night</text>
-  <text x="400" y="300" text-anchor="middle" font-size="15" fill="#6b7280" font-family="system-ui, sans-serif">Sing your heart out</text>
-  <rect x="360" y="360" width="80" height="3" rx="2" fill="#ec4899" opacity="0.5"/>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="320" cy="140" r="160" fill="url(#glow1)"/>
+  <circle cx="520" cy="220" r="140" fill="url(#glow2)"/>
+  <!-- Bold vocal waveform curves -->
+  <path d="M 80 200 Q 120 120 160 200 Q 200 280 240 200 Q 280 120 320 200 Q 360 280 400 200 Q 440 120 480 200 Q 520 280 560 200 Q 600 120 640 200 Q 680 280 720 200" fill="none" stroke="#ec4899" stroke-width="3" opacity="0.65" filter="url(#soft)"/>
+  <path d="M 80 225 Q 120 155 160 225 Q 200 295 240 225 Q 280 155 320 225 Q 360 295 400 225 Q 440 155 480 225 Q 520 295 560 225 Q 600 155 640 225 Q 680 295 720 225" fill="none" stroke="#a855f7" stroke-width="2" opacity="0.5" filter="url(#soft)"/>
+  <path d="M 80 250 Q 120 195 160 250 Q 200 305 240 250 Q 280 195 320 250 Q 360 305 400 250 Q 440 195 480 250 Q 520 305 560 250 Q 600 195 640 250 Q 680 305 720 250" fill="none" stroke="#ec4899" stroke-width="1.5" opacity="0.35"/>
+  <!-- Spotlight beams -->
+  <line x1="320" y1="0" x2="220" y2="300" stroke="#ec4899" stroke-width="2" opacity="0.4" filter="url(#soft)"/>
+  <line x1="520" y1="0" x2="600" y2="300" stroke="#a855f7" stroke-width="2" opacity="0.35" filter="url(#soft)"/>
+  <!-- Floating note dots -->
+  <circle cx="160" cy="130" r="5" fill="#ec4899" opacity="0.8"/>
+  <circle cx="300" cy="80" r="4" fill="#a855f7" opacity="0.7"/>
+  <circle cx="480" cy="90" r="5" fill="#ec4899" opacity="0.65"/>
+  <circle cx="620" cy="140" r="4" fill="#a855f7" opacity="0.55"/>
+  <circle cx="200" cy="300" r="4" fill="#ec4899" opacity="0.45"/>
+  <circle cx="560" cy="320" r="3" fill="#a855f7" opacity="0.4"/>
 </svg>

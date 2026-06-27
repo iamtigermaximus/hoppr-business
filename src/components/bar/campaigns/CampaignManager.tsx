@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import styled from "styled-components";
 
 // ── Types ──
@@ -294,6 +295,7 @@ function getToken(): string {
 // ── Component ──
 
 export default function CampaignManager({ barId, userRole }: { barId: string; userRole: string }) {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
@@ -336,16 +338,8 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
   }, [fetchCampaigns]);
 
   const openCreate = () => {
-    setEditingId(null);
-    setTitle("");
-    setDescription("");
-    setType("FEATURED_LISTING");
-    setBudgetCents(5000);
-    setStartDate(new Date().toISOString().slice(0, 10));
-    setEndDate(new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10));
-    setImageUrl("");
-    setTargetUrl("");
-    setShowModal(true);
+    // Redirect to the unified creation hub with campaign tab pre-selected
+    router.push(`/bar/${barId}/create?type=campaign`);
   };
 
   const openEdit = (c: Campaign) => {

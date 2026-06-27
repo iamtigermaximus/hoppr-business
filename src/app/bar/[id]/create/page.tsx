@@ -1,6 +1,7 @@
 // src/app/bar/[id]/create/page.tsx
 // Unified AI-First Creation Hub — single page for creating events, promotions, and passes
 
+import { Suspense } from "react";
 import { prisma } from "@/lib/database";
 import { verifyAuthCookie, isBarStaffToken } from "@/lib/auth";
 import { notFound, redirect } from "next/navigation";
@@ -27,7 +28,7 @@ export default async function CreateHubPage({
   // 2. Verify bar exists
   const bar = await prisma.bar.findUnique({
     where: { id: barId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, coverImage: true, logoUrl: true },
   });
 
   if (!bar) {
@@ -37,5 +38,9 @@ export default async function CreateHubPage({
   // All authenticated bar staff can create content
   const userRole = payload.staffRole || "STAFF";
 
-  return <CreateHubClient barId={barId} userRole={userRole} />;
+  return (
+    <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading creation hub...</div>}>
+      <CreateHubClient barId={barId} userRole={userRole} barCoverImage={bar.coverImage} barLogoUrl={bar.logoUrl} />
+    </Suspense>
+  );
 }

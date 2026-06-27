@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
-import { generateFixPrompt, scanCompliance } from "@/lib/compliance-engine";
+import { scanCompliance } from "@/lib/compliance-engine";
+import { buildFixPrompt } from "@/lib/compliance/prompts";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -64,8 +65,8 @@ export async function POST(
       );
     }
 
-    // 4. Build prompt and call DeepSeek
-    const systemPrompt = generateFixPrompt(
+    // 4. Build prompt using canonical rules and call DeepSeek
+    const systemPrompt = buildFixPrompt(
       title,
       description || "",
       violations,

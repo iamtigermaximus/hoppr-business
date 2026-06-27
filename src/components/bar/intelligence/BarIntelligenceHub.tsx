@@ -450,6 +450,12 @@ interface BarStatus {
   visitorsTrend: number | null;
   promoConversion: number | null;
   eventConversion: number | null;
+  campaignImpressions: number | null;
+  campaignClicks: number | null;
+  campaignCTR: number | null;
+  campaignSpentCents: number | null;
+  campaignBudgetCents: number | null;
+  activeCampaigns: number;
   profileScore: number;
   hasData: boolean;
 }
@@ -713,6 +719,25 @@ const BarIntelligenceHub = ({ barId }: BarIntelligenceHubProps) => {
                   {barStatus?.profileScore != null
                     ? `${barStatus?.profileScore}% complete`
                     : "Setup required"}
+                </StatTrend>
+              </StatCard>
+
+              <StatCard $isEmpty={!barStatus?.campaignImpressions}>
+                <StatValue $isEmpty={!barStatus?.campaignImpressions}>
+                  {formatStatValue(barStatus?.campaignImpressions || null)}
+                </StatValue>
+                <StatLabel $isEmpty={!barStatus?.campaignImpressions}>
+                  Ad Impressions
+                </StatLabel>
+                <StatTrend
+                  $positive={(barStatus?.campaignCTR || 0) >= 3}
+                  $isEmpty={!barStatus?.campaignImpressions}
+                >
+                  {barStatus?.campaignCTR != null
+                    ? `${barStatus?.campaignCTR}% CTR`
+                    : (barStatus?.activeCampaigns ?? 0) > 0
+                    ? "No clicks yet"
+                    : "Launch a campaign"}
                 </StatTrend>
               </StatCard>
             </StatsGrid>

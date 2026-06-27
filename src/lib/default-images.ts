@@ -8,7 +8,7 @@ export interface DefaultImage {
   path: string;
   label: string;
   /** Which content types this image is suited for */
-  types: ("event" | "promotion" | "pass")[];
+  types: ("event" | "promotion" | "pass" | "campaign")[];
 }
 
 export const DEFAULT_IMAGES: DefaultImage[] = [
@@ -82,7 +82,7 @@ export const DEFAULT_IMAGES: DefaultImage[] = [
     name: "bar-ambiance",
     path: "/defaults/bar-ambiance.svg",
     label: "Bar Ambiance",
-    types: ["event", "promotion", "pass"],
+    types: ["event", "promotion", "pass", "campaign"],
   },
 ];
 
@@ -91,7 +91,7 @@ export const DEFAULT_IMAGES: DefaultImage[] = [
  * Returns all images that match at least one of the given types.
  */
 export function getDefaultImagesForType(
-  type: "event" | "promotion" | "pass",
+  type: "event" | "promotion" | "pass" | "campaign",
 ): DefaultImage[] {
   return DEFAULT_IMAGES.filter((img) => img.types.includes(type));
 }

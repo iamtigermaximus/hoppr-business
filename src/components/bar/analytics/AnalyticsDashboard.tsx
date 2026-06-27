@@ -165,6 +165,17 @@ interface DailyPoint {
   shareCount: number;
 }
 
+interface CampaignInRange {
+  id: string;
+  title: string;
+  type: string;
+  status: string;
+  impressions: number;
+  clicks: number;
+  budgetCents: number;
+  spentCents: number;
+}
+
 interface AnalyticsData {
   period: string;
   days: number;
@@ -181,11 +192,18 @@ interface AnalyticsData {
   uniqueVisitors: number;
   activePromos: number;
   activeEvents: number;
+  activeCampaigns: number;
+  campaignImpressions: number;
+  campaignClicks: number;
+  campaignConversions: number;
+  campaignSpentCents: number;
+  campaignBudgetCents: number;
+  campaignsInRange: CampaignInRange[];
   dailyBreakdown: DailyPoint[];
   hasData: boolean;
 }
 
-type TabType = "overview" | "engagement" | "promotions" | "events" | "followers" | "performance" | "crowd";
+type TabType = "overview" | "engagement" | "promotions" | "events" | "campaigns" | "followers" | "performance" | "crowd";
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -453,6 +471,81 @@ const AnalyticsDashboard = ({ barId }: Props) => {
     </>
   );
 
+  const renderCampaigns = () => (
+    <>
+      <StatsGrid>
+        <StatCard $isEmpty={!data.campaignImpressions}>
+          <StatValue $isEmpty={!data.campaignImpressions}>{formatNumber(data.campaignImpressions)}</StatValue>
+          <StatLabel>Ad Impressions</StatLabel>
+        </StatCard>
+        <StatCard $isEmpty={!data.campaignClicks}>
+          <StatValue $isEmpty={!data.campaignClicks}>{formatNumber(data.campaignClicks)}</StatValue>
+          <StatLabel>Ad Clicks</StatLabel>
+        </StatCard>
+        <StatCard $isEmpty={!data.campaignImpressions}>
+          <StatValue $isEmpty={!data.campaignImpressions}>
+            {data.campaignImpressions > 0
+              ? ((data.campaignClicks / data.campaignImpressions) * 100).toFixed(2) + "%"
+              : "—"}
+          </StatValue>
+          <StatLabel>CTR</StatLabel>
+        </StatCard>
+        <StatCard $isEmpty={!data.campaignBudgetCents}>
+          <StatValue $isEmpty={!data.campaignBudgetCents}>
+            {data.campaignBudgetCents > 0
+              ? Math.round((data.campaignSpentCents / data.campaignBudgetCents) * 100) + "%"
+              : "—"}
+          </StatValue>
+          <StatLabel>Budget Spent</StatLabel>
+        </StatCard>
+      </StatsGrid>
+
+      {/* Campaign table */}
+      {data.campaignsInRange && data.campaignsInRange.length > 0 ? (
+        <ChartContainer>
+          <ChartTitle>Campaigns in this period</ChartTitle>
+          <TableWrapper>
+            <Table>
+              <thead>
+                <tr>
+                  <TableHeader>Campaign</TableHeader>
+                  <TableHeader>Type</TableHeader>
+                  <TableHeader>Status</TableHeader>
+                  <TableHeader>Impressions</TableHeader>
+                  <TableHeader>Clicks</TableHeader>
+                  <TableHeader>Budget</TableHeader>
+                  <TableHeader>Spent</TableHeader>
+                </tr>
+              </thead>
+              <tbody>
+                {data.campaignsInRange.map((c) => (
+                  <tr key={c.id}>
+                    <TableCell>{c.title}</TableCell>
+                    <TableCell>{c.type.replace(/_/g, " ")}</TableCell>
+                    <TableCell>{c.status}</TableCell>
+                    <TableCell>{formatNumber(c.impressions)}</TableCell>
+                    <TableCell>{c.clicks}</TableCell>
+                    <TableCell>&euro;{(c.budgetCents / 100).toFixed(0)}</TableCell>
+                    <TableCell>&euro;{(c.spentCents / 100).toFixed(2)}</TableCell>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrapper>
+        </ChartContainer>
+      ) : (
+        <EmptyState>
+          <EmptyStateIcon>📢</EmptyStateIcon>
+          <EmptyStateTitle>No campaign data yet</EmptyStateTitle>
+          <EmptyStateDesc>Launch your first ad campaign to start tracking impressions and clicks.</EmptyStateDesc>
+          <EmptyButton onClick={() => router.push(`/bar/${barId}/create?type=campaign`)}>
+            Create Campaign
+          </EmptyButton>
+        </EmptyState>
+      )}
+    </>
+  );
+
   // ── Render ───────────────────────────────────────────────────
 
   return (
@@ -476,13 +569,14 @@ const AnalyticsDashboard = ({ barId }: Props) => {
       </DateFilter>
 
       <Tabs>
-        {(["overview", "engagement", "promotions", "events", "followers", "performance", "crowd"] as TabType[]).map(
+        {(["overview", "engagement", "promotions", "events", "campaigns", "followers", "performance", "crowd"] as TabType[]).map(
           (t) => (
             <Tab key={t} $active={activeTab === t} onClick={() => setActiveTab(t)}>
               {t === "overview" && "Overview"}
               {t === "engagement" && "Engagement"}
               {t === "promotions" && "Promotions"}
               {t === "events" && "Events"}
+              {t === "campaigns" && "Campaigns"}
               {t === "followers" && "Followers"}
               {t === "performance" && "Performance"}
               {t === "crowd" && "Crowd"}
@@ -495,6 +589,7 @@ const AnalyticsDashboard = ({ barId }: Props) => {
       {activeTab === "engagement" && renderEngagement()}
       {activeTab === "promotions" && renderPromotions()}
       {activeTab === "events" && renderEvents()}
+      {activeTab === "campaigns" && renderCampaigns()}
       {activeTab === "followers" && <FollowersAnalytics barId={barId} />}
       {activeTab === "performance" && <PerformanceDashboard barId={barId} />}
       {activeTab === "crowd" && <CrowdAnalytics barId={barId} />}

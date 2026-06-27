@@ -1,6 +1,6 @@
 // Route: GET /api/auth/bar/[barId]/calendar
-// Description: Get all bar content (events, promotions, passes) organized by date for calendar view
-// Query params: month (YYYY-MM), type (all|events|promotions|passes)
+// Description: Get all bar content (events, promotions, passes, campaigns) organized by date for calendar view
+// Query params: month (YYYY-MM), type (all|events|promotions|passes|campaigns)
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
@@ -33,7 +33,18 @@ interface CalendarPass {
   status: string;
 }
 
-type CalendarEntry = CalendarEvent | CalendarPromotion | CalendarPass;
+interface CalendarCampaign {
+  id: string;
+  type: "campaign";
+  title: string;
+  startDate: string;
+  endDate: string;
+  campaignType: string;
+  budgetCents: number;
+  status: string;
+}
+
+type CalendarEntry = CalendarEvent | CalendarPromotion | CalendarPass | CalendarCampaign;
 
 interface CalendarDay {
   date: string;
@@ -71,8 +82,8 @@ export async function GET(
       monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     }
 
-    // Fetch all three content types in parallel
-    const [events, promotions, passes] = await Promise.all([
+    // Fetch all four content types in parallel
+    const [events, promotions, passes, campaigns] = await Promise.all([
       contentType === "all" || contentType === "events"
         ? prisma.event.findMany({
             where: {
@@ -125,6 +136,28 @@ export async function GET(
             orderBy: { validityEnd: "asc" },
           })
         : [],
+
+      contentType === "all" || contentType === "campaigns"
+        ? prisma.adCampaign.findMany({
+            where: {
+              barId,
+              AND: [
+                { startDate: { lt: monthEnd } },
+                { endDate: { gte: monthStart } },
+              ],
+            },
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              startDate: true,
+              endDate: true,
+              budgetCents: true,
+              status: true,
+            },
+            orderBy: { startDate: "asc" },
+          })
+        : [],
     ]);
 
     // Build entries array
@@ -159,6 +192,18 @@ export async function GET(
           status: p.isActive ? "ACTIVE" : "INACTIVE",
         }),
       ),
+      ...campaigns.map(
+        (c): CalendarCampaign => ({
+          id: c.id,
+          type: "campaign",
+          title: c.title,
+          startDate: c.startDate.toISOString().split("T")[0],
+          endDate: c.endDate.toISOString().split("T")[0],
+          campaignType: c.type,
+          budgetCents: c.budgetCents,
+          status: c.status,
+        }),
+      ),
     ];
 
     // Group by date
@@ -167,6 +212,7 @@ export async function GET(
       let dateKey: string;
       if (entry.type === "event") dateKey = entry.date;
       else if (entry.type === "promotion") dateKey = entry.startDate;
+      else if (entry.type === "campaign") dateKey = entry.startDate;
       else dateKey = entry.validUntil;
 
       if (!dayMap.has(dateKey)) dayMap.set(dateKey, []);
@@ -183,6 +229,7 @@ export async function GET(
       totalEvents: events.length,
       totalPromotions: promotions.length,
       totalPasses: passes.length,
+      totalCampaigns: campaigns.length,
       totalDays: days.length,
     };
 

@@ -128,28 +128,41 @@ const DefaultsGrid = styled.div`
 const DefaultTile = styled.button<{ $selected: boolean }>`
   aspect-ratio: 16 / 10;
   border-radius: 0.375rem;
-  border: 2px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#e5e7eb")};
-  background: ${({ $selected }) => ($selected ? "#ede9fe" : "#f3f4f6")};
+  border: 2px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#262626")};
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.25rem;
-  padding: 0.5rem;
+  padding: 0;
   transition: all 0.15s;
-  font-size: 1.25rem;
+  overflow: hidden;
+  position: relative;
 
   &:hover {
     border-color: #7c3aed;
-    background: #f5f3ff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.15);
   }
 `;
 
+const DefaultThumb = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+`;
+
+const DefaultOverlay = styled.div`
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.25rem 0.375rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+`;
+
 const DefaultLabel = styled.span`
-  font-size: 0.625rem;
-  color: #6b7280;
-  text-align: center;
+  font-size: 0.5625rem;
+  color: #e5e7eb;
+  font-weight: 500;
+  display: block;
   line-height: 1.2;
 `;
 
@@ -173,24 +186,9 @@ const ErrorText = styled.span`
 interface ImageUploaderProps {
   value: string | null;
   onChange: (url: string | null) => void;
-  contentType: "event" | "promotion" | "pass";
+  contentType: "event" | "promotion" | "pass" | "campaign";
   barId: string;
 }
-
-const DEFAULT_ICONS: Record<string, string> = {
-  cocktails: "🍸",
-  "live-music": "🎸",
-  party: "🎉",
-  beer: "🍺",
-  vip: "👑",
-  wine: "🍷",
-  "special-offer": "🏷️",
-  karaoke: "🎤",
-  sports: "⚽",
-  "outdoor-terrace": "🌿",
-  "dj-night": "🎧",
-  "bar-ambiance": "🍹",
-};
 
 export default function ImageUploader({
   value,
@@ -334,8 +332,10 @@ export default function ImageUploader({
                 $selected={value === img.path}
                 onClick={() => handleSelectDefault(img)}
               >
-                {DEFAULT_ICONS[img.name] || "🖼️"}
-                <DefaultLabel>{img.label}</DefaultLabel>
+                <DefaultThumb src={img.path} alt={img.label} loading="lazy" />
+                <DefaultOverlay>
+                  <DefaultLabel>{img.label}</DefaultLabel>
+                </DefaultOverlay>
               </DefaultTile>
             ))}
           </DefaultsGrid>

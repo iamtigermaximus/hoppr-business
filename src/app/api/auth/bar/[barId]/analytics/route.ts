@@ -5,9 +5,9 @@ import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 /**
  * GET /api/auth/bar/[barId]/analytics?range=7d|30d|90d
  *
- * Returns aggregated analytics from BarDailyStats for the given date range,
- * plus a daily breakdown for chart rendering. All data is real — no
- * hardcoded values, no VIP/payment metrics (VIP passes are hidden).
+ * Aggregates raw AnalyticsEvent rows directly (same source as the dashboard
+ * stats endpoint), so both pages always show matching numbers. No cron
+ * dependency — everything is real-time.
  */
 export async function GET(
   request: NextRequest,
@@ -31,62 +31,124 @@ export async function GET(
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    // ── Query BarDailyStats ──────────────────────────────────────
-    const dailyStats = await prisma.barDailyStats.findMany({
+    // ── Fetch raw events (same source as dashboard stats) ────────
+    const rawEvents = await prisma.analyticsEvent.findMany({
       where: {
         barId,
-        date: { gte: startDate },
+        createdAt: { gte: startDate },
       },
-      orderBy: { date: "asc" },
+      select: {
+        type: true,
+        userId: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: "asc" },
     });
 
-    // ── Aggregate totals ─────────────────────────────────────────
-    const totals = dailyStats.reduce(
-      (acc, d) => ({
-        profileViews: acc.profileViews + d.pageViews + d.barViews,
-        directionClicks: acc.directionClicks + d.barDirections,
-        websiteClicks: acc.websiteClicks + d.barWebsites,
-        callClicks: acc.callClicks + d.barCalls,
-        shareCount: acc.shareCount + d.barShares,
-        promoViews: acc.promoViews + d.promoViews,
-        promoClicks: acc.promoClicks + d.promoClicks,
-        promoRedemptions: acc.promoRedemptions + d.promoRedemptions,
-        eventViews: acc.eventViews + d.eventViews,
-        eventJoins: acc.eventJoins + d.eventJoins,
-        uniqueVisitors: acc.uniqueVisitors + d.uniqueVisitors,
-      }),
+    // ── Aggregate totals by type ─────────────────────────────────
+    const typeCounts: Record<string, number> = {};
+    const uniqueUsers = new Set<string>();
+
+    // Daily breakdown — group counts by ISO date string
+    const dailyMap = new Map<
+      string,
       {
-        profileViews: 0,
-        directionClicks: 0,
-        websiteClicks: 0,
-        callClicks: 0,
-        shareCount: 0,
-        promoViews: 0,
-        promoClicks: 0,
-        promoRedemptions: 0,
-        eventViews: 0,
-        eventJoins: 0,
-        uniqueVisitors: 0,
-      },
-    );
+        profileViews: number;
+        uniqueVisitors: Set<string>;
+        promoViews: number;
+        promoClicks: number;
+        promoRedemptions: number;
+        eventViews: number;
+        eventJoins: number;
+        directionClicks: number;
+        shareCount: number;
+      }
+    >();
+
+    const zeroDay = () => ({
+      profileViews: 0,
+      uniqueVisitors: new Set<string>(),
+      promoViews: 0,
+      promoClicks: 0,
+      promoRedemptions: 0,
+      eventViews: 0,
+      eventJoins: 0,
+      directionClicks: 0,
+      shareCount: 0,
+    });
+
+    for (const ev of rawEvents) {
+      typeCounts[ev.type] = (typeCounts[ev.type] || 0) + 1;
+      if (ev.userId) uniqueUsers.add(ev.userId);
+
+      const dateKey = ev.createdAt.toISOString().slice(0, 10);
+      if (!dailyMap.has(dateKey)) dailyMap.set(dateKey, zeroDay());
+      const day = dailyMap.get(dateKey)!;
+
+      if (ev.userId) day.uniqueVisitors.add(ev.userId);
+
+      switch (ev.type) {
+        case "PAGE_VIEW":
+        case "BAR_VIEW":
+          day.profileViews++;
+          break;
+        case "BAR_DIRECTION":
+          day.directionClicks++;
+          break;
+        case "BAR_SHARE":
+          day.shareCount++;
+          break;
+        case "PROMO_VIEW":
+          day.promoViews++;
+          break;
+        case "PROMO_CLICK":
+          day.promoClicks++;
+          break;
+        case "PROMO_REDEMPTION":
+          day.promoRedemptions++;
+          break;
+        case "EVENT_VIEW":
+          day.eventViews++;
+          break;
+        case "EVENT_JOIN":
+          day.eventJoins++;
+          break;
+      }
+    }
+
+    const totals = {
+      profileViews: (typeCounts["PAGE_VIEW"] || 0) + (typeCounts["BAR_VIEW"] || 0),
+      directionClicks: typeCounts["BAR_DIRECTION"] || 0,
+      websiteClicks: typeCounts["BAR_WEBSITE"] || 0,
+      callClicks: typeCounts["BAR_CALL"] || 0,
+      shareCount: typeCounts["BAR_SHARE"] || 0,
+      promoViews: typeCounts["PROMO_VIEW"] || 0,
+      promoClicks: typeCounts["PROMO_CLICK"] || 0,
+      promoRedemptions: typeCounts["PROMO_REDEMPTION"] || 0,
+      eventViews: typeCounts["EVENT_VIEW"] || 0,
+      eventJoins: typeCounts["EVENT_JOIN"] || 0,
+      uniqueVisitors: uniqueUsers.size,
+    };
 
     // ── Daily breakdown (for charts) ─────────────────────────────
-    const dailyBreakdown = dailyStats.map((d) => ({
-      date: d.date.toISOString().slice(0, 10),
-      profileViews: d.pageViews + d.barViews,
-      uniqueVisitors: d.uniqueVisitors,
-      promoViews: d.promoViews,
-      promoClicks: d.promoClicks,
-      promoRedemptions: d.promoRedemptions,
-      eventViews: d.eventViews,
-      eventJoins: d.eventJoins,
-      directionClicks: d.barDirections,
-      shareCount: d.barShares,
-    }));
+    const dailyBreakdown = Array.from(dailyMap.entries())
+      .map(([date, d]) => ({
+        date,
+        profileViews: d.profileViews,
+        uniqueVisitors: d.uniqueVisitors.size,
+        promoViews: d.promoViews,
+        promoClicks: d.promoClicks,
+        promoRedemptions: d.promoRedemptions,
+        eventViews: d.eventViews,
+        eventJoins: d.eventJoins,
+        directionClicks: d.directionClicks,
+        shareCount: d.shareCount,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     // ── Active counts ────────────────────────────────────────────
     const now = new Date();
-    const [activePromos, activeEvents] = await Promise.all([
+    const [activePromos, activeEvents, activeCampaigns, campaignAggregates, campaignsInRange] = await Promise.all([
       prisma.barPromotion.count({
         where: {
           barId,
@@ -102,6 +164,41 @@ export async function GET(
           startTime: { gte: now },
         },
       }),
+      prisma.adCampaign.count({
+        where: {
+          barId,
+          status: "ACTIVE",
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+      }),
+      prisma.adCampaign.aggregate({
+        where: { barId },
+        _sum: {
+          impressions: true,
+          clicks: true,
+          conversions: true,
+          spentCents: true,
+          budgetCents: true,
+        },
+      }),
+      prisma.adCampaign.findMany({
+        where: {
+          barId,
+          createdAt: { gte: startDate },
+        },
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          status: true,
+          impressions: true,
+          clicks: true,
+          budgetCents: true,
+          spentCents: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
     ]);
 
     const hasData = Object.values(totals).some((v) => v > 0);
@@ -112,6 +209,13 @@ export async function GET(
       ...totals,
       activePromos,
       activeEvents,
+      activeCampaigns,
+      campaignImpressions: campaignAggregates._sum.impressions || 0,
+      campaignClicks: campaignAggregates._sum.clicks || 0,
+      campaignConversions: campaignAggregates._sum.conversions || 0,
+      campaignSpentCents: campaignAggregates._sum.spentCents || 0,
+      campaignBudgetCents: campaignAggregates._sum.budgetCents || 0,
+      campaignsInRange,
       dailyBreakdown,
       hasData,
     });

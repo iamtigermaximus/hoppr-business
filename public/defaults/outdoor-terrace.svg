@@ -1,19 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#0a1a0a"/>
-      <stop offset="100%" style="stop-color:#0f0f1a"/>
+      <stop offset="40%" style="stop-color:#0a140a"/>
+      <stop offset="100%" style="stop-color:#0f1a12"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
+    <radialGradient id="sunlight" cx="75%" cy="20%" r="50%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.3"/>
+      <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:0.08"/>
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="35%" cy="50%" r="40%">
+      <stop offset="0%" style="stop-color:#0d9488;stop-opacity:0.4"/>
+      <stop offset="50%" style="stop-color:#0d9488;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#0d9488;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="5"/></filter>
+    <filter id="big"><feGaussianBlur stdDeviation="18"/></filter>
   </defs>
-  <rect width="800" height="400" fill="url(#g)"/>
-  <rect x="40" y="40" width="720" height="320" rx="12" fill="none" stroke="#22c55e" stroke-width="1" opacity="0.3"/>
-  <circle cx="400" cy="160" r="70" fill="#22c55e" opacity="0.1"/>
-  <text x="400" y="185" text-anchor="middle" font-size="70" filter="url(#glow)">🌿</text>
-  <text x="400" y="260" text-anchor="middle" font-size="28" fill="#22c55e" font-family="system-ui, sans-serif" font-weight="700">Outdoor Terrace</text>
-  <text x="400" y="300" text-anchor="middle" font-size="15" fill="#6b7280" font-family="system-ui, sans-serif">Al fresco drinks & dining</text>
-  <rect x="360" y="360" width="80" height="3" rx="2" fill="#22c55e" opacity="0.5"/>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="600" cy="80" r="200" fill="url(#sunlight)"/>
+  <circle cx="280" cy="200" r="160" fill="url(#glow)"/>
+  <!-- Bold leaf shapes -->
+  <path d="M 150 260 Q 180 120 260 170 Q 210 230 230 270 Q 190 200 150 260 Z" fill="#0d9488" opacity="0.35" filter="url(#soft)"/>
+  <path d="M 330 290 Q 380 150 450 200 Q 400 280 420 300 Q 380 230 330 290 Z" fill="#0d9488" opacity="0.3" filter="url(#soft)"/>
+  <path d="M 540 250 Q 570 120 630 150 Q 580 220 610 260 Q 560 190 540 250 Z" fill="#0d9488" opacity="0.35" filter="url(#soft)"/>
+  <!-- Dappled sunlight circles -->
+  <circle cx="300" cy="140" r="18" fill="#f59e0b" opacity="0.3" filter="url(#big)"/>
+  <circle cx="400" cy="180" r="12" fill="#f59e0b" opacity="0.25" filter="url(#big)"/>
+  <circle cx="500" cy="130" r="22" fill="#f59e0b" opacity="0.25" filter="url(#big)"/>
+  <circle cx="350" cy="240" r="14" fill="#f59e0b" opacity="0.2" filter="url(#big)"/>
+  <circle cx="580" cy="190" r="16" fill="#f59e0b" opacity="0.22" filter="url(#big)"/>
+  <!-- Warm light wash -->
+  <ellipse cx="600" cy="100" rx="220" ry="50" fill="#f59e0b" opacity="0.15" filter="url(#big)"/>
+  <!-- Ground line -->
+  <path d="M 0 350 Q 200 310 400 340 Q 600 370 800 320" fill="none" stroke="#0d9488" stroke-width="3" opacity="0.45" filter="url(#soft)"/>
+  <!-- Highlight dots -->
+  <circle cx="180" cy="230" r="3" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="540" cy="160" r="3" fill="#f59e0b" opacity="0.55"/>
+  <circle cx="650" cy="240" r="2.5" fill="#0d9488" opacity="0.5"/>
 </svg>

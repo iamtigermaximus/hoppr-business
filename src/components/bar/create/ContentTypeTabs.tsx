@@ -1,8 +1,7 @@
 "use client";
 
 import styled from "styled-components";
-
-type ContentType = "event" | "promotion" | "pass";
+import type { ContentType } from "./types";
 
 const TabRow = styled.div`
   display: flex;
@@ -49,6 +48,7 @@ interface ContentTypeTabsProps {
 const TAB_CONFIG: { value: ContentType; label: string; icon: string }[] = [
   { value: "event", label: "Event", icon: "📅" },
   { value: "promotion", label: "Promotion", icon: "🎁" },
+  { value: "campaign", label: "Ad", icon: "📢" },
   { value: "pass", label: "Pass", icon: "🎟️" },
 ];
 

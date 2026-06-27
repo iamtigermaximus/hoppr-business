@@ -194,6 +194,12 @@ interface DashboardStats {
   eventJoins: number;
   uniqueVisitors: number;
   activePromos: number;
+  activeCampaigns: number;
+  campaignImpressions: number;
+  campaignClicks: number;
+  campaignConversions: number;
+  campaignSpentCents: number;
+  campaignBudgetCents: number;
   totalFollowers: number;
   newFollowers: number;
   lostFollowers: number;
@@ -469,6 +475,14 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
     href: `/bar/${user.barId}/promotions`,
   });
 
+  statusCards.push({
+    accent: (stats?.activeCampaigns ?? 0) > 0 ? "blue" : "amber",
+    value: String(stats?.activeCampaigns ?? 0),
+    label: "Active Ads",
+    hint: (stats?.activeCampaigns ?? 0) > 0 ? "Live and running" : "Create your first campaign",
+    href: `/bar/${user.barId}/campaigns`,
+  });
+
   // ── Checklist items ─────────────────────────────────────────
 
   const checklistItems = [
@@ -501,6 +515,11 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
       label: "First event scheduled",
       done: todayEvents > 0 || recentActivity.some((a) => a.href?.includes("/events/")),
       href: `/bar/${user.barId}/events`,
+    },
+    {
+      label: "First ad campaign created",
+      done: (stats?.activeCampaigns ?? 0) > 0 || (stats?.campaignImpressions ?? 0) > 0,
+      href: `/bar/${user.barId}/campaigns`,
     },
   ];
 
@@ -575,6 +594,14 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
           <StatCard>
             <StatValue>{formatNumber(stats?.eventJoins ?? 0)}</StatValue>
             <StatLabel>Event Joins</StatLabel>
+          </StatCard>
+          <StatCard>
+            <StatValue>{formatNumber(stats?.campaignImpressions ?? 0)}</StatValue>
+            <StatLabel>Ad Impressions</StatLabel>
+          </StatCard>
+          <StatCard>
+            <StatValue>{formatNumber(stats?.campaignClicks ?? 0)}</StatValue>
+            <StatLabel>Ad Clicks</StatLabel>
           </StatCard>
           <StatCard>
             <StatValue>{formatNumber(stats?.totalFollowers ?? 0)}</StatValue>

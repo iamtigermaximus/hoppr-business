@@ -1,9 +1,11 @@
 "use client";
 
 import styled from "styled-components";
+import type { ContentType, FormState } from "./types";
 import EventPreviewCard from "./previews/EventPreviewCard";
 import PromotionPreviewCard from "./previews/PromotionPreviewCard";
 import PassPreviewCard from "./previews/PassPreviewCard";
+import AdCampaignPreviewCard from "./previews/AdCampaignPreviewCard";
 
 // ---- Styled ----
 
@@ -63,41 +65,20 @@ const EmptyState = styled.div`
 
 // ---- Component ----
 
-type ContentType = "event" | "promotion" | "pass";
-
-interface FormState {
-  title: string;
-  description: string;
-  imageUrl: string | null;
-  // Event
-  startTime: string;
-  endTime: string;
-  maxAttendees: number | null;
-  isPrivate: boolean;
-  // Promotion
-  promotionType: string;
-  discountValue: number | null;
-  startDate: string;
-  endDate: string;
-  conditions: string;
-  // Pass
-  passType: string;
-  priceEuros: string;
-  originalPriceEuros: string;
-  benefits: string[];
-  totalQuantity: number | null;
-}
-
 interface ConsumerPreviewPanelProps {
   contentType: ContentType;
   formState: FormState;
   collapsed?: boolean;
+  barCoverImage?: string | null;
+  barLogoUrl?: string | null;
 }
 
 export default function ConsumerPreviewPanel({
   contentType,
   formState,
   collapsed,
+  barCoverImage,
+  barLogoUrl,
 }: ConsumerPreviewPanelProps) {
   return (
     <Wrapper>
@@ -129,6 +110,8 @@ export default function ConsumerPreviewPanel({
               startTime={formState.startTime}
               endTime={formState.endTime}
               maxAttendees={formState.maxAttendees}
+              barCoverImage={barCoverImage}
+              barLogoUrl={barLogoUrl}
             />
           ) : contentType === "promotion" ? (
             <PromotionPreviewCard
@@ -140,6 +123,20 @@ export default function ConsumerPreviewPanel({
               startDate={formState.startDate}
               endDate={formState.endDate}
               conditions={formState.conditions}
+              barCoverImage={barCoverImage}
+              barLogoUrl={barLogoUrl}
+            />
+          ) : contentType === "campaign" ? (
+            <AdCampaignPreviewCard
+              title={formState.title}
+              description={formState.description}
+              imageUrl={formState.imageUrl}
+              campaignType={formState.campaignType}
+              campaignBudget={formState.campaignBudget}
+              campaignStartDate={formState.campaignStartDate}
+              campaignEndDate={formState.campaignEndDate}
+              barCoverImage={barCoverImage}
+              barLogoUrl={barLogoUrl}
             />
           ) : (
             <PassPreviewCard

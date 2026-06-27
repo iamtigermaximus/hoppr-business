@@ -57,15 +57,37 @@ export async function GET(
 
     // Active promo count (real-time)
     const now = new Date();
-    const activePromos = await prisma.barPromotion.count({
-      where: {
-        barId,
-        isActive: true,
-        isApproved: true,
-        startDate: { lte: now },
-        endDate: { gte: now },
-      },
-    });
+    const [activePromos, activeCampaigns, campaignTotals] = await Promise.all([
+      prisma.barPromotion.count({
+        where: {
+          barId,
+          isActive: true,
+          isApproved: true,
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+      }),
+      // Active campaign count
+      prisma.adCampaign.count({
+        where: {
+          barId,
+          status: "ACTIVE",
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+      }),
+      // Campaign aggregate metrics (all campaigns, not just active)
+      prisma.adCampaign.aggregate({
+        where: { barId },
+        _sum: {
+          impressions: true,
+          clicks: true,
+          conversions: true,
+          spentCents: true,
+          budgetCents: true,
+        },
+      }),
+    ]);
 
     const totalEvents = Object.values(totals).reduce((sum, v) => sum + v, 0);
     const hasData = totalEvents > 0;
@@ -89,6 +111,12 @@ export async function GET(
     return NextResponse.json({
       ...totals,
       activePromos,
+      activeCampaigns,
+      campaignImpressions: campaignTotals._sum.impressions || 0,
+      campaignClicks: campaignTotals._sum.clicks || 0,
+      campaignConversions: campaignTotals._sum.conversions || 0,
+      campaignSpentCents: campaignTotals._sum.spentCents || 0,
+      campaignBudgetCents: campaignTotals._sum.budgetCents || 0,
       hasData,
       totalFollowers,
       newFollowers,

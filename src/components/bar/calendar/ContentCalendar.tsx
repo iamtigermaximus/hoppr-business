@@ -379,17 +379,18 @@ const SummaryItem = styled.span<{ $color: string }>`
 
 // ── Types ───────────────────────────────────────────────────────
 
-const TYPE_COLORS = {
+const TYPE_COLORS: Record<string, string> = {
   event: "#3b82f6",
   promotion: "#10b981",
   pass: "#f59e0b",
-} as const;
+  campaign: "#8b5cf6",
+};
 
-type ContentType = "all" | "events" | "promotions" | "passes";
+type ContentType = "all" | "events" | "promotions" | "passes" | "campaigns";
 
 interface CalendarEntry {
   id: string;
-  type: "event" | "promotion" | "pass";
+  type: "event" | "promotion" | "pass" | "campaign";
   title: string;
   date?: string;
   time?: string;
@@ -397,6 +398,8 @@ interface CalendarEntry {
   endDate?: string;
   validUntil?: string;
   price?: number;
+  campaignType?: string;
+  budgetCents?: number;
   status: string;
 }
 
@@ -411,6 +414,7 @@ interface CalendarData {
     totalEvents: number;
     totalPromotions: number;
     totalPasses: number;
+    totalCampaigns: number;
     totalDays: number;
   };
   month?: string;
@@ -438,6 +442,7 @@ function formatMonthLabel(year: number, month: number): string {
 function getEntryDate(entry: CalendarEntry): string {
   if (entry.type === "event" && entry.date) return entry.date;
   if (entry.type === "promotion" && entry.startDate) return entry.startDate;
+  if (entry.type === "campaign" && entry.startDate) return entry.startDate;
   if (entry.type === "pass" && entry.validUntil) return entry.validUntil;
   return "";
 }
@@ -636,6 +641,13 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
             >
               Passes
             </FilterChip>
+            <FilterChip
+              $active={contentType === "campaigns"}
+              $color={TYPE_COLORS.campaign}
+              onClick={() => setContentType("campaigns")}
+            >
+              Ads
+            </FilterChip>
           </TypeFilters>
           <MonthNav>
             <NavButton onClick={goPrevMonth}>←</NavButton>
@@ -658,6 +670,11 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
           <SummaryItem $color={TYPE_COLORS.pass}>
             {data.summary.totalPasses} passes
           </SummaryItem>
+          {data.summary.totalCampaigns > 0 && (
+            <SummaryItem $color={TYPE_COLORS.campaign}>
+              {data.summary.totalCampaigns} ads
+            </SummaryItem>
+          )}
         </SummaryBar>
       )}
 
@@ -743,14 +760,19 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
               {selectedEntries.map((entry) => (
                 <EntryCard
                   key={entry.id}
-                  href={`/bar/${barId}/${entry.type === "event" ? "events" : entry.type === "promotion" ? "promotions" : "passes"}`}
+                  href={`/bar/${barId}/${entry.type === "event" ? "events" : entry.type === "promotion" ? "promotions" : entry.type === "campaign" ? "campaigns" : "passes"}`}
                 >
                   <EntryBadge $color={TYPE_COLORS[entry.type]}>
-                    {entry.type}
+                    {entry.type === "campaign" && entry.campaignType
+                      ? entry.campaignType.replace(/_/g, " ")
+                      : entry.type}
                   </EntryBadge>
                   <EntryTitle>{entry.title}</EntryTitle>
                   {entry.type === "pass" && entry.price != null && (
                     <EntryMeta>€{entry.price}</EntryMeta>
+                  )}
+                  {entry.type === "campaign" && entry.budgetCents != null && (
+                    <EntryMeta>€{Math.round(entry.budgetCents / 100)}</EntryMeta>
                   )}
                   {entry.type === "event" && entry.time && (
                     <EntryMeta>
@@ -761,6 +783,11 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
                     </EntryMeta>
                   )}
                   {entry.type === "promotion" && entry.endDate && (
+                    <EntryMeta>
+                      → {new Date(entry.endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </EntryMeta>
+                  )}
+                  {entry.type === "campaign" && entry.endDate && (
                     <EntryMeta>
                       → {new Date(entry.endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </EntryMeta>

@@ -1,19 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a0a2e"/>
-      <stop offset="100%" style="stop-color:#0f0f1a"/>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a1e"/>
+      <stop offset="40%" style="stop-color:#0a0a1a"/>
+      <stop offset="100%" style="stop-color:#120a1a"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
+    <radialGradient id="glowCyan" cx="30%" cy="30%" r="40%">
+      <stop offset="0%" style="stop-color:#06b6d4;stop-opacity:0.5"/>
+      <stop offset="50%" style="stop-color:#06b6d4;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glowMagenta" cx="70%" cy="60%" r="35%">
+      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.45"/>
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="4"/></filter>
+    <filter id="glowF"><feGaussianBlur stdDeviation="8"/></filter>
   </defs>
-  <rect width="800" height="400" fill="url(#g)"/>
-  <rect x="40" y="40" width="720" height="320" rx="12" fill="none" stroke="#06b6d4" stroke-width="1" opacity="0.3"/>
-  <circle cx="400" cy="160" r="70" fill="#06b6d4" opacity="0.1"/>
-  <text x="400" y="185" text-anchor="middle" font-size="70" filter="url(#glow)">🎧</text>
-  <text x="400" y="260" text-anchor="middle" font-size="28" fill="#06b6d4" font-family="system-ui, sans-serif" font-weight="700">DJ Night</text>
-  <text x="400" y="300" text-anchor="middle" font-size="15" fill="#6b7280" font-family="system-ui, sans-serif">Electronic beats & vibes</text>
-  <rect x="360" y="360" width="80" height="3" rx="2" fill="#06b6d4" opacity="0.5"/>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="240" cy="120" r="160" fill="url(#glowCyan)"/>
+  <circle cx="560" cy="240" r="140" fill="url(#glowMagenta)"/>
+  <!-- Equalizer bars — cyan -->
+  <rect x="280" y="160" width="10" height="65" rx="5" fill="#06b6d4" opacity="0.6" filter="url(#glowF)"/>
+  <rect x="300" y="120" width="10" height="105" rx="5" fill="#06b6d4" opacity="0.75" filter="url(#glowF)"/>
+  <rect x="320" y="90" width="10" height="135" rx="5" fill="#06b6d4" opacity="0.85" filter="url(#glowF)"/>
+  <rect x="340" y="140" width="10" height="85" rx="5" fill="#06b6d4" opacity="0.65" filter="url(#glowF)"/>
+  <rect x="360" y="175" width="10" height="50" rx="5" fill="#06b6d4" opacity="0.55" filter="url(#glowF)"/>
+  <rect x="380" y="110" width="10" height="115" rx="5" fill="#06b6d4" opacity="0.7" filter="url(#glowF)"/>
+  <rect x="400" y="150" width="10" height="75" rx="5" fill="#06b6d4" opacity="0.6" filter="url(#glowF)"/>
+  <!-- Equalizer bars — magenta -->
+  <rect x="430" y="145" width="10" height="80" rx="5" fill="#ec4899" opacity="0.65" filter="url(#glowF)"/>
+  <rect x="450" y="110" width="10" height="115" rx="5" fill="#ec4899" opacity="0.75" filter="url(#glowF)"/>
+  <rect x="470" y="170" width="10" height="55" rx="5" fill="#ec4899" opacity="0.55" filter="url(#glowF)"/>
+  <rect x="490" y="130" width="10" height="95" rx="5" fill="#ec4899" opacity="0.7" filter="url(#glowF)"/>
+  <rect x="510" y="85" width="10" height="140" rx="5" fill="#ec4899" opacity="0.85" filter="url(#glowF)"/>
+  <rect x="530" y="155" width="10" height="70" rx="5" fill="#ec4899" opacity="0.6" filter="url(#glowF)"/>
+  <rect x="550" y="125" width="10" height="100" rx="5" fill="#ec4899" opacity="0.7" filter="url(#glowF)"/>
+  <!-- DJ deck lines -->
+  <rect x="260" y="310" width="320" height="4" rx="2" fill="#06b6d4" opacity="0.5" filter="url(#soft)"/>
+  <rect x="290" y="325" width="260" height="2.5" rx="1.25" fill="#ec4899" opacity="0.4"/>
+  <!-- Stage beams -->
+  <line x1="240" y1="0" x2="140" y2="320" stroke="#06b6d4" stroke-width="2" opacity="0.35" filter="url(#soft)"/>
+  <line x1="240" y1="0" x2="340" y2="320" stroke="#06b6d4" stroke-width="1.5" opacity="0.25" filter="url(#soft)"/>
+  <line x1="560" y1="0" x2="460" y2="340" stroke="#ec4899" stroke-width="2" opacity="0.35" filter="url(#soft)"/>
+  <line x1="560" y1="0" x2="660" y2="340" stroke="#ec4899" stroke-width="1.5" opacity="0.25" filter="url(#soft)"/>
+  <!-- Dots -->
+  <circle cx="150" cy="70" r="3" fill="#06b6d4" opacity="0.7"/>
+  <circle cx="200" cy="200" r="2.5" fill="#06b6d4" opacity="0.55"/>
+  <circle cx="620" cy="90" r="3" fill="#ec4899" opacity="0.7"/>
+  <circle cx="670" cy="180" r="2.5" fill="#ec4899" opacity="0.55"/>
 </svg>

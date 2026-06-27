@@ -1,5 +1,5 @@
 // src/app/api/auth/bar/[barId]/intelligence/route.ts
-// Rewritten — uses BarDailyStats + bar profile, no VIP/payment data.
+// Rewritten — uses raw AnalyticsEvent rows + bar profile, no VIP/payment data.
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
@@ -79,6 +79,36 @@ export async function GET(
       },
     });
 
+    // ── Campaign data ─────────────────────────────────────────
+    const [activeCampaigns, campaignTotals, expiringCampaigns] = await Promise.all([
+      prisma.adCampaign.count({
+        where: {
+          barId,
+          status: "ACTIVE",
+          startDate: { lte: now },
+          endDate: { gte: now },
+        },
+      }),
+      prisma.adCampaign.aggregate({
+        where: { barId },
+        _sum: {
+          impressions: true,
+          clicks: true,
+          conversions: true,
+          spentCents: true,
+          budgetCents: true,
+        },
+      }),
+      prisma.adCampaign.findMany({
+        where: {
+          barId,
+          status: "ACTIVE",
+          endDate: { gte: now, lte: new Date(Date.now() + 3 * 86400000) },
+        },
+        select: { title: true, endDate: true, spentCents: true, budgetCents: true },
+      }),
+    ]);
+
     const profileChecks = {
       hasPhoto: !!(bar?.coverImage || bar?.logoUrl),
       hasHours: !!(bar?.operatingHours && Object.keys(bar.operatingHours as object).length > 0),
@@ -86,44 +116,50 @@ export async function GET(
       hasGallery: (bar?.imageUrls?.length ?? 0) > 0,
       hasPromo: (bar?._count?.promotions ?? 0) > 0,
       hasEvent: (bar?._count?.events ?? 0) > 0,
+      hasCampaign: activeCampaigns > 0,
     };
 
     const completedCount = Object.values(profileChecks).filter(Boolean).length;
-    const profileScore = Math.round((completedCount / 6) * 100);
+    const profileScore = Math.round((completedCount / 7) * 100);
 
-    // ── BarDailyStats for last 7 and 30 days ────────────────
-    const [recentStats, olderStats] = await Promise.all([
-      prisma.barDailyStats.findMany({
-        where: { barId, date: { gte: sevenDaysAgo } },
-        orderBy: { date: "asc" },
+    // ── Raw events for last 7 and 30 days (same source as dashboard/analytics) ─
+    const [recentEvents, olderEvents] = await Promise.all([
+      prisma.analyticsEvent.findMany({
+        where: { barId, createdAt: { gte: sevenDaysAgo } },
+        select: { type: true, userId: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
       }),
-      prisma.barDailyStats.findMany({
-        where: { barId, date: { gte: thirtyDaysAgo, lt: sevenDaysAgo } },
-        orderBy: { date: "asc" },
+      prisma.analyticsEvent.findMany({
+        where: { barId, createdAt: { gte: thirtyDaysAgo, lt: sevenDaysAgo } },
+        select: { type: true, userId: true, createdAt: true },
       }),
     ]);
 
-    const sumStats = (rows: typeof recentStats) =>
-      rows.reduce(
-        (acc, d) => ({
-          profileViews: acc.profileViews + d.pageViews + d.barViews,
-          directionClicks: acc.directionClicks + d.barDirections,
-          websiteClicks: acc.websiteClicks + d.barWebsites,
-          callClicks: acc.callClicks + d.barCalls,
-          shareCount: acc.shareCount + d.barShares,
-          promoViews: acc.promoViews + d.promoViews,
-          promoClicks: acc.promoClicks + d.promoClicks,
-          promoRedemptions: acc.promoRedemptions + d.promoRedemptions,
-          eventViews: acc.eventViews + d.eventViews,
-          eventJoins: acc.eventJoins + d.eventJoins,
-          uniqueVisitors: acc.uniqueVisitors + d.uniqueVisitors,
-          searches: acc.searches + d.searches,
-        }),
-        { profileViews: 0, directionClicks: 0, websiteClicks: 0, callClicks: 0, shareCount: 0, promoViews: 0, promoClicks: 0, promoRedemptions: 0, eventViews: 0, eventJoins: 0, uniqueVisitors: 0, searches: 0 },
-      );
+    // ── Aggregate by type + unique visitors ──────────────────
+    function aggregateEvents(events: typeof recentEvents) {
+      const typeCounts: Record<string, number> = {};
+      const uniqueUsers = new Set<string>();
+      for (const ev of events) {
+        typeCounts[ev.type] = (typeCounts[ev.type] || 0) + 1;
+        if (ev.userId) uniqueUsers.add(ev.userId);
+      }
+      return {
+        profileViews: (typeCounts["PAGE_VIEW"] || 0) + (typeCounts["BAR_VIEW"] || 0),
+        directionClicks: typeCounts["BAR_DIRECTION"] || 0,
+        websiteClicks: typeCounts["BAR_WEBSITE"] || 0,
+        callClicks: typeCounts["BAR_CALL"] || 0,
+        shareCount: typeCounts["BAR_SHARE"] || 0,
+        promoViews: typeCounts["PROMO_VIEW"] || 0,
+        promoClicks: typeCounts["PROMO_CLICK"] || 0,
+        promoRedemptions: typeCounts["PROMO_REDEMPTION"] || 0,
+        eventViews: typeCounts["EVENT_VIEW"] || 0,
+        eventJoins: typeCounts["EVENT_JOIN"] || 0,
+        uniqueVisitors: uniqueUsers.size,
+      };
+    }
 
-    const recent = sumStats(recentStats);
-    const older = sumStats(olderStats);
+    const recent = aggregateEvents(recentEvents);
+    const older = aggregateEvents(olderEvents);
 
     const hasTraffic = recent.profileViews > 0;
     const hasAnyData = hasTraffic || profileScore > 0;
@@ -147,12 +183,21 @@ export async function GET(
       ? Math.round((recent.eventJoins / recent.eventViews) * 100)
       : null;
 
+    // ── Campaign metrics ─────────────────────────────────────
+    const campaignImpressions = campaignTotals._sum.impressions || 0;
+    const campaignClicks = campaignTotals._sum.clicks || 0;
+    const campaignConversions = campaignTotals._sum.conversions || 0;
+    const campaignSpentCents = campaignTotals._sum.spentCents || 0;
+    const campaignBudgetCents = campaignTotals._sum.budgetCents || 0;
+    const campaignCTR = campaignImpressions > 0
+      ? Math.round((campaignClicks / campaignImpressions) * 100)
+      : null;
+
     // ── Best day by traffic ─────────────────────────────────
     const dayTotals = new Map<number, number>();
-    for (const d of recentStats) {
-      const dow = d.date.getDay();
-      const dayTraffic = d.pageViews + d.barViews + d.promoViews + d.eventViews + d.barDirections;
-      dayTotals.set(dow, (dayTotals.get(dow) || 0) + dayTraffic);
+    for (const ev of recentEvents) {
+      const dow = ev.createdAt.getDay();
+      dayTotals.set(dow, (dayTotals.get(dow) || 0) + 1);
     }
     let bestDay = "Not enough data";
     let bestDayCount = 0;
@@ -187,9 +232,10 @@ export async function GET(
         (profileScore >= 80 ? 2 : profileScore >= 40 ? 1 : 0) +
         (hasTraffic ? 1 : 0) +
         (profileChecks.hasPromo ? 1 : 0) +
-        (profileChecks.hasEvent ? 1 : 0);
-      if (score >= 5) overall = "excellent";
-      else if (score >= 3) overall = "good";
+        (profileChecks.hasEvent ? 1 : 0) +
+        (activeCampaigns > 0 ? 1 : 0);
+      if (score >= 6) overall = "excellent";
+      else if (score >= 4) overall = "good";
       else if (score >= 2) overall = "warning";
       else overall = "critical";
     }
@@ -243,6 +289,13 @@ export async function GET(
           action: `/bar/${barId}/promotions`, type: "growth",
         });
       }
+      if (activeCampaigns > 0 && campaignCTR !== null && campaignCTR < 2) {
+        suggestions.push({
+          id: "t-campaign-ctr", icon: "📢", title: "Improve ad campaign CTR",
+          description: `Your campaign CTR is ${campaignCTR}% — below the 2-3% benchmark. Try updating your campaign image or targeting.`,
+          action: `/bar/${barId}/campaigns`, type: "optimization",
+        });
+      }
     }
 
     // Promo/event gap suggestions
@@ -258,6 +311,13 @@ export async function GET(
         id: "g-event", icon: "📅", title: "Schedule an event",
         description: "Events drive 2x more profile views and direction requests.",
         action: `/bar/${barId}/events`, type: "setup",
+      });
+    }
+    if (!profileChecks.hasCampaign && (profileChecks.hasPromo || profileChecks.hasEvent)) {
+      suggestions.push({
+        id: "g-campaign", icon: "📢", title: "Launch your first ad campaign",
+        description: "Boost your best promo or event with a targeted ad campaign to reach more customers.",
+        action: `/bar/${barId}/create?type=campaign`, type: "growth",
       });
     }
 
@@ -298,6 +358,31 @@ export async function GET(
         });
       }
 
+      // Expiring campaigns
+      for (const ec of expiringCampaigns.slice(0, 2)) {
+        const spentPercent = ec.budgetCents > 0 ? Math.round((ec.spentCents / ec.budgetCents) * 100) : 0;
+        alerts.push({
+          id: `exp-campaign-${ec.title}`, type: "info",
+          title: "Campaign ending soon",
+          description: `"${ec.title}" ends soon. ${spentPercent}% of budget spent — review performance before it expires.`,
+          icon: "⏰",
+        });
+      }
+
+      // Campaign budget nearly spent
+      for (const ec of expiringCampaigns) {
+        const spentPercent = ec.budgetCents > 0 ? Math.round((ec.spentCents / ec.budgetCents) * 100) : 0;
+        if (spentPercent >= 90) {
+          alerts.push({
+            id: `budget-${ec.title}`, type: "warning",
+            title: "Campaign budget nearly spent",
+            description: `"${ec.title}" has used ${spentPercent}% of its budget. Consider topping up if performance is strong.`,
+            icon: "💰",
+          });
+          break;
+        }
+      }
+
       // No upcoming events
       if (!profileChecks.hasEvent && hasTraffic) {
         alerts.push({
@@ -321,6 +406,14 @@ export async function GET(
           id: "a-goodevents", type: "success", title: "High event join rate",
           description: `${eventConversion}% of event viewers are joining. Your events resonate.`,
           icon: "🎉",
+        });
+      }
+
+      if (campaignCTR !== null && campaignCTR >= 3) {
+        alerts.push({
+          id: "a-goodcampaigns", type: "success", title: "Strong campaign CTR",
+          description: `Your ad campaigns have a ${campaignCTR}% click-through rate — above the industry average!`,
+          icon: "📢",
         });
       }
 
@@ -355,6 +448,12 @@ export async function GET(
       if (eventConversion !== null) {
         trends.push({ label: "Event Join Rate", value: `${eventConversion}%`, positive: eventConversion >= 25 });
       }
+      if (campaignImpressions > 0) {
+        trends.push({ label: "Ad Impressions (all-time)", value: campaignImpressions.toLocaleString(), positive: campaignImpressions >= 100 });
+      }
+      if (campaignCTR !== null) {
+        trends.push({ label: "Campaign CTR", value: `${campaignCTR}%`, positive: campaignCTR >= 3 });
+      }
     } else {
       trends.push(
         { label: "Profile Views", value: "No data yet", isPlaceholder: true },
@@ -369,7 +468,7 @@ export async function GET(
     const quickStats = {
       bestDay: hasTraffic ? bestDay : "Not enough data",
       topPromotion: topPromo?.title || (profileChecks.hasPromo ? "No redemptions yet" : "Create a promotion"),
-      profileScore: `${profileScore}% (${completedCount}/6)`,
+      profileScore: `${profileScore}% (${completedCount}/7)`,
     };
 
     return NextResponse.json({
@@ -383,6 +482,12 @@ export async function GET(
         visitorsTrend,
         promoConversion,
         eventConversion,
+        campaignImpressions: campaignImpressions > 0 ? campaignImpressions : null,
+        campaignClicks: campaignClicks > 0 ? campaignClicks : null,
+        campaignCTR,
+        campaignSpentCents: campaignSpentCents > 0 ? campaignSpentCents : null,
+        campaignBudgetCents: campaignBudgetCents > 0 ? campaignBudgetCents : null,
+        activeCampaigns,
         profileScore,
         hasData: hasAnyData,
       },

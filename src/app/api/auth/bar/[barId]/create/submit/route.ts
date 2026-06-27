@@ -6,7 +6,7 @@ import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 
 // ---- Types ----
 
-type ContentType = "event" | "promotion" | "pass";
+type ContentType = "event" | "promotion" | "pass" | "campaign";
 
 interface SubmitBody {
   contentType: ContentType;
@@ -40,6 +40,19 @@ interface SubmitBody {
   skipLinePriority?: boolean;
   coverFeeIncluded?: boolean;
   coverFeeAmount?: number;
+  // Campaign-specific (standalone ad campaigns)
+  campaignType?: string;
+  campaignBudget?: number;
+  campaignStartDate?: string;
+  campaignEndDate?: string;
+  promotedItemId?: string;
+  targetUrl?: string;
+  // Boost fields (creates linked AdCampaign for events/promotions)
+  boostEnabled?: boolean;
+  boostBudget?: number;
+  boostMultiplier?: number;
+  boostStartDate?: string;
+  boostEndDate?: string;
 }
 
 // ---- Route ----
@@ -95,9 +108,9 @@ export async function POST(
     // 2. Parse and validate request body
     const body = (await request.json()) as SubmitBody;
 
-    if (!body.contentType || !["event", "promotion", "pass"].includes(body.contentType)) {
+    if (!body.contentType || !["event", "promotion", "pass", "campaign"].includes(body.contentType)) {
       return NextResponse.json(
-        { error: "Invalid or missing contentType. Must be: event, promotion, or pass." },
+        { error: "Invalid or missing contentType. Must be: event, promotion, campaign, or pass." },
         { status: 400 },
       );
     }
@@ -143,6 +156,19 @@ export async function POST(
       );
     }
 
+    if (
+      body.contentType === "campaign" &&
+      (!body.campaignType || !body.campaignStartDate || !body.campaignEndDate || !body.campaignBudget)
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Missing required fields for campaign: campaignType, campaignStartDate, campaignEndDate, campaignBudget",
+        },
+        { status: 400 },
+      );
+    }
+
     // Per-type enum whitelists — coerce AI-generated values to safe defaults
     const PROMOTION_TYPES = [
       "HAPPY_HOUR", "STUDENT_DISCOUNT", "LADIES_NIGHT", "THEME_NIGHT",
@@ -151,6 +177,9 @@ export async function POST(
     ] as const;
     const PASS_TYPES = [
       "SKIP_LINE", "COVER_INCLUDED", "PREMIUM_ENTRY", "DRINK_PACKAGE",
+    ] as const;
+    const CAMPAIGN_TYPES = [
+      "FEATURED_LISTING", "BANNER_AD", "BOOSTED_PROMO", "SPONSORED_EVENT",
     ] as const;
 
     if (body.contentType === "promotion" && body.promotionType) {
@@ -162,6 +191,12 @@ export async function POST(
     if (body.contentType === "pass" && body.passType) {
       if (!(PASS_TYPES as readonly string[]).includes(body.passType)) {
         body.passType = "SKIP_LINE"; // safe fallback
+      }
+    }
+
+    if (body.contentType === "campaign" && body.campaignType) {
+      if (!(CAMPAIGN_TYPES as readonly string[]).includes(body.campaignType)) {
+        body.campaignType = "FEATURED_LISTING"; // safe fallback
       }
     }
 
@@ -251,6 +286,39 @@ export async function POST(
         },
       });
 
+      // Create linked boost campaign if requested
+      if (body.boostEnabled) {
+        const boostBudget = body.boostBudget || 20;
+        const boostStart = body.boostStartDate
+          ? new Date(body.boostStartDate)
+          : new Date(body.startTime!);
+        const boostEnd = body.boostEndDate
+          ? new Date(body.boostEndDate)
+          : body.endTime
+            ? new Date(body.endTime)
+            : new Date(new Date(body.startTime!).getTime() + 4 * 60 * 60 * 1000);
+
+        await prisma.adCampaign.create({
+          data: {
+            barId,
+            title: `Boost: ${body.title.trim()}`,
+            description: body.description || null,
+            type: "SPONSORED_EVENT",
+            status: payload.staffRole === "OWNER" || payload.staffRole === "MANAGER" ? "ACTIVE" : "PENDING_REVIEW",
+            budgetCents: boostBudget * 100,
+            spentCents: 0,
+            impressions: 0,
+            clicks: 0,
+            conversions: 0,
+            startDate: boostStart,
+            endDate: boostEnd,
+            imageUrl: body.imageUrl || null,
+            promotedItemId: event.id,
+            complianceStatus: finalStatus,
+          },
+        });
+      }
+
       record = {
         id: event.id,
         type: "event",
@@ -311,6 +379,37 @@ export async function POST(
           checkedAt: compliance.checkedAt,
         },
       });
+
+      // Create linked boost campaign if requested
+      if (body.boostEnabled) {
+        const boostBudget = body.boostBudget || 20;
+        const boostStart = body.boostStartDate
+          ? new Date(body.boostStartDate)
+          : new Date(body.startDate!);
+        const boostEnd = body.boostEndDate
+          ? new Date(body.boostEndDate)
+          : new Date(body.endDate!);
+
+        await prisma.adCampaign.create({
+          data: {
+            barId,
+            title: `Boost: ${body.title.trim()}`,
+            description: body.description || null,
+            type: "BOOSTED_PROMO",
+            status: isAutoApproved ? "ACTIVE" : "PENDING_REVIEW",
+            budgetCents: boostBudget * 100,
+            spentCents: 0,
+            impressions: 0,
+            clicks: 0,
+            conversions: 0,
+            startDate: boostStart,
+            endDate: boostEnd,
+            imageUrl: body.imageUrl || null,
+            promotedItemId: promotion.id,
+            complianceStatus: resolvedComplianceStatus,
+          },
+        });
+      }
 
       record = {
         id: promotion.id,
@@ -374,6 +473,54 @@ export async function POST(
         type: "pass",
         title: pass.name,
         priceCents: pass.priceCents,
+        complianceStatus: resolvedComplianceStatus,
+      };
+    } else if (body.contentType === "campaign") {
+      const isAutoApproved =
+        payload.staffRole === "OWNER" || payload.staffRole === "MANAGER";
+
+      const campaignBudget = body.campaignBudget || 50;
+      const campaignStart = new Date(body.campaignStartDate!);
+      const campaignEnd = new Date(body.campaignEndDate!);
+
+      const campaign = await prisma.adCampaign.create({
+        data: {
+          barId,
+          title: body.title.trim(),
+          description: body.description || null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          type: body.campaignType as any,
+          status: isAutoApproved ? "ACTIVE" : "PENDING_REVIEW",
+          budgetCents: campaignBudget * 100,
+          spentCents: 0,
+          impressions: 0,
+          clicks: 0,
+          conversions: 0,
+          startDate: campaignStart,
+          endDate: campaignEnd,
+          imageUrl: body.imageUrl || null,
+          targetUrl: body.targetUrl || null,
+          promotedItemId: body.promotedItemId || null,
+          complianceStatus: resolvedComplianceStatus,
+        },
+      });
+
+      await prisma.complianceCheck.create({
+        data: {
+          adCampaignId: campaign.id,
+          status: resolvedComplianceStatus,
+          violations: compliance.violations as unknown as object[],
+          checkedAt: compliance.checkedAt,
+        },
+      });
+
+      record = {
+        id: campaign.id,
+        type: "campaign",
+        title: campaign.title,
+        campaignType: campaign.type,
+        budgetCents: campaign.budgetCents,
+        status: campaign.status,
         complianceStatus: resolvedComplianceStatus,
       };
     }
