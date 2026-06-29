@@ -1488,6 +1488,78 @@ const LoadingState = styled.div`
   font-size: 1.125rem;
 `;
 
+// Score recalculation modal
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  width: 90%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+`;
+
+const ModalTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+`;
+
+const ModalBody = styled.div`
+  color: #374151;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+`;
+
+const ModalStatRow = styled.div`
+  display: flex;
+  justify-content: space-between;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+const ModalStatLabel = styled.span`
+  color: #6b7280;
+`;
+
+const ModalStatValue = styled.span`
+  font-weight: 600;
+  color: #1f2937;
+`;
+
+const ModalButton = styled.button`
+  width: 100%;
+  padding: 0.75rem;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  &:hover {
+    background: #2563eb;
+  }
+`;
+
 interface User {
   id: string;
   email: string;
@@ -1689,6 +1761,14 @@ const DashboardContent = () => {
   }, []);
 
   const [recalculating, setRecalculating] = useState(false);
+  const [showScoreModal, setShowScoreModal] = useState(false);
+  const [scoreResult, setScoreResult] = useState<{
+    success: boolean;
+    processed?: number;
+    averageScore?: number;
+    tiers?: Record<string, number>;
+    error?: string;
+  } | null>(null);
 
   const handleRecalculateScores = async () => {
     setRecalculating(true);
@@ -1701,15 +1781,23 @@ const DashboardContent = () => {
       });
       const data = await res.json();
       if (res.ok) {
-        alert(
-          `Scores recalculated for ${data.processed} bars!\n\n` +
-            `Average: ${data.stats.averageScore}/100\n` +
-            `Active: ${data.tierDistribution.ACTIVE} | Growing: ${data.tierDistribution.GROWING} | ` +
-            `Stagnant: ${data.tierDistribution.STAGNANT} | Dead: ${data.tierDistribution.DEAD} | New: ${data.tierDistribution.NEW}`
-        );
+        setScoreResult({
+          success: true,
+          processed: data.processed,
+          averageScore: data.stats?.averageScore,
+          tiers: data.tierDistribution,
+        });
+      } else {
+        setScoreResult({
+          success: false,
+          error: data.error || "Failed to recalculate scores",
+        });
       }
+      setShowScoreModal(true);
     } catch (err) {
       console.error("Recalculate error:", err);
+      setScoreResult({ success: false, error: "Network error. Please try again." });
+      setShowScoreModal(true);
     } finally {
       setRecalculating(false);
     }
@@ -2040,6 +2128,74 @@ const DashboardContent = () => {
           )}
         </ActivityList>
       </RecentActivity>
+
+      {/* Score Recalculation Modal */}
+      {showScoreModal && scoreResult && (
+        <ModalOverlay onClick={() => setShowScoreModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalTitle>
+              {scoreResult.success ? "Scores Recalculated" : "Recalculation Failed"}
+            </ModalTitle>
+            <ModalBody>
+              {scoreResult.success ? (
+                <>
+                  <p style={{ marginBottom: "1rem" }}>
+                    Successfully recalculated scores for{" "}
+                    <strong>{scoreResult.processed}</strong> bars.
+                  </p>
+                  {scoreResult.averageScore != null && (
+                    <ModalStatRow>
+                      <ModalStatLabel>Average Score</ModalStatLabel>
+                      <ModalStatValue>
+                        {scoreResult.averageScore}/100
+                      </ModalStatValue>
+                    </ModalStatRow>
+                  )}
+                  {scoreResult.tiers && (
+                    <>
+                      <ModalStatRow>
+                        <ModalStatLabel>Active</ModalStatLabel>
+                        <ModalStatValue>
+                          {scoreResult.tiers.ACTIVE ?? 0}
+                        </ModalStatValue>
+                      </ModalStatRow>
+                      <ModalStatRow>
+                        <ModalStatLabel>Growing</ModalStatLabel>
+                        <ModalStatValue>
+                          {scoreResult.tiers.GROWING ?? 0}
+                        </ModalStatValue>
+                      </ModalStatRow>
+                      <ModalStatRow>
+                        <ModalStatLabel>Stagnant</ModalStatLabel>
+                        <ModalStatValue>
+                          {scoreResult.tiers.STAGNANT ?? 0}
+                        </ModalStatValue>
+                      </ModalStatRow>
+                      <ModalStatRow>
+                        <ModalStatLabel>Dead</ModalStatLabel>
+                        <ModalStatValue>
+                          {scoreResult.tiers.DEAD ?? 0}
+                        </ModalStatValue>
+                      </ModalStatRow>
+                      <ModalStatRow>
+                        <ModalStatLabel>New</ModalStatLabel>
+                        <ModalStatValue>
+                          {scoreResult.tiers.NEW ?? 0}
+                        </ModalStatValue>
+                      </ModalStatRow>
+                    </>
+                  )}
+                </>
+              ) : (
+                <p>{scoreResult.error}</p>
+              )}
+            </ModalBody>
+            <ModalButton onClick={() => setShowScoreModal(false)}>
+              Close
+            </ModalButton>
+          </ModalContent>
+        </ModalOverlay>
+      )}
     </Container>
   );
 };
