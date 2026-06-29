@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "CLAIMED";
+    const search = searchParams.get("search") || "";
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "20");
     const skip = (page - 1) * limit;
@@ -35,6 +36,15 @@ export async function GET(request: NextRequest) {
     const where: any = {};
     if (status !== "ALL") {
       where.status = status;
+    }
+
+    // Search across bar name, user name, and user email
+    if (search.trim()) {
+      where.OR = [
+        { bar: { name: { contains: search.trim(), mode: "insensitive" } } },
+        { user: { name: { contains: search.trim(), mode: "insensitive" } } },
+        { user: { email: { contains: search.trim(), mode: "insensitive" } } },
+      ];
     }
 
     const [claims, total] = await Promise.all([
@@ -57,6 +67,7 @@ export async function GET(request: NextRequest) {
               id: true,
               name: true,
               email: true,
+              phoneNumber: true,
             },
           },
           reviewedBy: {

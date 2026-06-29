@@ -90,8 +90,8 @@ export async function PATCH(request: NextRequest) {
       data: { isActive: true },
     });
 
-    // Mark bar as verified if not already
-    if (!staff.bar || true) {
+    // Mark bar as verified when approving the bar owner
+    if (staff.role === "OWNER") {
       await prisma.bar.update({
         where: { id: staff.barId },
         data: { isVerified: true, status: "VERIFIED" },

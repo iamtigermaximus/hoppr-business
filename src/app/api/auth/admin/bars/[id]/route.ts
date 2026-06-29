@@ -690,6 +690,32 @@ export async function GET(
             totalQuantity: true,
           },
         },
+        claims: {
+          select: {
+            id: true,
+            status: true,
+            notes: true,
+            documentUrls: true,
+            createdAt: true,
+            reviewedAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phoneNumber: true,
+              },
+            },
+            reviewedBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
@@ -739,6 +765,7 @@ export async function GET(
       staff: bar.staff,
       promotions: bar.promotions,
       vipPasses: bar.vipPassesEnhanced,
+      claims: bar.claims,
     };
 
     return NextResponse.json({

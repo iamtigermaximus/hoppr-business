@@ -136,6 +136,12 @@ const UserEmail = styled.div`
   color: #6b7280;
 `;
 
+const UserPhone = styled.div`
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.125rem;
+`;
+
 const StatusBadge = styled.span<{ $status: string }>`
   padding: 0.25rem 0.625rem;
   border-radius: 1rem;
@@ -181,6 +187,73 @@ const ApproveButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+const DeleteButton = styled.button`
+  padding: 0.5rem 0.75rem;
+  background: white;
+  color: #ef4444;
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #fef2f2;
+    border-color: #ef4444;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const SearchInput = styled.input`
+  width: 100%;
+  max-width: 320px;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: #374151;
+  background: white;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.1);
+  }
+`;
+
+const SearchClear = styled.button`
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 4px;
+  &:hover {
+    color: #6b7280;
+  }
+`;
+
+const SearchWrap = styled.div`
+  position: relative;
+  display: inline-flex;
+  align-items: center;
 `;
 
 const RejectButton = styled.button`
@@ -239,6 +312,39 @@ const DocLink = styled.a`
 
   &:hover {
     background: #dbeafe;
+    text-decoration: underline;
+  }
+`;
+
+const ContactLine = styled.div`
+  font-size: 0.75rem;
+  color: #374151;
+  line-height: 1.5;
+  &:not(:last-child) {
+    margin-bottom: 0.125rem;
+  }
+`;
+
+const ContactLabel = styled.span`
+  color: #6b7280;
+  margin-right: 0.25rem;
+`;
+
+const ContactValue = styled.span`
+  color: #1f2937;
+  font-weight: 500;
+`;
+
+const ShowMoreButton = styled.button`
+  background: none;
+  border: none;
+  color: #7c3aed;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 0.25rem;
+  &:hover {
     text-decoration: underline;
   }
 `;
@@ -395,6 +501,7 @@ interface ClaimUser {
   id: string;
   name: string | null;
   email: string;
+  phoneNumber: string | null;
 }
 
 interface Claim {
@@ -434,43 +541,67 @@ const ClaimsList = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalClaim, setModalClaim] = useState<Claim | null>(null);
-  const [modalAction, setModalAction] = useState<"VERIFIED" | "REJECTED" | null>(null);
+  const [modalAction, setModalAction] = useState<"VERIFIED" | "REJECTED" | "DELETED" | null>(null);
   const [modalNotes, setModalNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchClaims(activeTab, page);
-  }, [activeTab, page]);
+  }, [activeTab, page, search]);
 
   const fetchClaims = async (status: TabType, pageNum: number) => {
     setLoading(true);
+    setError(null);
     try {
       const token = localStorage.getItem("hoppr_token");
-      if (!token) return;
+      if (!token) {
+        setError("Not authenticated. Please log in to view claims.");
+        setClaims([]);
+        return;
+      }
 
       const params = new URLSearchParams({ status, page: String(pageNum), limit: "15" });
+      if (search.trim()) params.set("search", search.trim());
       const res = await fetch(`/api/auth/admin/claims?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error("Failed to fetch claims");
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        if (res.status === 401) {
+          setError("Your session has expired. Please log in again.");
+        } else if (res.status === 403) {
+          setError(errBody.error || "You don't have permission to view claims (SUPER_ADMIN role required).");
+        } else {
+          setError(errBody.error || `Server error (${res.status})`);
+        }
+        setClaims([]);
+        return;
+      }
 
       const data: ClaimsResponse = await res.json();
       setClaims(data.claims);
       setTotalPages(data.pagination.pages);
       setTotal(data.pagination.total);
     } catch (err) {
-      console.error("Fetch claims error:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Could not reach the server. Check your connection."
+      );
+      setClaims([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const openModal = (claim: Claim, action: "VERIFIED" | "REJECTED") => {
+  const openModal = (claim: Claim, action: "VERIFIED" | "REJECTED" | "DELETED") => {
     setModalClaim(claim);
     setModalAction(action);
     setModalNotes("");
@@ -485,28 +616,40 @@ const ClaimsList = () => {
       const token = localStorage.getItem("hoppr_token");
       if (!token) return;
 
-      const res = await fetch(`/api/auth/admin/claims/${modalClaim.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          status: modalAction,
-          notes: modalNotes || null,
-        }),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Failed to update claim");
+      if (modalAction === "DELETED") {
+        // DELETE request
+        const res = await fetch(`/api/auth/admin/claims/${modalClaim.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to delete claim");
+        }
+      } else {
+        // PATCH request (approve/reject)
+        const res = await fetch(`/api/auth/admin/claims/${modalClaim.id}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            status: modalAction,
+            notes: modalNotes || null,
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || "Failed to update claim");
+        }
       }
 
       setModalOpen(false);
       fetchClaims(activeTab, page);
     } catch (err) {
-      console.error("Update claim error:", err);
-      alert(err instanceof Error ? err.message : "Failed to update claim");
+      console.error("Claim action error:", err);
+      alert(err instanceof Error ? err.message : "Failed to process claim");
     } finally {
       setSubmitting(false);
     }
@@ -519,6 +662,24 @@ const ClaimsList = () => {
       month: "short",
       day: "numeric",
     });
+  };
+
+  // Parse structured claim notes into labelled fields
+  const parseContactNotes = (
+    notes: string | null,
+  ): { label: string; value: string }[] | null => {
+    if (!notes) return null;
+    const lines = notes.split("\n").filter(Boolean);
+    return lines
+      .map((line) => {
+        const colonIdx = line.indexOf(":");
+        if (colonIdx === -1) return { label: "", value: line };
+        return {
+          label: line.slice(0, colonIdx),
+          value: line.slice(colonIdx + 1).trim(),
+        };
+      })
+      .filter((f) => f.value);
   };
 
   const getTabCount = (status: TabType) => {
@@ -537,6 +698,22 @@ const ClaimsList = () => {
     <Container>
       <Header>
         <Title>Bar Claiming Approvals</Title>
+        <SearchWrap>
+          <SearchInput
+            type="text"
+            placeholder="Search by bar name, user name, or email..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+          {search && (
+            <SearchClear onClick={() => { setSearch(""); setPage(1); }}>
+              ✕
+            </SearchClear>
+          )}
+        </SearchWrap>
       </Header>
 
       <Tabs>
@@ -558,9 +735,22 @@ const ClaimsList = () => {
       </Tabs>
 
       <Card>
+        {error && (
+          <div style={{
+            padding: "1rem",
+            margin: "0.5rem",
+            background: "#fef2f2",
+            border: "1px solid #fecaca",
+            borderRadius: "0.5rem",
+            color: "#dc2626",
+            fontSize: "0.875rem",
+          }}>
+            {error}
+          </div>
+        )}
         {loading ? (
           <LoadingSpinner />
-        ) : claims.length === 0 ? (
+        ) : claims.length === 0 && !error ? (
           <EmptyState>
             <p style={{ fontWeight: 600, fontSize: "1rem", marginBottom: "0.5rem" }}>
               No {activeTab.toLowerCase()} claims
@@ -578,6 +768,7 @@ const ClaimsList = () => {
                 <Th>Bar</Th>
                 <Th>Claimed By</Th>
                 <Th>Date</Th>
+                <Th>Notes</Th>
                 <Th>Documents</Th>
                 {activeTab !== "CLAIMED" && <Th>Reviewed By</Th>}
                 <Th>Status</Th>
@@ -597,8 +788,38 @@ const ClaimsList = () => {
                   <Td>
                     <UserName>{claim.user.name || "Unknown"}</UserName>
                     <UserEmail>{claim.user.email}</UserEmail>
+                    {claim.user.phoneNumber && (
+                      <UserPhone>📞 {claim.user.phoneNumber}</UserPhone>
+                    )}
                   </Td>
                   <Td>{formatDate(claim.createdAt)}</Td>
+                  <Td>
+                    {(() => {
+                      const fields = parseContactNotes(claim.notes);
+                      if (!fields) {
+                        return (
+                          <span style={{ color: "#9ca3af", fontSize: "0.75rem" }}>
+                            None
+                          </span>
+                        );
+                      }
+                      return (
+                        <div>
+                          {fields.slice(0, 4).map((f, i) => (
+                            <ContactLine key={i}>
+                              {f.label && <ContactLabel>{f.label}:</ContactLabel>}
+                              <ContactValue>{f.value}</ContactValue>
+                            </ContactLine>
+                          ))}
+                          {fields.length > 4 && (
+                            <ContactLine>
+                              <ContactLabel>+{fields.length - 4} more</ContactLabel>
+                            </ContactLine>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </Td>
                   <Td>
                     {claim.documentUrls.length > 0 ? (
                       <DocumentsList>
@@ -652,6 +873,9 @@ const ClaimsList = () => {
                         <RejectButton onClick={() => openModal(claim, "REJECTED")}>
                           ✕ Reject
                         </RejectButton>
+                        <DeleteButton onClick={() => openModal(claim, "DELETED")}>
+                          🗑
+                        </DeleteButton>
                       </ActionButtons>
                     </Td>
                   )}
@@ -676,27 +900,35 @@ const ClaimsList = () => {
         )}
       </Card>
 
-      {/* Approval / Rejection Modal */}
+      {/* Approval / Rejection / Delete Modal */}
       {modalOpen && modalClaim && modalAction && (
         <ModalOverlay onClick={() => !submitting && setModalOpen(false)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
             <ModalTitle>
-              {modalAction === "VERIFIED" ? "✓ Approve Claim" : "✕ Reject Claim"}
+              {modalAction === "VERIFIED"
+                ? "✓ Approve Claim"
+                : modalAction === "REJECTED"
+                  ? "✕ Reject Claim"
+                  : "🗑 Delete Claim"}
             </ModalTitle>
             <ModalText>
-              {modalAction === "VERIFIED"
-                ? `Approve the claim for "${modalClaim.bar.name}" by ${modalClaim.user.name || modalClaim.user.email}? The bar will be verified and the owner will gain access to the bar dashboard.`
-                : `Reject the claim for "${modalClaim.bar.name}" by ${modalClaim.user.name || modalClaim.user.email}? The bar will remain unclaimed and the owner will not gain dashboard access.`}
+              {modalAction === "DELETED"
+                ? `Permanently delete the claim for "${modalClaim.bar.name}" by ${modalClaim.user.name || modalClaim.user.email}? This cannot be undone.`
+                : modalAction === "VERIFIED"
+                  ? `Approve the claim for "${modalClaim.bar.name}" by ${modalClaim.user.name || modalClaim.user.email}? The bar will be verified and the owner will gain access to the bar dashboard.`
+                  : `Reject the claim for "${modalClaim.bar.name}" by ${modalClaim.user.name || modalClaim.user.email}? The bar will remain unclaimed and the owner will not gain dashboard access.`}
             </ModalText>
-            <ModalTextarea
-              placeholder={
-                modalAction === "VERIFIED"
-                  ? "Optional: Add a note for the bar owner..."
-                  : "Reason for rejection (recommended)..."
-              }
-              value={modalNotes}
-              onChange={(e) => setModalNotes(e.target.value)}
-            />
+            {modalAction !== "DELETED" && (
+              <ModalTextarea
+                placeholder={
+                  modalAction === "VERIFIED"
+                    ? "Optional: Add a note for the bar owner..."
+                    : "Reason for rejection (recommended)..."
+                }
+                value={modalNotes}
+                onChange={(e) => setModalNotes(e.target.value)}
+              />
+            )}
             <ModalButtons>
               <ModalButton
                 $variant="secondary"
@@ -706,15 +938,17 @@ const ClaimsList = () => {
                 Cancel
               </ModalButton>
               <ModalButton
-                $variant={modalAction === "VERIFIED" ? "primary" : "danger"}
+                $variant={modalAction === "DELETED" ? "danger" : modalAction === "VERIFIED" ? "primary" : "danger"}
                 onClick={handleSubmit}
                 disabled={submitting}
               >
                 {submitting
                   ? "Processing..."
-                  : modalAction === "VERIFIED"
-                    ? "Approve"
-                    : "Reject"}
+                  : modalAction === "DELETED"
+                    ? "Delete"
+                    : modalAction === "VERIFIED"
+                      ? "Approve"
+                      : "Reject"}
               </ModalButton>
             </ModalButtons>
           </ModalContent>

@@ -580,6 +580,27 @@ interface Bar {
   createdAt: string;
   updatedAt: string;
   claimedAt: string | null;
+  claims: Claim[];
+}
+
+interface Claim {
+  id: string;
+  status: string;
+  notes: string | null;
+  documentUrls: string[];
+  createdAt: string;
+  reviewedAt: string | null;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    phoneNumber: string | null;
+  } | null;
+  reviewedBy: {
+    id: string;
+    name: string;
+    email: string;
+  } | null;
 }
 
 interface InviteResponse {
@@ -1161,6 +1182,83 @@ const BarDetails = () => {
               </InfoGroup>
             </ColumnFlex>
           </Card>
+
+          {/* Claim Information */}
+          {bar.claims && bar.claims.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Claim Information</CardTitle>
+              </CardHeader>
+              <ColumnFlex>
+                {bar.claims.map((claim) => (
+                  <PendingRow key={claim.id}>
+                    <PendingInfo>
+                      <PendingName>
+                        <StatusBadge $status={claim.status}>
+                          {claim.status}
+                        </StatusBadge>
+                      </PendingName>
+                      {claim.user && (
+                        <PendingEmail>
+                          {claim.user.name || claim.user.email}
+                          {claim.user.phoneNumber &&
+                            ` • ${claim.user.phoneNumber}`}
+                        </PendingEmail>
+                      )}
+                      {claim.notes && (
+                        <PendingEmail
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            marginTop: "0.25rem",
+                          }}
+                        >
+                          {claim.notes}
+                        </PendingEmail>
+                      )}
+                      <PendingEmail>
+                        {formatDate(claim.createdAt)}
+                        {claim.reviewedAt &&
+                          ` → Reviewed ${formatDate(claim.reviewedAt)}`}
+                      </PendingEmail>
+                      {claim.reviewedBy && (
+                        <PendingEmail>
+                          Reviewer: {claim.reviewedBy.name ||
+                            claim.reviewedBy.email}
+                        </PendingEmail>
+                      )}
+                      {claim.documentUrls &&
+                        claim.documentUrls.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: "0.25rem",
+                            display: "flex",
+                            flexWrap: "wrap",
+                            gap: "0.5rem",
+                          }}
+                        >
+                          {claim.documentUrls.map((url, idx) => (
+                            <a
+                              key={idx}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontSize: "0.75rem",
+                                color: "#3b82f6",
+                                textDecoration: "underline",
+                              }}
+                            >
+                              Doc {idx + 1}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </PendingInfo>
+                  </PendingRow>
+                ))}
+              </ColumnFlex>
+            </Card>
+          )}
 
           {/* Quality Score Card */}
           <Card>

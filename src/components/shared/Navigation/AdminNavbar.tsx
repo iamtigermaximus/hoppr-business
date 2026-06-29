@@ -2,7 +2,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import styled from "styled-components";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 // Admin Navbar Component
 const AdminNavContainer = styled.nav`
@@ -186,6 +186,10 @@ const NavItem = styled.a<NavItemProps>`
   border-radius: 0.375rem;
   transition: all 0.2s;
   white-space: nowrap;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 
   &:hover {
     color: #374151;
@@ -208,6 +212,21 @@ const NavItem = styled.a<NavItemProps>`
       background: #f8fafc;
     }
   }
+`;
+
+const NotificationBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.675rem;
+  font-weight: 700;
+  line-height: 1;
 `;
 
 const UserMenu = styled.div`
@@ -291,6 +310,28 @@ const AdminNavbar = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [pendingClaims, setPendingClaims] = useState(0);
+
+  useEffect(() => {
+    const fetchPendingCount = async () => {
+      try {
+        const token = localStorage.getItem("hoppr_token");
+        if (!token) return;
+        const res = await fetch("/api/auth/admin/claims?status=CLAIMED&limit=1", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setPendingClaims(data.pagination?.total ?? 0);
+        }
+      } catch {
+        // Silently fail — badge just won't show
+      }
+    };
+    fetchPendingCount();
+    const interval = setInterval(fetchPendingCount, 30_000); // poll every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   const navItems = [
     { href: "/admin/dashboard", label: "Dashboard" },
@@ -373,6 +414,9 @@ const AdminNavbar = () => {
                 onClick={() => handleNavClick(item.href)}
               >
                 {item.label}
+                {item.href === "/admin/claims" && pendingClaims > 0 && (
+                  <NotificationBadge>{pendingClaims}</NotificationBadge>
+                )}
               </NavItem>
             ))}
 
