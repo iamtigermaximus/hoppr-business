@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/insights",
-      "schedule": "0 */3 * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/analytics-aggregation",
@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/retargeting",
-      "schedule": "0 */2 * * *"
+      "schedule": "0 10 * * *"
     },
     {
       "path": "/api/cron/busyness-aggregation",
@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/scheduler",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 11 * * *"
     }
   ]
 }
