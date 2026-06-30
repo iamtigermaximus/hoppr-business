@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0c1420"/>
+      <stop offset="50%" style="stop-color:#101420"/>
+      <stop offset="100%" style="stop-color:#0f1414"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="40%" cy="40%" r="35%">
+      <stop offset="0%" style="stop-color:#dc2626;stop-opacity:0.35"/>
+      <stop offset="100%" style="stop-color:#dc2626;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="60%" cy="55%" r="30%">
+      <stop offset="0%" style="stop-color:#16a34a;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="softsm"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="320" cy="160" r="140" fill="url(#glow1)"/>
+  <circle cx="480" cy="220" r="120" fill="url(#glow2)"/>
+  <!-- Tree -->
+  <polygon points="370,130 310,200 430,200" fill="none" stroke="#16a34a" stroke-width="2.5" opacity="0.5" filter="url(#softsm)"/>
+  <polygon points="365,155 320,220 440,220" fill="none" stroke="#16a34a" stroke-width="2" opacity="0.4" filter="url(#softsm)"/>
+  <polygon points="360,180 330,245 430,245" fill="#16a34a" opacity="0.08"/>
+  <!-- Trunk -->
+  <rect x="365" y="245" width="12" height="25" rx="2" fill="none" stroke="#92400e" stroke-width="2" opacity="0.35"/>
+  <!-- Star on top -->
+  <polygon points="370,115 372,125 382,125 374,132 377,142 370,136 363,142 366,132 358,125 368,125" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.5"/>
+  <!-- Ornaments -->
+  <circle cx="350" cy="170" r="5" fill="none" stroke="#dc2626" stroke-width="2" opacity="0.45"/>
+  <circle cx="390" cy="185" r="4" fill="none" stroke="#fbbf24" stroke-width="2" opacity="0.4"/>
+  <circle cx="345" cy="210" r="4.5" fill="none" stroke="#dc2626" stroke-width="1.8" opacity="0.4"/>
+  <circle cx="395" cy="220" r="4" fill="none" stroke="#fbbf24" stroke-width="1.8" opacity="0.35"/>
+  <!-- Snowflakes -->
+  <circle cx="550" cy="100" r="3" fill="#e5e7eb" opacity="0.25" filter="url(#softsm)"/>
+  <circle cx="200" cy="280" r="2.5" fill="#e5e7eb" opacity="0.2" filter="url(#softsm)"/>
+  <circle cx="620" cy="300" r="3" fill="#e5e7eb" opacity="0.2" filter="url(#softsm)"/>
+  <rect x="80" y="195" width="640" height="2.5" rx="1.25" fill="#dc2626" opacity="0.3" filter="url(#soft)"/>
+</svg>

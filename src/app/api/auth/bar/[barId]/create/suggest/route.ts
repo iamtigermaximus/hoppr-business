@@ -116,9 +116,10 @@ Return ONLY valid JSON with this structure — no other text:
   // Include for promotions:
   "promotionType": "HAPPY_HOUR | STUDENT_DISCOUNT | LADIES_NIGHT | THEME_NIGHT | FOOD_SPECIAL | DRINK_SPECIAL | COVER_DISCOUNT | VIP_OFFER | LIVE_MUSIC_EVENT | GAME_NIGHT",
   "discountValue": number 0-100 or null,
-  "startDate": "ISO date or null",
-  "endDate": "ISO date or null",
+  "startDate": "ISO date (always provide — if not specified in text, use today's date)",
+  "endDate": "ISO date (always provide — if not specified, use 7 days from startDate)",
   "conditions": "Terms and conditions — compliant wording only",
+  "targetAudience": "WEEKEND | WEEKDAY | STUDENTS | VIP | EVERYONE (infer from context)",
 
   // Include for campaigns:
   "campaignType": "FEATURED_LISTING | BANNER_AD | BOOSTED_PROMO | SPONSORED_EVENT",
@@ -220,9 +221,10 @@ ${buildUserReminder()}`;
     } else if (inferredType === "promotion") {
       response_.promotionType = result.promotionType || "DRINK_SPECIAL";
       response_.discountValue = result.discountValue || null;
-      response_.startDate = result.startDate || null;
-      response_.endDate = result.endDate || null;
+      response_.startDate = result.startDate || new Date().toISOString();
+      response_.endDate = result.endDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
       response_.conditions = result.conditions || "";
+      response_.targetAudience = result.targetAudience || "EVERYONE";
     } else if (inferredType === "campaign") {
       response_.campaignType = result.campaignType || "FEATURED_LISTING";
       response_.campaignBudget = typeof result.campaignBudget === "number" ? result.campaignBudget : 50;

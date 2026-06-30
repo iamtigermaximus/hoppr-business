@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0f14"/>
+      <stop offset="50%" style="stop-color:#141218"/>
+      <stop offset="100%" style="stop-color:#0f1414"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="50%" cy="45%" r="35%">
+      <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="40%" cy="55%" r="30%">
+      <stop offset="0%" style="stop-color:#fff;stop-opacity:0.15"/>
+      <stop offset="100%" style="stop-color:#fff;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="8"/></filter>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="400" cy="180" r="140" fill="url(#glow1)"/>
+  <circle cx="320" cy="220" r="120" fill="url(#glow2)"/>
+  <!-- Marble veining -->
+  <path d="M100 80 Q200 130 300 90 Q400 50 500 110 Q600 150 700 100" fill="none" stroke="#9ca3af" stroke-width="1" opacity="0.15" filter="url(#soft)"/>
+  <path d="M50 200 Q180 250 320 190 Q450 140 580 210 Q680 260 800 200" fill="none" stroke="#9ca3af" stroke-width="0.8" opacity="0.12" filter="url(#soft)"/>
+  <path d="M150 320 Q280 280 420 330 Q550 370 700 310" fill="none" stroke="#9ca3af" stroke-width="0.8" opacity="0.1" filter="url(#soft)"/>
+  <!-- Elegant circles (plate motif) -->
+  <circle cx="400" cy="200" r="60" fill="none" stroke="#f59e0b" stroke-width="1.5" opacity="0.35" filter="url(#soft)"/>
+  <circle cx="400" cy="200" r="45" fill="none" stroke="#f59e0b" stroke-width="1" opacity="0.25" filter="url(#soft)"/>
+  <circle cx="400" cy="200" r="20" fill="#f59e0b" opacity="0.08"/>
+  <!-- Gold accent lines -->
+  <rect x="120" y="195" width="560" height="3" rx="1.5" fill="#f59e0b" opacity="0.35" filter="url(#soft)"/>
+  <rect x="120" y="205" width="560" height="1" rx="0.5" fill="#f59e0b" opacity="0.15" filter="url(#soft)"/>
+</svg>

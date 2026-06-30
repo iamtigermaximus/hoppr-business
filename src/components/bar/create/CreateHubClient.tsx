@@ -15,6 +15,8 @@ import ContentTypeTabs from "./ContentTypeTabs";
 import ContentCreationStepper from "./ContentCreationStepper";
 import UnifiedForm from "./UnifiedForm";
 import ConsumerPreviewPanel from "./ConsumerPreviewPanel";
+import ShareCard from "./ShareCard";
+import { bgForType, occasionForAudience, type ShareCategory, type ShareOccasion, type SvgBackground } from "./share-backgrounds";
 
 // ---- Styled Components ----
 
@@ -209,11 +211,12 @@ interface CreatedItem {
 interface CreateHubClientProps {
   barId: string;
   userRole: string;
+  barName: string;
   barCoverImage: string | null;
   barLogoUrl: string | null;
 }
 
-export default function CreateHubClient({ barId, userRole, barCoverImage, barLogoUrl }: CreateHubClientProps) {
+export default function CreateHubClient({ barId, userRole, barName, barCoverImage, barLogoUrl }: CreateHubClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -303,20 +306,22 @@ export default function CreateHubClient({ barId, userRole, barCoverImage, barLog
       };
 
       if (inferredType === "event") {
-        updates.startTime = (data.startTime as string) || "";
-        updates.endTime = (data.endTime as string) || "";
+        const now = new Date();
+        updates.startTime = (data.startTime as string) || new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+        updates.endTime = (data.endTime as string) || new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString();
         updates.maxAttendees = (data.maxAttendees as number) || null;
       } else if (inferredType === "promotion") {
         updates.promotionType = (data.promotionType as string) || "DRINK_SPECIAL";
         updates.discountValue = (data.discountValue as number) || null;
-        updates.startDate = (data.startDate as string) || "";
-        updates.endDate = (data.endDate as string) || "";
+        updates.startDate = (data.startDate as string) || new Date().toISOString().split("T")[0];
+        updates.endDate = (data.endDate as string) || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
         updates.conditions = (data.conditions as string) || "";
+        updates.targetAudience = (data.targetAudience as string) || "EVERYONE";
       } else if (inferredType === "campaign") {
         updates.campaignType = (data.campaignType as string) || "FEATURED_LISTING";
         updates.campaignBudget = (data.campaignBudget as number) || 50;
-        updates.campaignStartDate = (data.campaignStartDate as string) || "";
-        updates.campaignEndDate = (data.campaignEndDate as string) || "";
+        updates.campaignStartDate = (data.campaignStartDate as string) || new Date().toISOString().split("T")[0];
+        updates.campaignEndDate = (data.campaignEndDate as string) || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
       } else if (inferredType === "pass") {
         updates.passType = (data.passType as string) || "SKIP_LINE";
         updates.priceEuros = (data.priceEuros as string) || "";
@@ -525,6 +530,68 @@ export default function CreateHubClient({ barId, userRole, barCoverImage, barLog
               </ActionButton>
             </ActionRow>
           </SuccessCard>
+
+          {/* Social share — only for events and promotions (passes and campaigns have different sharing needs) */}
+          {(createdItem.type === "event" || createdItem.type === "promotion") && (() => {
+            const promoType = formState.promotionType || "";
+            const svgBg: SvgBackground = bgForType(promoType);
+            const occasion: ShareOccasion | undefined = formState.targetAudience
+              ? occasionForAudience(formState.targetAudience) ?? undefined
+              : undefined;
+            const categoryMap: Record<string, ShareCategory> = {
+              DRINK_SPECIAL: "cocktails",
+              HAPPY_HOUR: "cocktails",
+              FOOD_SPECIAL: "brunch",
+              LADIES_NIGHT: "club-night",
+              THEME_NIGHT: "club-night",
+              VIP_OFFER: "lounge",
+              COVER_DISCOUNT: "club-night",
+              LIVE_MUSIC_EVENT: "live-music",
+              GAME_NIGHT: "sports-bar",
+              STUDENT_DISCOUNT: "pub",
+            };
+            const category: ShareCategory | undefined = categoryMap[promoType] || undefined;
+
+            return (
+              <ShareCard
+                contentType={createdItem.type as "event" | "promotion"}
+                title={createdItem.title}
+                description={formState.description}
+                barName={barName}
+                barLogo={barLogoUrl}
+                barCoverImage={barCoverImage}
+                imageUrl={formState.imageUrl || barCoverImage}
+                svgBackground={svgBg}
+                category={category}
+                occasion={occasion}
+                date={
+                  createdItem.type === "promotion"
+                    ? formState.startDate
+                    : formState.startTime
+                }
+                time={
+                  createdItem.type === "event" && formState.startTime
+                    ? new Date(formState.startTime).toLocaleTimeString("fi-FI", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : undefined
+                }
+                // Promotion-specific (for the real consumer card design)
+                promotionType={formState.promotionType}
+                discountValue={formState.discountValue}
+                conditions={formState.conditions}
+                endDate={formState.endDate}
+                // Event-specific (for the real consumer card design)
+                startTime={formState.startTime}
+                endTime={formState.endTime}
+                maxAttendees={formState.maxAttendees}
+                consumerUrl={
+                  process.env.NEXT_PUBLIC_CONSUMER_URL || "hoppr.fi"
+                }
+              />
+            );
+          })()}
         </div>
       ) : (
         /* ---- Creation Form ---- */

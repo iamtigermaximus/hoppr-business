@@ -214,6 +214,8 @@ interface EventPreviewProps {
   maxAttendees: number | null;
   barCoverImage?: string | null;
   barLogoUrl?: string | null;
+  /** Hide in-app UI elements (attendee count, CTA) — for share images */
+  hideInAppUI?: boolean;
 }
 
 export default function EventPreviewCard({
@@ -225,6 +227,7 @@ export default function EventPreviewCard({
   maxAttendees,
   barCoverImage,
   barLogoUrl,
+  hideInAppUI = false,
 }: EventPreviewProps) {
   const image = resolveImage(imageUrl, barCoverImage ?? null, barLogoUrl ?? null);
   const cal = formatCalDate(startTime);
@@ -262,25 +265,31 @@ export default function EventPreviewCard({
           </MetaRow>
         )}
 
-        <Body>
+        <Body
+          style={hideInAppUI ? { WebkitLineClamp: "unset", display: "block" } : undefined}
+        >
           {description || "Add a description — event cards get 3 lines to give customers enough context"}
         </Body>
 
-        <Footer>
-          <AttendeeCount>
-            <span>👥</span>
-            <span>
-              {maxAttendees != null && maxAttendees > 0
-                ? `0 / ${maxAttendees} spots`
-                : "Be the first"}
-            </span>
-          </AttendeeCount>
-        </Footer>
+        {!hideInAppUI && (
+          <Footer>
+            <AttendeeCount>
+              <span>👥</span>
+              <span>
+                {maxAttendees != null && maxAttendees > 0
+                  ? `0 / ${maxAttendees} spots`
+                  : "Be the first"}
+              </span>
+            </AttendeeCount>
+          </Footer>
+        )}
 
-        <CtaRow>
-          <CtaLabel>See event</CtaLabel>
-          <CtaChevron>→</CtaChevron>
-        </CtaRow>
+        {!hideInAppUI && (
+          <CtaRow>
+            <CtaLabel>See event</CtaLabel>
+            <CtaChevron>→</CtaChevron>
+          </CtaRow>
+        )}
       </Content>
     </Card>
   );

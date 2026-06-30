@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1418"/>
+      <stop offset="35%" style="stop-color:#1a1830"/>
+      <stop offset="75%" style="stop-color:#2a3020"/>
+      <stop offset="100%" style="stop-color:#1a2010"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="50%" cy="70%" r="40%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0.45"/>
+      <stop offset="35%" style="stop-color:#f59e0b;stop-opacity:0.25"/>
+      <stop offset="100%" style="stop-color:#f59e0b;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="25%" cy="25%" r="25%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.12"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="softsm"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="400" cy="300" r="160" fill="url(#sun)"/>
+  <circle cx="200" cy="100" r="100" fill="url(#glow2)"/>
+  <!-- Midnight sun on horizon -->
+  <circle cx="400" cy="290" r="45" fill="#fbbf24" opacity="0.15" filter="url(#soft)"/>
+  <!-- Lake reflection -->
+  <ellipse cx="400" cy="350" rx="200" ry="6" fill="#fbbf24" opacity="0.15" filter="url(#soft)"/>
+  <ellipse cx="400" cy="358" rx="140" ry="4" fill="#fbbf24" opacity="0.1" filter="url(#soft)"/>
+  <!-- Bonfire / Kokko -->
+  <line x1="250" y1="320" x2="250" y2="220" stroke="#92400e" stroke-width="5" opacity="0.4"/>
+  <line x1="235" y1="320" x2="250" y2="220" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+  <line x1="265" y1="320" x2="250" y2="220" stroke="#92400e" stroke-width="3" opacity="0.3"/>
+  <!-- Flame -->
+  <ellipse cx="250" cy="210" rx="15" ry="25" fill="#f59e0b" opacity="0.12" filter="url(#soft)"/>
+  <ellipse cx="248" cy="205" rx="10" ry="18" fill="#fbbf24" opacity="0.1" filter="url(#soft)"/>
+  <!-- Birch trees -->
+  <rect x="150" y="200" width="6" height="150" fill="#e5e7eb" opacity="0.15"/>
+  <rect x="155" y="240" width="2" height="30" fill="#1a1a1a" opacity="0.15"/>
+  <rect x="160" y="210" width="2" height="25" fill="#1a1a1a" opacity="0.12"/>
+  <rect x="620" y="220" width="5" height="130" fill="#e5e7eb" opacity="0.12"/>
+  <!-- Boats on the lake -->
+  <path d="M480 330 L520 330 L515 340 L485 340 Z" fill="none" stroke="#9ca3af" stroke-width="1.5" opacity="0.2"/>
+  <line x1="500" y1="330" x2="500" y2="310" stroke="#9ca3af" stroke-width="1.2" opacity="0.15"/>
+  <rect x="80" y="195" width="640" height="2.5" rx="1.25" fill="#fbbf24" opacity="0.25" filter="url(#soft)"/>
+</svg>

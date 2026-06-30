@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a0c14"/>
+      <stop offset="50%" style="stop-color:#1a0f16"/>
+      <stop offset="100%" style="stop-color:#140f1a"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="35%" cy="40%" r="40%">
+      <stop offset="0%" style="stop-color:#e94560;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#e94560;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="65%" cy="55%" r="35%">
+      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.35"/>
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="softsm"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="280" cy="160" r="160" fill="url(#glow1)"/>
+  <circle cx="520" cy="240" r="140" fill="url(#glow2)"/>
+  <!-- Heart -->
+  <path d="M400 280 Q360 220 380 180 Q390 160 400 170 Q410 160 420 180 Q440 220 400 280Z" fill="none" stroke="#e94560" stroke-width="3" opacity="0.5" filter="url(#softsm)"/>
+  <path d="M400 275 Q365 225 383 190 Q390 175 400 182 Q410 175 417 190 Q435 225 400 275Z" fill="#e94560" opacity="0.06"/>
+  <!-- Small floating hearts -->
+  <path d="M250 120 Q245 108 250 100 Q255 108 250 120Z" fill="none" stroke="#ec4899" stroke-width="1.5" opacity="0.35"/>
+  <path d="M550 160 Q545 148 550 140 Q555 148 550 160Z" fill="none" stroke="#e94560" stroke-width="1.5" opacity="0.3"/>
+  <path d="M180 200 Q175 190 180 184 Q185 190 180 200Z" fill="none" stroke="#ec4899" stroke-width="1.2" opacity="0.25"/>
+  <!-- Wine glasses -->
+  <path d="M550 260 L560 320 L540 320 Z" fill="none" stroke="#e94560" stroke-width="2" opacity="0.4" filter="url(#softsm)"/>
+  <line x1="550" y1="320" x2="550" y2="345" stroke="#e94560" stroke-width="2" opacity="0.3" filter="url(#softsm)"/>
+  <path d="M600 250 L610 310 L590 310 Z" fill="none" stroke="#ec4899" stroke-width="2" opacity="0.35" filter="url(#softsm)"/>
+  <line x1="600" y1="310" x2="600" y2="335" stroke="#ec4899" stroke-width="2" opacity="0.25" filter="url(#softsm)"/>
+  <rect x="80" y="195" width="640" height="2.5" rx="1.25" fill="#e94560" opacity="0.35" filter="url(#soft)"/>
+</svg>

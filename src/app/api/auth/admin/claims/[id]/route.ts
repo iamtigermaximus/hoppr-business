@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
+import { sendWelcomeEmail } from "@/lib/email";
 
 type AuthResult =
   | { error: NextResponse; user?: undefined }
@@ -92,7 +93,7 @@ export async function PATCH(
       where: { id: claimId },
       include: {
         bar: true,
-        user: { select: { id: true, email: true } },
+        user: { select: { id: true, email: true, name: true } },
       },
     });
 
@@ -129,7 +130,7 @@ export async function PATCH(
         },
       });
 
-      // If approved, update the bar status and activate pending staff
+      // If approved, update the bar status and grant staff access
       if (status === "VERIFIED") {
         await tx.bar.update({
           where: { id: existingClaim.barId },
@@ -141,8 +142,7 @@ export async function PATCH(
           },
         });
 
-        // Activate any pending staff records for the claiming user on this bar
-        // Match by userId or by email (staff invites may not have userId linked yet)
+        // Activate existing pending staff records for the claiming user
         const staffWhere: any = {
           barId: existingClaim.barId,
           isActive: false,
@@ -155,10 +155,25 @@ export async function PATCH(
         } else {
           staffWhere.userId = existingClaim.userId;
         }
-        await tx.barStaff.updateMany({
+        const activated = await tx.barStaff.updateMany({
           where: staffWhere,
           data: { isActive: true },
         });
+
+        // If no staff record was activated, create one as OWNER
+        if (activated.count === 0 && existingClaim.user) {
+          await tx.barStaff.create({
+            data: {
+              barId: existingClaim.barId,
+              userId: existingClaim.userId,
+              email: existingClaim.user.email,
+              name: existingClaim.user.name || existingClaim.user.email,
+              role: "OWNER",
+              permissions: ["*"],
+              isActive: true,
+            },
+          });
+        }
       }
 
       // If rejected, revert bar to UNCLAIMED if no other pending claims exist
@@ -198,6 +213,20 @@ export async function PATCH(
       return updatedClaim;
     });
 
+    // Send welcome email to the bar owner if claim was approved
+    if (status === "VERIFIED" && existingClaim.user?.email) {
+      try {
+        await sendWelcomeEmail({
+          to: existingClaim.user.email,
+          name: existingClaim.user.name || existingClaim.user.email,
+          barName: existingClaim.bar.name,
+          barId: existingClaim.barId,
+        });
+      } catch (emailError) {
+        console.warn("Claim approved but welcome email failed:", emailError);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       claim: {
@@ -207,7 +236,7 @@ export async function PATCH(
       },
       message:
         status === "VERIFIED"
-          ? "Claim approved. Bar is now verified."
+          ? "Claim approved. Bar is now verified. Welcome email sent to owner."
           : "Claim rejected.",
     });
   } catch (error) {

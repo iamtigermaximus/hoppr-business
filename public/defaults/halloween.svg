@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0814"/>
+      <stop offset="60%" style="stop-color:#140a10"/>
+      <stop offset="100%" style="stop-color:#1a1008"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="30%" cy="35%" r="40%">
+      <stop offset="0%" style="stop-color:#f97316;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#f97316;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="70%" cy="55%" r="35%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.35"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="moon" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#fef08a;stop-opacity:0.9"/>
+      <stop offset="70%" style="stop-color:#fef08a;stop-opacity:0.7"/>
+      <stop offset="100%" style="stop-color:#fef08a;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="10"/></filter>
+    <filter id="softsm"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="240" cy="140" r="150" fill="url(#glow1)"/>
+  <circle cx="560" cy="230" r="130" fill="url(#glow2)"/>
+  <!-- Full moon -->
+  <circle cx="620" cy="80" r="55" fill="url(#moon)" filter="url(#softsm)"/>
+  <!-- Pumpkin -->
+  <ellipse cx="350" cy="200" rx="50" ry="42" fill="none" stroke="#f97316" stroke-width="3" opacity="0.6" filter="url(#softsm)"/>
+  <ellipse cx="350" cy="200" rx="38" ry="32" fill="none" stroke="#f97316" stroke-width="2" opacity="0.45" filter="url(#softsm)"/>
+  <ellipse cx="350" cy="200" rx="25" ry="22" fill="#f97316" opacity="0.08"/>
+  <!-- Pumpkin stem -->
+  <rect x="346" y="154" width="8" height="14" rx="3" fill="#f97316" opacity="0.4"/>
+  <!-- Jack-o-lantern face -->
+  <polygon points="338,190 345,180 352,190" fill="#f97316" opacity="0.35"/>
+  <polygon points="362,190 369,180 376,190" fill="#f97316" opacity="0.35"/>
+  <path d="M338 208 Q350 200 362 208" fill="none" stroke="#f97316" stroke-width="2" opacity="0.35"/>
+  <!-- Bats -->
+  <path d="M140 90 Q150 78 160 90 Q165 82 170 90 Q180 78 190 90 Q185 96 170 96 Q160 96 150 96 Q135 96 140 90Z" fill="#7c3aed" opacity="0.3" filter="url(#softsm)"/>
+  <path d="M500 70 Q508 60 514 70 Q518 64 522 70 Q528 60 534 70 Q531 75 522 75 Q514 75 508 75 Q497 75 500 70Z" fill="#7c3aed" opacity="0.2" filter="url(#softsm)"/>
+  <!-- Cobweb hint -->
+  <path d="M60 20 Q100 60 60 110" fill="none" stroke="#9ca3af" stroke-width="0.8" opacity="0.15"/>
+  <path d="M60 20 Q120 50 110 110" fill="none" stroke="#9ca3af" stroke-width="0.8" opacity="0.12"/>
+  <rect x="80" y="195" width="640" height="2.5" rx="1.25" fill="#f97316" opacity="0.35" filter="url(#soft)"/>
+</svg>

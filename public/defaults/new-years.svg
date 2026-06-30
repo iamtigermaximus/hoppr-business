@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f081a"/>
+      <stop offset="50%" style="stop-color:#14101c"/>
+      <stop offset="100%" style="stop-color:#080f1a"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="30%" cy="35%" r="40%">
+      <stop offset="0%" style="stop-color:#fbbf24;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#fbbf24;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="70%" cy="60%" r="35%">
+      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.35"/>
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow3" cx="50%" cy="50%" r="30%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="8"/></filter>
+    <filter id="softsm"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="240" cy="140" r="150" fill="url(#glow1)"/>
+  <circle cx="560" cy="240" r="130" fill="url(#glow2)"/>
+  <circle cx="400" cy="200" r="120" fill="url(#glow3)"/>
+  <!-- Firework bursts -->
+  <line x1="300" y1="80" x2="280" y2="50" stroke="#fbbf24" stroke-width="2.5" opacity="0.55" filter="url(#softsm)"/>
+  <line x1="300" y1="80" x2="320" y2="50" stroke="#fbbf24" stroke-width="2.5" opacity="0.55" filter="url(#softsm)"/>
+  <line x1="300" y1="80" x2="265" y2="75" stroke="#fbbf24" stroke-width="2" opacity="0.45" filter="url(#softsm)"/>
+  <line x1="300" y1="80" x2="335" y2="75" stroke="#fbbf24" stroke-width="2" opacity="0.45" filter="url(#softsm)"/>
+  <line x1="300" y1="80" x2="270" y2="105" stroke="#fbbf24" stroke-width="2" opacity="0.4" filter="url(#softsm)"/>
+  <line x1="300" y1="80" x2="330" y2="105" stroke="#fbbf24" stroke-width="2" opacity="0.4" filter="url(#softsm)"/>
+  <circle cx="300" cy="80" r="5" fill="#fbbf24" opacity="0.5" filter="url(#softsm)"/>
+
+  <line x1="550" y1="60" x2="530" y2="30" stroke="#ec4899" stroke-width="2.5" opacity="0.5" filter="url(#softsm)"/>
+  <line x1="550" y1="60" x2="570" y2="30" stroke="#ec4899" stroke-width="2.5" opacity="0.5" filter="url(#softsm)"/>
+  <line x1="550" y1="60" x2="515" y2="55" stroke="#ec4899" stroke-width="2" opacity="0.4" filter="url(#softsm)"/>
+  <line x1="550" y1="60" x2="585" y2="55" stroke="#ec4899" stroke-width="2" opacity="0.4" filter="url(#softsm)"/>
+  <circle cx="550" cy="60" r="5" fill="#ec4899" opacity="0.45" filter="url(#softsm)"/>
+
+  <!-- Champagne glass -->
+  <path d="M390 240 L400 300 L380 300 Z" fill="none" stroke="#fbbf24" stroke-width="2.5" opacity="0.45" filter="url(#softsm)"/>
+  <line x1="390" y1="300" x2="390" y2="330" stroke="#fbbf24" stroke-width="2.5" opacity="0.35" filter="url(#softsm)"/>
+  <!-- Bubbles -->
+  <circle cx="383" cy="255" r="2" fill="#fbbf24" opacity="0.4"/>
+  <circle cx="393" cy="268" r="2.5" fill="#fbbf24" opacity="0.35"/>
+  <circle cx="387" cy="280" r="1.8" fill="#fbbf24" opacity="0.3"/>
+  <!-- Countdown hint -->
+  <text x="460" y="290" font-family="sans-serif" font-size="40" font-weight="900" fill="#ec4899" opacity="0.25" filter="url(#softsm)">2026</text>
+  <rect x="80" y="195" width="640" height="2.5" rx="1.25" fill="#fbbf24" opacity="0.35" filter="url(#soft)"/>
+</svg>

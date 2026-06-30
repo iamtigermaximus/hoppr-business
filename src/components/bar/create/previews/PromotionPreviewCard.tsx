@@ -218,6 +218,8 @@ interface PromotionPreviewProps {
   conditions: string;
   barCoverImage?: string | null;
   barLogoUrl?: string | null;
+  /** Hide in-app UI elements (time remaining, CTA, social proof) — for share images */
+  hideInAppUI?: boolean;
 }
 
 export default function PromotionPreviewCard({
@@ -231,6 +233,7 @@ export default function PromotionPreviewCard({
   conditions,
   barCoverImage,
   barLogoUrl,
+  hideInAppUI = false,
 }: PromotionPreviewProps) {
   const image = resolveImage(imageUrl, barCoverImage ?? null, barLogoUrl ?? null);
   const timeRemaining = getTimeRemaining(endDate);
@@ -244,7 +247,7 @@ export default function PromotionPreviewCard({
         {!image.src && "🎁"}
 
         {promotionType && <TypeBadge>{formatType(promotionType)}</TypeBadge>}
-        {timeRemaining && (
+        {timeRemaining && !hideInAppUI && (
           <TimeRemaining $urgent={timeRemaining.urgent}>
             {timeRemaining.text}
           </TimeRemaining>
@@ -267,7 +270,11 @@ export default function PromotionPreviewCard({
 
       <Content>
         <Title>{title || "Untitled Promotion"}</Title>
-        <Body>{description || "Add a description to show how this will look to customers"}</Body>
+        <Body
+          style={hideInAppUI ? { WebkitLineClamp: "unset", display: "block" } : undefined}
+        >
+          {description || "Add a description to show how this will look to customers"}
+        </Body>
 
         <Footer>
           <DateRange>
@@ -275,32 +282,33 @@ export default function PromotionPreviewCard({
               ? formatDateRange(startDate, endDate)
               : "Set a date range"}
           </DateRange>
-          <SocialProof>
-            <span>↗</span>
-            <span>{hasDiscount ? "Offer live soon" : "Promo ready"}</span>
-          </SocialProof>
+          {!hideInAppUI && (
+            <SocialProof>
+              <span>↗</span>
+              <span>{hasDiscount ? "Offer live soon" : "Promo ready"}</span>
+            </SocialProof>
+          )}
         </Footer>
 
         {conditions && (
           <div
             style={{
               fontSize: "0.625rem",
-              color: "#4b5563",
+              color: hideInAppUI ? "#6b7280" : "#4b5563",
               marginTop: "0.375rem",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "0.25rem",
+              lineHeight: 1.4,
             }}
           >
-            <span style={{ flexShrink: 0 }}>ⓘ</span>
-            <span>{conditions}</span>
+            {conditions}
           </div>
         )}
 
-        <CtaRow>
-          <CtaLabel>View promo</CtaLabel>
-          <CtaChevron>→</CtaChevron>
-        </CtaRow>
+        {!hideInAppUI && (
+          <CtaRow>
+            <CtaLabel>View promo</CtaLabel>
+            <CtaChevron>→</CtaChevron>
+          </CtaRow>
+        )}
       </Content>
     </Card>
   );

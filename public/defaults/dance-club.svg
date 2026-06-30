@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f0814"/>
+      <stop offset="50%" style="stop-color:#140a1a"/>
+      <stop offset="100%" style="stop-color:#080f14"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="25%" cy="30%" r="45%">
+      <stop offset="0%" style="stop-color:#ec4899;stop-opacity:0.5"/>
+      <stop offset="100%" style="stop-color:#ec4899;stop-opacity:0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="75%" cy="70%" r="40%">
+      <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.45"/>
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:0"/>
+    </radialGradient>
+    <filter id="soft"><feGaussianBlur stdDeviation="12"/></filter>
+  </defs>
+  <rect width="800" height="400" fill="url(#bg)"/>
+  <circle cx="200" cy="120" r="180" fill="url(#glow1)"/>
+  <circle cx="600" cy="280" r="160" fill="url(#glow2)"/>
+  <!-- Dance floor concentric rings -->
+  <ellipse cx="400" cy="280" rx="180" ry="50" fill="none" stroke="#ec4899" stroke-width="2" opacity="0.35" filter="url(#soft)"/>
+  <ellipse cx="400" cy="280" rx="120" ry="33" fill="none" stroke="#7c3aed" stroke-width="1.8" opacity="0.3" filter="url(#soft)"/>
+  <ellipse cx="400" cy="280" rx="60" ry="17" fill="none" stroke="#ec4899" stroke-width="1.5" opacity="0.25" filter="url(#soft)"/>
+  <!-- Strobe lines -->
+  <line x1="200" y1="0" x2="200" y2="400" stroke="#ec4899" stroke-width="1.5" opacity="0.15" filter="url(#soft)"/>
+  <line x1="350" y1="0" x2="350" y2="400" stroke="#7c3aed" stroke-width="1.5" opacity="0.12" filter="url(#soft)"/>
+  <line x1="500" y1="0" x2="500" y2="400" stroke="#ec4899" stroke-width="1.5" opacity="0.12" filter="url(#soft)"/>
+  <line x1="650" y1="0" x2="650" y2="400" stroke="#7c3aed" stroke-width="1.5" opacity="0.1" filter="url(#soft)"/>
+  <!-- Disco ball -->
+  <circle cx="400" cy="50" r="35" fill="#ec4899" opacity="0.1" filter="url(#soft)"/>
+  <rect x="100" y="195" width="600" height="2.5" rx="1.25" fill="#ec4899" opacity="0.4" filter="url(#soft)"/>
+</svg>

@@ -40,7 +40,7 @@ export default async function CreateHubPage({
 
   return (
     <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading creation hub...</div>}>
-      <CreateHubClient barId={barId} userRole={userRole} barCoverImage={bar.coverImage} barLogoUrl={bar.logoUrl} />
+      <CreateHubClient barId={barId} userRole={userRole} barName={bar.name} barCoverImage={bar.coverImage} barLogoUrl={bar.logoUrl} />
     </Suspense>
   );
 }
