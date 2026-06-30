@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(
   request: NextRequest,
@@ -85,23 +86,26 @@ export async function GET(
       where: { barId },
     });
 
-    return NextResponse.json({
-      success: true,
-      barStats: {
-        profileViews: bar?.profileViews || 0,
-        directionClicks: bar?.directionClicks || 0,
-        callClicks: bar?.callClicks || 0,
-        websiteClicks: bar?.websiteClicks || 0,
-        shareCount: bar?.shareCount || 0,
-      },
-      promotions: promotionsWithStats,
-      totalScans,
-    });
-  } catch (error) {
-    console.error("Promotion stats error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      {
+        success: true,
+        barStats: {
+          profileViews: bar?.profileViews || 0,
+          directionClicks: bar?.directionClicks || 0,
+          callClicks: bar?.callClicks || 0,
+          websiteClicks: bar?.websiteClicks || 0,
+          shareCount: bar?.shareCount || 0,
+        },
+        promotions: promotionsWithStats,
+        totalScans,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=30, s-maxage=120, stale-while-revalidate=300",
+        },
+      },
     );
+  } catch (error) {
+    return handleApiError(error, "Promotion stats");
   }
 }

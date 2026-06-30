@@ -7,6 +7,7 @@ import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 import { decryptToken } from "@/lib/social/encryption";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import {
   publishToFacebook,
   publishToInstagram,
@@ -33,6 +34,15 @@ export async function POST(
     const { barId } = await params;
     if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Rate limit: 10 social posts per minute per bar
+    const rateCheck = checkRateLimit(`social-post:${barId}`, RateLimits.SOCIAL);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Social posting rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
     }
 
     // 2. Parse request body

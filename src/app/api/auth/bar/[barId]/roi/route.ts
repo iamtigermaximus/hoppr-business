@@ -427,7 +427,11 @@ export async function GET(
       },
     };
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": `public, max-age=${days <= 7 ? 60 : 300}, s-maxage=${days <= 7 ? 300 : 600}, stale-while-revalidate=1800`,
+      },
+    });
   } catch (error) {
     console.error("ROI API error:", error);
     return NextResponse.json(

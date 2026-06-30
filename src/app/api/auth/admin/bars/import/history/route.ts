@@ -257,27 +257,17 @@ const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
   try {
-    console.log("🔐 HISTORY API - Starting history fetch...");
-
     const payload = verifyAuthHeader(request);
     if (!payload || !isAdminToken(payload)) {
-      console.log("❌ HISTORY API - Unauthorized");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    console.log("✅ HISTORY API - Token verified for user:", payload.userId);
 
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "50");
     const page = parseInt(searchParams.get("page") || "1");
     const skip = (page - 1) * limit;
 
-    console.log(
-      `📋 HISTORY API - Fetching history for user ${payload.userId}, page ${page}, limit ${limit}`
-    );
-
     try {
-      // Check if BarImport model exists
       const imports = await prisma.barImport.findMany({
         orderBy: {
           createdAt: "desc",
@@ -287,10 +277,6 @@ export async function GET(request: NextRequest) {
       });
 
       const total = await prisma.barImport.count();
-
-      console.log(
-        `✅ HISTORY API - Found ${imports.length} import records, total: ${total}`
-      );
 
       return NextResponse.json({
         imports,

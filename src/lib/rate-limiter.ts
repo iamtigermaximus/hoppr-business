@@ -75,6 +75,14 @@ export const RateLimits = {
   AUTH: { windowSeconds: 60, maxRequests: 5 } as RateLimitConfig,
   /** Content creation: 10 per minute per bar */
   CREATE: { windowSeconds: 60, maxRequests: 10 } as RateLimitConfig,
+  /** AI generation (suggest + generate): 10 per minute per bar */
+  AI: { windowSeconds: 60, maxRequests: 10 } as RateLimitConfig,
+  /** File upload: 20 per minute per bar */
+  UPLOAD: { windowSeconds: 60, maxRequests: 20 } as RateLimitConfig,
+  /** Social posting: 10 per minute per bar */
+  SOCIAL: { windowSeconds: 60, maxRequests: 10 } as RateLimitConfig,
+  /** Staff management: 15 per minute per bar */
+  STAFF: { windowSeconds: 60, maxRequests: 15 } as RateLimitConfig,
   /** QR scanning: 30 per minute per bar (operational throughput) */
   SCAN: { windowSeconds: 60, maxRequests: 30 } as RateLimitConfig,
   /** Analytics/dashboard: 30 per minute per bar */

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { AppError, handleApiError } from "@/lib/api-error";
 
 export async function GET(
   request: NextRequest,
@@ -108,26 +109,29 @@ export async function GET(
     const lostFollowers = typeCounts["UNFOLLOW"] || 0;
     const netFollowers = newFollowers - lostFollowers;
 
-    return NextResponse.json({
-      ...totals,
-      activePromos,
-      activeCampaigns,
-      campaignImpressions: campaignTotals._sum.impressions || 0,
-      campaignClicks: campaignTotals._sum.clicks || 0,
-      campaignConversions: campaignTotals._sum.conversions || 0,
-      campaignSpentCents: campaignTotals._sum.spentCents || 0,
-      campaignBudgetCents: campaignTotals._sum.budgetCents || 0,
-      hasData,
-      totalFollowers,
-      newFollowers,
-      lostFollowers,
-      netFollowers,
-    });
-  } catch (error) {
-    console.error("Dashboard stats error:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      {
+        ...totals,
+        activePromos,
+        activeCampaigns,
+        campaignImpressions: campaignTotals._sum.impressions || 0,
+        campaignClicks: campaignTotals._sum.clicks || 0,
+        campaignConversions: campaignTotals._sum.conversions || 0,
+        campaignSpentCents: campaignTotals._sum.spentCents || 0,
+        campaignBudgetCents: campaignTotals._sum.budgetCents || 0,
+        hasData,
+        totalFollowers,
+        newFollowers,
+        lostFollowers,
+        netFollowers,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=30, s-maxage=120, stale-while-revalidate=300",
+        },
+      },
     );
+  } catch (error) {
+    return handleApiError(error, "Dashboard stats");
   }
 }

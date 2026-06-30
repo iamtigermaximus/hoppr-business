@@ -60,5 +60,12 @@ export async function GET(
     };
   });
 
-  return NextResponse.json({ rules: ruleStats });
+  return NextResponse.json(
+    { rules: ruleStats },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=120, s-maxage=300, stale-while-revalidate=600",
+      },
+    },
+  );
 }

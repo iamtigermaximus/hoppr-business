@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import {
   buildComplianceSystemPrompt,
   buildUserReminder,
 } from "@/lib/compliance/prompts";
+import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -48,7 +50,16 @@ export async function POST(
       );
     }
 
-    // 2. Parse request body
+    // 2. Rate limit: 10 AI calls per minute per bar
+    const rateCheck = checkRateLimit(`ai-suggest:${barId}`, RateLimits.AI);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `AI suggestions rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
+    }
+
+    // 3. Parse request body
     const body = await request.json();
     const { text } = body;
 
@@ -78,14 +89,8 @@ export async function POST(
       return NextResponse.json({ error: "Bar not found" }, { status: 404 });
     }
 
-    // 4. Check if DeepSeek API key is configured
-    if (!DEEPSEEK_API_KEY) {
-      console.error("DEEPSEEK_API_KEY is not set");
-      return NextResponse.json(
-        { error: "AI service is not configured. Please contact support." },
-        { status: 500 },
-      );
-    }
+    // 4. Check if DeepSeek API key is configured — use fallback templates if not
+    const useAI = !!DEEPSEEK_API_KEY;
 
     // 5. Build AI prompt — compliance rules injected from canonical source
     const complianceRules = buildComplianceSystemPrompt();
@@ -154,57 +159,70 @@ Analyze the text and determine: event, promotion, or VIP pass? Extract all relev
 
 ${buildUserReminder()}`;
 
-    // 6. Call DeepSeek API
-    const response = await fetch(DEEPSEEK_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 1000,
-      }),
-    });
+    // 6. Try DeepSeek API; fall back to templates on any failure
+    let result: Record<string, unknown> | null = null;
+    let aiGenerated = false;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("DeepSeek API error:", response.status, errorText);
-      throw new Error(`DeepSeek API error: ${response.status}`);
+    if (useAI) {
+      try {
+        const response = await fetch(DEEPSEEK_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.7,
+            max_tokens: 1000,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const aiResponse = data.choices[0].message.content;
+
+          try {
+            const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+            result = jsonMatch
+              ? JSON.parse(jsonMatch[0])
+              : JSON.parse(aiResponse);
+            aiGenerated = true;
+          } catch {
+            console.warn("AI suggest parse failed, using fallback");
+          }
+        } else {
+          console.warn(
+            `DeepSeek API error ${response.status}, using fallback`,
+          );
+        }
+      } catch (err) {
+        console.warn("DeepSeek API unreachable, using fallback:", err);
+      }
     }
 
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
-
-    // 7. Parse JSON from AI response
-    let result;
-    try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      result = jsonMatch
-        ? JSON.parse(jsonMatch[0])
-        : JSON.parse(aiResponse);
-    } catch {
-      console.error("Failed to parse AI response:", aiResponse);
-      return NextResponse.json(
-        { error: "AI returned invalid format. Please try again." },
-        { status: 500 },
-      );
+    // 7. Fall back to template-based suggestion if AI didn't produce results
+    if (!result) {
+      result = getFallbackSuggestion(
+        { name: bar.name, type: bar.type },
+        text,
+      ) as unknown as Record<string, unknown>;
     }
 
     // 8. Validate and normalize inferred type
     const validTypes = ["event", "promotion", "pass", "campaign"];
-    const inferredType = validTypes.includes(result.inferredType)
-      ? result.inferredType
+    const inferredType = validTypes.includes(result.inferredType as string)
+      ? (result.inferredType as string)
       : "promotion";
 
     // 9. Build response with type-specific fields
     const response_: Record<string, unknown> = {
       inferredType,
+      aiGenerated,
       confidence: typeof result.confidence === "number" ? result.confidence : 0.8,
       title: result.title || text.slice(0, 60),
       description: result.description || "",

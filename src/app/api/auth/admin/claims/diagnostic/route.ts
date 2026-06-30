@@ -1,33 +1,18 @@
 // GET /api/auth/admin/claims/diagnostic
-// Quick diagnostic: count all bar_claims rows regardless of auth
-// Remove this after confirming the issue
+// Diagnostic endpoint for bar claims — requires SUPER_ADMIN authentication.
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
-import { authService } from "@/services/auth-service";
+import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
-  // Also check auth to diagnose permission issues
-  let authInfo: any = { checked: false };
-  try {
-    const authHeader = request.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.substring(7);
-      try {
-        const result = await authService.validateToken(token);
-        authInfo = {
-          checked: true,
-          type: result.type,
-          adminRole: result.type === "admin" ? result.user.adminRole : null,
-          hasAccess: result.type === "admin" && result.user.adminRole === "SUPER_ADMIN",
-        };
-      } catch (e: any) {
-        authInfo = { checked: true, error: e.message };
-      }
-    } else {
-      authInfo = { checked: true, error: "No Bearer token in Authorization header" };
-    }
-  } catch {}
+  const payload = verifyAuthHeader(request);
+  if (!payload || !isAdminToken(payload) || payload.adminRole !== "SUPER_ADMIN") {
+    return NextResponse.json(
+      { error: "Unauthorized — SUPER_ADMIN access required" },
+      { status: 401 },
+    );
+  }
 
   try {
     const [total, byStatus] = await Promise.all([
@@ -57,12 +42,12 @@ export async function GET(request: NextRequest) {
         count: g._count.id,
       })),
       latest,
-      auth: authInfo,
     });
-  } catch (error: any) {
+  } catch (error) {
+    console.error("Claims diagnostic error:", error);
     return NextResponse.json(
-      { error: error.message, code: error.code, meta: error.meta },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

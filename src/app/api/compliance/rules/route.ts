@@ -31,21 +31,28 @@ export async function GET() {
     }),
   );
 
-  return NextResponse.json({
-    lastUpdated: "2026-06-27",
-    sources: [
-      "Alcohol Act (1102/2017) §50 — Advertising of alcoholic beverages",
-      "Alcohol Act (1102/2017) §51 — Price advertising of alcoholic beverages",
-      "Valvira Guideline on Alcohol Marketing (Dnr V/32196/2024, 16 July 2024)",
-      "Valvira Guideline on Alcohol Marketing (Reg.no V/5394/2018, 20 Feb 2018)",
-    ],
-    summary: {
-      totalRules: RULE_COUNT,
-      totalPatterns: PATTERN_COUNT,
-      highSeverity: rules.filter((r) => r.severity === "high").length,
-      mediumSeverity: rules.filter((r) => r.severity === "medium").length,
-      lowSeverity: rules.filter((r) => r.severity === "low").length,
+  return NextResponse.json(
+    {
+      lastUpdated: "2026-06-27",
+      sources: [
+        "Alcohol Act (1102/2017) §50 — Advertising of alcoholic beverages",
+        "Alcohol Act (1102/2017) §51 — Price advertising of alcoholic beverages",
+        "Valvira Guideline on Alcohol Marketing (Dnr V/32196/2024, 16 July 2024)",
+        "Valvira Guideline on Alcohol Marketing (Reg.no V/5394/2018, 20 Feb 2018)",
+      ],
+      summary: {
+        totalRules: RULE_COUNT,
+        totalPatterns: PATTERN_COUNT,
+        highSeverity: rules.filter((r) => r.severity === "high").length,
+        mediumSeverity: rules.filter((r) => r.severity === "medium").length,
+        lowSeverity: rules.filter((r) => r.severity === "low").length,
+      },
+      rules,
     },
-    rules,
-  });
+    {
+      headers: {
+        "Cache-Control": "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800",
+      },
+    },
+  );
 }

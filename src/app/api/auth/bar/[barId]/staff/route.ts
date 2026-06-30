@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
 import { hashPassword } from "@/lib/auth";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 
 export type BarStaffRole =
   | "OWNER"
@@ -51,9 +52,6 @@ export async function POST(
     // Verify bar access and permissions - handle both admin and bar_staff
     if (authResult.type === "admin") {
       // Admin users have full access to all bars
-      console.log(
-        `Admin ${authResult.user.email} creating staff for bar ${barId}`
-      );
     } else if (authResult.type === "bar_staff") {
       // Bar staff must belong to the same bar and have proper role
       if (authResult.user.barId !== barId) {
@@ -69,6 +67,15 @@ export async function POST(
       }
     } else {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Rate limit: 15 staff operations per minute per bar
+    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
     }
 
     const { email, name, role, password }: CreateStaffRequest =
@@ -140,8 +147,6 @@ export async function POST(
       },
     });
 
-    console.log(`✅ Staff account created for ${email} at bar ${barId}`);
-
     return NextResponse.json({
       success: true,
       staff: {
@@ -182,9 +187,6 @@ export async function GET(
     // Verify bar access - handle both admin and bar_staff
     if (authResult.type === "admin") {
       // Admin can access any bar
-      console.log(
-        `Admin ${authResult.user.email} accessing staff for bar ${barId}`
-      );
     } else if (authResult.type === "bar_staff") {
       // Bar staff must belong to the same bar
       if (authResult.user.barId !== barId) {
@@ -192,6 +194,15 @@ export async function GET(
       }
     } else {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Rate limit: 15 staff operations per minute per bar
+    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
     }
 
     const staff = await prisma.barStaff.findMany({
@@ -238,6 +249,15 @@ export async function PUT(
     // Verify permissions
     if (authResult.type === "bar_staff" && authResult.user.barId !== barId) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Rate limit: 15 staff operations per minute per bar
+    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
     }
 
     const { staffId, name, role, isActive } = await request.json();
@@ -311,6 +331,15 @@ export async function DELETE(
           { status: 403 }
         );
       }
+    }
+
+    // Rate limit: 15 staff operations per minute per bar
+    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
     }
 
     const { searchParams } = new URL(request.url);

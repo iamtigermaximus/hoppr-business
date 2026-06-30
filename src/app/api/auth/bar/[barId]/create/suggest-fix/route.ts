@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { scanCompliance } from "@/lib/compliance-engine";
 import { buildFixPrompt } from "@/lib/compliance/prompts";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -45,7 +46,16 @@ export async function POST(
       );
     }
 
-    // 2. Parse request body
+    // 2. Rate limit: 10 AI calls per minute per bar
+    const rateCheck = checkRateLimit(`ai-suggest-fix:${barId}`, RateLimits.AI);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `AI fix suggestions rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
+    }
+
+    // 3. Parse request body
     const body = await request.json();
     const { title, description, violations, contentType } = body;
 

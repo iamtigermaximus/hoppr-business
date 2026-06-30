@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { buildGeneratePrompt } from "@/lib/compliance/prompts";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
+import {
+  getFallbackPromotion,
+  type PromotionType,
+} from "@/lib/ai/fallback-templates";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -50,6 +55,15 @@ export async function POST(
       );
     }
 
+    // Rate limit: 10 AI generations per minute per bar
+    const rateCheck = checkRateLimit(`ai-generate:${barId}`, RateLimits.AI);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `AI generation rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
+      );
+    }
+
     const body = await request.json();
     const { prompt, type, targetAudience } = body;
 
@@ -80,14 +94,8 @@ export async function POST(
       select: { title: true, type: true },
     });
 
-    // 5. Check if DeepSeek API key is configured
-    if (!DEEPSEEK_API_KEY) {
-      console.error("DEEPSEEK_API_KEY is not set");
-      return NextResponse.json(
-        { error: "AI service is not configured. Please contact support." },
-        { status: 500 },
-      );
-    }
+    // 5. Check if DeepSeek API key is configured — use fallback templates if not
+    const useAI = !!DEEPSEEK_API_KEY;
 
     // 6. Build the AI prompt using the canonical prompt builder
     const userPrompt = buildGeneratePrompt(
@@ -109,69 +117,96 @@ export async function POST(
     const systemPrompt = `You are a marketing expert specializing in bar and nightlife promotions.
 Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
 
-    // 7. Call DeepSeek API
-    const response = await fetch(DEEPSEEK_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.8,
-        max_tokens: 800,
-      }),
-    });
+    // 7. Try DeepSeek API; fall back to templates on any failure
+    let generatedPromotion: Record<string, unknown> | null = null;
+    let aiGenerated = false;
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("DeepSeek API error:", response.status, errorText);
-      throw new Error(`DeepSeek API error: ${response.status}`);
+    if (useAI) {
+      try {
+        const response = await fetch(DEEPSEEK_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt },
+            ],
+            temperature: 0.8,
+            max_tokens: 800,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const aiResponse = data.choices[0].message.content;
+
+          try {
+            const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+            generatedPromotion = jsonMatch
+              ? JSON.parse(jsonMatch[0])
+              : JSON.parse(aiResponse);
+            aiGenerated = true;
+          } catch {
+            console.warn("AI response parse failed, using fallback template");
+          }
+        } else {
+          console.warn(
+            `DeepSeek API error ${response.status}, using fallback template`,
+          );
+        }
+      } catch (err) {
+        console.warn("DeepSeek API unreachable, using fallback template:", err);
+      }
     }
 
-    const data = await response.json();
-    const aiResponse = data.choices[0].message.content;
+    // 8. Use fallback template if AI didn't produce a valid result
+    if (!generatedPromotion) {
+      const validTypes = [
+        "HAPPY_HOUR",
+        "DRINK_SPECIAL",
+        "FOOD_SPECIAL",
+        "LADIES_NIGHT",
+        "THEME_NIGHT",
+        "VIP_OFFER",
+        "COVER_DISCOUNT",
+        "LIVE_MUSIC_EVENT",
+        "GAME_NIGHT",
+      ];
+      const promoType = validTypes.includes(type) ? (type as PromotionType) : "DRINK_SPECIAL";
 
-    // 8. Parse JSON from AI response
-    let generatedPromotion;
-    try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      generatedPromotion = jsonMatch
-        ? JSON.parse(jsonMatch[0])
-        : JSON.parse(aiResponse);
-    } catch (e) {
-      console.error("Failed to parse AI response:", aiResponse);
-      return NextResponse.json(
-        { error: "AI returned invalid format. Please try again." },
-        { status: 500 },
-      );
+      generatedPromotion = getFallbackPromotion(
+        { name: bar.name, type: bar.type, cityName: bar.cityName ?? undefined, district: bar.district ?? undefined },
+        promoType,
+        targetAudience || undefined,
+      ) as unknown as Record<string, unknown>;
     }
 
-    // 9. Validate the generated fields
-    const validTypes = [
-      "HAPPY_HOUR",
-      "DRINK_SPECIAL",
-      "FOOD_SPECIAL",
-      "LADIES_NIGHT",
-      "THEME_NIGHT",
-      "VIP_OFFER",
-      "COVER_DISCOUNT",
-    ];
-
-    // 10. Return the generated promotion
+    // Always return the same shape, but flag whether AI was used
     return NextResponse.json({
       success: true,
+      aiGenerated,
       promotion: {
         title: generatedPromotion.title || `${bar.name} Special`,
         description:
           generatedPromotion.description || `Special offer at ${bar.name}`,
-        type: validTypes.includes(generatedPromotion.type)
-          ? generatedPromotion.type
-          : "DRINK_SPECIAL",
+        type: (() => {
+          const validTypes = [
+            "HAPPY_HOUR",
+            "DRINK_SPECIAL",
+            "FOOD_SPECIAL",
+            "LADIES_NIGHT",
+            "THEME_NIGHT",
+            "VIP_OFFER",
+            "COVER_DISCOUNT",
+          ];
+          return validTypes.includes(generatedPromotion.type as string)
+            ? generatedPromotion.type
+            : "DRINK_SPECIAL";
+        })(),
         discount:
           typeof generatedPromotion.discount === "number"
             ? generatedPromotion.discount

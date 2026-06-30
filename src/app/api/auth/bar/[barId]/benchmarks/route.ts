@@ -428,7 +428,11 @@ export async function GET(
       recommendations,
     };
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: {
+        "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1800",
+      },
+    });
   } catch (error) {
     console.error("Benchmark API error:", error);
     return NextResponse.json(

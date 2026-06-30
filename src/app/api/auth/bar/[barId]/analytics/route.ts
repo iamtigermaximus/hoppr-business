@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 /**
  * GET /api/auth/bar/[barId]/analytics?range=7d|30d|90d
@@ -203,27 +204,34 @@ export async function GET(
 
     const hasData = Object.values(totals).some((v) => v > 0);
 
-    return NextResponse.json({
-      period: range,
-      days,
-      ...totals,
-      activePromos,
-      activeEvents,
-      activeCampaigns,
-      campaignImpressions: campaignAggregates._sum.impressions || 0,
-      campaignClicks: campaignAggregates._sum.clicks || 0,
-      campaignConversions: campaignAggregates._sum.conversions || 0,
-      campaignSpentCents: campaignAggregates._sum.spentCents || 0,
-      campaignBudgetCents: campaignAggregates._sum.budgetCents || 0,
-      campaignsInRange,
-      dailyBreakdown,
-      hasData,
-    });
-  } catch (error) {
-    console.error("Analytics error:", error);
+    // Longer ranges = longer cache (historical data doesn't change)
+    const cacheMaxAge = days <= 7 ? 30 : days <= 30 ? 120 : 300;
+    const cacheSharedMaxAge = days <= 7 ? 120 : days <= 30 ? 300 : 600;
+
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+      {
+        period: range,
+        days,
+        ...totals,
+        activePromos,
+        activeEvents,
+        activeCampaigns,
+        campaignImpressions: campaignAggregates._sum.impressions || 0,
+        campaignClicks: campaignAggregates._sum.clicks || 0,
+        campaignConversions: campaignAggregates._sum.conversions || 0,
+        campaignSpentCents: campaignAggregates._sum.spentCents || 0,
+        campaignBudgetCents: campaignAggregates._sum.budgetCents || 0,
+        campaignsInRange,
+        dailyBreakdown,
+        hasData,
+      },
+      {
+        headers: {
+          "Cache-Control": `public, max-age=${cacheMaxAge}, s-maxage=${cacheSharedMaxAge}, stale-while-revalidate=600`,
+        },
+      },
     );
+  } catch (error) {
+    return handleApiError(error, "Analytics");
   }
 }

@@ -1684,10 +1684,17 @@ export async function GET(request: NextRequest) {
       barsNeedingAttention,
     };
 
-    return NextResponse.json({
-      success: true,
-      data: stats,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        data: stats,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1800",
+        },
+      },
+    );
   } catch (error) {
     console.error("Analytics summary error:", error);
     return NextResponse.json(

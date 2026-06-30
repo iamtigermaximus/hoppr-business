@@ -61,11 +61,18 @@ export async function GET(
 
   const hasData = patterns.length > 0;
 
-  return NextResponse.json({
-    hasData,
-    days,
-    message: hasData
-      ? "Times shown are in UTC. Send 30-60 min before the recommended hour for best results."
-      : "Not enough crowd data yet. Once users start reporting crowd levels at this bar, optimal send times will appear here. Usually takes about a week of reports.",
-  });
+  return NextResponse.json(
+    {
+      hasData,
+      days,
+      message: hasData
+        ? "Times shown are in UTC. Send 30-60 min before the recommended hour for best results."
+        : "Not enough crowd data yet. Once users start reporting crowd levels at this bar, optimal send times will appear here. Usually takes about a week of reports.",
+    },
+    {
+      headers: {
+        "Cache-Control": "public, max-age=300, s-maxage=600, stale-while-revalidate=1800",
+      },
+    },
+  );
 }

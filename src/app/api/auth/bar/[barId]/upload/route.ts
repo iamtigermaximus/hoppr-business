@@ -6,6 +6,7 @@ import {
   MAX_FILE_SIZE,
   ALLOWED_TYPES,
 } from "@/lib/cloudinary";
+import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 
 export async function POST(
   request: NextRequest,
@@ -43,6 +44,15 @@ export async function POST(
       return NextResponse.json(
         { error: "Forbidden: You don't have access to this bar" },
         { status: 403 },
+      );
+    }
+
+    // Rate limit: 20 uploads per minute per bar
+    const rateCheck = checkRateLimit(`upload:${barId}`, RateLimits.UPLOAD);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: `Upload rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
+        { status: 429 },
       );
     }
 

@@ -236,12 +236,6 @@ const ImageUpload = ({
   };
 
   const uploadMultipleFiles = async (files: File[]) => {
-    console.log("📸 Starting multiple file upload:", files.length, "files");
-    console.log(
-      "Files:",
-      files.map((f) => f.name),
-    );
-
     setError(null);
     setBatchUploading(true);
 
@@ -255,11 +249,6 @@ const ImageUpload = ({
     const uploadedUrls: string[] = [];
 
     for (let i = 0; i < tasks.length; i++) {
-      console.log(
-        `📤 Uploading file ${i + 1}/${tasks.length}:`,
-        tasks[i].file.name,
-      );
-
       setUploadTasks((prev) =>
         prev.map((task, idx) =>
           idx === i ? { ...task, status: "uploading" } : task,
@@ -278,8 +267,6 @@ const ImageUpload = ({
 
       try {
         const url = await uploadFile(tasks[i].file);
-        console.log(`✅ Upload successful for ${tasks[i].file.name}:`, url);
-
         clearInterval(progressInterval);
         uploadedUrls.push(url);
 
@@ -303,11 +290,7 @@ const ImageUpload = ({
       }
     }
 
-    console.log("📦 All uploads completed. URLs:", uploadedUrls);
-    console.log("🔧 onMultipleUpload prop exists?", !!onMultipleUpload);
-
     if (uploadedUrls.length > 0 && onMultipleUpload) {
-      console.log("📞 Calling onMultipleUpload with:", uploadedUrls);
       onMultipleUpload(uploadedUrls);
     } else if (uploadedUrls.length > 0 && !onMultipleUpload) {
       console.warn(
@@ -328,14 +311,8 @@ const ImageUpload = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) {
-      console.log("No files selected");
       return;
     }
-
-    console.log(
-      `Selected ${files.length} file(s):`,
-      Array.from(files).map((f) => f.name),
-    );
 
     if (multiple && files.length > 1) {
       // Multiple files selected
@@ -371,8 +348,6 @@ const ImageUpload = ({
       setError("Please drop image files only");
       return;
     }
-
-    console.log(`Dropped ${imageFiles.length} image(s)`);
 
     if (multiple && imageFiles.length > 1) {
       uploadMultipleFiles(imageFiles);
