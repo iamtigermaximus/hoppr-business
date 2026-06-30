@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, forwardRef, useImperativeHandle } from "react";
 import styled from "styled-components";
 import PromotionPreviewCard from "./previews/PromotionPreviewCard";
 import EventPreviewCard from "./previews/EventPreviewCard";
@@ -30,6 +30,8 @@ interface ShareCardProps {
   time?: string;
   /** The public consumer URL for this content */
   consumerUrl?: string;
+  /** The ID of the created content — used to build the consumer deep-link QR code */
+  contentId?: string;
   /** SVG pattern background for the share card */
   svgBackground?: SvgBackground;
   /** Category badge */
@@ -92,6 +94,23 @@ function generateCaption(
 }
 
 // ---- Helpers ----
+
+/** Build the full consumer URL for QR code linking */
+function buildConsumerUrl(
+  contentType: "event" | "promotion",
+  contentId: string,
+  consumerUrl?: string,
+): string {
+  const base = consumerUrl || "hoppr.fi";
+  const protocol = base.startsWith("http") ? "" : "https://";
+  return `${protocol}${base}/${contentType}s/${contentId}`;
+}
+
+/** Build a QR code image URL using the QRServer API */
+function qrCodeUrl(data: string, size = 80): string {
+  const encoded = encodeURIComponent(data);
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}&bgcolor=ffffff&color=000000&format=png`;
+}
 
 /** Convert a canvas to a Blob (prefer toBlob with PNG fallback) */
 function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -175,14 +194,36 @@ const BarLogoBadge = styled.div`
 const Watermark = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   padding-top: 0.75rem;
   margin-top: 0.75rem;
   border-top: 1px solid #262626;
+`;
+
+const WatermarkText = styled.div`
   font-size: 0.6875rem;
   color: #4b5563;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+`;
+
+const QrCodeWrapper = styled.div`
+  width: 56px;
+  height: 56px;
+  border-radius: 0.375rem;
+  overflow: hidden;
+  background: white;
+  padding: 3px;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
 `;
 
 const SectionLabel = styled.div`
@@ -280,12 +321,36 @@ const CopyButton = styled.button<{ $copied: boolean }>`
   }
 `;
 
+// ---- Ref handle (exposed to parent for programmatic capture) ----
+
+export interface ShareCardHandle {
+  /** Capture the share card to a PNG data URL (for social posting) */
+  captureToDataUrl: () => Promise<string>;
+}
+
 // ---- Component ----
 
-const ShareCard = (props: ShareCardProps) => {
+const ShareCard = forwardRef<ShareCardHandle, ShareCardProps>(function ShareCard(
+  props,
+  ref,
+) {
   const [copied, setCopied] = useState<Lang | null>(null);
   const [sharing, setSharing] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+
+  // Expose capture method to parent (for social posting)
+  useImperativeHandle(ref, () => ({
+    captureToDataUrl: async (): Promise<string> => {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(cardRef.current!, {
+        backgroundColor: "#0a0a0a",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      return canvas.toDataURL("image/png");
+    },
+  }));
 
   const handleCopy = async (lang: Lang) => {
     const caption = generateCaption(props, lang);
@@ -444,8 +509,24 @@ const ShareCard = (props: ShareCardProps) => {
           />
         )}
         <Watermark>
-          {props.barName && <span>{props.barName} · </span>}
-          <span>hoppr.fi</span>
+          <WatermarkText>
+            {props.barName && <span>{props.barName} · </span>}
+            <span>hoppr.fi</span>
+          </WatermarkText>
+          {props.contentId && (
+            <QrCodeWrapper>
+              <img
+                src={qrCodeUrl(
+                  buildConsumerUrl(
+                    props.contentType,
+                    props.contentId,
+                    props.consumerUrl,
+                  ),
+                )}
+                alt="Scan to view on Hoppr"
+              />
+            </QrCodeWrapper>
+          )}
         </Watermark>
       </CaptureFrame>
 
@@ -489,7 +570,7 @@ const ShareCard = (props: ShareCardProps) => {
       </Actions>
     </Wrapper>
   );
-};
+});
 
 export default ShareCard;
 export { generateCaption };

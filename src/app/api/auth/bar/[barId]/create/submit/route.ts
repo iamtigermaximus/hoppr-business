@@ -3,6 +3,7 @@ import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
+import { triggers } from "@/lib/notifications";
 
 // ---- Types ----
 
@@ -525,7 +526,21 @@ export async function POST(
       };
     }
 
-    // 8. Return success response
+    // 8. Fire push notification trigger (fire-and-forget — don't block response)
+    if (record?.id) {
+      const recordId = record.id as string;
+      if (body.contentType === "promotion") {
+        triggers.onPromoCreated(barId, recordId).catch((err) =>
+          console.error("[Push] onPromoCreated trigger failed:", err),
+        );
+      } else if (body.contentType === "event") {
+        triggers.onEventCreated(barId, recordId).catch((err) =>
+          console.error("[Push] onEventCreated trigger failed:", err),
+        );
+      }
+    }
+
+    // 9. Return success response
     return NextResponse.json({
       success: true,
       message: `${body.contentType.charAt(0).toUpperCase() + body.contentType.slice(1)} created successfully`,

@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/insights",
+      "schedule": "0 */3 * * *"
+    },
+    {
+      "path": "/api/cron/analytics-aggregation",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/retargeting",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/busyness-aggregation",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/scheduler",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}

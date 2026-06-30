@@ -504,6 +504,9 @@ const BarNavbar = ({ barName, barId, userRole }: BarNavbarProps) => {
     items: [
       { href: `/bar/${barId}/intelligence`, label: "Intelligence" },
       { href: `/bar/${barId}/analytics`, label: "Analytics" },
+      { href: `/bar/${barId}/benchmarks`, label: "Benchmarks" },
+      { href: `/bar/${barId}/roi`, label: "ROI" },
+      { href: `/bar/${barId}/notifications`, label: "Notifications" },
     ],
   };
 

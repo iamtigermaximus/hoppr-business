@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
 import { scanCompliance } from "@/lib/compliance-engine";
@@ -15,7 +15,8 @@ import ContentTypeTabs from "./ContentTypeTabs";
 import ContentCreationStepper from "./ContentCreationStepper";
 import UnifiedForm from "./UnifiedForm";
 import ConsumerPreviewPanel from "./ConsumerPreviewPanel";
-import ShareCard from "./ShareCard";
+import ShareCard, { generateCaption } from "./ShareCard";
+import type { ShareCardHandle } from "./ShareCard";
 import { bgForType, occasionForAudience, type ShareCategory, type ShareOccasion, type SvgBackground } from "./share-backgrounds";
 
 // ---- Styled Components ----
@@ -199,6 +200,94 @@ const ActionButton = styled.button<{ $variant: "primary" | "secondary" | "outlin
   }
 `;
 
+// ---- Social posting styled components ----
+
+const SocialPostSection = styled.div`
+  margin-top: 1rem;
+  padding: 1rem;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+`;
+
+const SocialPostLabel = styled.div`
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+  margin-bottom: 0.75rem;
+`;
+
+const SocialPostButtons = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+`;
+
+const SocialPostBtn = styled.button<{ $variant: "instagram" | "facebook" | "both" }>`
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  color: white;
+  transition: all 0.15s;
+  background: ${({ $variant }) =>
+    $variant === "instagram"
+      ? "linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)"
+      : $variant === "facebook"
+      ? "#1877f2"
+      : "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)"};
+
+  &:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const SocialConnectBtn = styled.button`
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px dashed #d1d5db;
+  background: #f9fafb;
+  color: #6b7280;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    background: #eff6ff;
+  }
+`;
+
+const SocialStatus = styled.div`
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-style: italic;
+`;
+
+const SocialResults = styled.div`
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+`;
+
+const SocialResultItem = styled.div<{ $success: boolean }>`
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: ${({ $success }) => ($success ? "#059669" : "#dc2626")};
+`;
+
 interface CreatedItem {
   id: string;
   type: string;
@@ -255,6 +344,115 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
+
+  // ---- Social posting (One-Tap Social Export) ----
+
+  const shareCardRef = useRef<ShareCardHandle>(null);
+  const [socialConnections, setSocialConnections] = useState<
+    Array<{ platform: string; igUsername?: string | null; pageName?: string | null; isActive: boolean }>
+  >([]);
+  const [socialPosting, setSocialPosting] = useState<string | null>(null);
+  const [socialResults, setSocialResults] = useState<
+    Array<{ platform: string; status: string; postUrl?: string; error?: string }> | null
+  >(null);
+
+  // Fetch social connections on mount
+  useEffect(() => {
+    if (!token || !barId) return;
+    fetch(`/api/auth/bar/${barId}/social/status`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.connections) setSocialConnections(data.connections);
+      })
+      .catch(() => {});
+  }, [token, barId]);
+
+  const handleConnectSocial = async (platform: "instagram" | "facebook") => {
+    if (!token) return;
+    try {
+      const res = await fetch(`/api/auth/bar/${barId}/social/connect`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ platform }),
+      });
+      const data = await res.json();
+      if (data.oauthUrl) {
+        window.location.href = data.oauthUrl;
+      }
+    } catch {
+      showToast("Failed to start connection. Try again.", "error");
+    }
+  };
+
+  const handleSocialPost = async (platforms: ("instagram" | "facebook")[]) => {
+    if (!token || !shareCardRef.current) return;
+    const platformLabel = platforms.join(" & ");
+    setSocialPosting(platformLabel);
+    setSocialResults(null);
+
+    try {
+      const dataUrl = await shareCardRef.current.captureToDataUrl();
+      const caption = generateCaption(
+        {
+          contentType: createdItem!.type as "event" | "promotion",
+          title: createdItem!.title,
+          description: formState.description,
+          barName,
+          barLogo: barLogoUrl,
+          date:
+            createdItem!.type === "promotion"
+              ? formState.startDate
+              : formState.startTime,
+          time:
+            createdItem!.type === "event" && formState.startTime
+              ? new Date(formState.startTime).toLocaleTimeString("fi-FI", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : undefined,
+          consumerUrl: process.env.NEXT_PUBLIC_CONSUMER_URL || "hoppr.fi",
+          discountValue: formState.discountValue,
+          promotionType: formState.promotionType,
+        },
+        "fi",
+      );
+
+      const res = await fetch(`/api/auth/bar/${barId}/social/post`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          imageDataUrl: dataUrl,
+          caption,
+          platforms,
+          contentType: createdItem!.type,
+          contentId: createdItem!.id,
+          contentTitle: createdItem!.title,
+        }),
+      });
+
+      const data = await res.json();
+      setSocialResults(data.results || []);
+    } catch {
+      showToast("Posting failed. Try downloading and posting manually.", "error");
+    } finally {
+      setSocialPosting(null);
+    }
+  };
+
+  const instagramConnected = socialConnections.some(
+    (c) => c.platform === "INSTAGRAM" && c.isActive,
+  );
+  const facebookConnected = socialConnections.some(
+    (c) => c.platform === "FACEBOOK" && c.isActive,
+  );
 
   const handleFieldChange = useCallback(
     (field: string, value: unknown) => {
@@ -554,6 +752,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
 
             return (
               <ShareCard
+                ref={shareCardRef}
                 contentType={createdItem.type as "event" | "promotion"}
                 title={createdItem.title}
                 description={formState.description}
@@ -561,6 +760,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                 barLogo={barLogoUrl}
                 barCoverImage={barCoverImage}
                 imageUrl={formState.imageUrl || barCoverImage}
+                contentId={createdItem.id}
                 svgBackground={svgBg}
                 category={category}
                 occasion={occasion}
@@ -592,6 +792,86 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
               />
             );
           })()}
+
+          {/* One-tap social posting buttons */}
+          {(createdItem.type === "event" || createdItem.type === "promotion") && (
+            <SocialPostSection>
+              <SocialPostLabel>📤 Post directly to</SocialPostLabel>
+              <SocialPostButtons>
+                {instagramConnected ? (
+                  <SocialPostBtn
+                    $variant="instagram"
+                    disabled={socialPosting !== null}
+                    onClick={() => handleSocialPost(["instagram"])}
+                  >
+                    {socialPosting === "instagram" ? "⏳ Posting..." : "📸 Instagram"}
+                  </SocialPostBtn>
+                ) : (
+                  <SocialConnectBtn
+                    onClick={() => handleConnectSocial("instagram")}
+                  >
+                    🔗 Connect Instagram
+                  </SocialConnectBtn>
+                )}
+
+                {facebookConnected ? (
+                  <SocialPostBtn
+                    $variant="facebook"
+                    disabled={socialPosting !== null}
+                    onClick={() => handleSocialPost(["facebook"])}
+                  >
+                    {socialPosting === "facebook" ? "⏳ Posting..." : "📘 Facebook"}
+                  </SocialPostBtn>
+                ) : (
+                  <SocialConnectBtn
+                    onClick={() => handleConnectSocial("facebook")}
+                  >
+                    🔗 Connect Facebook
+                  </SocialConnectBtn>
+                )}
+
+                {instagramConnected && facebookConnected && (
+                  <SocialPostBtn
+                    $variant="both"
+                    disabled={socialPosting !== null}
+                    onClick={() => handleSocialPost(["instagram", "facebook"])}
+                  >
+                    {socialPosting === "instagram & facebook"
+                      ? "⏳ Posting..."
+                      : "📸📘 Post to both"}
+                  </SocialPostBtn>
+                )}
+              </SocialPostButtons>
+
+              {socialPosting && (
+                <SocialStatus>
+                  Posting to {socialPosting}...
+                </SocialStatus>
+              )}
+
+              {socialResults && (
+                <SocialResults>
+                  {socialResults.map((r, i) => (
+                    <SocialResultItem key={i} $success={r.status === "published"}>
+                      {r.status === "published"
+                        ? `✅ ${r.platform}: Posted${r.postUrl ? ` — view post` : ""}`
+                        : `❌ ${r.platform}: ${r.error || "Failed"}`}
+                      {r.postUrl && r.status === "published" && (
+                        <a
+                          href={r.postUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ marginLeft: "0.5rem", color: "#3b82f6" }}
+                        >
+                          Open ↗
+                        </a>
+                      )}
+                    </SocialResultItem>
+                  ))}
+                </SocialResults>
+              )}
+            </SocialPostSection>
+          )}
         </div>
       ) : (
         /* ---- Creation Form ---- */
