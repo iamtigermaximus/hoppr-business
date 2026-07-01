@@ -207,26 +207,77 @@ export async function GET(
       );
     }
 
-    const staff = await prisma.barStaff.findMany({
-      where: { barId: barId },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        permissions: true,
-        isActive: true,
-        lastLogin: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Parse query params for search, filter, sort, and pagination
+    const { searchParams } = new URL(request.url);
+    const search = searchParams.get("search") || undefined;
+    const roleFilter = searchParams.get("role") as BarStaffRole | undefined;
+    const sortBy = (searchParams.get("sortBy") || "createdAt") as
+      | "name"
+      | "email"
+      | "role"
+      | "createdAt"
+      | "lastLogin";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") || "25")),
+    );
+    const skip = (page - 1) * limit;
+
+    // Build where clause — barId is always required, search + role are optional
+    const where: Record<string, unknown> = { barId };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
+      ];
+    }
+    if (
+      roleFilter &&
+      ["OWNER", "MANAGER", "PROMOTIONS_MANAGER", "STAFF", "VIEWER"].includes(
+        roleFilter,
+      )
+    ) {
+      where.role = roleFilter;
+    }
+
+    // Build orderBy — only allow sortable columns to avoid injection
+    const validSortColumns = ["name", "email", "role", "createdAt", "lastLogin"];
+    const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    const [staff, total] = await Promise.all([
+      prisma.barStaff.findMany({
+        where: where as any,
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          permissions: true,
+          isActive: true,
+          lastLogin: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+        orderBy: { [orderColumn]: orderDirection },
+        skip,
+        take: limit,
+      }),
+      prisma.barStaff.count({ where: where as any }),
+    ]);
 
     return NextResponse.json({
       staff,
       roles: ROLE_META,
       permissionDescriptions: PERMISSION_DESCRIPTIONS,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     console.error("Fetch bar staff error:", error);
@@ -266,13 +317,29 @@ export async function PUT(
       );
     }
 
-    const { staffId, name, role, isActive } = await request.json();
+    const { staffId, name, role, isActive, password } = await request.json();
 
     if (!staffId) {
       return NextResponse.json(
         { error: "Staff ID is required" },
         { status: 400 }
       );
+    }
+
+    // If a new password is provided, hash it and update the user record
+    if (password && typeof password === "string" && password.length >= 6) {
+      const barStaff = await prisma.barStaff.findUnique({
+        where: { id: staffId, barId },
+        select: { userId: true },
+      });
+
+      if (barStaff?.userId) {
+        const hashedPassword = await hashPassword(password);
+        await prisma.user.update({
+          where: { id: barStaff.userId },
+          data: { hashedPassword },
+        });
+      }
     }
 
     const staff = await prisma.barStaff.update({

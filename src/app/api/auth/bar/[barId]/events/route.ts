@@ -33,6 +33,18 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const filter = searchParams.get("filter") || "all"; // all | upcoming | past
+    const search = searchParams.get("search") || undefined;
+    const sortBy = (searchParams.get("sortBy") || "startTime") as
+      | "startTime"
+      | "title"
+      | "createdAt";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") || "25")),
+    );
+    const skip = (page - 1) * limit;
 
     const now = new Date();
     let whereCondition: Record<string, unknown> = { venueId: barId };
@@ -43,13 +55,31 @@ export async function GET(
       whereCondition = { venueId: barId, startTime: { lt: now } };
     }
 
-    const events = await prisma.event.findMany({
-      where: whereCondition,
-      orderBy: { startTime: "desc" },
-      include: {
-        _count: { select: { participants: true } },
-      },
-    });
+    // Search — match title OR description
+    if (search) {
+      whereCondition.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Sort — only allow known columns
+    const validSortColumns = ["startTime", "title", "createdAt"];
+    const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "startTime";
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    const [events, total] = await Promise.all([
+      prisma.event.findMany({
+        where: whereCondition as any,
+        orderBy: { [orderColumn]: orderDirection },
+        skip,
+        take: limit,
+        include: {
+          _count: { select: { participants: true } },
+        },
+      }),
+      prisma.event.count({ where: whereCondition as any }),
+    ]);
 
     const formatted = events.map((e) => ({
       id: e.id,
@@ -65,7 +95,16 @@ export async function GET(
       createdAt: e.createdAt.toISOString(),
     }));
 
-    return NextResponse.json({ success: true, events: formatted });
+    return NextResponse.json({
+      success: true,
+      events: formatted,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error("Fetch bar events error:", error);
     return NextResponse.json(

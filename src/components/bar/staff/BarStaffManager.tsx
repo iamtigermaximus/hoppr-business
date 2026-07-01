@@ -80,6 +80,239 @@ const CreateButton = styled.button`
   }
 `;
 
+const Toolbar = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+const SearchInput = styled.input`
+  flex: 1;
+  min-width: 200px;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  min-height: 44px;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const FilterSelect = styled.select`
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  background: white;
+  min-height: 44px;
+  min-width: 160px;
+
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+`;
+
+const SortButton = styled.button<{ $active: boolean }>`
+  padding: 0.5rem 0.75rem;
+  border: 1px solid ${({ $active }) => ($active ? "#3b82f6" : "#d1d5db")};
+  border-radius: 0.375rem;
+  background: ${({ $active }) => ($active ? "#eff6ff" : "white")};
+  color: ${({ $active }) => ($active ? "#2563eb" : "#6b7280")};
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 44px;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: #3b82f6;
+    color: #2563eb;
+  }
+`;
+
+const PaginationBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+`;
+
+const PageInfo = styled.span`
+  color: #6b7280;
+  font-size: 0.875rem;
+`;
+
+const PageButton = styled.button<{ $disabled?: boolean }>`
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  color: ${({ $disabled }) => ($disabled ? "#d1d5db" : "#374151")};
+  font-size: 0.875rem;
+  cursor: ${({ $disabled }) => ($disabled ? "default" : "pointer")};
+  min-height: 44px;
+
+  &:hover:not(:disabled) {
+    background: #f9fafb;
+  }
+
+  &:disabled {
+    cursor: default;
+    color: #d1d5db;
+  }
+`;
+
+const PageButtonGroup = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+`;
+
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+
+  @media (max-width: 480px) {
+    width: 100%;
+  }
+`;
+
+const EditButton = styled.button`
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  background: white;
+  color: #3b82f6;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 36px;
+
+  &:hover {
+    background: #eff6ff;
+  }
+`;
+
+const DeleteButton = styled.button`
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #ef4444;
+  border-radius: 0.375rem;
+  background: white;
+  color: #ef4444;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 36px;
+
+  &:hover {
+    background: #fef2f2;
+  }
+`;
+
+const CapabilitiesList = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.5rem;
+`;
+
+const CapabilityChip = styled.span`
+  background: #f0fdf4;
+  color: #166534;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+`;
+
+const ConfirmOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  padding: 1rem;
+`;
+
+const ConfirmBox = styled.div`
+  background: white;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+`;
+
+const ConfirmText = styled.p`
+  color: #374151;
+  font-size: 0.938rem;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+`;
+
+const ConfirmButtons = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+`;
+
+const ConfirmDeleteButton = styled.button`
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: #ef4444;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  min-height: 44px;
+
+  &:hover {
+    background: #dc2626;
+  }
+`;
+
+const ConfirmCancelButton = styled.button`
+  padding: 0.625rem 1.25rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  min-height: 44px;
+
+  &:hover {
+    background: #f9fafb;
+  }
+`;
+
 const StaffGrid = styled.div`
   display: grid;
   gap: 1.5rem;
@@ -404,9 +637,25 @@ export interface CreateStaffFormData {
   password: string;
 }
 
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
+export interface RoleMeta {
+  label: string;
+  description: string;
+  capabilities: string[];
+}
+
 export interface ApiResponse {
   success?: boolean;
   staff?: BarStaff[];
+  roles?: Record<string, RoleMeta>;
+  permissionDescriptions?: Record<string, string>;
+  pagination?: PaginationMeta;
   error?: string;
 }
 
@@ -417,8 +666,12 @@ export interface BarStaffManagerProps {
 
 const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
   const [staff, setStaff] = useState<BarStaff[]>([]);
+  const [roleMeta, setRoleMeta] = useState<Record<string, RoleMeta>>({});
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<BarStaff | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [formData, setFormData] = useState<CreateStaffFormData>({
     name: "",
     email: "",
@@ -426,23 +679,52 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
     password: "",
   });
 
+  // Search / filter / sort / pagination state
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    limit: 12,
+    total: 0,
+    pages: 0,
+  });
+
   useEffect(() => {
     fetchBarStaff();
-  }, [barId]);
+  }, [barId, search, roleFilter, sortBy, sortOrder, page]);
 
   const fetchBarStaff = async (): Promise<void> => {
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/auth/bar/${barId}/staff`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
+      const params = new URLSearchParams();
+      if (search) params.set("search", search);
+      if (roleFilter) params.set("role", roleFilter);
+      if (sortBy) params.set("sortBy", sortBy);
+      if (sortOrder) params.set("sortOrder", sortOrder);
+      params.set("page", String(page));
+      params.set("limit", "12");
+
+      const query = params.toString();
+      const response = await fetch(
+        `/api/auth/bar/${barId}/staff${query ? `?${query}` : ""}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
         },
-      });
+      );
 
       if (response.ok) {
         const data: ApiResponse = await response.json();
         if (data.staff) {
           setStaff(data.staff);
+        }
+        if (data.roles) {
+          setRoleMeta(data.roles);
+        }
+        if (data.pagination) {
+          setPagination(data.pagination);
         }
       } else {
         console.error("Failed to fetch staff");
@@ -452,26 +734,52 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
     }
   };
 
-  const handleCreateStaff = async (e: React.FormEvent): Promise<void> => {
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
     setLoading(true);
 
     try {
       const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/auth/bar/${barId}/staff`, {
-        method: "POST",
+      const isEdit = !!editingStaffId;
+      const url = `/api/auth/bar/${barId}/staff${isEdit ? "" : ""}`;
+      const method = isEdit ? "PUT" : "POST";
+
+      const body = isEdit
+        ? {
+            staffId: editingStaffId,
+            name: formData.name,
+            role: formData.role,
+            ...(formData.password && { password: formData.password }),
+          }
+        : {
+            name: formData.name,
+            email: formData.email,
+            role: formData.role,
+            password: formData.password,
+          };
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(body),
       });
 
       const responseData: ApiResponse = await response.json();
 
       if (response.ok) {
-        console.log("✅ Staff created successfully!");
+        const roleLabel =
+          roleMeta[formData.role]?.label ?? formData.role.replace(/_/g, " ");
+        const passwordWasReset = isEdit && formData.password;
+        setSuccessMessage(
+          isEdit
+            ? `${formData.name}'s role updated to ${roleLabel}.${passwordWasReset ? `\n\nNew password set: ${formData.password}` : ""}`
+            : `${formData.name} added as ${roleLabel}.\n\nLogin: ${formData.email}\nPassword: ${formData.password}\n\nThey can sign in at the bar login portal with these credentials.\n\nCapabilities: ${roleMeta[formData.role]?.capabilities.join(", ")}.`,
+        );
         setIsModalOpen(false);
+        setEditingStaffId(null);
         setFormData({
           name: "",
           email: "",
@@ -479,15 +787,70 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
           password: "",
         });
         fetchBarStaff();
+        // Clear success message after 6 seconds
+        setTimeout(() => setSuccessMessage(null), 6000);
       } else {
         alert(`Failed: ${responseData.error}`);
       }
     } catch (error) {
-      console.error("Failed to create staff:", error);
-      alert("Failed to create staff member");
+      console.error("Failed to save staff:", error);
+      alert("Failed to save staff member");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteStaff = async (): Promise<void> => {
+    if (!deleteConfirm) return;
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      const response = await fetch(
+        `/api/auth/bar/${barId}/staff?staffId=${deleteConfirm.id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (response.ok) {
+        setSuccessMessage(`${deleteConfirm.name} has been removed.`);
+        setDeleteConfirm(null);
+        fetchBarStaff();
+        setTimeout(() => setSuccessMessage(null), 6000);
+      } else {
+        const data = await response.json();
+        alert(`Failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Failed to delete staff:", error);
+      alert("Failed to delete staff member");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const openEditModal = (staffMember: BarStaff) => {
+    setEditingStaffId(staffMember.id);
+    setFormData({
+      name: staffMember.name,
+      email: staffMember.email,
+      role: staffMember.role,
+      password: "",
+    });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingStaffId(null);
+    setFormData({
+      name: "",
+      email: "",
+      role: "STAFF",
+      password: "",
+    });
   };
 
   const handleInputChange = (
@@ -501,11 +864,29 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
   };
 
   const formatRoleName = (role: BarStaffRole): string => {
-    return role.replace("_", " ");
+    return roleMeta[role]?.label ?? role.replace(/_/g, " ");
   };
 
   return (
     <Container>
+      {successMessage && (
+        <div
+          style={{
+            background: "#f0fdf4",
+            border: "1px solid #bbf7d0",
+            color: "#166534",
+            padding: "1rem",
+            borderRadius: "0.5rem",
+            fontSize: "0.875rem",
+            marginBottom: "1rem",
+            whiteSpace: "pre-line",
+            lineHeight: 1.6,
+          }}
+        >
+          {successMessage}
+        </div>
+      )}
+
       <Header>
         <Title>Bar Staff Management</Title>
         <CreateButton onClick={() => setIsModalOpen(true)}>
@@ -513,36 +894,157 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
         </CreateButton>
       </Header>
 
+      <Toolbar>
+        <SearchInput
+          type="text"
+          placeholder="Search by name or email..."
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+        />
+        <FilterSelect
+          value={roleFilter}
+          onChange={(e) => {
+            setRoleFilter(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">All roles</option>
+          <option value="OWNER">Owner</option>
+          <option value="MANAGER">Manager</option>
+          <option value="PROMOTIONS_MANAGER">Promotions Manager</option>
+          <option value="STAFF">Staff</option>
+          <option value="VIEWER">Viewer</option>
+        </FilterSelect>
+        <SortButton
+          $active={sortBy === "createdAt"}
+          onClick={() => {
+            setSortBy("createdAt");
+            setSortOrder(sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+        >
+          Date {sortBy === "createdAt" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </SortButton>
+        <SortButton
+          $active={sortBy === "name"}
+          onClick={() => {
+            setSortBy("name");
+            setSortOrder(sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+        >
+          Name {sortBy === "name" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </SortButton>
+      </Toolbar>
+
       <StaffGrid>
-        {staff.map((staffMember) => (
-          <StaffCard key={staffMember.id}>
-            <StaffInfo>
-              <StaffName>{staffMember.name}</StaffName>
-              <StaffEmail>{staffMember.email}</StaffEmail>
-              <RoleBadge>{formatRoleName(staffMember.role)}</RoleBadge>
-              <StatusBadge $isActive={staffMember.isActive}>
-                {staffMember.isActive ? "Active" : "Inactive"}
-              </StatusBadge>
-            </StaffInfo>
-            <StaffMeta>
-              {staffMember.lastLogin ? (
-                <LastLogin>
-                  Last login:{" "}
-                  {new Date(staffMember.lastLogin).toLocaleDateString()}
-                </LastLogin>
-              ) : (
-                <NeverLoggedIn>Never logged in</NeverLoggedIn>
-              )}
-            </StaffMeta>
-          </StaffCard>
-        ))}
+        {staff.length === 0 ? (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "3rem 1rem",
+              color: "#9ca3af",
+              fontSize: "0.875rem",
+            }}
+          >
+            {search || roleFilter
+              ? "No staff match your filters."
+              : "No staff members yet. Create your first staff account above."}
+          </div>
+        ) : (
+          staff.map((staffMember) => {
+            const isOwner = user.role === "OWNER";
+            const isManager = user.role === "MANAGER";
+            const canManage = isOwner || isManager;
+            const capabilities =
+              roleMeta[staffMember.role]?.capabilities ?? [];
+
+            return (
+              <StaffCard key={staffMember.id}>
+                <StaffInfo>
+                  <StaffName>{staffMember.name}</StaffName>
+                  <StaffEmail>{staffMember.email}</StaffEmail>
+                  <RoleBadge title={roleMeta[staffMember.role]?.description}>
+                    {formatRoleName(staffMember.role)}
+                  </RoleBadge>
+                  <StatusBadge $isActive={staffMember.isActive}>
+                    {staffMember.isActive ? "Active" : "Inactive"}
+                  </StatusBadge>
+                  {capabilities.length > 0 && (
+                    <CapabilitiesList>
+                      {capabilities.map((cap) => (
+                        <CapabilityChip key={cap}>{cap}</CapabilityChip>
+                      ))}
+                    </CapabilitiesList>
+                  )}
+                  {canManage && (
+                    <ActionButtons>
+                      <EditButton
+                        onClick={() => openEditModal(staffMember)}
+                      >
+                        Edit
+                      </EditButton>
+                      <DeleteButton
+                        onClick={() => setDeleteConfirm(staffMember)}
+                      >
+                        Remove
+                      </DeleteButton>
+                    </ActionButtons>
+                  )}
+                </StaffInfo>
+                <StaffMeta>
+                  {staffMember.lastLogin ? (
+                    <LastLogin>
+                      Last login:{" "}
+                      {new Date(staffMember.lastLogin).toLocaleDateString()}
+                    </LastLogin>
+                  ) : (
+                    <NeverLoggedIn>Never logged in</NeverLoggedIn>
+                  )}
+                </StaffMeta>
+              </StaffCard>
+            );
+          })
+        )}
       </StaffGrid>
+
+      {pagination.total > 0 && (
+        <PaginationBar>
+          <PageInfo>
+            Showing {(pagination.page - 1) * pagination.limit + 1}–
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+            {pagination.total} staff
+          </PageInfo>
+          <PageButtonGroup>
+            <PageButton
+              disabled={pagination.page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              Previous
+            </PageButton>
+            <PageInfo>
+              Page {pagination.page} of {pagination.pages || 1}
+            </PageInfo>
+            <PageButton
+              disabled={pagination.page >= pagination.pages}
+              onClick={() => setPage((p) => Math.min(pagination.pages, p + 1))}
+            >
+              Next
+            </PageButton>
+          </PageButtonGroup>
+        </PaginationBar>
+      )}
 
       <Modal $isOpen={isModalOpen}>
         <ModalContent>
-          <ModalTitle>Create Staff Account</ModalTitle>
+          <ModalTitle>
+            {editingStaffId ? "Edit Staff Member" : "Create Staff Account"}
+          </ModalTitle>
 
-          <Form onSubmit={handleCreateStaff}>
+          <Form onSubmit={handleSubmit}>
             <InputGroup>
               <Label htmlFor="name">Full Name</Label>
               <Input
@@ -556,21 +1058,38 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
               />
             </InputGroup>
 
-            <InputGroup>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                required
-                placeholder="staff@yourbar.com"
-                disabled={loading}
-              />
-            </InputGroup>
+            {!editingStaffId && (
+              <InputGroup>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange("email", e.target.value)}
+                  required
+                  placeholder="staff@yourbar.com"
+                  disabled={loading}
+                />
+              </InputGroup>
+            )}
 
             <InputGroup>
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role">
+                Role
+                {formData.role &&
+                  roleMeta[formData.role]?.description && (
+                    <span
+                      style={{
+                        fontWeight: 400,
+                        color: "#6b7280",
+                        fontSize: "0.75rem",
+                        marginLeft: "0.5rem",
+                      }}
+                    >
+                      — {roleMeta[formData.role].description}
+                    </span>
+                  )}
+              </Label>
               <Select
                 id="role"
                 value={formData.role}
@@ -580,43 +1099,102 @@ const BarStaffManager = ({ user, barId }: BarStaffManagerProps) => {
                 required
                 disabled={loading}
               >
-                <option value="MANAGER">Manager</option>
-                <option value="PROMOTIONS_MANAGER">Promotions Manager</option>
-                <option value="STAFF">Staff (Door/Scanner)</option>
-                <option value="VIEWER">Viewer (Read-only)</option>
+                {user.role === "OWNER" && (
+                  <option value="OWNER">Owner — Full control</option>
+                )}
+                <option value="MANAGER">Manager — Day-to-day operations</option>
+                <option value="PROMOTIONS_MANAGER">
+                  Promotions Manager — Marketing only
+                </option>
+                <option value="STAFF">Staff — Door/Scanner</option>
+                <option value="VIEWER">Viewer — Read-only</option>
               </Select>
             </InputGroup>
 
-            <InputGroup>
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => handleInputChange("password", e.target.value)}
-                required
-                minLength={6}
-                placeholder="Set initial password"
-                disabled={loading}
-              />
-            </InputGroup>
+            {!editingStaffId && (
+              <InputGroup>
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    handleInputChange("password", e.target.value)
+                  }
+                  required
+                  minLength={6}
+                  placeholder="Set initial password"
+                  disabled={loading}
+                />
+              </InputGroup>
+            )}
+
+            {editingStaffId && (
+              <InputGroup>
+                <Label htmlFor="password">
+                  Reset Password{" "}
+                  <span style={{ fontWeight: 400, color: "#9ca3af" }}>
+                    (leave blank to keep current)
+                  </span>
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) =>
+                    handleInputChange("password", e.target.value)
+                  }
+                  minLength={6}
+                  placeholder="Enter new password to reset"
+                  disabled={loading}
+                />
+              </InputGroup>
+            )}
 
             <ButtonGroup>
               <Button
                 type="button"
                 $variant="secondary"
-                onClick={() => setIsModalOpen(false)}
+                onClick={closeModal}
                 disabled={loading}
               >
                 Cancel
               </Button>
               <Button type="submit" $variant="primary" disabled={loading}>
-                {loading ? "Creating..." : "Create Staff Account"}
+                {loading
+                  ? editingStaffId
+                    ? "Saving..."
+                    : "Creating..."
+                  : editingStaffId
+                    ? "Save Changes"
+                    : "Create Staff Account"}
               </Button>
             </ButtonGroup>
           </Form>
         </ModalContent>
       </Modal>
+
+      {deleteConfirm && (
+        <ConfirmOverlay onClick={() => setDeleteConfirm(null)}>
+          <ConfirmBox onClick={(e) => e.stopPropagation()}>
+            <ConfirmText>
+              Remove <strong>{deleteConfirm.name}</strong> (
+              {deleteConfirm.email}) from this bar? This action cannot be undone.
+            </ConfirmText>
+            <ConfirmButtons>
+              <ConfirmCancelButton onClick={() => setDeleteConfirm(null)}>
+                Cancel
+              </ConfirmCancelButton>
+              <ConfirmDeleteButton
+                onClick={handleDeleteStaff}
+                disabled={loading}
+              >
+                {loading ? "Removing..." : "Yes, Remove"}
+              </ConfirmDeleteButton>
+            </ConfirmButtons>
+          </ConfirmBox>
+        </ConfirmOverlay>
+      )}
     </Container>
   );
 };

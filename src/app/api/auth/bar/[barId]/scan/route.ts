@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
+import { track, activateUserIfNeeded } from "@/lib/analytics-tracker";
 
 // ---- POST ----
 
@@ -239,6 +240,20 @@ async function handleVipPassScan(
     },
   });
 
+  // Analytics: pass scan event + consumer activation check
+  track({
+    type: "PASS_SCAN",
+    userId: userPass.user.id,
+    barId,
+    data: {
+      passId: userPass.vipPass.id,
+      passName: userPass.vipPass.name,
+      purchaseId,
+      activatesUser: true,
+    },
+  });
+  activateUserIfNeeded(userPass.user.id);
+
   // Calculate remaining uses
   const remainingUses = mode === "LIMITED_MULTI" && maxRedemptions
     ? maxRedemptions - newScans
@@ -331,6 +346,22 @@ async function handlePromotionScan(
       where: { id: promotion.id },
       data: { redemptions: { increment: 1 } },
     });
+
+    // Analytics: promo redemption event — activates both consumer and signals bar-owner value
+    if (payload.customer?.id) {
+      track({
+        type: "PROMO_REDEMPTION",
+        userId: payload.customer.id,
+        barId,
+        data: {
+          promotionId: promotion.id,
+          promotionTitle: promotion.title,
+          activatesUser: true,
+        },
+      });
+      // Consumer activation: first promo/pass redemption = activated
+      activateUserIfNeeded(payload.customer.id);
+    }
 
     promotionResult = {
       id: promotion.id,

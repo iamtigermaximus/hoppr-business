@@ -1,7 +1,7 @@
 "use client";
 
 import AIPromotionGenerator from "@/components/promotions/AIPromotionGenerator";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
 import ComplianceIndicator from "@/components/shared/ComplianceIndicator";
 
@@ -942,6 +942,13 @@ const PromotionsWizard = ({
   const [promotions, setPromotions] = useState<ExistingPromotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 0 });
+  const [tabCounts, setTabCounts] = useState<Record<string, number>>({ all: 0, pending: 0, active: 0, expired: 0 });
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
     type: "delete",
@@ -976,25 +983,53 @@ const PromotionsWizard = ({
     userRole,
   );
 
-  // Fetch existing promotions on load
-  useEffect(() => {
-    fetchPromotions();
+  // Fetch tab counts on mount (lightweight: limit=1 per status)
+  const fetchTabCounts = useCallback(async () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+    if (!token) return;
+    const statuses = ["all", "pending", "active", "expired"] as const;
+    try {
+      const results = await Promise.all(
+        statuses.map(async (s) => {
+          const res = await fetch(
+            `/api/auth/bar/${barId}/promotions?status=${s}&limit=1`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!res.ok) return { status: s, count: 0 };
+          const data = await res.json();
+          return { status: s, count: data.pagination?.total || 0 };
+        }),
+      );
+      const counts: Record<string, number> = { all: 0, pending: 0, active: 0, expired: 0 };
+      results.forEach((r) => { counts[r.status] = r.count; });
+      setTabCounts(counts);
+    } catch {
+      // counts stay at 0 on error — non-critical
+    }
   }, [barId]);
 
-  const fetchPromotions = async () => {
+  // Fetch promotions with full params for the active tab
+  const fetchPromotions = useCallback(async () => {
     setLoading(true);
+    const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+
     try {
-      const token = localStorage.getItem("hoppr_token");
-      if (!token) {
-        setLoading(false);
-        return;
-      }
+      const params = new URLSearchParams();
+      params.set("status", activeTab);
+      if (search) params.set("search", search);
+      if (typeFilter) params.set("type", typeFilter);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      params.set("page", String(page));
+      params.set("limit", "12");
 
       const response = await fetch(
-        `/api/auth/bar/${barId}/promotions?status=all`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
+        `/api/auth/bar/${barId}/promotions?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       if (response.ok) {
@@ -1002,13 +1037,24 @@ const PromotionsWizard = ({
         if (data.success && data.promotions) {
           setPromotions(data.promotions);
         }
+        if (data.pagination) setPagination(data.pagination);
       }
     } catch (error) {
       console.error("Failed to fetch promotions:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [barId, activeTab, search, typeFilter, sortBy, sortOrder, page]);
+
+  // Fetch on mount + tab/param change
+  useEffect(() => {
+    fetchPromotions();
+  }, [fetchPromotions]);
+
+  // Fetch tab counts on mount
+  useEffect(() => {
+    fetchTabCounts();
+  }, [fetchTabCounts]);
 
   const handleApprovePromotion = async (promotionId: string) => {
     closeModal();
@@ -1238,29 +1284,27 @@ const PromotionsWizard = ({
       .replace(/\b\w/g, (l) => l.toUpperCase());
   };
 
-  // Filter promotions based on active tab
-  const getFilteredPromotions = () => {
-    if (activeTab === "all") return promotions;
-    return promotions.filter((p) => getPromotionStatus(p) === activeTab);
-  };
-
-  // Get counts for tabs
-  const getTabCounts = () => {
-    const counts = {
-      all: promotions.length,
-      pending: promotions.filter((p) => getPromotionStatus(p) === "pending")
-        .length,
-      active: promotions.filter((p) => getPromotionStatus(p) === "active")
-        .length,
-      expired: promotions.filter((p) => getPromotionStatus(p) === "expired")
-        .length,
-    };
-    return counts;
-  };
-
-  const counts = getTabCounts();
-
-  // Render Modal
+  // Render Tabs
+  const renderTabs = () => (
+    <TabsContainer>
+      <Tab $active={activeTab === "all"} onClick={() => { setActiveTab("all"); setPage(1); }}>
+        All
+        <TabCount $color="gray">{tabCounts.all}</TabCount>
+      </Tab>
+      <Tab $active={activeTab === "pending"} onClick={() => { setActiveTab("pending"); setPage(1); }}>
+        Pending
+        <TabCount $color="orange">{tabCounts.pending}</TabCount>
+      </Tab>
+      <Tab $active={activeTab === "active"} onClick={() => { setActiveTab("active"); setPage(1); }}>
+        Active
+        <TabCount $color="green">{tabCounts.active}</TabCount>
+      </Tab>
+      <Tab $active={activeTab === "expired"} onClick={() => { setActiveTab("expired"); setPage(1); }}>
+        Expired
+        <TabCount $color="red">{tabCounts.expired}</TabCount>
+      </Tab>
+    </TabsContainer>
+  );
   const renderModal = () => {
     const isDelete = modal.type === "delete";
 
@@ -1306,57 +1350,93 @@ const PromotionsWizard = ({
     );
   };
 
-  // Render Tabs
-  const renderTabs = () => (
-    <TabsContainer>
-      <Tab $active={activeTab === "all"} onClick={() => setActiveTab("all")}>
-        All
-        <TabCount $color="gray">{counts.all}</TabCount>
-      </Tab>
-      <Tab
-        $active={activeTab === "pending"}
-        onClick={() => setActiveTab("pending")}
-      >
-        ⏳ Pending
-        <TabCount $color="orange">{counts.pending}</TabCount>
-      </Tab>
-      <Tab
-        $active={activeTab === "active"}
-        onClick={() => setActiveTab("active")}
-      >
-        ✓ Active
-        <TabCount $color="green">{counts.active}</TabCount>
-      </Tab>
-      <Tab
-        $active={activeTab === "expired"}
-        onClick={() => setActiveTab("expired")}
-      >
-        📅 Expired
-        <TabCount $color="red">{counts.expired}</TabCount>
-      </Tab>
-    </TabsContainer>
-  );
-
   // Render existing promotions list
   const renderPromotionsList = () => {
-    if (loading) {
-      return (
-        <PromotionsSection>
-          <SectionTitle>Your Promotions</SectionTitle>
-          {renderTabs()}
-          <LoadingSpinner>Loading your promotions...</LoadingSpinner>
-        </PromotionsSection>
-      );
-    }
-
-    const filteredPromotions = getFilteredPromotions();
-
     return (
       <PromotionsSection>
         <SectionTitle>Your Promotions</SectionTitle>
         {renderTabs()}
 
-        {filteredPromotions.length === 0 ? (
+        {/* Toolbar: search + type filter + sort */}
+        <div
+          style={{
+            display: "flex",
+            gap: "0.5rem",
+            marginBottom: "1rem",
+            flexWrap: "wrap",
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Search promotions..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            style={{
+              flex: 1,
+              minWidth: "200px",
+              padding: "0.5rem 0.75rem",
+              border: "1px solid #d1d5db",
+              borderRadius: "0.375rem",
+              fontSize: "0.8125rem",
+            }}
+          />
+          <select
+            value={typeFilter}
+            onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+            style={{
+              padding: "0.5rem 0.75rem",
+              border: "1px solid #d1d5db",
+              borderRadius: "0.375rem",
+              fontSize: "0.8125rem",
+              background: "white",
+            }}
+          >
+            <option value="">All Types</option>
+            {["HAPPY_HOUR", "DRINK_SPECIAL", "FOOD_SPECIAL", "LADIES_NIGHT", "THEME_NIGHT", "VIP_OFFER", "COVER_DISCOUNT", "STUDENT_DISCOUNT"].map((t) => (
+              <option key={t} value={t}>{t.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase())}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              setSortBy("title");
+              setSortOrder(sortBy === "title" && sortOrder === "asc" ? "desc" : "asc");
+              setPage(1);
+            }}
+            style={{
+              padding: "0.5rem 0.75rem",
+              border: `1px solid ${sortBy === "title" ? "#3b82f6" : "#d1d5db"}`,
+              borderRadius: "0.375rem",
+              background: sortBy === "title" ? "#eff6ff" : "white",
+              color: sortBy === "title" ? "#1d4ed8" : "#6b7280",
+              fontSize: "0.75rem",
+              cursor: "pointer",
+            }}
+          >
+            Name {sortBy === "title" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
+          </button>
+          <button
+            onClick={() => {
+              setSortBy("createdAt");
+              setSortOrder(sortBy === "createdAt" && sortOrder === "desc" ? "asc" : "desc");
+              setPage(1);
+            }}
+            style={{
+              padding: "0.5rem 0.75rem",
+              border: `1px solid ${sortBy === "createdAt" ? "#3b82f6" : "#d1d5db"}`,
+              borderRadius: "0.375rem",
+              background: sortBy === "createdAt" ? "#eff6ff" : "white",
+              color: sortBy === "createdAt" ? "#1d4ed8" : "#6b7280",
+              fontSize: "0.75rem",
+              cursor: "pointer",
+            }}
+          >
+            Date {sortBy === "createdAt" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
+          </button>
+        </div>
+
+        {loading ? (
+          <LoadingSpinner>Loading your promotions...</LoadingSpinner>
+        ) : promotions.length === 0 ? (
           <EmptyState>
             <EmptyStateIcon>
               {activeTab === "pending" && "⏳"}
@@ -1376,7 +1456,7 @@ const PromotionsWizard = ({
           </EmptyState>
         ) : (
           <PromotionsGrid>
-            {filteredPromotions.map((promo) => {
+            {promotions.map((promo) => {
               const status = getPromotionStatus(promo);
               return (
                 <PromotionCard key={promo.id} $status={status}>
@@ -1454,6 +1534,57 @@ const PromotionsWizard = ({
               );
             })}
           </PromotionsGrid>
+        )}
+
+        {/* Pagination */}
+        {pagination.pages > 1 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "1rem",
+              fontSize: "0.8125rem",
+              color: "#6b7280",
+            }}
+          >
+            <span>
+              Showing {(pagination.page - 1) * pagination.limit + 1}
+              &ndash;
+              {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+              {pagination.total} promotions
+            </span>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage(page - 1)}
+                style={{
+                  padding: "0.375rem 0.75rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  background: "white",
+                  cursor: page <= 1 ? "not-allowed" : "pointer",
+                  opacity: page <= 1 ? 0.5 : 1,
+                }}
+              >
+                Previous
+              </button>
+              <button
+                disabled={page >= pagination.pages}
+                onClick={() => setPage(page + 1)}
+                style={{
+                  padding: "0.375rem 0.75rem",
+                  border: "1px solid #d1d5db",
+                  borderRadius: "0.375rem",
+                  background: "white",
+                  cursor: page >= pagination.pages ? "not-allowed" : "pointer",
+                  opacity: page >= pagination.pages ? 0.5 : 1,
+                }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         )}
       </PromotionsSection>
     );

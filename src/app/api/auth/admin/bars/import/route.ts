@@ -22,6 +22,38 @@ const prisma = new PrismaClient();
 
 // ---- CSV Parsing Helpers ----
 
+/**
+ * Strip UTF-8 BOM (Byte Order Mark) from file content.
+ * Excel adds ﻿ at the start of UTF-8 CSV exports, which corrupts
+ * the first column name (e.g., "name" becomes "﻿name").
+ */
+function stripBOM(content: string): string {
+  if (content.charCodeAt(0) === 0xfeff) {
+    return content.slice(1);
+  }
+  return content;
+}
+
+/**
+ * Detect whether the CSV uses commas or semicolons as delimiters.
+ * Finnish Excel exports use semicolons because comma is the decimal
+ * separator in the Finnish locale (e.g., "5,50 €").
+ *
+ * Strategy: count occurrences of each delimiter in the header row.
+ * The one that appears more often wins. Falls back to comma on a tie.
+ */
+function detectDelimiter(headerLine: string): string {
+  const commas = (headerLine.match(/,/g) || []).length;
+  const semicolons = (headerLine.match(/;/g) || []).length;
+  return semicolons > commas ? ";" : ",";
+}
+
+/**
+ * Required columns for bar import. Missing any of these produces a clear
+ * error before processing any rows, saving the user from a batch failure.
+ */
+const REQUIRED_COLUMNS = ["name", "address", "city"];
+
 function parseOperatingHours(hoursStr: string) {
   const defaultHours = { open: "Closed", close: "Closed" };
   const operatingHours = {
@@ -186,9 +218,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
     }
 
-    const fileContent = await file.text();
+    const rawContent = await file.text();
+    const fileContent = stripBOM(rawContent);
+    const delimiter = detectDelimiter(fileContent.split("\\n")[0] || "");
+
     const lines = fileContent.split("\\n");
-    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const headers = lines[0]
+      .split(delimiter)
+      .map((h) => h.trim().toLowerCase().replace(/^["']|["']$/g, ""));
+
+    // Validate required columns exist before processing any rows.
+    // This saves the user from a batch failure — they get a clear error
+    // listing what's missing and what was detected, so they can fix their CSV.
+    const missingRequired = REQUIRED_COLUMNS.filter(
+      (col) => !headers.includes(col),
+    );
+    if (missingRequired.length > 0) {
+      return NextResponse.json(
+        {
+          error: `Missing required columns: ${missingRequired.join(", ")}. Detected columns: ${headers.join(", ")}. The CSV appears to use "${delimiter}" as delimiter.${delimiter === ";" ? " This looks like a Finnish Excel export (semicolon-delimited)." : ""}`,
+        },
+        { status: 400 },
+      );
+    }
 
     const nameIndex = headers.indexOf("name");
     const typeIndex = headers.indexOf("type");
@@ -239,7 +291,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           const char = line[j];
           if (char === '"') {
             inQuotes = !inQuotes;
-          } else if (char === "," && !inQuotes) {
+          } else if (char === delimiter && !inQuotes) {
             values.push(current.trim());
             current = "";
           } else {

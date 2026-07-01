@@ -373,6 +373,36 @@ const ErrorBox = styled.div`
   margin-bottom: 1rem;
 `;
 
+// Pagination
+const PaginationBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  font-size: 0.8125rem;
+  color: #6b7280;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+`;
+
+const PageButton = styled.button<{ $disabled: boolean }>`
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+  font-size: 0.8125rem;
+  cursor: ${({ $disabled }) => ($disabled ? "not-allowed" : "pointer")};
+  opacity: ${({ $disabled }) => ($disabled ? 0.5 : 1)};
+  transition: all 0.15s;
+
+  &:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+`;
+
 // ---- Types ----
 
 interface EventItem {
@@ -451,6 +481,11 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "upcoming" | "past">("upcoming");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<string>("startTime");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 0 });
 
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -482,20 +517,30 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/auth/bar/${barId}/events?filter=${filter}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const params = new URLSearchParams();
+      params.set("filter", filter);
+      if (search) params.set("search", search);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      params.set("page", String(page));
+      params.set("limit", "12");
+
+      const res = await fetch(
+        `/api/auth/bar/${barId}/events?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
 
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
 
       const data = await res.json();
       setEvents(data.events || []);
+      if (data.pagination) setPagination(data.pagination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load events");
     } finally {
       setLoading(false);
     }
-  }, [barId, filter, token]);
+  }, [barId, filter, search, sortBy, sortOrder, page, token]);
 
   useEffect(() => {
     fetchEvents();
@@ -664,11 +709,75 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
 
       <FilterTabs>
         {(["upcoming", "past", "all"] as const).map((f) => (
-          <FilterTab key={f} $active={filter === f} onClick={() => setFilter(f)}>
+          <FilterTab
+            key={f}
+            $active={filter === f}
+            onClick={() => { setFilter(f); setPage(1); }}
+          >
             {f === "upcoming" ? "Upcoming" : f === "past" ? "Past" : "All Events"}
           </FilterTab>
         ))}
       </FilterTabs>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          marginBottom: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search events..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{
+            flex: 1,
+            minWidth: "180px",
+            padding: "0.5rem 0.75rem",
+            border: "1px solid #d1d5db",
+            borderRadius: "0.375rem",
+            fontSize: "0.8125rem",
+          }}
+        />
+        <button
+          onClick={() => {
+            setSortBy("startTime");
+            setSortOrder(sortBy === "startTime" && sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: `1px solid ${sortBy === "startTime" ? "#7c3aed" : "#d1d5db"}`,
+            borderRadius: "0.375rem",
+            background: sortBy === "startTime" ? "#f5f3ff" : "white",
+            color: sortBy === "startTime" ? "#7c3aed" : "#6b7280",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          Date {sortBy === "startTime" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+        <button
+          onClick={() => {
+            setSortBy("title");
+            setSortOrder(sortBy === "title" && sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: `1px solid ${sortBy === "title" ? "#7c3aed" : "#d1d5db"}`,
+            borderRadius: "0.375rem",
+            background: sortBy === "title" ? "#f5f3ff" : "white",
+            color: sortBy === "title" ? "#7c3aed" : "#6b7280",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          Name {sortBy === "title" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+      </div>
 
       {error && (
         <ErrorBox>
@@ -746,6 +855,34 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
             </EventCard>
           ))}
         </EventGrid>
+      )}
+
+      {/* Pagination */}
+      {pagination.pages > 1 && (
+        <PaginationBar>
+          <span>
+            Showing {(pagination.page - 1) * pagination.limit + 1}
+            &ndash;
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+            {pagination.total} events
+          </span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <PageButton
+              $disabled={page <= 1}
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+            >
+              Previous
+            </PageButton>
+            <PageButton
+              $disabled={page >= pagination.pages}
+              disabled={page >= pagination.pages}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </PageButton>
+          </div>
+        </PaginationBar>
       )}
 
       {/* Create / Edit Modal */}

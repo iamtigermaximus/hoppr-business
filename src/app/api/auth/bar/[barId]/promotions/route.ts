@@ -4,6 +4,7 @@ import { PromotionType } from "@prisma/client";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
+import { checkPlanLimit } from "@/lib/plan-limits";
 
 interface CreatePromotionBody {
   title: string;
@@ -33,30 +34,99 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "all";
+    const search = searchParams.get("search") || undefined;
+    const typeFilter = searchParams.get("type") as PromotionType | undefined;
+    const sortBy = (searchParams.get("sortBy") || "createdAt") as
+      | "createdAt"
+      | "title"
+      | "startDate"
+      | "endDate"
+      | "redemptions"
+      | "views"
+      | "clicks";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") || "25")),
+    );
+    const skip = (page - 1) * limit;
 
-    let whereCondition: Record<string, unknown> = { barId };
+    // Build where — barId always required, then stack optional filters
+    const whereCondition: Record<string, unknown> = { barId };
 
+    // Status filter
     if (status === "active") {
-      whereCondition = {
-        barId,
-        isActive: true,
-        isApproved: true,
-        endDate: { gte: new Date() },
-      };
+      whereCondition.isActive = true;
+      whereCondition.isApproved = true;
+      whereCondition.endDate = { gte: new Date() };
     } else if (status === "pending") {
-      whereCondition = {
-        barId,
-        isApproved: false,
-      };
+      whereCondition.isApproved = false;
+    } else if (status === "expired") {
+      whereCondition.endDate = { lt: new Date() };
     }
-    // "all" returns everything - no additional filter
 
-    const promotions = await prisma.barPromotion.findMany({
-      where: whereCondition,
-      orderBy: { createdAt: "desc" },
+    // Type filter — validate against known PromotionType values
+    if (typeFilter) {
+      const validTypes = [
+        "HAPPY_HOUR",
+        "DRINK_SPECIAL",
+        "FOOD_SPECIAL",
+        "LADIES_NIGHT",
+        "THEME_NIGHT",
+        "VIP_OFFER",
+        "COVER_DISCOUNT",
+        "LIVE_MUSIC_EVENT",
+        "GAME_NIGHT",
+      ];
+      if (validTypes.includes(typeFilter)) {
+        whereCondition.type = typeFilter;
+      }
+    }
+
+    // Search — match title OR description (case-insensitive via PostgreSQL)
+    if (search) {
+      whereCondition.OR = [
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Sort — only allow known columns to prevent injection
+    const validSortColumns = [
+      "createdAt",
+      "title",
+      "startDate",
+      "endDate",
+      "redemptions",
+      "views",
+      "clicks",
+    ];
+    const orderColumn = validSortColumns.includes(sortBy)
+      ? sortBy
+      : "createdAt";
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    const [promotions, total] = await Promise.all([
+      prisma.barPromotion.findMany({
+        where: whereCondition as any,
+        orderBy: { [orderColumn]: orderDirection },
+        skip,
+        take: limit,
+      }),
+      prisma.barPromotion.count({ where: whereCondition as any }),
+    ]);
+
+    return NextResponse.json({
+      success: true,
+      promotions,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
     });
-
-    return NextResponse.json({ success: true, promotions });
   } catch (error) {
     console.error("Fetch promotions error:", error);
     return NextResponse.json(
@@ -78,6 +148,18 @@ export async function POST(
     const { barId } = await params;
     if (payload.barId !== barId) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Plan limit check: only OWNER/MANAGER can exceed limits (staff roles are gated by role check anyway)
+    const barPlan = await prisma.bar.findUnique({
+      where: { id: barId },
+      select: { plan: true, _count: { select: { promotions: true } } },
+    });
+    if (barPlan) {
+      const limitCheck = checkPlanLimit(barPlan.plan, "promotions", barPlan._count.promotions);
+      if (!limitCheck.allowed) {
+        return NextResponse.json({ error: limitCheck.reason }, { status: 402 });
+      }
     }
 
     const body = (await request.json()) as CreatePromotionBody;

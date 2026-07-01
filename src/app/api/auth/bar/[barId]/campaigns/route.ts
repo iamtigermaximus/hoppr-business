@@ -25,6 +25,21 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "all";
     const type = searchParams.get("type");
+    const search = searchParams.get("search") || undefined;
+    const sortBy = (searchParams.get("sortBy") || "createdAt") as
+      | "createdAt"
+      | "title"
+      | "budgetCents"
+      | "spentCents"
+      | "impressions"
+      | "clicks";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") || "25")),
+    );
+    const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = { barId };
     if (status === "active") where.status = "ACTIVE";
@@ -34,13 +49,39 @@ export async function GET(
     }
     if (type && VALID_TYPES.includes(type)) where.type = type;
 
-    const campaigns = await prisma.adCampaign.findMany({
-      where,
-      include: {
-        bar: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    // Search — match title OR description
+    if (search) {
+      where.OR = [
+        ...(Array.isArray(where.OR) ? where.OR : []),
+        { title: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Sort — only allow known columns
+    const validSortColumns = [
+      "createdAt",
+      "title",
+      "budgetCents",
+      "spentCents",
+      "impressions",
+      "clicks",
+    ];
+    const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    const [campaigns, total] = await Promise.all([
+      prisma.adCampaign.findMany({
+        where,
+        include: {
+          bar: { select: { name: true } },
+        },
+        orderBy: { [orderColumn]: orderDirection },
+        skip,
+        take: limit,
+      }),
+      prisma.adCampaign.count({ where }),
+    ]);
 
     const formatted = campaigns.map((c) => ({
       id: c.id,
@@ -64,7 +105,16 @@ export async function GET(
       updatedAt: c.updatedAt.toISOString(),
     }));
 
-    return NextResponse.json({ success: true, campaigns: formatted });
+    return NextResponse.json({
+      success: true,
+      campaigns: formatted,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error("Fetch campaigns error:", error);
     return NextResponse.json(

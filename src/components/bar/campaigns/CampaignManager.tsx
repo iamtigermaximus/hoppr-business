@@ -299,6 +299,12 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 0 });
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -318,20 +324,32 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
   const fetchCampaigns = useCallback(async () => {
     const token = getToken();
     if (!token) return;
+    setLoading(true);
     try {
-      const res = await fetch(`/api/auth/bar/${barId}/campaigns?status=${filter}`, {
-        headers: { authorization: `Bearer ${token}` },
-      });
+      const params = new URLSearchParams();
+      params.set("status", filter);
+      if (search) params.set("search", search);
+      if (typeFilter) params.set("type", typeFilter);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      params.set("page", String(page));
+      params.set("limit", "12");
+
+      const res = await fetch(
+        `/api/auth/bar/${barId}/campaigns?${params.toString()}`,
+        { headers: { authorization: `Bearer ${token}` } },
+      );
       if (res.ok) {
         const data = await res.json();
         setCampaigns(data.campaigns || []);
+        if (data.pagination) setPagination(data.pagination);
       }
     } catch (e) {
       console.error("Fetch campaigns error:", e);
     } finally {
       setLoading(false);
     }
-  }, [barId, filter]);
+  }, [barId, filter, search, typeFilter, sortBy, sortOrder, page]);
 
   useEffect(() => {
     fetchCampaigns();
@@ -452,11 +470,87 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
 
       <FilterBar>
         {["all", "active", "draft", "ended"].map((f) => (
-          <FilterChip key={f} $active={filter === f} onClick={() => setFilter(f)}>
+          <FilterChip key={f} $active={filter === f} onClick={() => { setFilter(f); setPage(1); }}>
             {f === "all" ? "All" : f === "draft" ? "Drafts" : f === "ended" ? "Ended" : "Active"}
           </FilterChip>
         ))}
       </FilterBar>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          marginBottom: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search campaigns..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{
+            flex: 1,
+            minWidth: "200px",
+            padding: "0.5rem 0.75rem",
+            border: "1px solid #d1d5db",
+            borderRadius: "0.375rem",
+            fontSize: "0.8125rem",
+          }}
+        />
+        <select
+          value={typeFilter}
+          onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: "1px solid #d1d5db",
+            borderRadius: "0.375rem",
+            fontSize: "0.8125rem",
+            background: "white",
+          }}
+        >
+          <option value="">All Types</option>
+          {Object.entries(typeLabels).map(([k, v]) => (
+            <option key={k} value={k}>{v}</option>
+          ))}
+        </select>
+        <button
+          onClick={() => {
+            setSortBy("title");
+            setSortOrder(sortBy === "title" && sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: `1px solid ${sortBy === "title" ? "#10b981" : "#d1d5db"}`,
+            borderRadius: "0.375rem",
+            background: sortBy === "title" ? "#f0fdf4" : "white",
+            color: sortBy === "title" ? "#065f46" : "#6b7280",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          Name {sortBy === "title" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+        <button
+          onClick={() => {
+            setSortBy("createdAt");
+            setSortOrder(sortBy === "createdAt" && sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: `1px solid ${sortBy === "createdAt" ? "#10b981" : "#d1d5db"}`,
+            borderRadius: "0.375rem",
+            background: sortBy === "createdAt" ? "#f0fdf4" : "white",
+            color: sortBy === "createdAt" ? "#065f46" : "#6b7280",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          Date {sortBy === "createdAt" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+      </div>
 
       {campaigns.length === 0 ? (
         <div style={{ textAlign: "center", padding: "3rem 1rem", color: "#9ca3af" }}>
@@ -537,6 +631,57 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
             );
           })}
         </CardGrid>
+      )}
+
+      {/* Pagination */}
+      {pagination.pages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: "1rem",
+            fontSize: "0.8125rem",
+            color: "#6b7280",
+          }}
+        >
+          <span>
+            Showing {(pagination.page - 1) * pagination.limit + 1}
+            &ndash;
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+            {pagination.total} campaigns
+          </span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+              style={{
+                padding: "0.375rem 0.75rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                background: "white",
+                cursor: page <= 1 ? "not-allowed" : "pointer",
+                opacity: page <= 1 ? 0.5 : 1,
+              }}
+            >
+              Previous
+            </button>
+            <button
+              disabled={page >= pagination.pages}
+              onClick={() => setPage(page + 1)}
+              style={{
+                padding: "0.375rem 0.75rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                background: "white",
+                cursor: page >= pagination.pages ? "not-allowed" : "pointer",
+                opacity: page >= pagination.pages ? 0.5 : 1,
+              }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Create / Edit Modal */}

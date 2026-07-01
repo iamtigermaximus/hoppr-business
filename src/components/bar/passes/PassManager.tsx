@@ -556,6 +556,11 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<string>("createdAt");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 0 });
 
   // Form modal
   const [showForm, setShowForm] = useState(false);
@@ -605,18 +610,28 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/auth/bar/${barId}/passes?status=${filter}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const params = new URLSearchParams();
+      params.set("status", filter);
+      if (search) params.set("search", search);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      params.set("page", String(page));
+      params.set("limit", "12");
+
+      const res = await fetch(
+        `/api/auth/bar/${barId}/passes?${params.toString()}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       const data = await res.json();
       setPasses(data.passes || []);
+      if (data.pagination) setPagination(data.pagination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load passes");
     } finally {
       setLoading(false);
     }
-  }, [barId, filter, token]);
+  }, [barId, filter, search, sortBy, sortOrder, page, token]);
 
   useEffect(() => {
     fetchPasses();
@@ -800,11 +815,90 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
 
       <FilterTabs>
         {(["active", "inactive", "all"] as const).map((f) => (
-          <FilterTab key={f} $active={filter === f} onClick={() => setFilter(f)}>
+          <FilterTab key={f} $active={filter === f} onClick={() => { setFilter(f); setPage(1); }}>
             {f === "active" ? "Active" : f === "inactive" ? "Inactive" : "All Passes"}
           </FilterTab>
         ))}
       </FilterTabs>
+
+      {/* Toolbar: search + sort */}
+      <div
+        style={{
+          display: "flex",
+          gap: "0.5rem",
+          marginBottom: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          type="text"
+          placeholder="Search passes..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          style={{
+            flex: 1,
+            minWidth: "200px",
+            padding: "0.5rem 0.75rem",
+            border: "1px solid #d1d5db",
+            borderRadius: "0.375rem",
+            fontSize: "0.8125rem",
+          }}
+        />
+        <button
+          onClick={() => {
+            setSortBy("name");
+            setSortOrder(sortBy === "name" && sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: `1px solid ${sortBy === "name" ? "#7c3aed" : "#d1d5db"}`,
+            borderRadius: "0.375rem",
+            background: sortBy === "name" ? "#f5f3ff" : "white",
+            color: sortBy === "name" ? "#7c3aed" : "#6b7280",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          Name {sortBy === "name" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+        <button
+          onClick={() => {
+            setSortBy("priceCents");
+            setSortOrder(sortBy === "priceCents" && sortOrder === "asc" ? "desc" : "asc");
+            setPage(1);
+          }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: `1px solid ${sortBy === "priceCents" ? "#7c3aed" : "#d1d5db"}`,
+            borderRadius: "0.375rem",
+            background: sortBy === "priceCents" ? "#f5f3ff" : "white",
+            color: sortBy === "priceCents" ? "#7c3aed" : "#6b7280",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          Price {sortBy === "priceCents" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+        <button
+          onClick={() => {
+            setSortBy("soldCount");
+            setSortOrder(sortBy === "soldCount" && sortOrder === "desc" ? "asc" : "desc");
+            setPage(1);
+          }}
+          style={{
+            padding: "0.5rem 0.75rem",
+            border: `1px solid ${sortBy === "soldCount" ? "#7c3aed" : "#d1d5db"}`,
+            borderRadius: "0.375rem",
+            background: sortBy === "soldCount" ? "#f5f3ff" : "white",
+            color: sortBy === "soldCount" ? "#7c3aed" : "#6b7280",
+            fontSize: "0.75rem",
+            cursor: "pointer",
+          }}
+        >
+          Sold {sortBy === "soldCount" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+        </button>
+      </div>
 
       {error && (
         <ErrorBox>
@@ -896,6 +990,57 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             );
           })}
         </PassGrid>
+      )}
+
+      {/* Pagination */}
+      {pagination.pages > 1 && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginTop: "1rem",
+            fontSize: "0.8125rem",
+            color: "#6b7280",
+          }}
+        >
+          <span>
+            Showing {(pagination.page - 1) * pagination.limit + 1}
+            &ndash;
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
+            {pagination.total} passes
+          </span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage(page - 1)}
+              style={{
+                padding: "0.375rem 0.75rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                background: "white",
+                cursor: page <= 1 ? "not-allowed" : "pointer",
+                opacity: page <= 1 ? 0.5 : 1,
+              }}
+            >
+              Previous
+            </button>
+            <button
+              disabled={page >= pagination.pages}
+              onClick={() => setPage(page + 1)}
+              style={{
+                padding: "0.375rem 0.75rem",
+                border: "1px solid #d1d5db",
+                borderRadius: "0.375rem",
+                background: "white",
+                cursor: page >= pagination.pages ? "not-allowed" : "pointer",
+                opacity: page >= pagination.pages ? 0.5 : 1,
+              }}
+            >
+              Next
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Create / Edit Modal */}

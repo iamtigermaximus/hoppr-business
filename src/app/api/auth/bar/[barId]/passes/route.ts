@@ -43,6 +43,19 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "all"; // all | active | inactive
+    const search = searchParams.get("search") || undefined;
+    const sortBy = (searchParams.get("sortBy") || "createdAt") as
+      | "createdAt"
+      | "name"
+      | "priceCents"
+      | "soldCount";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(searchParams.get("limit") || "25")),
+    );
+    const skip = (page - 1) * limit;
 
     let whereCondition: Record<string, unknown> = { barId };
     if (status === "active") {
@@ -51,10 +64,28 @@ export async function GET(
       whereCondition = { barId, isActive: false };
     }
 
-    const passes = await prisma.vIPPassEnhanced.findMany({
-      where: whereCondition,
-      orderBy: { createdAt: "desc" },
-    });
+    // Search — match name OR description
+    if (search) {
+      whereCondition.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Sort — only allow known columns
+    const validSortColumns = ["createdAt", "name", "priceCents", "soldCount"];
+    const orderColumn = validSortColumns.includes(sortBy) ? sortBy : "createdAt";
+    const orderDirection = sortOrder === "asc" ? "asc" : "desc";
+
+    const [passes, total] = await Promise.all([
+      prisma.vIPPassEnhanced.findMany({
+        where: whereCondition as any,
+        orderBy: { [orderColumn]: orderDirection },
+        skip,
+        take: limit,
+      }),
+      prisma.vIPPassEnhanced.count({ where: whereCondition as any }),
+    ]);
 
     const formatted = passes.map((p) => ({
       id: p.id,
@@ -79,7 +110,16 @@ export async function GET(
       createdAt: p.createdAt.toISOString(),
     }));
 
-    return NextResponse.json({ success: true, passes: formatted });
+    return NextResponse.json({
+      success: true,
+      passes: formatted,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
   } catch (error) {
     console.error("Fetch bar passes error:", error);
     return NextResponse.json(
