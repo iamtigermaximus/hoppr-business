@@ -32,6 +32,47 @@ const Subtitle = styled.p`
   @media (max-width: 480px) { font-size: 0.9rem; }
 `;
 
+const WelcomeBanner = styled.div<{ $dismissed: boolean }>`
+  display: ${(p) => (p.$dismissed ? "none" : "flex")};
+  align-items: flex-start; gap: 1rem;
+  background: linear-gradient(135deg, #eef2ff 0%, #faf5ff 100%);
+  border: 1px solid #c7d2fe; border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+  position: relative;
+  @media (max-width: 480px) { flex-direction: column; padding: 1rem; }
+`;
+
+const BannerIcon = styled.span` font-size: 2rem; flex-shrink: 0; `;
+
+const BannerContent = styled.div` flex: 1; `;
+
+const BannerTitle = styled.h3`
+  font-size: 1.05rem; font-weight: 700; color: #3730a3; margin: 0 0 0.25rem;
+`;
+
+const BannerText = styled.p`
+  font-size: 0.85rem; color: #4f46e5; margin: 0 0 0.75rem; line-height: 1.5;
+`;
+
+const BannerCta = styled.button`
+  background: #4f46e5; color: white; border: none; border-radius: 0.375rem;
+  padding: 0.5rem 1rem; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  transition: background 0.15s;
+  &:hover { background: #4338ca; }
+`;
+
+const BannerDismiss = styled.button`
+  background: none; border: none; color: #9ca3af; font-size: 1.25rem;
+  cursor: pointer; padding: 0.25rem; line-height: 1; flex-shrink: 0;
+  &:hover { color: #6b7280; }
+`;
+
+const CongratsCard = styled.div`
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border: 1px solid #6ee7b7; border-radius: 0.75rem;
+  padding: 1.5rem; margin-bottom: 2rem; text-align: center;
+`;
+
 const SectionLabel = styled.h2`
   font-size: 1rem; font-weight: 600; color: #9ca3af;
   text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem;
@@ -172,6 +213,25 @@ const ActivityText = styled.p` color: #374151; font-size: 0.9rem; margin: 0; lin
 const ActivityTime = styled.span` color: #9ca3af; font-size: 0.75rem; white-space: nowrap; `;
 const EmptyState = styled.div` padding: 2rem; text-align: center; color: #9ca3af; font-size: 0.9rem; `;
 
+const ShareBarCard = styled.div`
+  background: linear-gradient(135deg, #eef2ff, #faf5ff);
+  border: 1px solid #c7d2fe; border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 1rem;
+  @media (max-width: 480px) { flex-direction: column; text-align: center; }
+`;
+
+const ShareBarText = styled.div` flex: 1; `;
+const ShareBarTitle = styled.h3` font-size: 1rem; font-weight: 700; color: #3730a3; margin: 0 0 0.25rem; `;
+const ShareBarHint = styled.p` font-size: 0.82rem; color: #6b7280; margin: 0; `;
+
+const ShareBarBtn = styled.button`
+  background: #4f46e5; color: white; border: none; border-radius: 0.375rem;
+  padding: 0.55rem 1.25rem; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap; transition: background 0.15s;
+  &:hover { background: #4338ca; }
+`;
+
 // ── Types ──────────────────────────────────────────────────────
 
 export type BarStaffRole = "OWNER" | "MANAGER" | "PROMOTIONS_MANAGER" | "STAFF" | "VIEWER";
@@ -266,6 +326,12 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
   // Seed state
   const [seeding, setSeeding] = useState(false);
   const [seedResult, setSeedResult] = useState<string | null>(null);
+
+  // Onboarding states
+  const [firstVisit, setFirstVisit] = useState(false);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(false);
+  const [congratulated, setCongratulated] = useState(false);
+  const [shareBarDismissed, setShareBarDismissed] = useState(false);
 
   const isManager = user.staffRole === "OWNER" || user.staffRole === "MANAGER";
 
@@ -374,6 +440,64 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
     };
     fetchAll();
   }, [user.barId]);
+
+  // ── Auto-seed sample content on first visit with empty bar ────
+  useEffect(() => {
+    if (isLoading) return;
+    const alreadySeeded = typeof window !== "undefined" && localStorage.getItem("hoppr_content_seeded");
+    if (alreadySeeded) return;
+
+    const hasNoContent =
+      (!dashboardStats || (dashboardStats.activePromos === 0 && dashboardStats.activeCampaigns === 0)) &&
+      todayEvents === 0;
+
+    if (!hasNoContent) return;
+
+    const doSeed = async () => {
+      const token = getToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`/api/auth/bar/${user.barId}/dashboard/seed-content`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem("hoppr_content_seeded", "true");
+          // Reload to show seeded content
+          window.location.reload();
+        }
+      } catch {
+        // Silently fail — seed is non-critical
+      }
+    };
+    doSeed();
+  }, [isLoading, dashboardStats, todayEvents, user.barId]);
+
+  // ── First-visit detection ────────────────────────────────────
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const visited = localStorage.getItem("hoppr_dashboard_visited");
+      if (!visited) {
+        setFirstVisit(true);
+      }
+      const dismissed = localStorage.getItem("hoppr_welcome_dismissed");
+      if (dismissed) setWelcomeDismissed(true);
+      const shareDismissed = localStorage.getItem("hoppr_share_bar_dismissed");
+      if (shareDismissed) setShareBarDismissed(true);
+    }
+  }, []);
+
+  // ── Congratulations effect ───────────────────────────────────
+  useEffect(() => {
+    if (!isLoading && completedCount === checklistItems.length && !congratulated) {
+      const seen = localStorage.getItem("hoppr_onboarding_complete");
+      if (!seen) {
+        setCongratulated(true);
+        localStorage.setItem("hoppr_onboarding_complete", "true");
+      }
+    }
+  }, [isLoading, dashboardStats, profile, todayEvents, recentActivity]);
 
   // ── Insight handlers ────────────────────────────────────────
 
@@ -527,11 +651,47 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
 
   // ── Render ─────────────────────────────────────────────────
 
+  const showChecklist = completedCount < checklistItems.length;
+  const showCongrats = !showChecklist && congratulated;
+
+  const handleDismissWelcome = () => {
+    setWelcomeDismissed(true);
+    localStorage.setItem("hoppr_welcome_dismissed", "true");
+    localStorage.setItem("hoppr_dashboard_visited", "true");
+  };
+
+  const handleWelcomeCta = () => {
+    handleDismissWelcome();
+    // Scroll to checklist
+    const el = document.getElementById("onboarding-checklist");
+    if (el) el.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <Container>
+      {/* First-visit welcome banner */}
+      {firstVisit && !welcomeDismissed && (
+        <WelcomeBanner $dismissed={false}>
+          <BannerIcon>👋</BannerIcon>
+          <BannerContent>
+            <BannerTitle>Welcome to Hoppr! Your bar is live.</BannerTitle>
+            <BannerText>
+              Customers can now discover {user.barName} on the app. Complete the checklist below to
+              make your bar stand out — photos, promotions, and events are what bring people in.
+            </BannerText>
+            <BannerCta onClick={handleWelcomeCta}>Let&apos;s get started</BannerCta>
+          </BannerContent>
+          <BannerDismiss onClick={handleDismissWelcome} aria-label="Dismiss">×</BannerDismiss>
+        </WelcomeBanner>
+      )}
+
       <WelcomeSection>
-        <Title>Welcome to {user.barName}! 🎉</Title>
-        <Subtitle>Hello, {user.name}! Here&apos;s how your bar is doing.</Subtitle>
+        <Title>{firstVisit ? <>Your bar is live! 🎉</> : <>Welcome to {user.barName}! 🎉</>}</Title>
+        <Subtitle>
+          {firstVisit
+            ? "Let's set it up so customers can find you."
+            : <>Hello, {user.name}! Here&apos;s how your bar is doing.</>}
+        </Subtitle>
       </WelcomeSection>
 
       {/* Status cards — always visible */}
@@ -680,33 +840,83 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
               ))}
             </PreviewGrid>
           </PreviewCard>
-
-          {/* Completion checklist */}
-          <ChecklistCard>
-            <PreviewTitle>
-              ✅ Get ready for launch ({completedCount}/{checklistItems.length})
-            </PreviewTitle>
-            <PreviewHint>
-              Complete these steps to make your bar discoverable and attractive to customers.
-            </PreviewHint>
-            {checklistItems.map((item) => (
-              <ChecklistItem key={item.label} $done={item.done}>
-                <ChecklistIcon $done={item.done}>
-                  {item.done ? "✓" : "○"}
-                </ChecklistIcon>
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {!item.done && item.href && (
-                  <span
-                    style={{ color: "#3b82f6", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}
-                    onClick={() => router.push(item.href!)}
-                  >
-                    Do it →
-                  </span>
-                )}
-              </ChecklistItem>
-            ))}
-          </ChecklistCard>
         </>
+      )}
+
+      {/* Onboarding checklist — visible until all items complete, regardless of analytics data */}
+      {showChecklist && (
+        <ChecklistCard id="onboarding-checklist">
+          <PreviewTitle>
+            ✅ Get ready for launch ({completedCount}/{checklistItems.length})
+          </PreviewTitle>
+          <PreviewHint>
+            Complete these steps to make your bar discoverable and attractive to customers.
+          </PreviewHint>
+          {checklistItems.map((item) => (
+            <ChecklistItem key={item.label} $done={item.done}>
+              <ChecklistIcon $done={item.done}>
+                {item.done ? "✓" : "○"}
+              </ChecklistIcon>
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {!item.done && item.href && (
+                <span
+                  style={{ color: "#3b82f6", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}
+                  onClick={() => router.push(item.href!)}
+                >
+                  Do it →
+                </span>
+              )}
+            </ChecklistItem>
+          ))}
+        </ChecklistCard>
+      )}
+
+      {/* Congratulations when all items complete */}
+      {showCongrats && (
+        <CongratsCard>
+          <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🎉</div>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#065f46", margin: "0 0 0.5rem" }}>
+            Your bar is fully set up!
+          </h3>
+          <p style={{ color: "#047857", fontSize: "0.85rem", margin: 0 }}>
+            All {checklistItems.length} steps complete. Customers can now discover your bar, browse your
+            promotions, and join your events. Keep creating — we&apos;ll keep tracking.
+          </p>
+        </CongratsCard>
+      )}
+
+      {/* Share your bar — shown when onboarding is complete */}
+      {!showChecklist && !shareBarDismissed && (
+        <ShareBarCard>
+          <ShareBarText>
+            <ShareBarTitle>📤 Share {user.barName} with your regulars</ShareBarTitle>
+            <ShareBarHint>
+              Your bar is set up and discoverable on Hoppr. Share the link with your customers and on social media to drive traffic.
+            </ShareBarHint>
+          </ShareBarText>
+          <ShareBarBtn
+            onClick={() => {
+              const url = typeof window !== "undefined" ? `${window.location.origin}/venues/${user.barId}` : "";
+              if (typeof navigator !== "undefined" && navigator.share) {
+                navigator.share({ title: user.barName, text: `Check out ${user.barName} on Hoppr!`, url }).catch(() => {});
+              } else {
+                navigator.clipboard?.writeText(url).catch(() => {});
+              }
+            }}
+          >
+            Share my bar
+          </ShareBarBtn>
+          <button
+            onClick={() => {
+              setShareBarDismissed(true);
+              localStorage.setItem("hoppr_share_bar_dismissed", "true");
+            }}
+            style={{ background: "none", border: "none", color: "#9ca3af", cursor: "pointer", fontSize: "1.1rem", padding: "0 0 0 0.5rem" }}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </ShareBarCard>
       )}
 
       {/* Insights */}
