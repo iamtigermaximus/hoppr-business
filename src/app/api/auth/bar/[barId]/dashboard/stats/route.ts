@@ -111,6 +111,7 @@ export async function GET(
 
     return NextResponse.json(
       {
+        cachedAt: new Date().toISOString(),
         ...totals,
         activePromos,
         activeCampaigns,

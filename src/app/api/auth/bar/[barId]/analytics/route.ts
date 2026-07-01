@@ -210,6 +210,7 @@ export async function GET(
 
     return NextResponse.json(
       {
+        cachedAt: new Date().toISOString(),
         period: range,
         days,
         ...totals,

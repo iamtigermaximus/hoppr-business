@@ -392,7 +392,8 @@ export async function GET(
       .sort((a, b) => (b.scans ?? 0) - (a.scans ?? 0));
 
     // ---- Response ----
-    const result: ROIResponse = {
+    const result: ROIResponse & { cachedAt: string } = {
+      cachedAt: new Date().toISOString(),
       success: true,
       bar: { name: bar.name },
       period: {

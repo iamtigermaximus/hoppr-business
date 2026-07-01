@@ -154,6 +154,8 @@ export async function POST(
         email: staff.email,
         name: staff.name,
         role: staff.role,
+        roleLabel: ROLE_META[staff.role]?.label,
+        roleDescription: ROLE_META[staff.role]?.description,
         permissions: staff.permissions,
         isActive: staff.isActive,
         lastLogin: staff.lastLogin,
@@ -221,7 +223,11 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json({ staff });
+    return NextResponse.json({
+      staff,
+      roles: ROLE_META,
+      permissionDescriptions: PERMISSION_DESCRIPTIONS,
+    });
   } catch (error) {
     console.error("Fetch bar staff error:", error);
     return NextResponse.json(
@@ -379,6 +385,66 @@ export async function DELETE(
     );
   }
 }
+
+// Human-readable role metadata — returned in GET responses so the frontend
+// can display descriptions and capability lists instead of raw permission strings.
+const ROLE_META: Record<
+  BarStaffRole,
+  { label: string; description: string; capabilities: string[] }
+> = {
+  OWNER: {
+    label: "Owner",
+    description:
+      "Full control over the bar. Can manage staff, promotions, view analytics, scan passes, and delete the bar.",
+    capabilities: [
+      "Manage staff members (add, edit, remove)",
+      "Create, edit, and schedule promotions",
+      "View all analytics and performance reports",
+      "Scan and redeem customer passes",
+      "Delete the bar",
+    ],
+  },
+  MANAGER: {
+    label: "Manager",
+    description:
+      "Day-to-day operations lead. Can manage staff, create promotions, view analytics, and scan passes.",
+    capabilities: [
+      "Manage staff members",
+      "Create and edit promotions",
+      "View analytics and reports",
+      "Scan and redeem customer passes",
+    ],
+  },
+  PROMOTIONS_MANAGER: {
+    label: "Promotions Manager",
+    description:
+      "Focused on marketing and promotions. Can create and manage promotions and view analytics, but cannot manage staff or scan passes.",
+    capabilities: [
+      "Create, edit, and schedule promotions",
+      "View promotion performance analytics",
+    ],
+  },
+  STAFF: {
+    label: "Staff",
+    description:
+      "Front-line staff. Can scan and redeem customer passes at the bar. Cannot manage promotions, staff, or view analytics.",
+    capabilities: ["Scan and redeem customer passes"],
+  },
+  VIEWER: {
+    label: "Viewer",
+    description:
+      "Read-only access to analytics. Can view reports and performance data but cannot make changes or scan passes.",
+    capabilities: ["View analytics and performance reports"],
+  },
+};
+
+const PERMISSION_DESCRIPTIONS: Record<string, string> = {
+  "*": "Full access to all features",
+  manage_staff: "Add, edit, and remove staff members",
+  manage_promotions: "Create, edit, and schedule promotions",
+  view_analytics: "View bar performance analytics and reports",
+  scan_passes: "Scan and redeem customer drink passes",
+};
 
 // Helper function to set permissions based on role
 function getPermissionsForRole(role: BarStaffRole): string[] {

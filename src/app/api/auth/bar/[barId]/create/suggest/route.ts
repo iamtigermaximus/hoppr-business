@@ -162,6 +162,7 @@ ${buildUserReminder()}`;
     // 6. Try DeepSeek API; fall back to templates on any failure
     let result: Record<string, unknown> | null = null;
     let aiGenerated = false;
+    let warning: string | undefined;
 
     if (useAI) {
       try {
@@ -193,16 +194,16 @@ ${buildUserReminder()}`;
               : JSON.parse(aiResponse);
             aiGenerated = true;
           } catch {
-            console.warn("AI suggest parse failed, using fallback");
+            warning = "AI response could not be processed. Using template-based suggestion instead.";
           }
         } else {
-          console.warn(
-            `DeepSeek API error ${response.status}, using fallback`,
-          );
+          warning = "AI service is temporarily unavailable. Using template-based suggestion instead.";
         }
       } catch (err) {
-        console.warn("DeepSeek API unreachable, using fallback:", err);
+        warning = "AI service is temporarily unavailable. Using template-based suggestion instead.";
       }
+    } else {
+      warning = "AI service is not configured. Suggestions are generated from templates. Set DEEPSEEK_API_KEY to enable AI suggestions.";
     }
 
     // 7. Fall back to template-based suggestion if AI didn't produce results
@@ -223,6 +224,7 @@ ${buildUserReminder()}`;
     const response_: Record<string, unknown> = {
       inferredType,
       aiGenerated,
+      ...(warning && { warning }),
       confidence: typeof result.confidence === "number" ? result.confidence : 0.8,
       title: result.title || text.slice(0, 60),
       description: result.description || "",

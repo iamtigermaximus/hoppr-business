@@ -88,6 +88,7 @@ export async function GET(
 
     return NextResponse.json(
       {
+        cachedAt: new Date().toISOString(),
         success: true,
         barStats: {
           profileViews: bar?.profileViews || 0,

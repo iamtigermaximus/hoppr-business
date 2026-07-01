@@ -120,6 +120,7 @@ Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
     // 7. Try DeepSeek API; fall back to templates on any failure
     let generatedPromotion: Record<string, unknown> | null = null;
     let aiGenerated = false;
+    let warning: string | undefined;
 
     if (useAI) {
       try {
@@ -151,16 +152,16 @@ Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
               : JSON.parse(aiResponse);
             aiGenerated = true;
           } catch {
-            console.warn("AI response parse failed, using fallback template");
+            warning = "AI response could not be processed. Using template-based generation instead.";
           }
         } else {
-          console.warn(
-            `DeepSeek API error ${response.status}, using fallback template`,
-          );
+          warning = "AI service is temporarily unavailable. Using template-based generation instead.";
         }
       } catch (err) {
-        console.warn("DeepSeek API unreachable, using fallback template:", err);
+        warning = "AI service is temporarily unavailable. Using template-based generation instead.";
       }
+    } else {
+      warning = "AI service is not configured. Promotions are generated from templates. Set DEEPSEEK_API_KEY to enable AI generation.";
     }
 
     // 8. Use fallback template if AI didn't produce a valid result
@@ -185,10 +186,11 @@ Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
       ) as unknown as Record<string, unknown>;
     }
 
-    // Always return the same shape, but flag whether AI was used
+    // Always return the same shape, but flag whether AI was used and why if not
     return NextResponse.json({
       success: true,
       aiGenerated,
+      ...(warning && { warning }),
       promotion: {
         title: generatedPromotion.title || `${bar.name} Special`,
         description:

@@ -412,7 +412,8 @@ export async function GET(
     // 8. Generate recommendations
     const recommendations = generateRecommendations(comparisons);
 
-    const result: BenchmarkResponse = {
+    const result: BenchmarkResponse & { cachedAt: string } = {
+      cachedAt: new Date().toISOString(),
       success: true,
       bar: {
         name: bar.name,
