@@ -49,6 +49,7 @@ const CreateButton = styled.button`
   align-items: center;
   gap: 0.5rem;
   transition: background 0.2s;
+  text-decoration: none;
 
   &:hover {
     background: #6d28d9;
@@ -68,7 +69,8 @@ const FilterTab = styled.button<{ $active: boolean }>`
   padding: 0.625rem 1.25rem;
   background: none;
   border: none;
-  border-bottom: 2px solid ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
+  border-bottom: 2px solid
+    ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
   color: ${({ $active }) => ($active ? "#7c3aed" : "#6b7280")};
   font-size: 0.875rem;
   font-weight: ${({ $active }) => ($active ? "600" : "500")};
@@ -158,7 +160,8 @@ const ProgressBar = styled.div`
 const ProgressFill = styled.div<{ $pct: number }>`
   height: 100%;
   width: ${({ $pct }) => Math.min($pct, 100)}%;
-  background: ${({ $pct }) => ($pct >= 80 ? "#f59e0b" : $pct >= 100 ? "#dc2626" : "#7c3aed")};
+  background: ${({ $pct }) =>
+    $pct >= 80 ? "#f59e0b" : $pct >= 100 ? "#dc2626" : "#7c3aed"};
   border-radius: 3px;
   transition: width 0.3s ease;
 `;
@@ -183,29 +186,39 @@ const PassActions = styled.div`
   margin-top: auto;
 `;
 
-const ActionButton = styled.button<{ $variant: "outline" | "primary" | "danger" }>`
+const ActionButton = styled.button<{
+  $variant: "outline" | "primary" | "danger";
+}>`
   padding: 0.4375rem 0.875rem;
   border-radius: 0.375rem;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid ${({ $variant }) => ($variant === "danger" ? "#fecaca" : "#d1d5db")};
-  background: ${({ $variant }) => ($variant === "primary" ? "#7c3aed" : "white")};
+  border: 1px solid
+    ${({ $variant }) => ($variant === "danger" ? "#fecaca" : "#d1d5db")};
+  background: ${({ $variant }) =>
+    $variant === "primary" ? "#7c3aed" : "white"};
   color: ${({ $variant }) => {
     switch ($variant) {
-      case "primary": return "white";
-      case "danger": return "#dc2626";
-      default: return "#374151";
+      case "primary":
+        return "white";
+      case "danger":
+        return "#dc2626";
+      default:
+        return "#374151";
     }
   }};
 
   &:hover {
     background: ${({ $variant }) => {
       switch ($variant) {
-        case "primary": return "#6d28d9";
-        case "danger": return "#fef2f2";
-        default: return "#f3f4f6";
+        case "primary":
+          return "#6d28d9";
+        case "danger":
+          return "#fef2f2";
+        default:
+          return "#f3f4f6";
       }
     }};
   }
@@ -352,19 +365,25 @@ const ButtonRow = styled.div`
   margin-top: 1.5rem;
 `;
 
-const ModalButton = styled.button<{ $variant: "primary" | "outline" | "danger" }>`
+const ModalButton = styled.button<{
+  $variant: "primary" | "outline" | "danger";
+}>`
   padding: 0.625rem 1.25rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid ${({ $variant }) => ($variant === "outline" ? "#d1d5db" : "transparent")};
+  border: 1px solid
+    ${({ $variant }) => ($variant === "outline" ? "#d1d5db" : "transparent")};
   background: ${({ $variant }) => {
     switch ($variant) {
-      case "primary": return "#7c3aed";
-      case "danger": return "#ef4444";
-      default: return "white";
+      case "primary":
+        return "#7c3aed";
+      case "danger":
+        return "#ef4444";
+      default:
+        return "white";
     }
   }};
   color: ${({ $variant }) => ($variant === "outline" ? "#374151" : "white")};
@@ -372,9 +391,12 @@ const ModalButton = styled.button<{ $variant: "primary" | "outline" | "danger" }
   &:hover {
     background: ${({ $variant }) => {
       switch ($variant) {
-        case "primary": return "#6d28d9";
-        case "danger": return "#dc2626";
-        default: return "#f3f4f6";
+        case "primary":
+          return "#6d28d9";
+        case "danger":
+          return "#dc2626";
+        default:
+          return "#f3f4f6";
       }
     }};
   }
@@ -453,8 +475,16 @@ const ErrorBox = styled.div`
 
 // ---- Types ----
 
-type PassType = "SKIP_LINE" | "COVER_INCLUDED" | "PREMIUM_ENTRY" | "DRINK_PACKAGE";
-type RedemptionMode = "SINGLE_USE" | "ONCE_PER_DAY" | "MULTI_USE" | "LIMITED_MULTI";
+type PassType =
+  | "SKIP_LINE"
+  | "COVER_INCLUDED"
+  | "PREMIUM_ENTRY"
+  | "DRINK_PACKAGE";
+type RedemptionMode =
+  | "SINGLE_USE"
+  | "ONCE_PER_DAY"
+  | "MULTI_USE"
+  | "LIMITED_MULTI";
 
 interface PassItem {
   id: string;
@@ -522,7 +552,15 @@ const PASS_TYPE_LABELS: Record<PassType, string> = {
   DRINK_PACKAGE: "Drink Package",
 };
 
-const ALL_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const ALL_DAYS = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+];
 
 // ---- Helpers ----
 
@@ -560,7 +598,12 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    pages: 0,
+  });
 
   // Form modal
   const [showForm, setShowForm] = useState(false);
@@ -600,10 +643,13 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
   const [salesLoading, setSalesLoading] = useState(false);
 
   // Deactivate confirm
-  const [deactivateTarget, setDeactivateTarget] = useState<PassItem | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<PassItem | null>(
+    null,
+  );
   const [deactivating, setDeactivating] = useState(false);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
 
   const fetchPasses = useCallback(async () => {
     if (!token) return;
@@ -660,7 +706,9 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
         description: detail.description || "",
         type: detail.type,
         priceEuros: (detail.priceCents / 100).toFixed(2),
-        originalPriceEuros: detail.originalPriceCents ? (detail.originalPriceCents / 100).toFixed(2) : "",
+        originalPriceEuros: detail.originalPriceCents
+          ? (detail.originalPriceCents / 100).toFixed(2)
+          : "",
         benefits: detail.benefits || [],
         skipLinePriority: detail.skipLinePriority,
         coverFeeIncluded: detail.coverFeeIncluded,
@@ -680,7 +728,15 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
   };
 
   const handleSave = async () => {
-    if (!token || !formData.name.trim() || !formData.priceEuros || !formData.validityStart || !formData.validityEnd || !formData.totalQuantity) return;
+    if (
+      !token ||
+      !formData.name.trim() ||
+      !formData.priceEuros ||
+      !formData.validityStart ||
+      !formData.validityEnd ||
+      !formData.totalQuantity
+    )
+      return;
     setSaving(true);
     setError(null);
 
@@ -696,7 +752,9 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       description: formData.description.trim() || null,
       type: formData.type,
       priceCents,
-      originalPriceCents: formData.originalPriceEuros ? Math.round(parseFloat(formData.originalPriceEuros) * 100) : null,
+      originalPriceCents: formData.originalPriceEuros
+        ? Math.round(parseFloat(formData.originalPriceEuros) * 100)
+        : null,
       benefits: formData.benefits,
       skipLinePriority: formData.skipLinePriority,
       coverFeeIncluded: formData.coverFeeIncluded,
@@ -707,7 +765,10 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       totalQuantity: parseInt(formData.totalQuantity, 10),
       maxPerUser: parseInt(formData.maxPerUser, 10) || 1,
       redemptionMode: formData.redemptionMode,
-      maxRedemptions: formData.redemptionMode === "LIMITED_MULTI" ? parseInt(formData.maxRedemptions, 10) || null : null,
+      maxRedemptions:
+        formData.redemptionMode === "LIMITED_MULTI"
+          ? parseInt(formData.maxRedemptions, 10) || null
+          : null,
     };
 
     try {
@@ -715,13 +776,19 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       if (editingPass) {
         res = await fetch(`/api/auth/bar/${barId}/passes/${editingPass.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify(body),
         });
       } else {
         res = await fetch(`/api/auth/bar/${barId}/passes`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify(body),
         });
       }
@@ -762,15 +829,20 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
     if (!token || !deactivateTarget) return;
     setDeactivating(true);
     try {
-      const res = await fetch(`/api/auth/bar/${barId}/passes/${deactivateTarget.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `/api/auth/bar/${barId}/passes/${deactivateTarget.id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
       setDeactivateTarget(null);
       fetchPasses();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to deactivate pass");
+      setError(
+        err instanceof Error ? err.message : "Failed to deactivate pass",
+      );
     } finally {
       setDeactivating(false);
     }
@@ -808,15 +880,26 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
         <Title>VIP Passes</Title>
         {canManage && (
           <CreateButton as="a" href={`/bar/${barId}/create`}>
-            + Create Pass
+            Create Pass
           </CreateButton>
         )}
       </Header>
 
       <FilterTabs>
         {(["active", "inactive", "all"] as const).map((f) => (
-          <FilterTab key={f} $active={filter === f} onClick={() => { setFilter(f); setPage(1); }}>
-            {f === "active" ? "Active" : f === "inactive" ? "Inactive" : "All Passes"}
+          <FilterTab
+            key={f}
+            $active={filter === f}
+            onClick={() => {
+              setFilter(f);
+              setPage(1);
+            }}
+          >
+            {f === "active"
+              ? "Active"
+              : f === "inactive"
+                ? "Inactive"
+                : "All Passes"}
           </FilterTab>
         ))}
       </FilterTabs>
@@ -834,7 +917,10 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
           type="text"
           placeholder="Search passes..."
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           style={{
             flex: 1,
             minWidth: "200px",
@@ -847,7 +933,9 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
         <button
           onClick={() => {
             setSortBy("name");
-            setSortOrder(sortBy === "name" && sortOrder === "desc" ? "asc" : "desc");
+            setSortOrder(
+              sortBy === "name" && sortOrder === "desc" ? "asc" : "desc",
+            );
             setPage(1);
           }}
           style={{
@@ -865,7 +953,9 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
         <button
           onClick={() => {
             setSortBy("priceCents");
-            setSortOrder(sortBy === "priceCents" && sortOrder === "asc" ? "desc" : "asc");
+            setSortOrder(
+              sortBy === "priceCents" && sortOrder === "asc" ? "desc" : "asc",
+            );
             setPage(1);
           }}
           style={{
@@ -878,12 +968,15 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             cursor: "pointer",
           }}
         >
-          Price {sortBy === "priceCents" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+          Price{" "}
+          {sortBy === "priceCents" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
         </button>
         <button
           onClick={() => {
             setSortBy("soldCount");
-            setSortOrder(sortBy === "soldCount" && sortOrder === "desc" ? "asc" : "desc");
+            setSortOrder(
+              sortBy === "soldCount" && sortOrder === "desc" ? "asc" : "desc",
+            );
             setPage(1);
           }}
           style={{
@@ -896,14 +989,25 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             cursor: "pointer",
           }}
         >
-          Sold {sortBy === "soldCount" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+          Sold{" "}
+          {sortBy === "soldCount" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
         </button>
       </div>
 
       {error && (
         <ErrorBox>
           {error}
-          <button onClick={fetchPasses} style={{ marginLeft: "1rem", background: "none", border: "none", color: "#dc2626", cursor: "pointer", textDecoration: "underline" }}>
+          <button
+            onClick={fetchPasses}
+            style={{
+              marginLeft: "1rem",
+              background: "none",
+              border: "none",
+              color: "#dc2626",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+          >
             Retry
           </button>
         </ErrorBox>
@@ -914,15 +1018,22 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       ) : passes.length === 0 ? (
         <EmptyState>
           <EmptyIcon>🎟️</EmptyIcon>
-          <EmptyText>No {filter !== "all" ? filter : ""} VIP passes yet</EmptyText>
+          <EmptyText>
+            No {filter !== "all" ? filter : ""} VIP passes yet
+          </EmptyText>
           <EmptySubtext>
-            {canManage ? "Create your first VIP pass to start selling" : "Check back when passes are available"}
+            {canManage
+              ? "Create your first VIP pass to start selling"
+              : "Check back when passes are available"}
           </EmptySubtext>
         </EmptyState>
       ) : (
         <PassGrid>
           {passes.map((pass) => {
-            const soldPct = pass.totalQuantity > 0 ? (pass.soldCount / pass.totalQuantity) * 100 : 0;
+            const soldPct =
+              pass.totalQuantity > 0
+                ? (pass.soldCount / pass.totalQuantity) * 100
+                : 0;
             return (
               <PassCard key={pass.id} $active={pass.isActive}>
                 <PassHeader>
@@ -932,11 +1043,20 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
 
                 <PassPrice>
                   €{formatEuro(pass.priceCents)}
-                  {pass.originalPriceCents && pass.originalPriceCents > pass.priceCents && (
-                    <span style={{ fontSize: "0.75rem", color: "#9ca3af", textDecoration: "line-through", marginLeft: "0.5rem", fontWeight: 400 }}>
-                      €{formatEuro(pass.originalPriceCents)}
-                    </span>
-                  )}
+                  {pass.originalPriceCents &&
+                    pass.originalPriceCents > pass.priceCents && (
+                      <span
+                        style={{
+                          fontSize: "0.75rem",
+                          color: "#9ca3af",
+                          textDecoration: "line-through",
+                          marginLeft: "0.5rem",
+                          fontWeight: 400,
+                        }}
+                      >
+                        €{formatEuro(pass.originalPriceCents)}
+                      </span>
+                    )}
                 </PassPrice>
 
                 <div>
@@ -944,7 +1064,9 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
                     <ProgressFill $pct={soldPct} />
                   </ProgressBar>
                   <PassMeta style={{ marginTop: "0.375rem" }}>
-                    <span>{pass.soldCount} / {pass.totalQuantity} sold</span>
+                    <span>
+                      {pass.soldCount} / {pass.totalQuantity} sold
+                    </span>
                     <span>{Math.round(soldPct)}%</span>
                   </PassMeta>
                 </div>
@@ -958,28 +1080,44 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
                 )}
 
                 <PassMeta>
-                  <span>Valid: {formatDate(pass.validityStart)} – {formatDate(pass.validityEnd)}</span>
+                  <span>
+                    Valid: {formatDate(pass.validityStart)} –{" "}
+                    {formatDate(pass.validityEnd)}
+                  </span>
                   <span>Max {pass.maxPerUser}/person</span>
                   <span>
-                    {pass.redemptionMode === "SINGLE_USE" ? "🔹 Single Use" :
-                     pass.redemptionMode === "ONCE_PER_DAY" ? "🔸 Once/Day" :
-                     pass.redemptionMode === "MULTI_USE" ? "🟢 Unlimited" :
-                     pass.redemptionMode === "LIMITED_MULTI" ? `🔺 ${pass.maxRedemptions || "?"} uses` :
-                     ""}
+                    {pass.redemptionMode === "SINGLE_USE"
+                      ? "🔹 Single Use"
+                      : pass.redemptionMode === "ONCE_PER_DAY"
+                        ? "🔸 Once/Day"
+                        : pass.redemptionMode === "MULTI_USE"
+                          ? "🟢 Unlimited"
+                          : pass.redemptionMode === "LIMITED_MULTI"
+                            ? `🔺 ${pass.maxRedemptions || "?"} uses`
+                            : ""}
                   </span>
                 </PassMeta>
 
                 <PassActions>
-                  <ActionButton $variant="outline" onClick={() => handleViewSales(pass)}>
+                  <ActionButton
+                    $variant="outline"
+                    onClick={() => handleViewSales(pass)}
+                  >
                     Sales ({pass.soldCount})
                   </ActionButton>
                   {canManage && (
                     <>
-                      <ActionButton $variant="outline" onClick={() => handleEdit(pass)}>
+                      <ActionButton
+                        $variant="outline"
+                        onClick={() => handleEdit(pass)}
+                      >
                         Edit
                       </ActionButton>
                       {pass.isActive && (
-                        <ActionButton $variant="danger" onClick={() => setDeactivateTarget(pass)}>
+                        <ActionButton
+                          $variant="danger"
+                          onClick={() => setDeactivateTarget(pass)}
+                        >
                           Deactivate
                         </ActionButton>
                       )}
@@ -1007,8 +1145,10 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
           <span>
             Showing {(pagination.page - 1) * pagination.limit + 1}
             &ndash;
-            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-            {pagination.total} passes
+            {Math.min(
+              pagination.page * pagination.limit,
+              pagination.total,
+            )} of {pagination.total} passes
           </span>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <button
@@ -1047,23 +1187,44 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       {showForm && (
         <ModalOverlay onClick={() => setShowForm(false)}>
           <Modal onClick={(e) => e.stopPropagation()}>
-            <ModalTitle>{editingPass ? "Edit Pass" : "Create VIP Pass"}</ModalTitle>
+            <ModalTitle>
+              {editingPass ? "Edit Pass" : "Create VIP Pass"}
+            </ModalTitle>
 
             <FormGroup>
               <Label>Pass Name *</Label>
-              <Input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder='e.g. "VIP Skip Line"' />
+              <Input
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                placeholder='e.g. "VIP Skip Line"'
+              />
             </FormGroup>
 
             <FormGroup>
               <Label>Description</Label>
-              <TextArea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} placeholder="What does this pass include?" />
+              <TextArea
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="What does this pass include?"
+              />
             </FormGroup>
 
             <FormGroup>
               <Label>Pass Type *</Label>
-              <Select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value as PassType })}>
+              <Select
+                value={formData.type}
+                onChange={(e) =>
+                  setFormData({ ...formData, type: e.target.value as PassType })
+                }
+              >
                 {Object.entries(PASS_TYPE_LABELS).map(([val, label]) => (
-                  <option key={val} value={val}>{label}</option>
+                  <option key={val} value={val}>
+                    {label}
+                  </option>
                 ))}
               </Select>
             </FormGroup>
@@ -1071,24 +1232,71 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             <InlineRow>
               <FormGroup>
                 <Label>Price (€) *</Label>
-                <Input type="number" step="0.01" min="0.01" value={formData.priceEuros} onChange={(e) => setFormData({ ...formData, priceEuros: e.target.value })} placeholder="9.99" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={formData.priceEuros}
+                  onChange={(e) =>
+                    setFormData({ ...formData, priceEuros: e.target.value })
+                  }
+                  placeholder="9.99"
+                />
               </FormGroup>
               <FormGroup>
                 <Label>Original Price (€)</Label>
-                <Input type="number" step="0.01" min="0" value={formData.originalPriceEuros} onChange={(e) => setFormData({ ...formData, originalPriceEuros: e.target.value })} placeholder="19.99 (for strikethrough)" />
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.originalPriceEuros}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      originalPriceEuros: e.target.value,
+                    })
+                  }
+                  placeholder="19.99 (for strikethrough)"
+                />
               </FormGroup>
             </InlineRow>
 
             <FormGroup>
               <Label>Benefits</Label>
-              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
-                <Input value={benefitInput} onChange={(e) => setBenefitInput(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addBenefit(); } }} placeholder='e.g. "Free welcome drink"' />
-                <ModalButton $variant="outline" onClick={addBenefit} style={{ flexShrink: 0 }}>Add</ModalButton>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
+                <Input
+                  value={benefitInput}
+                  onChange={(e) => setBenefitInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addBenefit();
+                    }
+                  }}
+                  placeholder='e.g. "Free welcome drink"'
+                />
+                <ModalButton
+                  $variant="outline"
+                  onClick={addBenefit}
+                  style={{ flexShrink: 0 }}
+                >
+                  Add
+                </ModalButton>
               </div>
               {formData.benefits.length > 0 && (
                 <BenefitsList>
                   {formData.benefits.map((b, i) => (
-                    <BenefitTag key={i} style={{ cursor: "pointer" }} onClick={() => removeBenefit(i)}>
+                    <BenefitTag
+                      key={i}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => removeBenefit(i)}
+                    >
                       {b} ✕
                     </BenefitTag>
                   ))}
@@ -1099,11 +1307,23 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             <InlineRow>
               <FormGroup>
                 <Label>Valid From *</Label>
-                <Input type="datetime-local" value={formData.validityStart} onChange={(e) => setFormData({ ...formData, validityStart: e.target.value })} />
+                <Input
+                  type="datetime-local"
+                  value={formData.validityStart}
+                  onChange={(e) =>
+                    setFormData({ ...formData, validityStart: e.target.value })
+                  }
+                />
               </FormGroup>
               <FormGroup>
                 <Label>Valid Until *</Label>
-                <Input type="datetime-local" value={formData.validityEnd} onChange={(e) => setFormData({ ...formData, validityEnd: e.target.value })} />
+                <Input
+                  type="datetime-local"
+                  value={formData.validityEnd}
+                  onChange={(e) =>
+                    setFormData({ ...formData, validityEnd: e.target.value })
+                  }
+                />
               </FormGroup>
             </InlineRow>
 
@@ -1111,7 +1331,12 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
               <Label>Valid Days</Label>
               <DayCheckGrid>
                 {ALL_DAYS.map((day) => (
-                  <DayChip key={day} $selected={formData.validDays.includes(day)} onClick={() => toggleDay(day)} type="button">
+                  <DayChip
+                    key={day}
+                    $selected={formData.validDays.includes(day)}
+                    onClick={() => toggleDay(day)}
+                    type="button"
+                  >
                     {day.slice(0, 3)}
                   </DayChip>
                 ))}
@@ -1121,52 +1346,137 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             <InlineRow>
               <FormGroup>
                 <Label>Total Quantity *</Label>
-                <Input type="number" min="1" value={formData.totalQuantity} onChange={(e) => setFormData({ ...formData, totalQuantity: e.target.value })} />
+                <Input
+                  type="number"
+                  min="1"
+                  value={formData.totalQuantity}
+                  onChange={(e) =>
+                    setFormData({ ...formData, totalQuantity: e.target.value })
+                  }
+                />
               </FormGroup>
               <FormGroup>
                 <Label>Max Per User</Label>
-                <Input type="number" min="1" value={formData.maxPerUser} onChange={(e) => setFormData({ ...formData, maxPerUser: e.target.value })} />
+                <Input
+                  type="number"
+                  min="1"
+                  value={formData.maxPerUser}
+                  onChange={(e) =>
+                    setFormData({ ...formData, maxPerUser: e.target.value })
+                  }
+                />
               </FormGroup>
             </InlineRow>
 
             <FormGroup>
               <Label>Redemption Mode</Label>
-              <Select value={formData.redemptionMode} onChange={(e) => setFormData({ ...formData, redemptionMode: e.target.value as RedemptionMode })}>
-                <option value="SINGLE_USE">Single Use — scan once, then consumed</option>
-                <option value="ONCE_PER_DAY">Once Per Day — reset each calendar day</option>
-                <option value="MULTI_USE">Multi Use — unlimited redemptions</option>
-                <option value="LIMITED_MULTI">Limited Multi — up to N total redemptions</option>
+              <Select
+                value={formData.redemptionMode}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    redemptionMode: e.target.value as RedemptionMode,
+                  })
+                }
+              >
+                <option value="SINGLE_USE">
+                  Single Use — scan once, then consumed
+                </option>
+                <option value="ONCE_PER_DAY">
+                  Once Per Day — reset each calendar day
+                </option>
+                <option value="MULTI_USE">
+                  Multi Use — unlimited redemptions
+                </option>
+                <option value="LIMITED_MULTI">
+                  Limited Multi — up to N total redemptions
+                </option>
               </Select>
             </FormGroup>
 
             {formData.redemptionMode === "LIMITED_MULTI" && (
               <FormGroup>
                 <Label>Max Redemptions</Label>
-                <Input type="number" min="1" value={formData.maxRedemptions} onChange={(e) => setFormData({ ...formData, maxRedemptions: e.target.value })} placeholder="e.g. 5" />
+                <Input
+                  type="number"
+                  min="1"
+                  value={formData.maxRedemptions}
+                  onChange={(e) =>
+                    setFormData({ ...formData, maxRedemptions: e.target.value })
+                  }
+                  placeholder="e.g. 5"
+                />
               </FormGroup>
             )}
 
             <FormGroup>
               <CheckboxLabel>
-                <input type="checkbox" checked={formData.skipLinePriority} onChange={(e) => setFormData({ ...formData, skipLinePriority: e.target.checked })} />
+                <input
+                  type="checkbox"
+                  checked={formData.skipLinePriority}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      skipLinePriority: e.target.checked,
+                    })
+                  }
+                />
                 Skip Line Priority
               </CheckboxLabel>
             </FormGroup>
 
             <FormGroup>
               <CheckboxLabel>
-                <input type="checkbox" checked={formData.coverFeeIncluded} onChange={(e) => setFormData({ ...formData, coverFeeIncluded: e.target.checked })} />
+                <input
+                  type="checkbox"
+                  checked={formData.coverFeeIncluded}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      coverFeeIncluded: e.target.checked,
+                    })
+                  }
+                />
                 Cover Fee Included
               </CheckboxLabel>
               {formData.coverFeeIncluded && (
-                <Input type="number" min="0" value={formData.coverFeeAmount} onChange={(e) => setFormData({ ...formData, coverFeeAmount: e.target.value })} placeholder="Cover fee amount" style={{ marginTop: "0.5rem", maxWidth: "200px" }} />
+                <Input
+                  type="number"
+                  min="0"
+                  value={formData.coverFeeAmount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, coverFeeAmount: e.target.value })
+                  }
+                  placeholder="Cover fee amount"
+                  style={{ marginTop: "0.5rem", maxWidth: "200px" }}
+                />
               )}
             </FormGroup>
 
             <ButtonRow>
-              <ModalButton $variant="outline" onClick={() => setShowForm(false)}>Cancel</ModalButton>
-              <ModalButton $variant="primary" onClick={handleSave} disabled={saving || !formData.name.trim() || !formData.priceEuros || !formData.validityStart || !formData.validityEnd || !formData.totalQuantity}>
-                {saving ? "Saving..." : editingPass ? "Save Changes" : "Create Pass"}
+              <ModalButton
+                $variant="outline"
+                onClick={() => setShowForm(false)}
+              >
+                Cancel
+              </ModalButton>
+              <ModalButton
+                $variant="primary"
+                onClick={handleSave}
+                disabled={
+                  saving ||
+                  !formData.name.trim() ||
+                  !formData.priceEuros ||
+                  !formData.validityStart ||
+                  !formData.validityEnd ||
+                  !formData.totalQuantity
+                }
+              >
+                {saving
+                  ? "Saving..."
+                  : editingPass
+                    ? "Save Changes"
+                    : "Create Pass"}
               </ModalButton>
             </ButtonRow>
           </Modal>
@@ -1176,7 +1486,10 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
       {/* Sales Modal */}
       {showSales && (
         <ModalOverlay onClick={() => setShowSales(false)}>
-          <Modal onClick={(e) => e.stopPropagation()} style={{ maxWidth: "640px" }}>
+          <Modal
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "640px" }}
+          >
             <ModalTitle>
               {salesData ? `Sales — ${salesData.name}` : "Sales Data"}
             </ModalTitle>
@@ -1184,30 +1497,102 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             {salesLoading ? (
               <LoadingOverlay>Loading sales data...</LoadingOverlay>
             ) : !salesData ? (
-              <EmptyState><EmptyText>Failed to load sales data</EmptyText></EmptyState>
+              <EmptyState>
+                <EmptyText>Failed to load sales data</EmptyText>
+              </EmptyState>
             ) : (
               <>
-                <div style={{ display: "flex", gap: "1.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "1.5rem",
+                    marginBottom: "1rem",
+                    flexWrap: "wrap",
+                  }}
+                >
                   <div>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", textTransform: "uppercase" }}>Revenue</div>
-                    <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#1f2937" }}>€{formatEuro(salesData.revenueCents)}</div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Revenue
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "1.5rem",
+                        fontWeight: 700,
+                        color: "#1f2937",
+                      }}
+                    >
+                      €{formatEuro(salesData.revenueCents)}
+                    </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", textTransform: "uppercase" }}>Sold</div>
-                    <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#1f2937" }}>{salesData.soldCount} / {salesData.totalQuantity}</div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Sold
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "1.5rem",
+                        fontWeight: 700,
+                        color: "#1f2937",
+                      }}
+                    >
+                      {salesData.soldCount} / {salesData.totalQuantity}
+                    </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", textTransform: "uppercase" }}>Remaining</div>
-                    <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "#1f2937" }}>{salesData.totalQuantity - salesData.soldCount}</div>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#6b7280",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Remaining
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "1.5rem",
+                        fontWeight: 700,
+                        color: "#1f2937",
+                      }}
+                    >
+                      {salesData.totalQuantity - salesData.soldCount}
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#374151", marginBottom: "0.5rem" }}>
+                <div
+                  style={{
+                    fontSize: "0.8125rem",
+                    fontWeight: 600,
+                    color: "#374151",
+                    marginBottom: "0.5rem",
+                  }}
+                >
                   Recent Purchasers ({salesData.purchasers.length})
                 </div>
 
                 {salesData.purchasers.length === 0 ? (
-                  <div style={{ color: "#9ca3af", fontSize: "0.875rem", padding: "1rem 0" }}>No purchases yet</div>
+                  <div
+                    style={{
+                      color: "#9ca3af",
+                      fontSize: "0.875rem",
+                      padding: "1rem 0",
+                    }}
+                  >
+                    No purchases yet
+                  </div>
                 ) : (
                   <div style={{ maxHeight: "300px", overflow: "auto" }}>
                     <SalesTable>
@@ -1223,22 +1608,46 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
                       <tbody>
                         {salesData.purchasers.map((p) => (
                           <tr key={p.id}>
-                            <SalesTd style={{ fontWeight: 500 }}>{p.userName}</SalesTd>
-                            <SalesTd style={{ fontSize: "0.75rem", color: "#6b7280" }}>{p.userEmail}</SalesTd>
-                            <SalesTd style={{ fontWeight: 600 }}>€{formatEuro(p.purchasePriceCents)}</SalesTd>
+                            <SalesTd style={{ fontWeight: 500 }}>
+                              {p.userName}
+                            </SalesTd>
+                            <SalesTd
+                              style={{ fontSize: "0.75rem", color: "#6b7280" }}
+                            >
+                              {p.userEmail}
+                            </SalesTd>
+                            <SalesTd style={{ fontWeight: 600 }}>
+                              €{formatEuro(p.purchasePriceCents)}
+                            </SalesTd>
                             <SalesTd>
-                              <span style={{
-                                padding: "0.125rem 0.5rem",
-                                borderRadius: "0.25rem",
-                                fontSize: "0.6875rem",
-                                fontWeight: 600,
-                                background: p.status === "ACTIVE" ? "#dcfce7" : p.status === "USED" ? "#f3f4f6" : "#fef2f2",
-                                color: p.status === "ACTIVE" ? "#166534" : p.status === "USED" ? "#6b7280" : "#dc2626",
-                              }}>
+                              <span
+                                style={{
+                                  padding: "0.125rem 0.5rem",
+                                  borderRadius: "0.25rem",
+                                  fontSize: "0.6875rem",
+                                  fontWeight: 600,
+                                  background:
+                                    p.status === "ACTIVE"
+                                      ? "#dcfce7"
+                                      : p.status === "USED"
+                                        ? "#f3f4f6"
+                                        : "#fef2f2",
+                                  color:
+                                    p.status === "ACTIVE"
+                                      ? "#166534"
+                                      : p.status === "USED"
+                                        ? "#6b7280"
+                                        : "#dc2626",
+                                }}
+                              >
                                 {p.status}
                               </span>
                             </SalesTd>
-                            <SalesTd style={{ fontSize: "0.75rem", color: "#6b7280" }}>{formatDate(p.purchasedAt)}</SalesTd>
+                            <SalesTd
+                              style={{ fontSize: "0.75rem", color: "#6b7280" }}
+                            >
+                              {formatDate(p.purchasedAt)}
+                            </SalesTd>
                           </tr>
                         ))}
                       </tbody>
@@ -1249,7 +1658,12 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
             )}
 
             <ButtonRow>
-              <ModalButton $variant="outline" onClick={() => setShowSales(false)}>Close</ModalButton>
+              <ModalButton
+                $variant="outline"
+                onClick={() => setShowSales(false)}
+              >
+                Close
+              </ModalButton>
             </ButtonRow>
           </Modal>
         </ModalOverlay>
@@ -1261,12 +1675,25 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
           <Modal onClick={(e) => e.stopPropagation()}>
             <ModalTitle>Deactivate Pass</ModalTitle>
             <p style={{ color: "#6b7280", marginBottom: "1rem" }}>
-              Deactivate <strong style={{ color: "#1f2937" }}>{deactivateTarget.name}</strong>?
-              Existing purchased passes will still be valid. This stops new sales.
+              Deactivate{" "}
+              <strong style={{ color: "#1f2937" }}>
+                {deactivateTarget.name}
+              </strong>
+              ? Existing purchased passes will still be valid. This stops new
+              sales.
             </p>
             <ButtonRow>
-              <ModalButton $variant="outline" onClick={() => setDeactivateTarget(null)}>Keep Active</ModalButton>
-              <ModalButton $variant="danger" onClick={handleDeactivate} disabled={deactivating}>
+              <ModalButton
+                $variant="outline"
+                onClick={() => setDeactivateTarget(null)}
+              >
+                Keep Active
+              </ModalButton>
+              <ModalButton
+                $variant="danger"
+                onClick={handleDeactivate}
+                disabled={deactivating}
+              >
                 {deactivating ? "Deactivating..." : "Yes, Deactivate"}
               </ModalButton>
             </ButtonRow>

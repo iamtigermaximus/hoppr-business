@@ -577,13 +577,7 @@ const ModalButton = styled.button<{
 
 // Promotions List Styles
 const PromotionsSection = styled.div`
-  margin-top: 3rem;
-  padding-top: 2rem;
-  border-top: 2px solid #e5e7eb;
-
   @media (max-width: 768px) {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
   }
 `;
 
@@ -603,8 +597,8 @@ const TabsContainer = styled.div`
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1.5rem;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #f3f4f6;
+  padding-bottom: 0;
   overflow-x: auto;
 
   @media (max-width: 640px) {
@@ -613,24 +607,26 @@ const TabsContainer = styled.div`
 `;
 
 const Tab = styled.button<{ $active: boolean }>`
-  padding: 0.75rem 1.5rem;
-  background: ${(props) => (props.$active ? "#3b82f6" : "transparent")};
-  color: ${(props) => (props.$active ? "white" : "#6b7280")};
+  padding: 0.625rem 1.25rem;
+  background: none;
   border: none;
-  border-radius: 0.5rem;
+  border-bottom: 2px solid
+    ${(props) => (props.$active ? "#7c3aed" : "transparent")};
+  color: ${(props) => (props.$active ? "#7c3aed" : "#6b7280")};
+  font-size: 0.875rem;
+  font-weight: ${(props) => (props.$active ? "600" : "500")};
   cursor: pointer;
-  font-weight: 600;
+  margin-bottom: -1px;
   transition: all 0.2s;
   white-space: nowrap;
-  min-height: 44px;
 
   &:hover {
-    background: ${(props) => (props.$active ? "#2563eb" : "#f3f4f6")};
+    color: #7c3aed;
   }
 
   @media (max-width: 640px) {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
   }
 `;
 
@@ -947,8 +943,18 @@ const PromotionsWizard = ({
   const [sortBy, setSortBy] = useState<string>("createdAt");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 0 });
-  const [tabCounts, setTabCounts] = useState<Record<string, number>>({ all: 0, pending: 0, active: 0, expired: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    pages: 0,
+  });
+  const [tabCounts, setTabCounts] = useState<Record<string, number>>({
+    all: 0,
+    pending: 0,
+    active: 0,
+    expired: 0,
+  });
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
     type: "delete",
@@ -976,6 +982,9 @@ const PromotionsWizard = ({
   ];
 
   // Check if user can approve (OWNER, MANAGER, PROMOTIONS_MANAGER)
+  const canManage = ["OWNER", "MANAGER", "PROMOTIONS_MANAGER"].includes(
+    userRole,
+  );
   const canApprove = ["OWNER", "MANAGER", "PROMOTIONS_MANAGER"].includes(
     userRole,
   );
@@ -985,7 +994,10 @@ const PromotionsWizard = ({
 
   // Fetch tab counts on mount (lightweight: limit=1 per status)
   const fetchTabCounts = useCallback(async () => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("hoppr_token")
+        : null;
     if (!token) return;
     const statuses = ["all", "pending", "active", "expired"] as const;
     try {
@@ -1000,8 +1012,15 @@ const PromotionsWizard = ({
           return { status: s, count: data.pagination?.total || 0 };
         }),
       );
-      const counts: Record<string, number> = { all: 0, pending: 0, active: 0, expired: 0 };
-      results.forEach((r) => { counts[r.status] = r.count; });
+      const counts: Record<string, number> = {
+        all: 0,
+        pending: 0,
+        active: 0,
+        expired: 0,
+      };
+      results.forEach((r) => {
+        counts[r.status] = r.count;
+      });
       setTabCounts(counts);
     } catch {
       // counts stay at 0 on error — non-critical
@@ -1011,7 +1030,10 @@ const PromotionsWizard = ({
   // Fetch promotions with full params for the active tab
   const fetchPromotions = useCallback(async () => {
     setLoading(true);
-    const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("hoppr_token")
+        : null;
     if (!token) {
       setLoading(false);
       return;
@@ -1287,19 +1309,43 @@ const PromotionsWizard = ({
   // Render Tabs
   const renderTabs = () => (
     <TabsContainer>
-      <Tab $active={activeTab === "all"} onClick={() => { setActiveTab("all"); setPage(1); }}>
+      <Tab
+        $active={activeTab === "all"}
+        onClick={() => {
+          setActiveTab("all");
+          setPage(1);
+        }}
+      >
         All
         <TabCount $color="gray">{tabCounts.all}</TabCount>
       </Tab>
-      <Tab $active={activeTab === "pending"} onClick={() => { setActiveTab("pending"); setPage(1); }}>
+      <Tab
+        $active={activeTab === "pending"}
+        onClick={() => {
+          setActiveTab("pending");
+          setPage(1);
+        }}
+      >
         Pending
         <TabCount $color="orange">{tabCounts.pending}</TabCount>
       </Tab>
-      <Tab $active={activeTab === "active"} onClick={() => { setActiveTab("active"); setPage(1); }}>
+      <Tab
+        $active={activeTab === "active"}
+        onClick={() => {
+          setActiveTab("active");
+          setPage(1);
+        }}
+      >
         Active
         <TabCount $color="green">{tabCounts.active}</TabCount>
       </Tab>
-      <Tab $active={activeTab === "expired"} onClick={() => { setActiveTab("expired"); setPage(1); }}>
+      <Tab
+        $active={activeTab === "expired"}
+        onClick={() => {
+          setActiveTab("expired");
+          setPage(1);
+        }}
+      >
         Expired
         <TabCount $color="red">{tabCounts.expired}</TabCount>
       </Tab>
@@ -1354,7 +1400,7 @@ const PromotionsWizard = ({
   const renderPromotionsList = () => {
     return (
       <PromotionsSection>
-        <SectionTitle>Your Promotions</SectionTitle>
+        {/* <SectionTitle>Your Promotions</SectionTitle> */}
         {renderTabs()}
 
         {/* Toolbar: search + type filter + sort */}
@@ -1370,7 +1416,10 @@ const PromotionsWizard = ({
             type="text"
             placeholder="Search promotions..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             style={{
               flex: 1,
               minWidth: "200px",
@@ -1382,7 +1431,10 @@ const PromotionsWizard = ({
           />
           <select
             value={typeFilter}
-            onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setTypeFilter(e.target.value);
+              setPage(1);
+            }}
             style={{
               padding: "0.5rem 0.75rem",
               border: "1px solid #d1d5db",
@@ -1392,22 +1444,38 @@ const PromotionsWizard = ({
             }}
           >
             <option value="">All Types</option>
-            {["HAPPY_HOUR", "DRINK_SPECIAL", "FOOD_SPECIAL", "LADIES_NIGHT", "THEME_NIGHT", "VIP_OFFER", "COVER_DISCOUNT", "STUDENT_DISCOUNT"].map((t) => (
-              <option key={t} value={t}>{t.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (l) => l.toUpperCase())}</option>
+            {[
+              "HAPPY_HOUR",
+              "DRINK_SPECIAL",
+              "FOOD_SPECIAL",
+              "LADIES_NIGHT",
+              "THEME_NIGHT",
+              "VIP_OFFER",
+              "COVER_DISCOUNT",
+              "STUDENT_DISCOUNT",
+            ].map((t) => (
+              <option key={t} value={t}>
+                {t
+                  .replace(/_/g, " ")
+                  .toLowerCase()
+                  .replace(/\b\w/g, (l) => l.toUpperCase())}
+              </option>
             ))}
           </select>
           <button
             onClick={() => {
               setSortBy("title");
-              setSortOrder(sortBy === "title" && sortOrder === "asc" ? "desc" : "asc");
+              setSortOrder(
+                sortBy === "title" && sortOrder === "asc" ? "desc" : "asc",
+              );
               setPage(1);
             }}
             style={{
               padding: "0.5rem 0.75rem",
-              border: `1px solid ${sortBy === "title" ? "#3b82f6" : "#d1d5db"}`,
+              border: `1px solid ${sortBy === "title" ? "#7c3aed" : "#d1d5db"}`,
               borderRadius: "0.375rem",
-              background: sortBy === "title" ? "#eff6ff" : "white",
-              color: sortBy === "title" ? "#1d4ed8" : "#6b7280",
+              background: sortBy === "title" ? "#f5f3ff" : "white",
+              color: sortBy === "title" ? "#7c3aed" : "#6b7280",
               fontSize: "0.75rem",
               cursor: "pointer",
             }}
@@ -1417,20 +1485,23 @@ const PromotionsWizard = ({
           <button
             onClick={() => {
               setSortBy("createdAt");
-              setSortOrder(sortBy === "createdAt" && sortOrder === "desc" ? "asc" : "desc");
+              setSortOrder(
+                sortBy === "createdAt" && sortOrder === "desc" ? "asc" : "desc",
+              );
               setPage(1);
             }}
             style={{
               padding: "0.5rem 0.75rem",
-              border: `1px solid ${sortBy === "createdAt" ? "#3b82f6" : "#d1d5db"}`,
+              border: `1px solid ${sortBy === "createdAt" ? "#7c3aed" : "#d1d5db"}`,
               borderRadius: "0.375rem",
-              background: sortBy === "createdAt" ? "#eff6ff" : "white",
-              color: sortBy === "createdAt" ? "#1d4ed8" : "#6b7280",
+              background: sortBy === "createdAt" ? "#f5f3ff" : "white",
+              color: sortBy === "createdAt" ? "#7c3aed" : "#6b7280",
               fontSize: "0.75rem",
               cursor: "pointer",
             }}
           >
-            Date {sortBy === "createdAt" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
+            Date{" "}
+            {sortBy === "createdAt" ? (sortOrder === "asc" ? "↑" : "↓") : ""}
           </button>
         </div>
 
@@ -1551,8 +1622,11 @@ const PromotionsWizard = ({
             <span>
               Showing {(pagination.page - 1) * pagination.limit + 1}
               &ndash;
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-              {pagination.total} promotions
+              {Math.min(
+                pagination.page * pagination.limit,
+                pagination.total,
+              )}{" "}
+              of {pagination.total} promotions
             </span>
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button
@@ -1592,19 +1666,38 @@ const PromotionsWizard = ({
 
   const renderHeader = () => (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem", marginBottom: "1.5rem" }}>
-        <div>
-          <Title>Promotions</Title>
-          <Subtitle>Manage your bar&apos;s promotions</Subtitle>
-        </div>
-        <Button
-          $variant="primary"
-          as="a"
-          href={`/bar/${barId}/create`}
-          style={{ textDecoration: "none" }}
-        >
-          + Create Promotion
-        </Button>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "1rem",
+          marginBottom: "1.5rem",
+        }}
+      >
+        <Title>Promotions</Title>
+        {canManage && (
+          <a
+            href={`/bar/${barId}/create`}
+            style={{
+              padding: "0.75rem 1.5rem",
+              background: "#7c3aed",
+              color: "white",
+              border: "none",
+              borderRadius: "0.5rem",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.5rem",
+            }}
+          >
+            Create Promotion
+          </a>
+        )}
       </div>
       {renderPromotionsList()}
     </div>
@@ -1801,9 +1894,7 @@ const PromotionsWizard = ({
   // Always show the promotions list with link to unified create hub
   return (
     <>
-      <Container>
-        {renderHeader()}
-      </Container>
+      <Container>{renderHeader()}</Container>
       {renderModal()}
     </>
   );

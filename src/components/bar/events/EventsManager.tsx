@@ -50,7 +50,7 @@ const CreateButton = styled.button`
   align-items: center;
   gap: 0.5rem;
   transition: background 0.2s;
-
+  text-decoration: none;
   &:hover {
     background: #6d28d9;
   }
@@ -69,7 +69,8 @@ const FilterTab = styled.button<{ $active: boolean }>`
   padding: 0.625rem 1.25rem;
   background: none;
   border: none;
-  border-bottom: 2px solid ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
+  border-bottom: 2px solid
+    ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
   color: ${({ $active }) => ($active ? "#7c3aed" : "#6b7280")};
   font-size: 0.875rem;
   font-weight: ${({ $active }) => ($active ? "600" : "500")};
@@ -149,12 +150,14 @@ const ActionButton = styled.button<{ $variant: "outline" | "danger" }>`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid ${({ $variant }) => ($variant === "danger" ? "#fecaca" : "#d1d5db")};
+  border: 1px solid
+    ${({ $variant }) => ($variant === "danger" ? "#fecaca" : "#d1d5db")};
   background: white;
   color: ${({ $variant }) => ($variant === "danger" ? "#dc2626" : "#374151")};
 
   &:hover {
-    background: ${({ $variant }) => ($variant === "danger" ? "#fef2f2" : "#f3f4f6")};
+    background: ${({ $variant }) =>
+      $variant === "danger" ? "#fef2f2" : "#f3f4f6"};
   }
 `;
 
@@ -167,16 +170,22 @@ const Badge = styled.span<{ $color: string }>`
   font-weight: 600;
   background: ${({ $color }) => {
     switch ($color) {
-      case "upcoming": return "#dcfce7";
-      case "past": return "#f3f4f6";
-      default: return "#e5e7eb";
+      case "upcoming":
+        return "#dcfce7";
+      case "past":
+        return "#f3f4f6";
+      default:
+        return "#e5e7eb";
     }
   }};
   color: ${({ $color }) => {
     switch ($color) {
-      case "upcoming": return "#166534";
-      case "past": return "#6b7280";
-      default: return "#374151";
+      case "upcoming":
+        return "#166534";
+      case "past":
+        return "#6b7280";
+      default:
+        return "#374151";
     }
   }};
 `;
@@ -271,19 +280,25 @@ const ButtonRow = styled.div`
   margin-top: 1.5rem;
 `;
 
-const ModalButton = styled.button<{ $variant: "primary" | "outline" | "danger" }>`
+const ModalButton = styled.button<{
+  $variant: "primary" | "outline" | "danger";
+}>`
   padding: 0.625rem 1.25rem;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid ${({ $variant }) => ($variant === "outline" ? "#d1d5db" : "transparent")};
+  border: 1px solid
+    ${({ $variant }) => ($variant === "outline" ? "#d1d5db" : "transparent")};
   background: ${({ $variant }) => {
     switch ($variant) {
-      case "primary": return "#7c3aed";
-      case "danger": return "#ef4444";
-      default: return "white";
+      case "primary":
+        return "#7c3aed";
+      case "danger":
+        return "#ef4444";
+      default:
+        return "white";
     }
   }};
   color: ${({ $variant }) => ($variant === "outline" ? "#374151" : "white")};
@@ -291,9 +306,12 @@ const ModalButton = styled.button<{ $variant: "primary" | "outline" | "danger" }
   &:hover {
     background: ${({ $variant }) => {
       switch ($variant) {
-        case "primary": return "#6d28d9";
-        case "danger": return "#dc2626";
-        default: return "#f3f4f6";
+        case "primary":
+          return "#6d28d9";
+        case "danger":
+          return "#dc2626";
+        default:
+          return "#f3f4f6";
       }
     }};
   }
@@ -485,7 +503,12 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
   const [sortBy, setSortBy] = useState<string>("startTime");
   const [sortOrder, setSortOrder] = useState<string>("desc");
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, limit: 12, total: 0, pages: 0 });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+    total: 0,
+    pages: 0,
+  });
 
   // Modal state
   const [showForm, setShowForm] = useState(false);
@@ -510,7 +533,8 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
   const [deleteTarget, setDeleteTarget] = useState<EventItem | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
 
   const fetchEvents = useCallback(async () => {
     if (!token) return;
@@ -611,8 +635,12 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
         title: formData.title.trim(),
         description: formData.description.trim() || null,
         startTime: new Date(formData.startTime).toISOString(),
-        endTime: formData.endTime ? new Date(formData.endTime).toISOString() : null,
-        maxAttendees: formData.maxAttendees ? parseInt(formData.maxAttendees, 10) : null,
+        endTime: formData.endTime
+          ? new Date(formData.endTime).toISOString()
+          : null,
+        maxAttendees: formData.maxAttendees
+          ? parseInt(formData.maxAttendees, 10)
+          : null,
         isPrivate: formData.isPrivate,
       };
 
@@ -678,10 +706,13 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
     setDeleting(true);
 
     try {
-      const res = await fetch(`/api/auth/bar/${barId}/events/${deleteTarget.id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `/api/auth/bar/${barId}/events/${deleteTarget.id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
 
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
 
@@ -702,7 +733,7 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
         <Title>Events</Title>
         {canManage && (
           <CreateButton as="a" href={`/bar/${barId}/create`}>
-            + Create Event
+            Create Event
           </CreateButton>
         )}
       </Header>
@@ -712,9 +743,16 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
           <FilterTab
             key={f}
             $active={filter === f}
-            onClick={() => { setFilter(f); setPage(1); }}
+            onClick={() => {
+              setFilter(f);
+              setPage(1);
+            }}
           >
-            {f === "upcoming" ? "Upcoming" : f === "past" ? "Past" : "All Events"}
+            {f === "upcoming"
+              ? "Upcoming"
+              : f === "past"
+                ? "Past"
+                : "All Events"}
           </FilterTab>
         ))}
       </FilterTabs>
@@ -731,7 +769,10 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
           type="text"
           placeholder="Search events..."
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           style={{
             flex: 1,
             minWidth: "180px",
@@ -744,7 +785,9 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
         <button
           onClick={() => {
             setSortBy("startTime");
-            setSortOrder(sortBy === "startTime" && sortOrder === "desc" ? "asc" : "desc");
+            setSortOrder(
+              sortBy === "startTime" && sortOrder === "desc" ? "asc" : "desc",
+            );
             setPage(1);
           }}
           style={{
@@ -757,12 +800,15 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
             cursor: "pointer",
           }}
         >
-          Date {sortBy === "startTime" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
+          Date{" "}
+          {sortBy === "startTime" ? (sortOrder === "desc" ? "↓" : "↑") : ""}
         </button>
         <button
           onClick={() => {
             setSortBy("title");
-            setSortOrder(sortBy === "title" && sortOrder === "desc" ? "asc" : "desc");
+            setSortOrder(
+              sortBy === "title" && sortOrder === "desc" ? "asc" : "desc",
+            );
             setPage(1);
           }}
           style={{
@@ -818,9 +864,13 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
                 <EventTitle>{event.title}</EventTitle>
                 <EventMeta>
                   <span>📅 {formatDateTime(event.startTime)}</span>
-                  {event.endTime && <span>→ {formatDateTime(event.endTime)}</span>}
+                  {event.endTime && (
+                    <span>→ {formatDateTime(event.endTime)}</span>
+                  )}
                   <span>👥 {event.attendeeCount} attending</span>
-                  <Badge $color={isUpcoming(event.startTime) ? "upcoming" : "past"}>
+                  <Badge
+                    $color={isUpcoming(event.startTime) ? "upcoming" : "past"}
+                  >
                     {isUpcoming(event.startTime) ? "Upcoming" : "Past"}
                   </Badge>
                   {event.isPrivate && <span>🔒 Private</span>}
@@ -863,8 +913,10 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
           <span>
             Showing {(pagination.page - 1) * pagination.limit + 1}
             &ndash;
-            {Math.min(pagination.page * pagination.limit, pagination.total)} of{" "}
-            {pagination.total} events
+            {Math.min(
+              pagination.page * pagination.limit,
+              pagination.total,
+            )} of {pagination.total} events
           </span>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <PageButton
@@ -978,9 +1030,15 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
               <ModalButton
                 $variant="primary"
                 onClick={handleSave}
-                disabled={saving || !formData.title.trim() || !formData.startTime}
+                disabled={
+                  saving || !formData.title.trim() || !formData.startTime
+                }
               >
-                {saving ? "Saving..." : editingEvent ? "Save Changes" : "Create Event"}
+                {saving
+                  ? "Saving..."
+                  : editingEvent
+                    ? "Save Changes"
+                    : "Create Event"}
               </ModalButton>
             </ButtonRow>
           </Modal>
@@ -1004,7 +1062,9 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
                 {attendees.map((a) => (
                   <AttendeeRow key={a.userId}>
                     <div>
-                      <AttendeeName>{a.name || a.username || "Anonymous"}</AttendeeName>
+                      <AttendeeName>
+                        {a.name || a.username || "Anonymous"}
+                      </AttendeeName>
                       <AttendeeMeta>{a.email}</AttendeeMeta>
                     </div>
                     <AttendeeMeta>
@@ -1034,8 +1094,8 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
             <ModalTitle>Cancel Event</ModalTitle>
             <p style={{ color: "#6b7280", marginBottom: "1rem" }}>
               Are you sure you want to cancel{" "}
-              <strong style={{ color: "#1f2937" }}>{deleteTarget.title}</strong>?
-              This will permanently delete the event and all attendee records.
+              <strong style={{ color: "#1f2937" }}>{deleteTarget.title}</strong>
+              ? This will permanently delete the event and all attendee records.
             </p>
             <ButtonRow>
               <ModalButton
