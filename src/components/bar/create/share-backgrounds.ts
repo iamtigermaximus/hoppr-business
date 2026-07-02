@@ -206,7 +206,7 @@ export const bgForType = (type: string): SvgBackground => {
     COVER_DISCOUNT: "club-night",
     LIVE_MUSIC_EVENT: "live-music",
     GAME_NIGHT: "sports-bar",
-    STUDENT_DISCOUNT: "pub",
+    SEASONAL: "brunch",
   };
   const cat = map[type];
   return cat ? CATEGORY_BACKGROUNDS[cat][0] : "cheers";

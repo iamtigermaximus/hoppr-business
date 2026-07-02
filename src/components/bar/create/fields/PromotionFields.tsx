@@ -10,6 +10,7 @@ import {
   TextArea,
   InlineRow,
 } from "../shared/FormPrimitives";
+import { PROMOTION_TYPES } from "../types";
 
 // ---- Types ----
 
@@ -23,22 +24,11 @@ interface PromotionFieldsProps {
   onChange: (field: string, value: unknown) => void;
 }
 
-const PROMOTION_TYPES = [
-  { value: "HAPPY_HOUR", label: "Happy Hour" },
-  { value: "DRINK_SPECIAL", label: "Drink Special" },
-  { value: "FOOD_SPECIAL", label: "Food Special" },
-  { value: "LADIES_NIGHT", label: "Ladies Night" },
-  { value: "THEME_NIGHT", label: "Theme Night" },
-  { value: "VIP_OFFER", label: "VIP Offer" },
-  { value: "COVER_DISCOUNT", label: "Cover Discount" },
-  { value: "SEASONAL", label: "Seasonal" },
-];
-
 const AUDIENCE_OPTIONS = [
   { value: "", label: "All customers" },
   { value: "WEEKEND", label: "Weekend crowd" },
   { value: "WEEKDAY", label: "Weekday visitors" },
-  { value: "STUDENTS", label: "Students (20+)" },
+  { value: "YOUNG_ADULTS", label: "Young adults (20+)" },
   { value: "VIP", label: "VIP members" },
 ];
 

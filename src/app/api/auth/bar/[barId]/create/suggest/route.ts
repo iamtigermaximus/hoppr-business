@@ -61,7 +61,7 @@ export async function POST(
 
     // 3. Parse request body
     const body = await request.json();
-    const { text } = body;
+    const { text, language = "en" } = body as { text: string; language?: string };
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return NextResponse.json(
@@ -69,6 +69,10 @@ export async function POST(
         { status: 400 },
       );
     }
+
+    // Validate language
+    const validLanguages = ["en", "fi", "sv"];
+    const lang = validLanguages.includes(language) ? language : "en";
 
     // 3. Fetch bar context
     const bar = await prisma.bar.findUnique({
@@ -93,9 +97,13 @@ export async function POST(
     const useAI = !!DEEPSEEK_API_KEY;
 
     // 5. Build AI prompt — compliance rules injected from canonical source
-    const complianceRules = buildComplianceSystemPrompt();
+    const complianceRules = buildComplianceSystemPrompt(
+      lang as "en" | "fi" | "sv",
+    );
 
-    const systemPrompt = `You are an expert at understanding bar and nightlife content. Given a natural language description, determine whether the user wants to create an EVENT, PROMOTION, VIP PASS, or AD CAMPAIGN. Then extract all relevant fields.
+    const languageName = lang === "fi" ? "Finnish" : lang === "sv" ? "Swedish" : "English";
+
+    const systemPrompt = `You are an expert at understanding bar and nightlife content. Given a natural language description in ${languageName}, determine whether the user wants to create an EVENT, PROMOTION, VIP PASS, or AD CAMPAIGN. Then extract all relevant fields and generate content IN ${languageName.toUpperCase()}.
 
 ${complianceRules}
 
@@ -155,9 +163,9 @@ Bar context:
 - VIP Available: ${bar.vipEnabled ? "Yes" : "No"}
 - Current Date: ${new Date().toISOString()}
 
-Analyze the text and determine: event, promotion, or VIP pass? Extract all relevant fields.
+Analyze the text and determine: event, promotion, or VIP pass? Extract all relevant fields. Generate ALL content in ${lang === "fi" ? "Finnish" : lang === "sv" ? "Swedish" : "English"}.
 
-${buildUserReminder()}`;
+${buildUserReminder(lang as "en" | "fi" | "sv")}`;
 
     // 6. Try DeepSeek API; fall back to templates on any failure
     let result: Record<string, unknown> | null = null;

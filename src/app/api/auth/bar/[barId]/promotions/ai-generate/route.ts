@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
-import { buildGeneratePrompt } from "@/lib/compliance/prompts";
+import { buildGeneratePrompt, type PromptLanguage } from "@/lib/compliance/prompts";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import {
   getFallbackPromotion,
@@ -10,6 +10,54 @@ import {
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+const VALID_PROMO_TYPES = [
+  "HAPPY_HOUR", "DRINK_SPECIAL", "FOOD_SPECIAL", "LADIES_NIGHT",
+  "THEME_NIGHT", "VIP_OFFER", "COVER_DISCOUNT", "LIVE_MUSIC_EVENT", "GAME_NIGHT",
+  "SEASONAL",
+] as const;
+
+/** Visual style presets — cycled per variant so each looks distinct */
+const VISUAL_PRESETS = [
+  { template: "card" as const, mood: "dark" as const, overlayOpacity: 0.4, accentColor: "#8b5cf6" },
+  { template: "split" as const, mood: "warm" as const, overlayOpacity: 0.35, accentColor: "#f59e0b" },
+  { template: "centered" as const, mood: "cool" as const, overlayOpacity: 0.45, accentColor: "#3b82f6" },
+  { template: "card" as const, mood: "vibrant" as const, overlayOpacity: 0.3, accentColor: "#ef4444" },
+  { template: "split" as const, mood: "minimal" as const, overlayOpacity: 0.5, accentColor: "#6b7280" },
+];
+
+/** Normalize a raw AI-generated promotion object into the standard response shape. */
+function normalizePromotion(
+  raw: Record<string, unknown>,
+  barName: string,
+  hasPhoto: boolean,
+  index: number = 0,
+) {
+  // Always cycle through presets per variant index for template + mood.
+  // This guarantees visual variety across variants in the picker.
+  // AI can still influence accentColor and overlayOpacity if provided.
+  const preset = VISUAL_PRESETS[index % VISUAL_PRESETS.length];
+
+  return {
+    title: raw.title || `${barName} Special`,
+    description: raw.description || `Special offer at ${barName}`,
+    type: VALID_PROMO_TYPES.includes(raw.type as any)
+      ? raw.type
+      : "DRINK_SPECIAL",
+    discount: typeof raw.discount === "number" ? raw.discount : null,
+    callToAction: raw.callToAction || "View Offer",
+    accentColor: raw.accentColor || preset.accentColor,
+    conditions: raw.conditions || "Valid with valid ID. Terms apply.",
+    visual: {
+      template: preset.template,
+      photoPreference: hasPhoto ? "use_bar_cover" : "gradient_only",
+      mood: preset.mood,
+      overlayOpacity: typeof (raw.visual as Record<string, unknown> | undefined)?.overlayOpacity === "number"
+        ? (raw.visual as Record<string, unknown> | undefined)!.overlayOpacity as number
+        : preset.overlayOpacity,
+    },
+  };
+}
 
 export async function POST(
   request: NextRequest,
@@ -65,7 +113,28 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { prompt, type, targetAudience } = body;
+    const {
+      prompt,
+      type,
+      targetAudience,
+      language = "en",
+      numVariants = 1,
+    } = body as {
+      prompt?: string;
+      type?: string;
+      targetAudience?: string;
+      language?: string;
+      numVariants?: number;
+    };
+
+    // Validate language parameter
+    const validLanguages: PromptLanguage[] = ["en", "fi", "sv"];
+    const lang: PromptLanguage = validLanguages.includes(language as PromptLanguage)
+      ? (language as PromptLanguage)
+      : "en";
+
+    // Validate numVariants — clamp to 1-3
+    const variants = Math.max(1, Math.min(3, numVariants || 1));
 
     // 3. Fetch bar data to personalize the AI prompt
     const bar = await prisma.bar.findUnique({
@@ -79,6 +148,7 @@ export async function POST(
         amenities: true,
         description: true,
         vipEnabled: true,
+        coverImage: true,
       },
     });
 
@@ -112,13 +182,16 @@ export async function POST(
       prompt || "",
       type || "unique",
       targetAudience || undefined,
+      lang,
+      variants,
     );
 
+    const languageName = lang === "fi" ? "Finnish" : lang === "sv" ? "Swedish" : "English";
     const systemPrompt = `You are a marketing expert specializing in bar and nightlife promotions.
-Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
+Create engaging, professional promotions for bars in ${languageName}. Return ONLY valid JSON.`;
 
     // 7. Try DeepSeek API; fall back to templates on any failure
-    let generatedPromotion: Record<string, unknown> | null = null;
+    let generatedPromotions: Record<string, unknown>[] = [];
     let aiGenerated = false;
     let warning: string | undefined;
 
@@ -136,8 +209,8 @@ Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
             ],
-            temperature: 0.8,
-            max_tokens: 800,
+            temperature: 0.85,
+            max_tokens: variants > 1 ? 2000 : 800,
           }),
         });
 
@@ -146,11 +219,29 @@ Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
           const aiResponse = data.choices[0].message.content;
 
           try {
-            const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-            generatedPromotion = jsonMatch
-              ? JSON.parse(jsonMatch[0])
-              : JSON.parse(aiResponse);
-            aiGenerated = true;
+            // Try parsing as JSON array first (multi-variant), then as single object
+            const trimmed = aiResponse.trim();
+            if (trimmed.startsWith("[")) {
+              const arrayMatch = trimmed.match(/\[[\s\S]*\]/);
+              if (arrayMatch) {
+                const parsed = JSON.parse(arrayMatch[0]);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  generatedPromotions = parsed;
+                  aiGenerated = true;
+                }
+              }
+            }
+            if (generatedPromotions.length === 0) {
+              const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+              if (jsonMatch) {
+                const parsed = JSON.parse(jsonMatch[0]);
+                generatedPromotions = [parsed];
+                aiGenerated = true;
+              } else {
+                generatedPromotions = [JSON.parse(trimmed)];
+                aiGenerated = true;
+              }
+            }
           } catch {
             warning = "AI response could not be processed. Using template-based generation instead.";
           }
@@ -164,60 +255,45 @@ Create engaging, professional promotions for bars. Return ONLY valid JSON.`;
       warning = "AI service is not configured. Promotions are generated from templates. Set DEEPSEEK_API_KEY to enable AI generation.";
     }
 
-    // 8. Use fallback template if AI didn't produce a valid result
-    if (!generatedPromotion) {
-      const validTypes = [
-        "HAPPY_HOUR",
-        "DRINK_SPECIAL",
-        "FOOD_SPECIAL",
-        "LADIES_NIGHT",
-        "THEME_NIGHT",
-        "VIP_OFFER",
-        "COVER_DISCOUNT",
-        "LIVE_MUSIC_EVENT",
-        "GAME_NIGHT",
-      ];
-      const promoType = validTypes.includes(type) ? (type as PromotionType) : "DRINK_SPECIAL";
+    // 8. Use fallback templates if AI didn't produce valid results
+    if (generatedPromotions.length === 0) {
+      const promoType = VALID_PROMO_TYPES.includes(type as any)
+        ? (type as PromotionType)
+        : "DRINK_SPECIAL";
 
-      generatedPromotion = getFallbackPromotion(
-        { name: bar.name, type: bar.type, cityName: bar.cityName ?? undefined, district: bar.district ?? undefined },
-        promoType,
-        targetAudience || undefined,
-      ) as unknown as Record<string, unknown>;
+      // Generate requested number of variants — visual presets (template/mood/accentColor)
+      // cycle per index to give each variant a distinct look without polluting the title.
+      for (let i = 0; i < variants; i++) {
+        const fallback = getFallbackPromotion(
+          {
+            name: bar.name,
+            type: bar.type,
+            cityName: bar.cityName ?? undefined,
+            district: bar.district ?? undefined,
+          },
+          promoType,
+          targetAudience || undefined,
+        );
+        generatedPromotions.push(fallback as unknown as Record<string, unknown>);
+      }
     }
 
-    // Always return the same shape, but flag whether AI was used and why if not
+    const hasPhoto = !!(bar.coverImage as string | null);
+
+    // Normalize all promotions to standard shape — each gets a distinct visual style
+    const promotions = generatedPromotions.map((p, i) =>
+      normalizePromotion(p, bar.name, hasPhoto, i),
+    );
+
+    // Return variants array for multi-variant, single promotion for backward compat
     return NextResponse.json({
       success: true,
       aiGenerated,
       ...(warning && { warning }),
-      promotion: {
-        title: generatedPromotion.title || `${bar.name} Special`,
-        description:
-          generatedPromotion.description || `Special offer at ${bar.name}`,
-        type: (() => {
-          const validTypes = [
-            "HAPPY_HOUR",
-            "DRINK_SPECIAL",
-            "FOOD_SPECIAL",
-            "LADIES_NIGHT",
-            "THEME_NIGHT",
-            "VIP_OFFER",
-            "COVER_DISCOUNT",
-          ];
-          return validTypes.includes(generatedPromotion.type as string)
-            ? generatedPromotion.type
-            : "DRINK_SPECIAL";
-        })(),
-        discount:
-          typeof generatedPromotion.discount === "number"
-            ? generatedPromotion.discount
-            : null,
-        callToAction: generatedPromotion.callToAction || "View Offer",
-        accentColor: generatedPromotion.accentColor || "#8b5cf6",
-        conditions:
-          generatedPromotion.conditions || "Valid with valid ID. Terms apply.",
-      },
+      language: lang,
+      ...(variants > 1
+        ? { variants: promotions }
+        : { promotion: promotions[0] }),
     });
   } catch (error) {
     console.error("AI generation error:", error);

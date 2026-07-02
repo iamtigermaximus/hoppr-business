@@ -21,7 +21,8 @@ export type PromotionType =
   | "VIP_OFFER"
   | "COVER_DISCOUNT"
   | "LIVE_MUSIC_EVENT"
-  | "GAME_NIGHT";
+  | "GAME_NIGHT"
+  | "SEASONAL";
 
 export type ContentType = "event" | "promotion" | "pass" | "campaign";
 
@@ -33,6 +34,11 @@ interface PromotionTemplate {
   callToAction: string;
   accentColor: string;
   conditions: string;
+  visual?: {
+    template: "split" | "centered" | "card";
+    mood: "warm" | "cool" | "vibrant" | "dark" | "minimal";
+    overlayOpacity: number;
+  };
 }
 
 interface SuggestionTemplate {
@@ -260,12 +266,34 @@ const PROMO_TEMPLATES: Record<PromotionType, PromotionTemplate[]> = {
     {
       title: "Quiz & Sip Evening",
       description:
-        "Test your knowledge, challenge friends, and enjoy a night of brain-teasing fun. Great prizes and even better company.",
+        "Test your knowledge, challenge friends, and enjoy a night of brain-teasing fun in great company.",
       type: "GAME_NIGHT",
       discount: null,
       callToAction: "Form Your Team",
       accentColor: "#f97316",
       conditions: "Teams of 2-6. Register by 19:30. 20+ only.",
+    },
+  ],
+  SEASONAL: [
+    {
+      title: "Summer Terrace Sessions",
+      description:
+        "Make the most of the season on our terrace. Long evenings, great atmosphere, and the best spot in town to soak up the summer vibes.",
+      type: "SEASONAL",
+      discount: null,
+      callToAction: "Join Us Outside",
+      accentColor: "#f59e0b",
+      conditions: "Weather permitting. Limited terrace seating. 20+ only.",
+    },
+    {
+      title: "Winter Warmers Evening",
+      description:
+        "Escape the cold and settle into our cosy winter atmosphere. Warm lighting, seasonal flavours, and a welcoming escape from the chill.",
+      type: "SEASONAL",
+      discount: null,
+      callToAction: "Get Cosy",
+      accentColor: "#6366f1",
+      conditions: "Available throughout the winter season. 20+ only.",
     },
   ],
 };
@@ -340,6 +368,9 @@ export function getFallbackPromotion(
 
   const localPhrase = location ? ` in ${location}` : "";
 
+  // Compute visual params from promotion type
+  const visual = computeVisualParams(promoType, tone.atmosphere);
+
   return {
     title: personalizeTitle(template.title, barContext.name),
     description: template.description.replace(
@@ -351,7 +382,31 @@ export function getFallbackPromotion(
     callToAction: template.callToAction,
     accentColor: template.accentColor,
     conditions: `At ${barContext.name}${localPhrase}. ${template.conditions}`,
+    visual,
   };
+}
+
+// Compute sensible visual params for fallback templates
+function computeVisualParams(
+  promoType: PromotionType,
+  _atmosphere: string,
+): PromotionTemplate["visual"] {
+  switch (promoType) {
+    case "LIVE_MUSIC_EVENT":
+    case "THEME_NIGHT":
+      return { template: "centered", mood: "cool", overlayOpacity: 0.45 };
+    case "FOOD_SPECIAL":
+      return { template: "split", mood: "warm", overlayOpacity: 0.35 };
+    case "HAPPY_HOUR":
+      return { template: "card", mood: "vibrant", overlayOpacity: 0.4 };
+    case "VIP_OFFER":
+    case "LADIES_NIGHT":
+      return { template: "card", mood: "vibrant", overlayOpacity: 0.4 };
+    case "SEASONAL":
+      return { template: "split", mood: "warm", overlayOpacity: 0.35 };
+    default:
+      return { template: "card", mood: "dark", overlayOpacity: 0.4 };
+  }
 }
 
 /**

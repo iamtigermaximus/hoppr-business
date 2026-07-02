@@ -2,8 +2,8 @@
 // Helper functions for Meta Graph API interactions.
 // Handles: OAuth token exchange, page/IG account discovery, content publishing.
 
-const META_API_BASE = "https://graph.facebook.com/v19.0";
-const META_OAUTH_BASE = "https://www.facebook.com/v19.0/dialog/oauth";
+const META_API_BASE = "https://graph.facebook.com/v22.0";
+const META_OAUTH_BASE = "https://www.facebook.com/v22.0/dialog/oauth";
 
 function getAppCredentials() {
   const clientId = process.env.META_APP_CLIENT_ID;

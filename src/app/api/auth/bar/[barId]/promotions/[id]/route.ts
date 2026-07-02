@@ -48,7 +48,7 @@ export async function GET(
   }
 }
 
-// PATCH - Approve promotion
+// PATCH - Update promotion (approval status and/or image)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ barId: string; id: string }> },
@@ -63,32 +63,65 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const allowedRoles = ["OWNER", "MANAGER", "PROMOTIONS_MANAGER"];
-    if (!allowedRoles.includes(payload.staffRole)) {
+    const body = await request.json();
+    const { isApproved, imageUrl, isActive, accentColor, callToAction } = body as {
+      isApproved?: boolean;
+      imageUrl?: string | null;
+      isActive?: boolean;
+      accentColor?: string | null;
+      callToAction?: string | null;
+    };
+
+    // Build update data — only include fields that were actually sent
+    const updateData: Record<string, unknown> = {};
+
+    if (typeof isApproved === "boolean") {
+      if (isApproved) {
+        // Approving makes it visible
+        updateData.isApproved = true;
+        updateData.isActive = true;
+      } else {
+        updateData.isApproved = false;
+      }
+    }
+
+    // Allow updating image/metadata without role gate (any staff can set image)
+    if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+    if (accentColor !== undefined) updateData.accentColor = accentColor;
+    if (callToAction !== undefined) updateData.callToAction = callToAction;
+    if (typeof isActive === "boolean") updateData.isActive = isActive;
+
+    // If only non-approval fields are being updated, any staff role is fine
+    // If isApproved is being set, require elevated role
+    if (typeof isApproved === "boolean") {
+      const allowedRoles = ["OWNER", "MANAGER", "PROMOTIONS_MANAGER"];
+      if (!allowedRoles.includes(payload.staffRole)) {
+        return NextResponse.json(
+          { error: "Insufficient permissions to approve promotions" },
+          { status: 403 },
+        );
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
-        { error: "Insufficient permissions to approve promotions" },
-        { status: 403 },
+        { error: "No valid fields to update" },
+        { status: 400 },
       );
     }
 
-    const { isApproved } = await request.json();
-
     const promotion = await prisma.barPromotion.update({
       where: { id },
-      data: {
-        isApproved,
-        // Approving makes it visible; rejecting hides it from consumers
-        isActive: isApproved === true ? true : false,
-      },
+      data: updateData,
     });
 
     return NextResponse.json({
       success: true,
-      message: "Promotion approved successfully",
+      message: "Promotion updated",
       promotion,
     });
   } catch (error) {
-    console.error("Approval error:", error);
+    console.error("Update promotion error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

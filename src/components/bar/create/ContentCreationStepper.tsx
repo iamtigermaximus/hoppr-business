@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import styled from "styled-components";
 import type { ContentType } from "./types";
 
@@ -237,6 +237,13 @@ const TYPE_OPTIONS: TypeOption[] = [
   },
 ];
 
+// ---- Types ----
+
+export interface StepperHandle {
+  advanceStep: () => void;
+  getCurrentStep: () => number;
+}
+
 // ---- Component ----
 
 interface ContentCreationStepperProps {
@@ -246,16 +253,19 @@ interface ContentCreationStepperProps {
   canGoNext: boolean[];
   onSubmit: () => void;
   submitting: boolean;
+  /** Hide the built-in footer on these step indices (child handles its own nav) */
+  hideFooterOnSteps?: number[];
 }
 
-export default function ContentCreationStepper({
+const ContentCreationStepper = forwardRef<StepperHandle, ContentCreationStepperProps>(function ContentCreationStepper({
   contentType,
   onTypeChange,
   children,
   canGoNext,
   onSubmit,
   submitting,
-}: ContentCreationStepperProps) {
+  hideFooterOnSteps = [],
+}, ref) {
   const [step, setStep] = useState(0);
   const completedSteps = new Set<number>();
 
@@ -274,6 +284,11 @@ export default function ContentCreationStepper({
   const handleBack = useCallback(() => {
     if (step > 0) setStep((s) => s - 1);
   }, [step]);
+
+  useImperativeHandle(ref, () => ({
+    advanceStep: () => handleNext(),
+    getCurrentStep: () => step,
+  }), [handleNext, step]);
 
   const canAdvance = canGoNext[step] ?? true;
 
@@ -361,37 +376,41 @@ export default function ContentCreationStepper({
         )}
       </StepBody>
 
-      <StepFooter>
-        <StepButton
-          $variant="outline"
-          onClick={handleBack}
-          disabled={step === 0}
-        >
-          ← Back
-        </StepButton>
+      {!hideFooterOnSteps.includes(step) && (
+        <StepFooter>
+          <StepButton
+            $variant="outline"
+            onClick={handleBack}
+            disabled={step === 0}
+          >
+            ← Back
+          </StepButton>
 
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          {step < 3 ? (
-            <StepButton
-              $variant="primary"
-              onClick={handleNext}
-              disabled={!canAdvance}
-            >
-              Continue →
-            </StepButton>
-          ) : (
-            <StepButton
-              $variant="secondary"
-              onClick={onSubmit}
-              disabled={submitting || !canAdvance}
-            >
-              {submitting
-                ? "Publishing..."
-                : `✅ Publish ${contentType === "campaign" ? "Ad Campaign" : contentType.charAt(0).toUpperCase() + contentType.slice(1)}`}
-            </StepButton>
-          )}
-        </div>
-      </StepFooter>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            {step < 3 ? (
+              <StepButton
+                $variant="primary"
+                onClick={handleNext}
+                disabled={!canAdvance}
+              >
+                Continue →
+              </StepButton>
+            ) : (
+              <StepButton
+                $variant="secondary"
+                onClick={onSubmit}
+                disabled={submitting || !canAdvance}
+              >
+                {submitting
+                  ? "Publishing..."
+                  : `✅ Publish ${contentType === "campaign" ? "Ad Campaign" : contentType.charAt(0).toUpperCase() + contentType.slice(1)}`}
+              </StepButton>
+            )}
+          </div>
+        </StepFooter>
+      )}
     </StepperContainer>
   );
-}
+});
+
+export default ContentCreationStepper;

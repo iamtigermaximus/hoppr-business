@@ -11,13 +11,13 @@ import AIIntentBox from "./AIIntentBox";
 import ComplianceBar from "./ComplianceBar";
 import SuggestionPanel from "./SuggestionPanel";
 import ComplianceReferencePanel from "./ComplianceReferencePanel";
-import ContentTypeTabs from "./ContentTypeTabs";
-import ContentCreationStepper from "./ContentCreationStepper";
+import ContentCreationStepper, { type StepperHandle } from "./ContentCreationStepper";
 import UnifiedForm from "./UnifiedForm";
 import ConsumerPreviewPanel from "./ConsumerPreviewPanel";
-import ShareCard, { generateCaption } from "./ShareCard";
-import type { ShareCardHandle } from "./ShareCard";
-import { bgForType, occasionForAudience, type ShareCategory, type ShareOccasion, type SvgBackground } from "./share-backgrounds";
+import FieldGuide from "./FieldGuide";
+import { generateCaption } from "./ShareCard";
+import { PromotionImagePreview } from "./PromotionImagePreview";
+import type { PromotionImageInput } from "@/lib/og-templates/generate";
 
 // ---- Styled Components ----
 
@@ -67,33 +67,6 @@ const Subtitle = styled.p`
   font-size: 0.875rem;
   color: #6b7280;
   margin: 0;
-`;
-
-const ModeToggleRow = styled.div`
-  display: flex;
-  gap: 0.25rem;
-  background: #f3f4f6;
-  border-radius: 0.5rem;
-  padding: 0.25rem;
-  margin-bottom: 1rem;
-  width: fit-content;
-`;
-
-const ModeToggleBtn = styled.button<{ $active: boolean }>`
-  padding: 0.5rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.8125rem;
-  font-weight: ${({ $active }) => ($active ? 600 : 500)};
-  color: ${({ $active }) => ($active ? "#7c3aed" : "#6b7280")};
-  background: ${({ $active }) => ($active ? "white" : "transparent")};
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s;
-  box-shadow: ${({ $active }) => ($active ? "0 1px 2px rgba(0,0,0,0.08)" : "none")};
-
-  &:hover {
-    color: #7c3aed;
-  }
 `;
 
 const ToastContainer = styled.div`
@@ -288,11 +261,147 @@ const SocialResultItem = styled.div<{ $success: boolean }>`
   color: ${({ $success }) => ($success ? "#059669" : "#dc2626")};
 `;
 
+const SocialCardWrapper = styled.div`
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+`;
+
+const DownloadButton = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #7c3aed;
+  color: white;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #6d28d9;
+  }
+`;
+
+const SocialLoadingHint = styled.div`
+  font-size: 0.8125rem;
+  color: #6b7280;
+  font-style: italic;
+  text-align: center;
+  padding: 1rem;
+`;
+
 interface CreatedItem {
   id: string;
   type: string;
   title: string;
   boosted: boolean;
+}
+
+// ---- CTA builder for social media cards ----
+
+const PROMO_TYPE_LABELS: Record<string, string> = {
+  HAPPY_HOUR: "HAPPY HOUR",
+  DRINK_SPECIAL: "DRINK SPECIAL",
+  FOOD_SPECIAL: "FOOD SPECIAL",
+  LADIES_NIGHT: "LADIES NIGHT",
+  THEME_NIGHT: "THEME NIGHT",
+  VIP_OFFER: "VIP OFFER",
+  COVER_DISCOUNT: "COVER DISCOUNT",
+  LIVE_MUSIC_EVENT: "LIVE MUSIC",
+  GAME_NIGHT: "GAME NIGHT",
+  SEASONAL: "SEASONAL",
+};
+
+/** Build a social-media-appropriate CTA — not "View Offer" but actual promo details */
+function buildSocialCta(
+  contentType: "event" | "promotion",
+  promotionType?: string,
+  discountValue?: number | null,
+  conditions?: string,
+  startTime?: string,
+): string {
+  if (contentType === "promotion") {
+    if (discountValue != null && discountValue > 0) {
+      return `${discountValue}% OFF`;
+    }
+    if (promotionType && PROMO_TYPE_LABELS[promotionType]) {
+      return PROMO_TYPE_LABELS[promotionType];
+    }
+    return conditions || "SPECIAL OFFER";
+  }
+
+  // Events — show the date
+  if (startTime) {
+    try {
+      const d = new Date(startTime);
+      return d.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }).toUpperCase();
+    } catch {
+      // fall through
+    }
+  }
+  return "LIVE EVENT";
+}
+
+/** Format a date for social card display: "Jul 3 – Jul 10" or "Thu, Jul 10" */
+function fmtDate(d: Date, short?: boolean): string {
+  return d.toLocaleDateString("en-US", short
+    ? { weekday: "short", month: "short", day: "numeric" }
+    : { month: "short", day: "numeric" });
+}
+
+/** Format time for social card display: "9 PM" or "9 PM – 2 AM" */
+function fmtTime(d: Date): string {
+  return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true }).replace(":00", "");
+}
+
+/** Build the conditions line — shows the key marketing details that matter on social media */
+function buildSocialConditions(
+  contentType: string,
+  discountValue?: number | null,
+  startDate?: string,
+  endDate?: string,
+  startTime?: string,
+  endTime?: string,
+  userConditions?: string,
+): string {
+  const parts: string[] = [];
+
+  if (contentType === "event" && startTime) {
+    try {
+      const s = new Date(startTime);
+      parts.push(`${fmtDate(s, true)} · ${fmtTime(s)}${endTime ? ` – ${fmtTime(new Date(endTime))}` : ""}`);
+    } catch { /* skip */ }
+  }
+
+  if (contentType === "promotion") {
+    if (discountValue != null && discountValue > 0) {
+      parts.push(`${discountValue}% off`);
+    }
+    if (startDate) {
+      try {
+        const sd = new Date(startDate);
+        const ed = endDate ? new Date(endDate) : null;
+        parts.push(ed ? `${fmtDate(sd)} – ${fmtDate(ed)}` : fmtDate(sd));
+      } catch { /* skip */ }
+    }
+  }
+
+  // Append user-written conditions if they contain real info (not the default placeholder)
+  if (userConditions && userConditions !== "Valid with ID. Terms apply.") {
+    parts.push(userConditions);
+  }
+
+  return parts.join(" · ");
 }
 
 // ---- Component ----
@@ -321,6 +430,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   const [contentType, setContentType] = useState<ContentType>(initialType);
   const [formState, setFormState] = useState<FormState>(EMPTY_FORM);
   const [aiInferred, setAiInferred] = useState(false);
+  const [aiVisual, setAiVisual] = useState<Record<string, unknown> | null>(null);
   const [complianceExpanded, setComplianceExpanded] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
@@ -330,7 +440,10 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [createdItem, setCreatedItem] = useState<CreatedItem | null>(null);
-  const [mode, setMode] = useState<"guided" | "quick">("guided");
+  const stepperRef = useRef<StepperHandle>(null);
+  // Preserve AI visual params across the submit → success state transition
+  const savedAiVisual = useRef<Record<string, unknown> | null>(null);
+  const [ogImageDataUrl, setOgImageDataUrl] = useState<string | null>(null);
 
   // Preserve type-specific state when switching tabs
   const perTypeState = useRef<Map<ContentType, Partial<FormState>>>(new Map());
@@ -347,7 +460,6 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
 
   // ---- Social posting (One-Tap Social Export) ----
 
-  const shareCardRef = useRef<ShareCardHandle>(null);
   const [socialConnections, setSocialConnections] = useState<
     Array<{ platform: string; igUsername?: string | null; pageName?: string | null; isActive: boolean }>
   >([]);
@@ -390,13 +502,13 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   };
 
   const handleSocialPost = async (platforms: ("instagram" | "facebook")[]) => {
-    if (!token || !shareCardRef.current) return;
+    if (!token || !ogImageDataUrl) return;
     const platformLabel = platforms.join(" & ");
     setSocialPosting(platformLabel);
     setSocialResults(null);
 
     try {
-      const dataUrl = await shareCardRef.current.captureToDataUrl();
+      const dataUrl = ogImageDataUrl;
       const caption = generateCaption(
         {
           contentType: createdItem!.type as "event" | "promotion",
@@ -492,35 +604,46 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   const handleAIGenerated = useCallback(
     (data: Record<string, unknown>) => {
       setAiLoading(true);
-      const inferredType = (data.inferredType as ContentType) || "promotion";
 
-      perTypeState.current.set(contentType, { ...formState });
-      setContentType(inferredType);
+      // Never switch the content type — the user chose it explicitly on stepper step 0.
+      // The AI's inferredType is a hint for field values, not a type override.
+      const effectiveType = contentType;
+
+      // _previewOnly: variant picker is seeding the side preview — skip per-type
+      // state save since the user hasn't committed to this variant yet.
+      if (data._previewOnly !== true) {
+        perTypeState.current.set(contentType, { ...formState });
+      }
       setAiInferred(true);
+
+      // Store AI-selected visual params for OG image rendering
+      if (data.visual) {
+        setAiVisual(data.visual as Record<string, unknown>);
+      }
 
       const updates: Partial<FormState> = {
         title: (data.title as string) || formState.title,
         description: (data.description as string) || formState.description,
       };
 
-      if (inferredType === "event") {
+      if (effectiveType === "event") {
         const now = new Date();
         updates.startTime = (data.startTime as string) || new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
         updates.endTime = (data.endTime as string) || new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000).toISOString();
         updates.maxAttendees = (data.maxAttendees as number) || null;
-      } else if (inferredType === "promotion") {
+      } else if (effectiveType === "promotion") {
         updates.promotionType = (data.promotionType as string) || "DRINK_SPECIAL";
         updates.discountValue = (data.discountValue as number) || null;
         updates.startDate = (data.startDate as string) || new Date().toISOString().split("T")[0];
         updates.endDate = (data.endDate as string) || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
         updates.conditions = (data.conditions as string) || "";
         updates.targetAudience = (data.targetAudience as string) || "EVERYONE";
-      } else if (inferredType === "campaign") {
+      } else if (effectiveType === "campaign") {
         updates.campaignType = (data.campaignType as string) || "FEATURED_LISTING";
         updates.campaignBudget = (data.campaignBudget as number) || 50;
         updates.campaignStartDate = (data.campaignStartDate as string) || new Date().toISOString().split("T")[0];
         updates.campaignEndDate = (data.campaignEndDate as string) || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-      } else if (inferredType === "pass") {
+      } else if (effectiveType === "pass") {
         updates.passType = (data.passType as string) || "SKIP_LINE";
         updates.priceEuros = (data.priceEuros as string) || "";
         updates.originalPriceEuros = (data.originalPriceEuros as string) || "";
@@ -550,6 +673,8 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   const handleSubmit = async () => {
     if (!token) return;
     setSubmitting(true);
+    // Preserve the AI-chosen visual params for the social share card
+    savedAiVisual.current = aiVisual;
 
     try {
       const body: Record<string, unknown> = {
@@ -641,7 +766,10 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     setCreatedItem(null);
     setFormState(EMPTY_FORM);
     setAiInferred(false);
+    setAiVisual(null);
     setComplianceExpanded(false);
+    setOgImageDataUrl(null);
+    savedAiVisual.current = null;
   };
 
   // Compute violations client-side for compliance bar
@@ -729,67 +857,92 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
             </ActionRow>
           </SuccessCard>
 
-          {/* Social share — only for events and promotions (passes and campaigns have different sharing needs) */}
-          {(createdItem.type === "event" || createdItem.type === "promotion") && (() => {
-            const promoType = formState.promotionType || "";
-            const svgBg: SvgBackground = bgForType(promoType);
-            const occasion: ShareOccasion | undefined = formState.targetAudience
-              ? occasionForAudience(formState.targetAudience) ?? undefined
-              : undefined;
-            const categoryMap: Record<string, ShareCategory> = {
-              DRINK_SPECIAL: "cocktails",
-              HAPPY_HOUR: "cocktails",
-              FOOD_SPECIAL: "brunch",
-              LADIES_NIGHT: "club-night",
-              THEME_NIGHT: "club-night",
-              VIP_OFFER: "lounge",
-              COVER_DISCOUNT: "club-night",
-              LIVE_MUSIC_EVENT: "live-music",
-              GAME_NIGHT: "sports-bar",
-              STUDENT_DISCOUNT: "pub",
-            };
-            const category: ShareCategory | undefined = categoryMap[promoType] || undefined;
+          {/* ---- Visible OG social media card (downloadable) ---- */}
+          {(createdItem.type === "event" || createdItem.type === "promotion") && (
+            <SuccessCard>
+              <SuccessHeader>
+                <SuccessIcon>🎨</SuccessIcon>
+                <div>
+                  <SuccessTitle>Your Social Media Card</SuccessTitle>
+                  <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginTop: "0.125rem" }}>
+                    Ready to share on Instagram, Facebook, or download
+                  </div>
+                </div>
+              </SuccessHeader>
+
+              {ogImageDataUrl ? (
+                <>
+                  <SocialCardWrapper>
+                    <img
+                      src={ogImageDataUrl}
+                      alt="Social media promo card"
+                      style={{ width: "100%", display: "block" }}
+                    />
+                  </SocialCardWrapper>
+                  <DownloadButton
+                    href={ogImageDataUrl}
+                    download={`${createdItem.title.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "").toLowerCase()}-social-card.png`}
+                  >
+                    ⬇ Download Image
+                  </DownloadButton>
+                </>
+              ) : (
+                <SocialLoadingHint>
+                  Generating your social media card...
+                </SocialLoadingHint>
+              )}
+            </SuccessCard>
+          )}
+
+          {/* Hidden OG image capturer — generates the social media image matching the chosen variant */}
+          {(createdItem.type === "event" || createdItem.type === "promotion") && savedAiVisual.current && (() => {
+            const template = (savedAiVisual.current.template as "split" | "centered" | "card") || (createdItem.type === "event" ? "centered" : "card");
+            // Match format to template's native aspect ratio:
+            // - card:     1080×1080 square → Instagram feed (1:1), Facebook feed
+            // - split:    1200×630  wide → Instagram feed (1.91:1), Facebook link share
+            // - centered: 1200×630  wide → Instagram feed (1.91:1), Facebook link share
+            const format = template === "card" ? "square" : "wide";
 
             return (
-              <ShareCard
-                ref={shareCardRef}
-                contentType={createdItem.type as "event" | "promotion"}
-                title={createdItem.title}
-                description={formState.description}
-                barName={barName}
-                barLogo={barLogoUrl}
-                barCoverImage={barCoverImage}
-                imageUrl={formState.imageUrl || barCoverImage}
-                contentId={createdItem.id}
-                svgBackground={svgBg}
-                category={category}
-                occasion={occasion}
-                date={
-                  createdItem.type === "promotion"
-                    ? formState.startDate
-                    : formState.startTime
-                }
-                time={
-                  createdItem.type === "event" && formState.startTime
-                    ? new Date(formState.startTime).toLocaleTimeString("fi-FI", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : undefined
-                }
-                // Promotion-specific (for the real consumer card design)
-                promotionType={formState.promotionType}
-                discountValue={formState.discountValue}
-                conditions={formState.conditions}
-                endDate={formState.endDate}
-                // Event-specific (for the real consumer card design)
-                startTime={formState.startTime}
-                endTime={formState.endTime}
-                maxAttendees={formState.maxAttendees}
-                consumerUrl={
-                  process.env.NEXT_PUBLIC_CONSUMER_URL || "hoppr.fi"
-                }
+            <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+              <PromotionImagePreview
+                input={{
+                  barName: barName || "Your Bar",
+                  barType: "PUB",
+                  promotionTitle: createdItem.title,
+                  promotionDescription: formState.description || "Special offer — come check it out.",
+                  promotionType: (formState.promotionType || (createdItem.type === "event" ? "LIVE_MUSIC_EVENT" : "DRINK_SPECIAL")) as PromotionImageInput["promotionType"],
+                  callToAction: buildSocialCta(
+                    createdItem.type as "event" | "promotion",
+                    formState.promotionType,
+                    formState.discountValue,
+                    formState.conditions,
+                    formState.startTime,
+                  ),
+                  accentColor: (savedAiVisual.current.accentColor as string) || "#8b5cf6",
+                  discount: formState.discountValue ?? null,
+                  conditions: buildSocialConditions(
+                    createdItem.type,
+                    formState.discountValue,
+                    formState.startDate,
+                    formState.endDate,
+                    formState.startTime,
+                    formState.endTime,
+                    formState.conditions,
+                  ) || "Helsinki",
+                  photoUrl: formState.imageUrl || null,
+                  venueLocation: "Helsinki",
+                  visual: {
+                    template,
+                    mood: (savedAiVisual.current.mood as "warm" | "cool" | "vibrant" | "dark" | "minimal") || "dark",
+                    overlayOpacity: (savedAiVisual.current.overlayOpacity as number) || 0.4,
+                  },
+                }}
+                format={format}
+                captureMode
+                onCapture={(dataUrl) => setOgImageDataUrl(dataUrl)}
               />
+            </div>
             );
           })()}
 
@@ -801,10 +954,10 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                 {instagramConnected ? (
                   <SocialPostBtn
                     $variant="instagram"
-                    disabled={socialPosting !== null}
+                    disabled={socialPosting !== null || !ogImageDataUrl}
                     onClick={() => handleSocialPost(["instagram"])}
                   >
-                    {socialPosting === "instagram" ? "⏳ Posting..." : "📸 Instagram"}
+                    {socialPosting === "instagram" ? "⏳ Posting..." : !ogImageDataUrl ? "⏳ Preparing..." : "📸 Instagram"}
                   </SocialPostBtn>
                 ) : (
                   <SocialConnectBtn
@@ -817,10 +970,10 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                 {facebookConnected ? (
                   <SocialPostBtn
                     $variant="facebook"
-                    disabled={socialPosting !== null}
+                    disabled={socialPosting !== null || !ogImageDataUrl}
                     onClick={() => handleSocialPost(["facebook"])}
                   >
-                    {socialPosting === "facebook" ? "⏳ Posting..." : "📘 Facebook"}
+                    {socialPosting === "facebook" ? "⏳ Posting..." : !ogImageDataUrl ? "⏳ Preparing..." : "📘 Facebook"}
                   </SocialPostBtn>
                 ) : (
                   <SocialConnectBtn
@@ -833,16 +986,23 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                 {instagramConnected && facebookConnected && (
                   <SocialPostBtn
                     $variant="both"
-                    disabled={socialPosting !== null}
+                    disabled={socialPosting !== null || !ogImageDataUrl}
                     onClick={() => handleSocialPost(["instagram", "facebook"])}
                   >
                     {socialPosting === "instagram & facebook"
                       ? "⏳ Posting..."
-                      : "📸📘 Post to both"}
+                      : !ogImageDataUrl
+                        ? "⏳ Preparing..."
+                        : "📸📘 Post to both"}
                   </SocialPostBtn>
                 )}
               </SocialPostButtons>
 
+              {!ogImageDataUrl && !socialPosting && (
+                <SocialStatus>
+                  Preparing social image from your chosen style...
+                </SocialStatus>
+              )}
               {socialPosting && (
                 <SocialStatus>
                   Posting to {socialPosting}...
@@ -876,105 +1036,14 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
       ) : (
         /* ---- Creation Form ---- */
         <>
-          {/* Mode toggle */}
-          <ModeToggleRow>
-            <ModeToggleBtn
-              $active={mode === "guided"}
-              onClick={() => setMode("guided")}
-            >
-              🧭 Guided
-            </ModeToggleBtn>
-            <ModeToggleBtn
-              $active={mode === "quick"}
-              onClick={() => setMode("quick")}
-            >
-              ⚡ Quick
-            </ModeToggleBtn>
-          </ModeToggleRow>
-
-          {mode === "guided" ? (
-            /* ---- Guided (stepper) mode ---- */
-            <div>
-              <AIIntentBox barId={barId} onGenerated={handleAIGenerated} />
-
-              <ContentCreationStepper
-                contentType={contentType}
-                onTypeChange={handleTypeChange}
-                canGoNext={canGoNext}
-                onSubmit={handleSubmit}
-                submitting={submitting}
-              >
-                {(step) => {
-                  if (step === 1) {
-                    // Step 2: title + description fields
-                    return (
-                      <UnifiedForm
-                        contentType={contentType}
-                        formState={formState}
-                        onChange={handleFieldChange}
-                        barId={barId}
-                        submitting={false}
-                        onSubmit={() => {}}
-                        stepperMode={true}
-                        stepperStep={1}
-                      />
-                    );
-                  }
-                  if (step === 2) {
-                    // Step 3: type-specific fields only
-                    return (
-                      <UnifiedForm
-                        contentType={contentType}
-                        formState={formState}
-                        onChange={handleFieldChange}
-                        barId={barId}
-                        submitting={false}
-                        onSubmit={() => {}}
-                        stepperMode={true}
-                        stepperStep={2}
-                      />
-                    );
-                  }
-                  if (step === 3) {
-                    // Step 4: preview + compliance
-                    return (
-                      <div>
-                        <ConsumerPreviewPanel
-                          contentType={contentType}
-                          formState={formState}
-                          collapsed={false}
-                          barCoverImage={barCoverImage}
-                          barLogoUrl={barLogoUrl}
-                        />
-                        <ComplianceBar
-                          title={formState.title}
-                          description={formState.description}
-                          expanded={true}
-                          onToggle={() => {}}
-                        />
-                        {violations.length > 0 && (
-                          <SuggestionPanel
-                            violations={violations}
-                            title={formState.title}
-                            description={formState.description}
-                            contentType={contentType}
-                            barId={barId}
-                            onAcceptFix={handleAcceptFix}
-                          />
-                        )}
-                        <ComplianceReferencePanel barId={barId} />
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              </ContentCreationStepper>
-            </div>
-          ) : (
-            /* ---- Quick mode (current form) ---- */
-            <HubLayout>
+          <HubLayout>
               <FormPanel>
-                <AIIntentBox barId={barId} onGenerated={handleAIGenerated} />
+                <AIIntentBox
+                  barId={barId}
+                  onGenerated={handleAIGenerated}
+                  barName={barName}
+                  barCoverImage={barCoverImage}
+                />
 
                 <ComplianceBar
                   title={formState.title}
@@ -994,53 +1063,82 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                   />
                 )}
 
-                <ComplianceReferencePanel barId={barId} />
-
-                <ContentTypeTabs
-                  value={contentType}
-                  onChange={handleTypeChange}
-                  aiInferred={aiInferred}
-                />
-
-                <UnifiedForm
+                <ContentCreationStepper
+                  ref={stepperRef}
                   contentType={contentType}
-                  formState={formState}
-                  onChange={handleFieldChange}
-                  barId={barId}
-                  submitting={submitting}
+                  onTypeChange={handleTypeChange}
+                  canGoNext={canGoNext}
                   onSubmit={handleSubmit}
-                />
+                  submitting={submitting}
+                  hideFooterOnSteps={[2]}
+                >
+                  {(step) => {
+                    if (step === 1) {
+                      return (
+                        <UnifiedForm
+                          contentType={contentType}
+                          formState={formState}
+                          onChange={handleFieldChange}
+                          barId={barId}
+                          submitting={false}
+                          onSubmit={() => {}}
+                          stepperMode={true}
+                          stepperStep={1}
+                        />
+                      );
+                    }
+                    if (step === 2) {
+                      return (
+                        <FieldGuide
+                          contentType={contentType}
+                          formState={formState}
+                          onChange={handleFieldChange}
+                          barCoverImage={barCoverImage}
+                          barId={barId}
+                          onComplete={() => stepperRef.current?.advanceStep()}
+                        />
+                      );
+                    }
+                    if (step === 3) {
+                      return (
+                        <div>
+                          <ComplianceBar
+                            title={formState.title}
+                            description={formState.description}
+                            expanded={true}
+                            onToggle={() => {}}
+                          />
+                          {violations.length > 0 && (
+                            <SuggestionPanel
+                              violations={violations}
+                              title={formState.title}
+                              description={formState.description}
+                              contentType={contentType}
+                              barId={barId}
+                              onAcceptFix={handleAcceptFix}
+                            />
+                          )}
+                          <ComplianceReferencePanel barId={barId} />
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                </ContentCreationStepper>
               </FormPanel>
 
               <PreviewPanel>
                 <ConsumerPreviewPanel
                   contentType={contentType}
                   formState={formState}
-                  collapsed={previewCollapsed}
+                  collapsed={false}
                   barCoverImage={barCoverImage}
                   barLogoUrl={barLogoUrl}
+                  barName={barName}
+                  aiVisual={aiVisual}
                 />
-                {previewCollapsed && (
-                  <button
-                    onClick={() => setPreviewCollapsed(false)}
-                    style={{
-                      width: "100%",
-                      padding: "0.5rem",
-                      marginTop: "0.5rem",
-                      background: "#f3f4f6",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "0.375rem",
-                      fontSize: "0.8125rem",
-                      color: "#6b7280",
-                      cursor: "pointer",
-                    }}
-                  >
-                    ▲ Show Preview
-                  </button>
-                )}
               </PreviewPanel>
             </HubLayout>
-          )}
         </>
       )}
 

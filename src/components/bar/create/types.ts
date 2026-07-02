@@ -10,6 +10,26 @@
 
 export type ContentType = "event" | "promotion" | "pass" | "campaign";
 
+// ---- Canonical promotion types — single source of truth for all dropdowns ----
+
+export interface PromotionTypeOption {
+  value: string;
+  label: string;
+}
+
+export const PROMOTION_TYPES: PromotionTypeOption[] = [
+  { value: "HAPPY_HOUR", label: "After-Work (Happy Hour)" },
+  { value: "DRINK_SPECIAL", label: "Drink Special" },
+  { value: "FOOD_SPECIAL", label: "Food Special" },
+  { value: "LADIES_NIGHT", label: "Ladies Night" },
+  { value: "THEME_NIGHT", label: "Theme Night" },
+  { value: "VIP_OFFER", label: "VIP Offer" },
+  { value: "COVER_DISCOUNT", label: "Cover Discount" },
+  { value: "LIVE_MUSIC_EVENT", label: "Live Music Event" },
+  { value: "GAME_NIGHT", label: "Game Night" },
+  { value: "SEASONAL", label: "Seasonal" },
+];
+
 export interface FormState {
   title: string;
   description: string;
