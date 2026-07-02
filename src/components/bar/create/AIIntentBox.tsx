@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import VariantPicker, { type PromotionVariant } from "./VariantPicker";
+import type { ContentTone } from "./ToneSelector";
+import { TONE_OPTIONS } from "./ToneSelector";
 
 // ---- Types ----
 
@@ -11,22 +13,32 @@ interface AIIntentBoxProps {
   barCoverImage?: string | null;
   onGenerated: (data: Record<string, unknown>) => void;
   disabled?: boolean;
+  contentTone?: ContentTone | null;
+  onToneChange?: (tone: ContentTone | null) => void;
+  onFormatChange?: (format: CardFormat) => void;
 }
 
 type Language = "fi" | "en" | "sv";
 type Step = "brief" | "generating" | "variants";
+type CardFormat = "square" | "wide" | "banner";
+
+const FORMAT_OPTIONS: { value: CardFormat; label: string; dims: string; hint: string }[] = [
+  { value: "square", label: "Instagram Post", dims: "1:1", hint: "Feed post — square cards, stories, carousels" },
+  { value: "wide", label: "Facebook Post", dims: "1.91:1", hint: "Link shares, feed posts, event promos" },
+  { value: "banner", label: "Cover", dims: "3:1", hint: "Event headers, page covers, wide banners" },
+];
 
 // ---- Quick templates (compliance-safe, same as before) ----
 
 const TEMPLATES = [
-  { emoji: "🕐", label: "After-Work", prompt: "After-work evening — great music, relaxed atmosphere, and the perfect place to unwind after the office. Weekday afternoons 16:00–19:00. Focus on the vibe." },
-  { emoji: "💃", label: "Ladies Night", prompt: "Ladies Night — exclusive evening for women, Friday or Saturday. Welcoming atmosphere with great music, service, and company. No price mentions or special offers." },
-  { emoji: "🎸", label: "Live Music", prompt: "Live music performance — band or DJ, evening event. Describe the experience, atmosphere, date and time." },
-  { emoji: "🎮", label: "Game Night", prompt: "Quiz or bingo night — entry included, competitive team atmosphere, weekday evening. Focus on fun and social experience. No prizes or giveaways linked to purchases." },
-  { emoji: "🍕", label: "Food Special", prompt: "Food special — featured menu items or combo selections, weekday evenings. Focus on food quality and pairing suggestions. Food promos have no alcohol advertising restrictions." },
-  { emoji: "⭐", label: "VIP Experience", prompt: "Premium experience — priority entry, reserved seating, exclusive area access. Describe the elevated service and atmosphere." },
-  { emoji: "✨", label: "Signature Evening", prompt: "Signature evening — our team's top recommendations for the night. Focus on craftsmanship, unique flavours, and the bar's character. No price mentions, discounts, or brand names." },
-  { emoji: "🎭", label: "Theme Night", prompt: "Theme night — karaoke, 80s retro, sports screening. Describe the theme and entertainment. Focus on the experience." },
+  { label: "After-Work", prompt: "After-work evening — great music, relaxed atmosphere, and the perfect place to unwind after the office. Weekday afternoons 16:00–19:00. Focus on the vibe." },
+  { label: "Ladies Night", prompt: "Ladies Night — exclusive evening for women, Friday or Saturday. Welcoming atmosphere with great music, service, and company. No price mentions or special offers." },
+  { label: "Live Music", prompt: "Live music performance — band or DJ, evening event. Describe the experience, atmosphere, date and time." },
+  { label: "Game Night", prompt: "Quiz or bingo night — entry included, competitive team atmosphere, weekday evening. Focus on fun and social experience. No prizes or giveaways linked to purchases." },
+  { label: "Food Special", prompt: "Food special — featured menu items or combo selections, weekday evenings. Focus on food quality and pairing suggestions. Food promos have no alcohol advertising restrictions." },
+  { label: "VIP Experience", prompt: "Premium experience — priority entry, reserved seating, exclusive area access. Describe the elevated service and atmosphere." },
+  { label: "Signature Evening", prompt: "Signature evening — our team's top recommendations for the night. Focus on craftsmanship, unique flavours, and the bar's character. No price mentions, discounts, or brand names." },
+  { label: "Theme Night", prompt: "Theme night — karaoke, 80s retro, sports screening. Describe the theme and entertainment. Focus on the experience." },
 ] as const;
 
 const PLACEHOLDERS: Record<Language, string> = {
@@ -49,6 +61,9 @@ export default function AIIntentBox({
   barCoverImage,
   onGenerated,
   disabled,
+  contentTone,
+  onToneChange,
+  onFormatChange,
 }: AIIntentBoxProps) {
   // Core state
   const [text, setText] = useState("");
@@ -57,8 +72,11 @@ export default function AIIntentBox({
 
   // Controls
   const [language, setLanguage] = useState<Language>("fi");
-  const [numVariants, setNumVariants] = useState(3);
+  const [cardFormat, setCardFormat] = useState<CardFormat>("wide");
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
+
+  // Tone state — starts from bar profile default, overridable per creation
+  const [activeTone, setActiveTone] = useState<ContentTone | null>(contentTone ?? null);
 
   // Variant state
   const [variants, setVariants] = useState<PromotionVariant[]>([]);
@@ -66,14 +84,20 @@ export default function AIIntentBox({
 
   const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
 
+  const handleToneSelect = (tone: ContentTone) => {
+    const newTone = activeTone === tone ? null : tone;
+    setActiveTone(newTone);
+    onToneChange?.(newTone);
+  };
+
   // ---- Two-step generation ----
 
   const handleGenerate = useCallback(
-    async (promptText?: string, overrideVariants?: number) => {
+    async (promptText?: string) => {
       const input = (promptText ?? text).trim();
       if (!input || !token) return;
 
-      const variantCount = overrideVariants ?? numVariants;
+      const variantCount = 3; // always generate 3 variants
 
       setStep("generating");
       setError(null);
@@ -87,7 +111,7 @@ export default function AIIntentBox({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ text: input, language }),
+          body: JSON.stringify({ text: input, language, contentTone: activeTone }),
         });
 
         if (!suggestRes.ok) {
@@ -115,6 +139,7 @@ export default function AIIntentBox({
               type,
               language,
               numVariants: requestCount,
+              contentTone: activeTone,
             }),
           });
 
@@ -136,6 +161,7 @@ export default function AIIntentBox({
             onGenerated({
               ...suggestData,
               _previewOnly: true,
+              cardFormat,
               title: first.title,
               description: first.description,
               promotionType: first.type,
@@ -155,6 +181,7 @@ export default function AIIntentBox({
           if (single) {
             onGenerated({
               ...suggestData,
+              cardFormat,
               title: single.title,
               description: single.description,
               promotionType: single.type,
@@ -170,14 +197,14 @@ export default function AIIntentBox({
         }
 
         // Single variant or non-promotion type — populate form directly
-        onGenerated(suggestData);
+        onGenerated({ ...suggestData, cardFormat });
         setStep("brief");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to generate. Try again.");
         setStep("brief");
       }
     },
-    [text, token, barId, language, numVariants, onGenerated],
+    [text, token, barId, language, cardFormat, activeTone, onGenerated],
   );
 
   // ---- Variant selection ----
@@ -196,6 +223,7 @@ export default function AIIntentBox({
         discountValue: variant.discount,
         conditions: variant.conditions,
         targetAudience: "EVERYONE",
+        cardFormat,
         visual: {
           ...(variant.visual || {}),
           accentColor: variant.accentColor,
@@ -205,24 +233,21 @@ export default function AIIntentBox({
       setVariants([]);
       onGenerated(data);
     },
-    [inferredType, variants.length, onGenerated],
+    [inferredType, variants.length, cardFormat, onGenerated],
   );
 
   const handleRegenerate = useCallback(() => {
     setStep("generating");
     setError(null);
     setVariants([]);
-    // Re-run generation with the same text + same variant count
-    handleGenerate(text, numVariants);
-  }, [text, numVariants, handleGenerate]);
+    handleGenerate(text);
+  }, [text, handleGenerate]);
 
-  // ---- Template click → auto-generate single variant ----
+  // ---- Template click → fill textarea for review (Step 2 → Step 3) ----
 
   const handleTemplateClick = (label: string, prompt: string) => {
     setText(prompt);
     setActiveTemplate(label);
-    // Templates produce 1 variant by default (quick path) — pass override to avoid closure race
-    handleGenerate(prompt, 1);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -250,6 +275,100 @@ export default function AIIntentBox({
       {/* Brief: textarea + controls + templates (shown during 'brief' step) */}
       {(step === "brief" || step === "generating") && (
         <>
+          {/* ---- Step 1: Pick your voice ---- */}
+          <div style={styles.toneSection}>
+            <div style={styles.stepLabel}>1. Pick your voice</div>
+            <div style={styles.toneRow}>
+              {TONE_OPTIONS.map((opt) => {
+                const isActive = activeTone === opt.value;
+                const isDefault = !activeTone && contentTone === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    style={{
+                      ...styles.toneCard,
+                      ...(isActive ? styles.toneCardActive : {}),
+                      ...(isDefault ? styles.toneCardDefault : {}),
+                    }}
+                    onClick={() => handleToneSelect(opt.value)}
+                    disabled={isBusy}
+                    title={opt.description}
+                  >
+                    <span style={styles.toneCardTop}>
+                      <span style={styles.toneCardEmoji}>{opt.emoji}</span>
+                      <span style={styles.toneCardLabel}>{opt.label}</span>
+                      {isDefault && !isActive && (
+                        <span style={styles.toneCardDefaultBadge}>default</span>
+                      )}
+                    </span>
+                    <span style={{
+                      ...styles.toneCardSample,
+                      ...(isActive ? styles.toneCardSampleActive : {}),
+                    }}>
+                      &ldquo;{opt.sampleHeadline}&rdquo;
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected tone live preview */}
+            {activeTone && (() => {
+              const selected = TONE_OPTIONS.find((o) => o.value === activeTone);
+              if (!selected) return null;
+              return (
+                <div style={styles.tonePreview}>
+                  <div style={styles.tonePreviewRow}>
+                    <span style={styles.tonePreviewEmoji}>{selected.emoji}</span>
+                    <span style={styles.tonePreviewLabel}>{selected.label}</span>
+                  </div>
+                  <div style={styles.tonePreviewHeadline}>
+                    &ldquo;{selected.sampleHeadline}&rdquo;
+                  </div>
+                  <div style={styles.tonePreviewBody}>
+                    &ldquo;{selected.sampleBody}&rdquo;
+                  </div>
+                  <div style={styles.tonePreviewStyle}>
+                    <span style={styles.tonePreviewStyleLabel}>Visual style:</span> {selected.socialStyle}
+                  </div>
+                </div>
+              );
+            })()}
+            {!activeTone && !contentTone && (
+              <div style={styles.toneHint}>
+                Choose a voice style above — this shapes how your AI-generated cards look and sound on social media. You can change it anytime, even per creation.
+              </div>
+            )}
+          </div>
+
+          <div style={styles.stepDivider} />
+
+          {/* ---- Step 2: Pick a starting point ---- */}
+          <div style={styles.stepLabel}>2. Pick a starting point</div>
+          <div style={styles.templateGrid}>
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.label}
+                style={{
+                  ...styles.templateCard,
+                  ...(activeTemplate === t.label ? styles.templateCardActive : {}),
+                }}
+                onClick={() => handleTemplateClick(t.label, t.prompt)}
+                disabled={isBusy}
+                title={t.prompt}
+              >
+                <span style={styles.templateCardLabel}>{t.label}</span>
+                <span style={styles.templateCardDesc}>{t.prompt}</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={styles.stepDivider} />
+
+          {/* ---- Step 3: Review & customize ---- */}
+          <div style={styles.stepLabel}>3. Review &amp; customize</div>
+
           <textarea
             style={{
               ...styles.textarea,
@@ -291,19 +410,23 @@ export default function AIIntentBox({
             </div>
 
             <div style={styles.controlGroup}>
-              <span style={styles.controlLabel}>Options</span>
+              <span style={styles.controlLabel}>Format</span>
               <div style={styles.pillGroup}>
-                {[1, 2, 3].map((n) => (
+                {FORMAT_OPTIONS.map((fmt) => (
                   <button
-                    key={n}
+                    key={fmt.value}
                     style={{
                       ...styles.pill,
-                      ...(numVariants === n ? styles.pillActive : {}),
+                      ...(cardFormat === fmt.value ? styles.pillActive : {}),
                     }}
-                    onClick={() => setNumVariants(n)}
+                    onClick={() => {
+                      setCardFormat(fmt.value);
+                      onFormatChange?.(fmt.value);
+                    }}
                     disabled={isBusy}
+                    title={`${fmt.dims} — ${fmt.hint}`}
                   >
-                    {n}
+                    {fmt.label}
                   </button>
                 ))}
               </div>
@@ -326,25 +449,6 @@ export default function AIIntentBox({
                 "Generate"
               )}
             </button>
-          </div>
-
-          {/* Quick templates */}
-          <div style={styles.templateLabel}>Quick templates — click to generate</div>
-          <div style={styles.templateRow}>
-            {TEMPLATES.map((t) => (
-              <button
-                key={t.label}
-                style={{
-                  ...styles.templateChip,
-                  ...(activeTemplate === t.label ? styles.templateChipActive : {}),
-                }}
-                onClick={() => handleTemplateClick(t.label, t.prompt)}
-                disabled={isBusy}
-                title={t.prompt}
-              >
-                {t.emoji} {t.label}
-              </button>
-            ))}
           </div>
 
           {/* Hint / shortcut */}
@@ -375,6 +479,7 @@ export default function AIIntentBox({
             variants={variants}
             barName={barName}
             barCoverImage={barCoverImage}
+            cardFormat={cardFormat}
             onSelect={handleVariantSelect}
             onRegenerate={handleRegenerate}
           />
@@ -447,6 +552,147 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     letterSpacing: "0.03em",
   },
+  // ---- Step labels ----
+  stepLabel: {
+    fontSize: 11,
+    fontWeight: 700,
+    color: "#a78bfa",
+    marginBottom: 8,
+    textTransform: "uppercase" as const,
+    letterSpacing: "0.05em",
+  },
+  stepDivider: {
+    height: 1,
+    background: "#2d2d4a",
+    margin: "16px 0",
+  },
+
+  // ---- Tone selector (Step 1: Pick your voice) ----
+  toneSection: {
+    marginBottom: 4,
+  },
+  toneRow: {
+    display: "flex",
+    gap: 6,
+    flexWrap: "wrap" as const,
+  },
+  toneCard: {
+    flex: "1 1 100px",
+    minWidth: 95,
+    maxWidth: 140,
+    padding: "8px 10px",
+    border: "1px solid #2d2d4a",
+    borderRadius: 8,
+    background: "#0d0d1a",
+    cursor: "pointer",
+    textAlign: "left" as const,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+    transition: "all 0.15s",
+  },
+  toneCardActive: {
+    borderColor: "#7c3aed",
+    background: "rgba(124, 58, 237, 0.12)",
+    boxShadow: "0 0 0 1px rgba(124, 58, 237, 0.3)",
+  },
+  toneCardDefault: {
+    borderColor: "#4c1d95",
+    background: "rgba(124, 58, 237, 0.06)",
+  },
+  toneCardTop: {
+    display: "flex",
+    alignItems: "center",
+    gap: 4,
+  },
+  toneCardEmoji: {
+    fontSize: 14,
+    lineHeight: 1,
+  },
+  toneCardLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    color: "#d1d5db",
+    lineHeight: 1.2,
+  },
+  toneCardDefaultBadge: {
+    fontSize: 8,
+    color: "#7c3aed",
+    fontWeight: 600,
+    background: "rgba(124, 58, 237, 0.15)",
+    padding: "1px 4px",
+    borderRadius: 3,
+    marginLeft: "auto",
+  },
+  toneCardSample: {
+    fontSize: 9,
+    color: "#6b7280",
+    fontStyle: "italic" as const,
+    lineHeight: 1.3,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical" as const,
+    overflow: "hidden",
+  },
+  toneCardSampleActive: {
+    color: "#a78bfa",
+  },
+
+  // Selected tone preview
+  tonePreview: {
+    marginTop: 10,
+    padding: "10px 12px",
+    background: "rgba(124, 58, 237, 0.08)",
+    border: "1px solid rgba(124, 58, 237, 0.2)",
+    borderRadius: 8,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
+  },
+  tonePreviewRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 2,
+  },
+  tonePreviewEmoji: {
+    fontSize: 16,
+  },
+  tonePreviewLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#e5e7eb",
+  },
+  tonePreviewHeadline: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#c4b5fd",
+    fontStyle: "italic" as const,
+    lineHeight: 1.4,
+  },
+  tonePreviewBody: {
+    fontSize: 11,
+    color: "#9ca3af",
+    fontStyle: "italic" as const,
+    lineHeight: 1.4,
+  },
+  tonePreviewStyle: {
+    fontSize: 10,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  tonePreviewStyleLabel: {
+    fontWeight: 600,
+    color: "#8b5cf6",
+  },
+  toneHint: {
+    marginTop: 10,
+    fontSize: 11,
+    color: "#4b5563",
+    lineHeight: 1.5,
+    fontStyle: "italic" as const,
+  },
+
   textarea: {
     width: "100%",
     padding: "14px 16px",
@@ -540,36 +786,43 @@ const styles: Record<string, React.CSSProperties> = {
     display: "inline-block",
     animation: "spin 0.7s linear infinite",
   },
-  templateLabel: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: "#4b5563",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.05em",
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  templateRow: {
-    display: "flex",
-    flexWrap: "wrap" as const,
+  // ---- Templates (Step 2: Pick a starting point) ----
+  templateGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
     gap: 6,
   },
-  templateChip: {
-    padding: "6px 12px",
+  templateCard: {
+    padding: "10px 12px",
     border: "1px solid #2d2d4a",
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: 500,
-    cursor: "pointer",
+    borderRadius: 8,
     background: "#0d0d1a",
-    color: "#9ca3af",
+    cursor: "pointer",
+    textAlign: "left" as const,
+    display: "flex",
+    flexDirection: "column" as const,
+    gap: 4,
     transition: "all 0.15s",
-    whiteSpace: "nowrap" as const,
   },
-  templateChipActive: {
+  templateCardActive: {
     borderColor: "#7c3aed",
-    background: "rgba(124, 58, 237, 0.15)",
-    color: "#a78bfa",
+    background: "rgba(124, 58, 237, 0.12)",
+    boxShadow: "0 0 0 1px rgba(124, 58, 237, 0.3)",
+  },
+  templateCardLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: "#d1d5db",
+    lineHeight: 1.2,
+  },
+  templateCardDesc: {
+    fontSize: 10,
+    color: "#6b7280",
+    lineHeight: 1.35,
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical" as const,
+    overflow: "hidden",
   },
   hint: {
     marginTop: 10,

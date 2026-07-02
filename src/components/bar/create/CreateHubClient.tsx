@@ -18,6 +18,7 @@ import FieldGuide from "./FieldGuide";
 import { generateCaption } from "./ShareCard";
 import { PromotionImagePreview } from "./PromotionImagePreview";
 import type { PromotionImageInput } from "@/lib/og-templates/generate";
+import type { ContentTone } from "./ToneSelector";
 
 // ---- Styled Components ----
 
@@ -412,9 +413,10 @@ interface CreateHubClientProps {
   barName: string;
   barCoverImage: string | null;
   barLogoUrl: string | null;
+  contentTone?: ContentTone | null;
 }
 
-export default function CreateHubClient({ barId, userRole, barName, barCoverImage, barLogoUrl }: CreateHubClientProps) {
+export default function CreateHubClient({ barId, userRole, barName, barCoverImage, barLogoUrl, contentTone }: CreateHubClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -440,6 +442,8 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [createdItem, setCreatedItem] = useState<CreatedItem | null>(null);
+  const [activeTone, setActiveTone] = useState<ContentTone | null | undefined>(contentTone);
+  const [cardFormat, setCardFormat] = useState<"square" | "wide" | "banner">("wide");
   const stepperRef = useRef<StepperHandle>(null);
   // Preserve AI visual params across the submit → success state transition
   const savedAiVisual = useRef<Record<string, unknown> | null>(null);
@@ -619,6 +623,11 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
       // Store AI-selected visual params for OG image rendering
       if (data.visual) {
         setAiVisual(data.visual as Record<string, unknown>);
+      }
+
+      // Store the card format the user chose for preview rendering
+      if (data.cardFormat) {
+        setCardFormat(data.cardFormat as "square" | "wide" | "banner");
       }
 
       const updates: Partial<FormState> = {
@@ -1043,6 +1052,9 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                   onGenerated={handleAIGenerated}
                   barName={barName}
                   barCoverImage={barCoverImage}
+                  contentTone={contentTone}
+                  onToneChange={setActiveTone}
+                  onFormatChange={setCardFormat}
                 />
 
                 <ComplianceBar
@@ -1136,6 +1148,8 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                   barLogoUrl={barLogoUrl}
                   barName={barName}
                   aiVisual={aiVisual}
+                  contentTone={activeTone}
+                  cardFormat={cardFormat}
                 />
               </PreviewPanel>
             </HubLayout>

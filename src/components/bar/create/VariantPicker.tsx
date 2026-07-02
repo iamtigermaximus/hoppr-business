@@ -21,14 +21,36 @@ export interface PromotionVariant {
   };
 }
 
+type CardFormat = "square" | "wide" | "banner";
+
 interface VariantPickerProps {
   variants: PromotionVariant[];
   barName: string;
   barCoverImage?: string | null;
   venueLocation?: string;
+  cardFormat?: CardFormat;
   onSelect: (variant: PromotionVariant) => void;
   onRegenerate: () => void;
   loading?: boolean;
+}
+
+// ---- Format-aware preview sizing ----
+// Each social card format has a different native resolution and aspect ratio.
+// We scale to fit a 300px-wide container so the preview looks like the real post.
+
+const FORMAT_DIMS: Record<CardFormat, { nativeW: number; nativeH: number }> = {
+  wide:   { nativeW: 1200, nativeH: 630 },
+  square: { nativeW: 1080, nativeH: 1080 },
+  banner: { nativeW: 1200, nativeH: 400 },
+};
+
+function previewScale(format: CardFormat): number {
+  return 300 / FORMAT_DIMS[format].nativeW;
+}
+
+function previewHeight(format: CardFormat): number {
+  const s = previewScale(format);
+  return Math.round(FORMAT_DIMS[format].nativeH * s);
 }
 
 // ---- Labels ----
@@ -77,10 +99,14 @@ export default function VariantPicker({
   barName,
   barCoverImage,
   venueLocation = "Helsinki",
+  cardFormat = "wide",
   onSelect,
   onRegenerate,
   loading,
 }: VariantPickerProps) {
+  const scale = previewScale(cardFormat);
+  const imgHeight = previewHeight(cardFormat);
+  const innerPct = Math.round(100 / scale); // imageInner width/height as % of container
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -138,12 +164,17 @@ export default function VariantPicker({
               }}
               onClick={() => !confirming && handleSelect(i)}
             >
-              {/* OG Image preview */}
-              <div style={styles.imageWrap}>
-                <div style={styles.imageInner}>
+              {/* OG Image preview — the actual social card at native resolution, scaled to fit */}
+              <div style={{ ...styles.imageWrap, height: imgHeight }}>
+                <div style={{
+                  ...styles.imageInner,
+                  width: `${innerPct}%`,
+                  height: `${innerPct}%`,
+                  transform: `scale(${scale})`,
+                }}>
                   <PromotionImage
                     input={mapVariantToImageInput(v, barName, barCoverImage, venueLocation)}
-                    format="wide"
+                    format={cardFormat}
                   />
                 </div>
                 {/* Selection overlay on hover */}
@@ -154,7 +185,7 @@ export default function VariantPicker({
                 </div>
               </div>
 
-              {/* Card info */}
+              {/* Metadata row — type, discount, option number (not duplicate of card text) */}
               <div style={styles.cardBody}>
                 <div style={styles.typeRow}>
                   <span style={styles.typeBadge}>
@@ -167,15 +198,6 @@ export default function VariantPicker({
                   )}
                   <span style={styles.optionNumber}>Option {i + 1}</span>
                 </div>
-
-                <div style={styles.cardTitle}>{v.title}</div>
-                <div style={styles.cardDesc}>
-                  {v.description.length > 100
-                    ? v.description.slice(0, 100) + "…"
-                    : v.description}
-                </div>
-
-                <div style={styles.cardCta}>{v.callToAction}</div>
               </div>
 
               {/* Visual tag */}
@@ -258,16 +280,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
   imageWrap: {
     width: "100%",
-    height: 157,
     overflow: "hidden",
     position: "relative" as const,
     background: "#0a0a0a",
   },
   imageInner: {
-    transform: "scale(0.35)",
     transformOrigin: "top left",
-    width: "286%",
-    height: "286%",
   },
   imageOverlay: {
     position: "absolute" as const,
@@ -318,34 +336,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 10,
     color: "#4b5563",
     marginLeft: "auto",
-  },
-  cardTitle: {
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#f9fafb",
-    marginBottom: 4,
-    lineHeight: 1.3,
-    display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-  },
-  cardDesc: {
-    fontSize: 11,
-    color: "#6b7280",
-    lineHeight: 1.4,
-    marginBottom: 8,
-    display: "-webkit-box",
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: "vertical",
-    overflow: "hidden",
-  },
-  cardCta: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: "#7c3aed",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.05em",
   },
   visualTag: {
     position: "absolute" as const,
@@ -414,19 +404,12 @@ const styles: Record<string, React.CSSProperties> = {
   },
 };
 
-// Inject spin keyframe
+// Inject spin keyframe for loading spinner
 if (typeof document !== "undefined") {
   const style = document.createElement("style");
   style.textContent = `
     @keyframes spin {
       to { transform: rotate(360deg); }
-    }
-    .variant-card:hover .variant-select-btn {
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .variant-card:hover .variant-overlay {
-      background: rgba(0,0,0,0.4);
     }
   `;
   if (!document.head.querySelector("[data-variant-styles]")) {
