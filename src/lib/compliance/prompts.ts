@@ -464,22 +464,56 @@ export function buildGeneratePrompt(
 
   const complianceSection = buildComplianceSystemPrompt(language);
 
-  // Language-specific output instruction
-  const langInstruction = language === "fi"
+  // Language-specific output instruction — placed prominently
+  const isFi = language === "fi";
+  const isSv = language === "sv";
+
+  const langInstruction = isFi
     ? "KAIKKI teksti TÄYTYY olla suomeksi. Otsikko, kuvaus, toimintakehote ja ehdot — kaikki suomeksi."
-    : language === "sv"
+    : isSv
       ? "ALL text MUST be in Swedish. Title, description, CTA, and conditions — all in Swedish."
       : "All text MUST be in English.";
 
+  // Language-specific field labels for the JSON output schema
+  const titleLabel = isFi ? "otsikko (max 60 merkkiä)" : isSv ? "titel (max 60 tecken)" : "title (max 60 chars)";
+  const descLabel = isFi ? "kuvaus (max 200 merkkiä)" : isSv ? "beskrivning (max 200 tecken)" : "description (max 200 chars)";
+  const typeLabel = "HAPPY_HOUR | DRINK_SPECIAL | FOOD_SPECIAL | LADIES_NIGHT | THEME_NIGHT | VIP_OFFER | COVER_DISCOUNT | LIVE_MUSIC_EVENT | GAME_NIGHT | SEASONAL";
+  const ctaLabel = isFi ? "toimintakehote" : isSv ? "call-to-action" : "CTA text";
+  const conditionsLabel = isFi ? "ehdot — vain sallittua sanamuotoa" : isSv ? "villkor — endast tillåten formulering" : "conditions — compliant wording only";
+
+  // Visual template descriptions in the user's language
+  const templateDesc = isFi
+    ? "'split' (kuva+teksti), 'centered' (otsikko keskiössä), 'card' (neliö, kuva edellä)"
+    : isSv
+      ? "'split' (bild+text), 'centered' (rubrik i fokus), 'card' (kvadratiskt, bild först)"
+      : "'split' (photo+text), 'centered' (headline focus), 'card' (square, photo-forward)";
+
+  const moodDesc = isFi
+    ? "'warm' (lämmin), 'cool' (viileä), 'vibrant' (eloisa), 'dark' (tumma), 'minimal' (pelkistetty)"
+    : isSv
+      ? "'warm' (varm), 'cool' (sval), 'vibrant' (livlig), 'dark' (mörk), 'minimal' (avskalad)"
+      : "'warm' (amber/purple), 'cool' (blue), 'vibrant' (orange/gold), 'dark' (deep purple), 'minimal' (gray)";
+
   // Multi-variant instruction
   const variantsInstruction = numVariants > 1
-    ? `\nGenerate ${numVariants} DIFFERENT variants. Each must be unique: different angle, different type if appropriate, different title style, AND different visual design (template + mood + accentColor). No two variants should share the same visual template/mood combination. Return them as a JSON array.`
+    ? (isFi
+        ? `\nLuo ${numVariants} ERI vaihtoehtoa. Jokaisen on oltava ainutlaatuinen: eri näkökulma, tarvittaessa eri tyyppi, eri otsikkotyyli, JA eri visuaalinen ilme (template + mood + accentColor). Kahdella vaihtoehdolla ei saa olla samaa template/mood-yhdistelmää. Palauta JSON-taulukkona.`
+        : isSv
+          ? `\nSkapa ${numVariants} OLIKA varianter. Varje måste vara unik: olika vinkel, annan typ vid behov, olika rubrikstil, OCH olika visuell stil (template + mood + accentColor). Inga två varianter får dela samma template/mood-kombination. Returnera som JSON-array.`
+          : `\nGenerate ${numVariants} DIFFERENT variants. Each must be unique: different angle, different type if appropriate, different title style, AND different visual design (template + mood + accentColor). No two variants should share the same visual template/mood combination. Return them as a JSON array.`)
     : "";
 
-  // Output format instruction
+  // Language-specific visual guidelines
+  const visualGuidelines = isFi
+    ? `VISUAALISET OHJEET:\n- 'split': parhaiten ruoka/juoma-tarjouksiin kun baarilla on kuvia\n- 'centered': parhaiten livemusiikkiin, teemailtoihin, esiintyjäilmoituksiin\n- 'card': parhaiten yleisiin tarjouksiin ja some-jakoon\n- accentColor: sovita tunnelmaan (lämpimät sävyt ruualle/kodikkuudelle, viileät musiikille, eloisat juhliin)\n- overlayOpacity: 0.3 kirkkaille kuville, 0.5 tummille kuville, 0.4 oletus`
+    : isSv
+      ? `VISUELLA RIKTLINJER:\n- 'split': bäst för mat/dryck-erbjudanden när baren har bilder\n- 'centered': bäst för livemusik, temakvällar, artistmeddelanden\n- 'card': bäst för allmänna erbjudanden och sociala medier\n- accentColor: matcha stämningen (varma toner för mat/mysigt, svala för musik, livliga för fester)\n- overlayOpacity: 0.3 för ljusa bilder, 0.5 för mörka bilder, 0.4 standard`
+      : `VISUAL GUIDELINES:\n- 'split': best for food/drink promos when the bar has photos\n- 'centered': best for live music events, theme nights, performer announcements\n- 'card': best for general promos and social media sharing\n- accentColor: match the mood (warm tones for food/cozy, cool tones for music, vibrant for parties)\n- overlayOpacity: 0.3 for bright photos, 0.5 for dark photos, 0.4 default`;
+
+  // Single unified output format — respects language for field descriptions
   const outputFormat = numVariants > 1
-    ? `TASK: Generate ${numVariants} different promotion variants. Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "Catchy, compliant title (max 60 chars)",\n    "description": "Compelling, compliant description (max 200 chars)",\n    "type": "One of: HAPPY_HOUR | DRINK_SPECIAL | FOOD_SPECIAL | LADIES_NIGHT | THEME_NIGHT | VIP_OFFER | COVER_DISCOUNT | LIVE_MUSIC_EVENT | GAME_NIGHT | SEASONAL",\n    "discount": number between 0-100 or null,\n    "callToAction": "CTA text",\n    "accentColor": "Hex color matching the mood",\n    "conditions": "Terms — compliant wording only (max 150 chars)",\n    "visual": { "template": "'split' | 'centered' | 'card'", "mood": "'warm' | 'cool' | 'vibrant' | 'dark' | 'minimal'", "overlayOpacity": 0.2-0.7 }\n  },\n  ...\n]`
-    : `TASK: Generate a promotion with this exact JSON structure (no extra text):\n{\n  "title": "Catchy, Finland-compliant title (max 60 chars)",\n  "description": "Compelling, compliant description (max 200 chars)",\n  "type": "One of: HAPPY_HOUR | DRINK_SPECIAL | FOOD_SPECIAL | LADIES_NIGHT | THEME_NIGHT | VIP_OFFER | COVER_DISCOUNT | LIVE_MUSIC_EVENT | GAME_NIGHT | SEASONAL",\n  "discount": number between 0-100 or null,\n  "callToAction": "CTA text like 'View Menu', 'Join Us', 'Book Now'",\n  "accentColor": "Hex color code matching the promotion mood (e.g., #8b5cf6 for purple, #f59e0b for amber, #10b981 for green)",\n  "conditions": "Terms — compliant wording only (max 150 chars)",\n  "visual": {\n    "template": "Which image layout fits: 'split' (photo+text), 'centered' (bold event style), or 'card' (square feed format)",\n    "mood": "Color mood: 'warm' (purple/amber), 'cool' (blue), 'vibrant' (orange/gold), 'dark' (deep purple), or 'minimal' (gray)",\n    "overlayOpacity": number between 0.2 and 0.7 — how dark the photo overlay should be\n  }\n}`;
+    ? `Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": number 0-100 or null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex color",\n    "conditions": "${conditionsLabel} (max 150 chars)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n  },\n  ...\n]`
+    : `Return ONLY this exact JSON (no other text):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": number 0-100 or null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex color",\n  "conditions": "${conditionsLabel} (max 150 chars)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n}`;
 
   return `${complianceSection}
 
@@ -494,32 +528,17 @@ BAR CONTEXT:
 USER REQUEST:
 ${userPrompt || `Create a ${type} promotion for this bar.`}
 
-LANGUAGE: ${langInstruction}${variantsInstruction}
+${isFi
+  ? "TÄRKEÄÄ — Kaikki alla oleva sisältö on tuotettava SUOMEKSI. Jos tuotat englantia tai ruotsia, tulos hylätään."
+  : isSv
+    ? "VIKTIGT — Allt innehåll nedan måste produceras på SVENSKA. Om du producerar engelska eller finska kommer resultatet att avvisas."
+    : "IMPORTANT — All content below MUST be in English. Do not output Finnish or Swedish."}
+
+${langInstruction}${variantsInstruction}
 
 ${outputFormat}
 
-TASK: Generate a promotion with this exact JSON structure (no extra text):
-{
-  "title": "Catchy, Finland-compliant title (max 60 chars)",
-  "description": "Compelling, compliant description (max 200 chars)",
-  "type": "One of: HAPPY_HOUR | DRINK_SPECIAL | FOOD_SPECIAL | LADIES_NIGHT | THEME_NIGHT | VIP_OFFER | COVER_DISCOUNT | LIVE_MUSIC_EVENT | GAME_NIGHT",
-  "discount": number between 0-100 or null,
-  "callToAction": "CTA text like 'View Menu', 'Join Us', 'Book Now'",
-  "accentColor": "Hex color code matching the promotion mood (e.g., #8b5cf6 for purple, #f59e0b for amber, #10b981 for green)",
-  "conditions": "Terms — compliant wording only (max 150 chars)",
-  "visual": {
-    "template": "Which image layout fits: 'split' (photo+text), 'centered' (bold event style), or 'card' (square feed format)",
-    "mood": "Color mood: 'warm' (purple/amber), 'cool' (blue), 'vibrant' (orange/gold), 'dark' (deep purple), or 'minimal' (gray)",
-    "overlayOpacity": number between 0.2 and 0.7 — how dark the photo overlay should be
-  }
-}
-
-VISUAL GUIDELINES:
-- 'split' template: best for food/drink promos when the bar has photos
-- 'centered' template: best for live music events, theme nights, performer announcements
-- 'card' template: best for general promos and social media sharing
-- Pick accentColor to match the mood (warm tones for food/cozy, cool tones for music, vibrant for parties)
-- overlayOpacity: 0.3 for bright photos, 0.5 for dark photos, 0.4 default
+${visualGuidelines}
 
 All text MUST comply with Finnish alcohol marketing rules above.
 Title and description will be scanned and blocked if non-compliant.`;

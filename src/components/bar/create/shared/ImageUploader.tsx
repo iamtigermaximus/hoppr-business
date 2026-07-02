@@ -6,25 +6,26 @@ import { getDefaultImagesForType, type DefaultImage } from "@/lib/default-images
 
 // ---- Styled Components ----
 
-const Container = styled.div`
-  border: 1px solid #e5e7eb;
+const Container = styled.div<{ $dark?: boolean }>`
+  border: 1px solid ${({ $dark }) => ($dark ? "#2d2d4a" : "#e5e7eb")};
   border-radius: 0.5rem;
   overflow: hidden;
+  background: ${({ $dark }) => ($dark ? "#0d0d1a" : "transparent")};
 `;
 
-const TabRow = styled.div`
+const TabRow = styled.div<{ $dark?: boolean }>`
   display: flex;
-  border-bottom: 1px solid #e5e7eb;
-  background: #f9fafb;
+  border-bottom: 1px solid ${({ $dark }) => ($dark ? "#2d2d4a" : "#e5e7eb")};
+  background: ${({ $dark }) => ($dark ? "#12122a" : "#f9fafb")};
 `;
 
-const Tab = styled.button<{ $active: boolean }>`
+const Tab = styled.button<{ $active: boolean; $dark?: boolean }>`
   flex: 1;
   padding: 0.625rem 1rem;
   font-size: 0.8125rem;
   font-weight: ${({ $active }) => ($active ? 600 : 500)};
-  color: ${({ $active }) => ($active ? "#7c3aed" : "#6b7280")};
-  background: ${({ $active }) => ($active ? "white" : "transparent")};
+  color: ${({ $active, $dark }) => ($active ? "#7c3aed" : $dark ? "#6b7280" : "#6b7280")};
+  background: ${({ $active, $dark }) => ($active ? ($dark ? "#0d0d1a" : "white") : "transparent")};
   border: none;
   border-bottom: 2px solid ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
   cursor: pointer;
@@ -40,18 +41,19 @@ const Content = styled.div`
 `;
 
 // Upload zone
-const DropZone = styled.div<{ $dragging: boolean }>`
-  border: 2px dashed ${({ $dragging }) => ($dragging ? "#7c3aed" : "#d1d5db")};
+const DropZone = styled.div<{ $dragging: boolean; $dark?: boolean }>`
+  border: 2px dashed ${({ $dragging }) => ($dragging ? "#7c3aed" : "#2d2d4a")};
   border-radius: 0.5rem;
   padding: 2rem 1rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  background: ${({ $dragging }) => ($dragging ? "#f5f3ff" : "white")};
+  background: ${({ $dragging, $dark }) =>
+    $dragging ? "rgba(124, 58, 237, 0.1)" : $dark ? "#12122a" : "white"};
 
   &:hover {
     border-color: #7c3aed;
-    background: #faf9ff;
+    background: ${({ $dark }) => ($dark ? "rgba(124, 58, 237, 0.06)" : "#faf9ff")};
   }
 `;
 
@@ -61,9 +63,9 @@ const DropIcon = styled.div`
   color: #9ca3af;
 `;
 
-const DropText = styled.p`
+const DropText = styled.p<{ $dark?: boolean }>`
   font-size: 0.8125rem;
-  color: #6b7280;
+  color: ${({ $dark }) => ($dark ? "#d1d5db" : "#6b7280")};
   margin: 0 0 0.25rem;
 `;
 
@@ -128,7 +130,7 @@ const DefaultsGrid = styled.div`
 const DefaultTile = styled.button<{ $selected: boolean }>`
   aspect-ratio: 16 / 10;
   border-radius: 0.375rem;
-  border: 2px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#262626")};
+  border: 2px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#2d2d4a")};
   cursor: pointer;
   padding: 0;
   transition: all 0.15s;
@@ -188,6 +190,8 @@ interface ImageUploaderProps {
   onChange: (url: string | null) => void;
   contentType: "event" | "promotion" | "pass" | "campaign";
   barId: string;
+  /** Use dark theme to match creation hub */
+  dark?: boolean;
 }
 
 export default function ImageUploader({
@@ -195,6 +199,7 @@ export default function ImageUploader({
   onChange,
   contentType,
   barId,
+  dark,
 }: ImageUploaderProps) {
   const [activeTab, setActiveTab] = useState<"upload" | "defaults">("upload");
   const [dragging, setDragging] = useState(false);
@@ -234,6 +239,7 @@ export default function ImageUploader({
 
         const data = await res.json();
         onChange(data.url);
+        setActiveTab("upload");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Upload failed");
       } finally {
@@ -267,6 +273,8 @@ export default function ImageUploader({
 
   const handleSelectDefault = (image: DefaultImage) => {
     onChange(image.path);
+    // Dismiss the defaults grid by switching back to the upload tab
+    setActiveTab("upload");
   };
 
   const handleRemove = () => {
@@ -274,19 +282,21 @@ export default function ImageUploader({
   };
 
   return (
-    <Container>
-      <TabRow>
+    <Container $dark={dark}>
+      <TabRow $dark={dark}>
         <Tab
           $active={activeTab === "upload"}
+          $dark={dark}
           onClick={() => setActiveTab("upload")}
         >
-          📷 Upload
+          Upload
         </Tab>
         <Tab
           $active={activeTab === "defaults"}
+          $dark={dark}
           onClick={() => setActiveTab("defaults")}
         >
-          🖼️ Defaults
+          Defaults
         </Tab>
       </TabRow>
 
@@ -295,13 +305,14 @@ export default function ImageUploader({
           <>
             <DropZone
               $dragging={dragging}
+              $dark={dark}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onClick={() => fileInputRef.current?.click()}
             >
               <DropIcon>{uploading ? "⏳" : "📁"}</DropIcon>
-              <DropText>
+              <DropText $dark={dark}>
                 {uploading
                   ? "Uploading..."
                   : "Drag & drop an image, or click to browse"}
@@ -317,11 +328,16 @@ export default function ImageUploader({
 
             {error && <ErrorText>{error}</ErrorText>}
 
-            {value && !value.startsWith("/defaults/") && (
+            {value && (
               <UploadedPreview>
                 <PreviewImage src={value} alt="Uploaded" />
                 <RemoveButton onClick={handleRemove}>×</RemoveButton>
               </UploadedPreview>
+            )}
+            {value && value.startsWith("/defaults/") && (
+              <UploadStatus>
+                Selected: {defaultImages.find((d) => d.path === value)?.label || "Default image"}
+              </UploadStatus>
             )}
           </>
         ) : (
@@ -339,12 +355,6 @@ export default function ImageUploader({
               </DefaultTile>
             ))}
           </DefaultsGrid>
-        )}
-
-        {value && value.startsWith("/defaults/") && (
-          <UploadStatus>
-            ✅ Selected: {defaultImages.find((d) => d.path === value)?.label || "Default image"}
-          </UploadStatus>
         )}
       </Content>
     </Container>

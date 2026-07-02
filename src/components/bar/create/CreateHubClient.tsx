@@ -7,14 +7,11 @@ import { scanCompliance } from "@/lib/compliance-engine";
 import type { ComplianceViolation } from "@/lib/compliance-engine";
 import type { ContentType, FormState } from "./types";
 import { EMPTY_FORM, supportsBoost } from "./types";
-import AIIntentBox from "./AIIntentBox";
+import UnifiedCreationFlow from "./UnifiedCreationFlow";
 import ComplianceBar from "./ComplianceBar";
 import SuggestionPanel from "./SuggestionPanel";
 import ComplianceReferencePanel from "./ComplianceReferencePanel";
-import ContentCreationStepper, { type StepperHandle } from "./ContentCreationStepper";
-import UnifiedForm from "./UnifiedForm";
 import ConsumerPreviewPanel from "./ConsumerPreviewPanel";
-import FieldGuide from "./FieldGuide";
 import { generateCaption } from "./ShareCard";
 import { PromotionImagePreview } from "./PromotionImagePreview";
 import type { PromotionImageInput } from "@/lib/og-templates/generate";
@@ -444,7 +441,6 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   const [createdItem, setCreatedItem] = useState<CreatedItem | null>(null);
   const [activeTone, setActiveTone] = useState<ContentTone | null | undefined>(contentTone);
   const [cardFormat, setCardFormat] = useState<"square" | "wide" | "banner">("wide");
-  const stepperRef = useRef<StepperHandle>(null);
   // Preserve AI visual params across the submit → success state transition
   const savedAiVisual = useRef<Record<string, unknown> | null>(null);
   const [ogImageDataUrl, setOgImageDataUrl] = useState<string | null>(null);
@@ -679,6 +675,31 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     [],
   );
 
+  // Map content/promotion types to sensible default images for the consumer app
+  const getDefaultImageForContent = (
+    ct: ContentType,
+    promoType?: string,
+  ): string => {
+    const promoMap: Record<string, string> = {
+      HAPPY_HOUR: "/defaults/cocktails.svg",
+      DRINK_SPECIAL: "/defaults/cocktails.svg",
+      FOOD_SPECIAL: "/defaults/brunch.svg",
+      LADIES_NIGHT: "/defaults/cocktails.svg",
+      THEME_NIGHT: "/defaults/party.svg",
+      VIP_OFFER: "/defaults/vip.svg",
+      COVER_DISCOUNT: "/defaults/special-offer.svg",
+      LIVE_MUSIC_EVENT: "/defaults/live-music.svg",
+      GAME_NIGHT: "/defaults/game-night.svg",
+      STUDENT_DISCOUNT: "/defaults/party.svg",
+      SEASONAL: "/defaults/bar-ambiance.svg",
+    };
+    if (promoType && promoMap[promoType]) return promoMap[promoType];
+    if (ct === "event") return "/defaults/live-music.svg";
+    if (ct === "pass") return "/defaults/vip.svg";
+    if (ct === "campaign") return "/defaults/bar-ambiance.svg";
+    return "/defaults/bar-ambiance.svg";
+  };
+
   const handleSubmit = async () => {
     if (!token) return;
     setSubmitting(true);
@@ -686,11 +707,18 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     savedAiVisual.current = aiVisual;
 
     try {
+      // Fallback: when no image is uploaded/picked, assign a sensible default
+      // so the consumer app always has a visual and never shows a blank card.
+      const effectiveImageUrl =
+        formState.imageUrl && formState.imageUrl.trim().length > 0
+          ? formState.imageUrl
+          : getDefaultImageForContent(contentType, formState.promotionType);
+
       const body: Record<string, unknown> = {
         contentType,
         title: formState.title,
         description: formState.description,
-        imageUrl: formState.imageUrl,
+        imageUrl: effectiveImageUrl,
       };
 
       if (contentType === "event") {
@@ -789,16 +817,6 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   const typeLabel = contentType === "campaign"
     ? "Ad Campaign"
     : contentType.charAt(0).toUpperCase() + contentType.slice(1);
-
-  // Stepper can-advance conditions
-  const canGoNext = [
-    true, // Step 0: type selection — always valid
-    formState.title.trim().length > 0, // Step 1: must have a title
-    contentType !== "campaign"
-      ? true // Step 2: type-specific details (validation in submit route)
-      : formState.campaignType !== "" && formState.campaignStartDate !== "" && formState.campaignEndDate !== "",
-    violations.filter((v) => v.severity === "high").length === 0, // Step 3: no blocking violations
-  ];
 
   return (
     <div style={{ padding: "1.5rem" }}>
@@ -1047,14 +1065,18 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         <>
           <HubLayout>
               <FormPanel>
-                <AIIntentBox
+                <UnifiedCreationFlow
                   barId={barId}
-                  onGenerated={handleAIGenerated}
                   barName={barName}
                   barCoverImage={barCoverImage}
+                  contentType={contentType}
+                  formState={formState}
                   contentTone={contentTone}
-                  onToneChange={setActiveTone}
-                  onFormatChange={setCardFormat}
+                  onGenerated={handleAIGenerated}
+                  onFieldChange={handleFieldChange}
+                  onTypeChange={handleTypeChange}
+                  onSubmit={handleSubmit}
+                  submitting={submitting}
                 />
 
                 <ComplianceBar
@@ -1074,69 +1096,6 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                     onAcceptFix={handleAcceptFix}
                   />
                 )}
-
-                <ContentCreationStepper
-                  ref={stepperRef}
-                  contentType={contentType}
-                  onTypeChange={handleTypeChange}
-                  canGoNext={canGoNext}
-                  onSubmit={handleSubmit}
-                  submitting={submitting}
-                  hideFooterOnSteps={[2]}
-                >
-                  {(step) => {
-                    if (step === 1) {
-                      return (
-                        <UnifiedForm
-                          contentType={contentType}
-                          formState={formState}
-                          onChange={handleFieldChange}
-                          barId={barId}
-                          submitting={false}
-                          onSubmit={() => {}}
-                          stepperMode={true}
-                          stepperStep={1}
-                        />
-                      );
-                    }
-                    if (step === 2) {
-                      return (
-                        <FieldGuide
-                          contentType={contentType}
-                          formState={formState}
-                          onChange={handleFieldChange}
-                          barCoverImage={barCoverImage}
-                          barId={barId}
-                          onComplete={() => stepperRef.current?.advanceStep()}
-                        />
-                      );
-                    }
-                    if (step === 3) {
-                      return (
-                        <div>
-                          <ComplianceBar
-                            title={formState.title}
-                            description={formState.description}
-                            expanded={true}
-                            onToggle={() => {}}
-                          />
-                          {violations.length > 0 && (
-                            <SuggestionPanel
-                              violations={violations}
-                              title={formState.title}
-                              description={formState.description}
-                              contentType={contentType}
-                              barId={barId}
-                              onAcceptFix={handleAcceptFix}
-                            />
-                          )}
-                          <ComplianceReferencePanel barId={barId} />
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                </ContentCreationStepper>
               </FormPanel>
 
               <PreviewPanel>

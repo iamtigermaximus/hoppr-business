@@ -66,11 +66,18 @@ function normalizePromotion(
   hasPhoto: boolean,
   index: number = 0,
   tone?: ContentTone | null,
+  layoutHint?: string | null,
 ) {
   // Use tone-compatible presets when a tone is set, otherwise cycle all presets
   const compatibleIndices = tone ? TONE_PRESET_MAP[tone] ?? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 4];
   const presetIndex = compatibleIndices[index % compatibleIndices.length];
   const preset = VISUAL_PRESETS[presetIndex];
+
+  // When the user explicitly chooses a layout, lock all variants to that template
+  // while still cycling mood/accentColor for visual variety between variants.
+  const template = (layoutHint && ["split", "centered", "card"].includes(layoutHint))
+    ? layoutHint
+    : preset.template;
 
   return {
     title: raw.title || `${barName} Special`,
@@ -83,7 +90,7 @@ function normalizePromotion(
     accentColor: raw.accentColor || preset.accentColor,
     conditions: raw.conditions || "Valid with valid ID. Terms apply.",
     visual: {
-      template: preset.template,
+      template,
       photoPreference: hasPhoto ? "use_bar_cover" : "gradient_only",
       mood: preset.mood,
       overlayOpacity: typeof (raw.visual as Record<string, unknown> | undefined)?.overlayOpacity === "number"
@@ -154,6 +161,7 @@ export async function POST(
       language = "en",
       numVariants = 1,
       contentTone,
+      layoutHint,
     } = body as {
       prompt?: string;
       type?: string;
@@ -161,6 +169,7 @@ export async function POST(
       language?: string;
       numVariants?: number;
       contentTone?: string | null;
+      layoutHint?: string | null;
     };
 
     // Validate contentTone
@@ -325,7 +334,7 @@ Create engaging, professional promotions for bars in ${languageName}. Return ONL
     // Normalize all promotions to standard shape — each gets a distinct visual style,
     // filtered by tone preference when available
     const promotions = generatedPromotions.map((p, i) =>
-      normalizePromotion(p, bar.name, hasPhoto, i, tone),
+      normalizePromotion(p, bar.name, hasPhoto, i, tone, layoutHint),
     );
 
     // Return variants array for multi-variant, single promotion for backward compat
