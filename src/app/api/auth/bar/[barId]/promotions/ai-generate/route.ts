@@ -17,6 +17,11 @@ const VALID_PROMO_TYPES = [
   "SEASONAL",
 ] as const;
 
+const VALID_TONES = [
+  "BOLD_ENERGETIC", "WARM_INVITING", "EDGY_IRREVERENT", "ELEGANT_PREMIUM", "PLAYFUL_FUN",
+] as const;
+type ContentTone = (typeof VALID_TONES)[number];
+
 /** Visual style presets — cycled per variant so each looks distinct */
 const VISUAL_PRESETS = [
   { template: "card" as const, mood: "dark" as const, overlayOpacity: 0.4, accentColor: "#8b5cf6" },
@@ -26,17 +31,46 @@ const VISUAL_PRESETS = [
   { template: "split" as const, mood: "minimal" as const, overlayOpacity: 0.5, accentColor: "#6b7280" },
 ];
 
+/** Map tone to compatible preset indices — avoids mismatched styles */
+const TONE_PRESET_MAP: Record<ContentTone, number[]> = {
+  BOLD_ENERGETIC: [1, 3],        // warm split, vibrant card
+  WARM_INVITING: [1, 2],         // warm split, cool centered
+  EDGY_IRREVERENT: [0, 4],       // dark card, minimal split
+  ELEGANT_PREMIUM: [2, 4],       // cool centered, minimal split
+  PLAYFUL_FUN: [3, 1],           // vibrant card, warm split
+};
+
+/** Tone-specific system prompt instruction */
+function toneSystemInstruction(tone: ContentTone | undefined): string {
+  if (!tone) return "";
+  switch (tone) {
+    case "BOLD_ENERGETIC":
+      return "VOICE: Bold & Energetic. Short sentences. Active verbs. Direct CTAs. Use urgency (tonight, now, this weekend). No hedging. No filler words.";
+    case "WARM_INVITING":
+      return "VOICE: Warm & Inviting. Hospitality-focused. Focus on atmosphere and experience. Use words like: join us, welcome, relaxed, cosy. No aggressive sales language.";
+    case "EDGY_IRREVERENT":
+      return "VOICE: Edgy & Irreverent. Casual, direct, personality-driven. Short punchy lines. Humor welcome. Avoid corporate language and marketing clichés.";
+    case "ELEGANT_PREMIUM":
+      return "VOICE: Elegant & Premium. Understated sophistication. No exclamation marks. Use words like: craft, curated, considered, evening. Avoid discount language and slang.";
+    case "PLAYFUL_FUN":
+      return "VOICE: Playful & Fun. Upbeat, emoji-friendly, energetic. Fun over formal. Use emojis naturally. Avoid corporate language and restraint.";
+    default:
+      return "";
+  }
+}
+
 /** Normalize a raw AI-generated promotion object into the standard response shape. */
 function normalizePromotion(
   raw: Record<string, unknown>,
   barName: string,
   hasPhoto: boolean,
   index: number = 0,
+  tone?: ContentTone | null,
 ) {
-  // Always cycle through presets per variant index for template + mood.
-  // This guarantees visual variety across variants in the picker.
-  // AI can still influence accentColor and overlayOpacity if provided.
-  const preset = VISUAL_PRESETS[index % VISUAL_PRESETS.length];
+  // Use tone-compatible presets when a tone is set, otherwise cycle all presets
+  const compatibleIndices = tone ? TONE_PRESET_MAP[tone] ?? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 4];
+  const presetIndex = compatibleIndices[index % compatibleIndices.length];
+  const preset = VISUAL_PRESETS[presetIndex];
 
   return {
     title: raw.title || `${barName} Special`,
@@ -119,13 +153,20 @@ export async function POST(
       targetAudience,
       language = "en",
       numVariants = 1,
+      contentTone,
     } = body as {
       prompt?: string;
       type?: string;
       targetAudience?: string;
       language?: string;
       numVariants?: number;
+      contentTone?: string | null;
     };
+
+    // Validate contentTone
+    const tone: ContentTone | undefined = contentTone && VALID_TONES.includes(contentTone as ContentTone)
+      ? (contentTone as ContentTone)
+      : undefined;
 
     // Validate language parameter
     const validLanguages: PromptLanguage[] = ["en", "fi", "sv"];
@@ -187,8 +228,9 @@ export async function POST(
     );
 
     const languageName = lang === "fi" ? "Finnish" : lang === "sv" ? "Swedish" : "English";
+    const toneInstruction = toneSystemInstruction(tone);
     const systemPrompt = `You are a marketing expert specializing in bar and nightlife promotions.
-Create engaging, professional promotions for bars in ${languageName}. Return ONLY valid JSON.`;
+Create engaging, professional promotions for bars in ${languageName}. Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
 
     // 7. Try DeepSeek API; fall back to templates on any failure
     let generatedPromotions: Record<string, unknown>[] = [];
@@ -280,9 +322,10 @@ Create engaging, professional promotions for bars in ${languageName}. Return ONL
 
     const hasPhoto = !!(bar.coverImage as string | null);
 
-    // Normalize all promotions to standard shape — each gets a distinct visual style
+    // Normalize all promotions to standard shape — each gets a distinct visual style,
+    // filtered by tone preference when available
     const promotions = generatedPromotions.map((p, i) =>
-      normalizePromotion(p, bar.name, hasPhoto, i),
+      normalizePromotion(p, bar.name, hasPhoto, i, tone),
     );
 
     // Return variants array for multi-variant, single promotion for backward compat

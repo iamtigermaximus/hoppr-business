@@ -10,8 +10,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
 }
 
 // ============================================
@@ -75,6 +75,14 @@ enum PriceRange {
   MODERATE
   PREMIUM
   LUXURY
+}
+
+enum ContentTone {
+  BOLD_ENERGETIC
+  WARM_INVITING
+  EDGY_IRREVERENT
+  ELEGANT_PREMIUM
+  PLAYFUL_FUN
 }
 
 enum PromotionType {
@@ -438,6 +446,9 @@ model Bar {
   claimedById   String?
   importedAt    DateTime?
   importBatchId String?
+
+  // Content voice
+  contentTone ContentTone?
 
   // Quality & performance
   qualityScore    Int?

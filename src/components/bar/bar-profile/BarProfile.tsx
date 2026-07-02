@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import styled from "styled-components";
 import ImageUpload from "@/components/admin/image-upload/ImageUpload";
 import Image from "next/image";
+import ToneSelector, { type ContentTone } from "@/components/bar/create/ToneSelector";
 
 const Container = styled.div`
   padding: 1.5rem 0;
@@ -398,6 +399,7 @@ interface BarData {
   imageUrls: string[];
   logoUrl: string | null;
   vipEnabled: boolean;
+  contentTone?: string | null;
   operatingHours: OperatingHours | null;
 }
 
@@ -511,6 +513,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           capacity: barData.capacity || null,
           amenities: barData.amenities || [],
           vipEnabled: barData.vipEnabled || false,
+          contentTone: barData.contentTone || null,
         };
 
         setFormData(newFormData);
@@ -694,6 +697,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
           logoUrl: logoUrl,
           imageUrls: imageUrls,
           vipEnabled: formData.vipEnabled,
+          contentTone: formData.contentTone || null,
           operatingHours: operatingHours,
         }),
       });
@@ -1404,6 +1408,21 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
               Enable VIP Passes
             </label>
           </FormGroup>
+        </FormSection>
+
+        {/* Content Voice */}
+        <FormSection>
+          <SectionTitle>Content Voice & Style</SectionTitle>
+          <SectionDescription>
+            Choose how your bar talks to customers in social media promo cards.
+            This controls the tone and visual style of your promotions on Instagram and Facebook.
+            You can change this anytime.
+          </SectionDescription>
+          <ToneSelector
+            value={formData.contentTone as ContentTone | null | undefined}
+            onChange={(tone) => handleInputChange("contentTone", tone)}
+            compact
+          />
         </FormSection>
 
         {canEdit && (
