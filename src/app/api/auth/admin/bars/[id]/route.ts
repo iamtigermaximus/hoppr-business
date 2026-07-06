@@ -124,6 +124,19 @@ export async function GET(
           },
           orderBy: { createdAt: "desc" },
         },
+        outreachLogs: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            method: true,
+            status: true,
+            notes: true,
+            followUpAt: true,
+            createdAt: true,
+            user: { select: { name: true } },
+          },
+        },
       },
     });
 
@@ -174,6 +187,7 @@ export async function GET(
       promotions: bar.promotions,
       vipPasses: bar.vipPassesEnhanced,
       claims: bar.claims,
+      latestOutreach: bar.outreachLogs[0] ?? null,
     };
 
     return NextResponse.json({

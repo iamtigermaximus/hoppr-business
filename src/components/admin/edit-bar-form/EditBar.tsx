@@ -823,7 +823,9 @@ const EditBar = () => {
         ...formData,
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
-        coverCharge: formData.coverCharge ? parseInt(formData.coverCharge) : null,
+        coverCharge: formData.coverCharge
+          ? parseInt(formData.coverCharge)
+          : null,
         capacity: formData.capacity ? parseInt(formData.capacity) : null,
         operatingHours: operatingHours,
         coverImage: coverImage || null,
@@ -921,7 +923,7 @@ const EditBar = () => {
             Cancel
           </Button>
           <Button $variant="primary" onClick={handleSubmit} disabled={saving}>
-            {saving ? "Saving..." : "💾 Save Changes"}
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </ActionButtons>
       </Header>
@@ -1210,12 +1212,20 @@ const EditBar = () => {
                 min="0"
                 placeholder="0 = free entry"
               />
-              <HelperText>Entry fee in euros. Leave empty or 0 for free entry.</HelperText>
+              <HelperText>
+                Entry fee in euros. Leave empty or 0 for free entry.
+              </HelperText>
             </FormGroup>
 
             <FormGroup>
               <Label>Music / Genre Tags</Label>
-              <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "0.5rem",
+                  marginBottom: "0.5rem",
+                }}
+              >
                 <Input
                   type="text"
                   placeholder="e.g. techno, house, live music"

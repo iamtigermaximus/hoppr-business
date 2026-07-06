@@ -109,6 +109,14 @@ git commit -m "feat: enforce plan limits on staff, passes, campaigns, AI, retarg
 Resource creation checks plan limits and returns 402 when exceeded.
 AI generation and retargeting gated on planHasFeature checks."
 
+git add prisma/schema.prisma
+git commit -m "fix: add REJECTED to BarStatus enum
+
+The admin claims page Rejected tab was returning 'Internal server error'
+because Prisma rejected querying by status='REJECTED' — the value didn't
+exist in the enum despite the PATCH handler writing it and the frontend
+sending it. Added REJECTED to BarStatus (after SUSPENDED)."
+
 echo ""
 echo "All commits created. Run 'git log --oneline' to verify."
-echo "Then: cd ../hoppr && git add prisma/schema.prisma && git commit -m 'chore: sync CronLock model to consumer app schema'"
+echo "Then: cd ../hoppr && git add prisma/schema.prisma && git commit -m 'chore: sync CronLock model and REJECTED status to consumer app schema'"

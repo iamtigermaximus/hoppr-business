@@ -581,6 +581,15 @@ interface Bar {
   updatedAt: string;
   claimedAt: string | null;
   claims: Claim[];
+  latestOutreach: {
+    id: string;
+    method: string;
+    status: string;
+    notes: string | null;
+    followUpAt: string | null;
+    createdAt: string;
+    user: { name: string | null } | null;
+  } | null;
 }
 
 interface Claim {
@@ -625,6 +634,15 @@ const BarDetails = () => {
   // Pending owner approvals
   const [pendingOwners, setPendingOwners] = useState<any[]>([]);
   const [approvingId, setApprovingId] = useState<string | null>(null);
+
+  // Outreach log form state
+  const [showLogForm, setShowLogForm] = useState(false);
+  const [logMethod, setLogMethod] = useState("EMAIL");
+  const [logStatus, setLogStatusState] = useState("EMAILED");
+  const [logNotes, setLogNotesState] = useState("");
+  const [logFollowUp, setLogFollowUpState] = useState("");
+  const [logSubmitting, setLogSubmitting] = useState(false);
+  const [statusSubmitting, setStatusSubmitting] = useState(false);
 
   const barId = params.id as string;
 
@@ -734,7 +752,14 @@ const BarDetails = () => {
     }
   };
 
-  const handleStatusUpdate = async (newStatus: string) => {
+  const handleStatusUpdate = async (newStatus: string, extra?: { isVerified?: boolean; isActive?: boolean }) => {
+    // Optimistic: update UI immediately
+    setBar((prev) => prev ? {
+      ...prev,
+      status: newStatus,
+      ...(extra?.isVerified !== undefined ? { isVerified: extra.isVerified } : {}),
+      ...(extra?.isActive !== undefined ? { isActive: extra.isActive } : {}),
+    } : prev);
     try {
       const token = localStorage.getItem("hoppr_token");
       const response = await fetch(`/api/auth/admin/bars/${barId}`, {
@@ -743,15 +768,87 @@ const BarDetails = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ status: newStatus, ...extra }),
       });
-
-      if (!response.ok) throw new Error("Failed to update status");
-      fetchBar();
+      if (!response.ok) {
+        fetchBar(); // revert on failure
+        console.error("Failed to update status:", response.status);
+      }
     } catch (error) {
+      fetchBar(); // revert on network error
       console.error("Error updating status:", error);
-      alert("Failed to update status");
     }
+  };
+
+  const handleOutreachStatusChange = async (newStatus: string) => {
+    // Optimistic
+    setBar((prev) => prev ? {
+      ...prev,
+      latestOutreach: {
+        id: prev.latestOutreach?.id ?? `opt-${Date.now()}`,
+        method: prev.latestOutreach?.method ?? "EMAIL",
+        status: newStatus,
+        notes: prev.latestOutreach?.notes ?? null,
+        followUpAt: prev.latestOutreach?.followUpAt ?? null,
+        createdAt: prev.latestOutreach?.createdAt ?? new Date().toISOString(),
+        user: prev.latestOutreach?.user ?? null,
+      },
+    } : prev);
+    setStatusSubmitting(true);
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      if (!token) { fetchBar(); return; }
+      const res = await fetch("/api/auth/admin/outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ barId, method: "EMAIL", status: newStatus, notes: null, followUpAt: null }),
+      });
+      if (!res.ok) { fetchBar(); console.error("Outreach status change failed:", res.status); }
+    } catch (err) {
+      fetchBar();
+      console.error("Outreach status change error:", err);
+    } finally { setStatusSubmitting(false); }
+  };
+
+  const openLogForm = () => {
+    const current = bar?.latestOutreach?.status ?? "NOT_CONTACTED";
+    setLogStatusState(current);
+    setLogMethod("EMAIL");
+    setLogNotesState("");
+    setLogFollowUpState("");
+    setShowLogForm(true);
+  };
+
+  const handleSubmitLog = async () => {
+    if (!bar) return;
+    // Optimistic
+    setBar((prev) => prev ? {
+      ...prev,
+      latestOutreach: {
+        id: prev.latestOutreach?.id ?? `opt-${Date.now()}`,
+        method: logMethod,
+        status: logStatus,
+        notes: logNotes || null,
+        followUpAt: logFollowUp || null,
+        createdAt: prev.latestOutreach?.createdAt ?? new Date().toISOString(),
+        user: prev.latestOutreach?.user ?? null,
+      },
+    } : prev);
+    setShowLogForm(false);
+    setLogSubmitting(true);
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      if (!token) { fetchBar(); return; }
+      const res = await fetch("/api/auth/admin/outreach", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ barId, method: logMethod, status: logStatus, notes: logNotes || null, followUpAt: logFollowUp || null }),
+      });
+      if (!res.ok) { fetchBar(); console.error("Log contact failed:", res.status); }
+    } catch (err) {
+      fetchBar();
+      console.error("Log contact error:", err);
+    } finally { setLogSubmitting(false); }
   };
 
   const sendInvitation = async () => {
@@ -793,10 +890,13 @@ const BarDetails = () => {
   const fetchScores = async () => {
     try {
       const token = localStorage.getItem("hoppr_token");
-      const res = await fetch(`/api/auth/admin/bars/calculate-scores?barId=${barId}`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        `/api/auth/admin/bars/calculate-scores?barId=${barId}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (res.ok) {
         fetchBar(); // Refresh bar data to show new scores
       }
@@ -893,10 +993,10 @@ const BarDetails = () => {
         </TitleSection>
         <ActionButtons>
           <LinkButton href={`/admin/bars/${barId}/edit`} $variant="primary">
-            ✏️ Edit
+            Edit
           </LinkButton>
           <Button $variant="danger" onClick={handleDelete}>
-            🗑️ Delete
+            Delete
           </Button>
         </ActionButtons>
       </Header>
@@ -1180,8 +1280,115 @@ const BarDetails = () => {
                 <InfoLabel>Profile Views</InfoLabel>
                 <InfoValue>{bar.profileViews?.toLocaleString() || 0}</InfoValue>
               </InfoGroup>
+              <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "0.25rem 0" }} />
+              <InfoGroup>
+                <InfoLabel>Outreach Status</InfoLabel>
+                <select
+                  value={bar.latestOutreach?.status ?? "NOT_CONTACTED"}
+                  disabled={statusSubmitting}
+                  onChange={(e) => {
+                    if (e.target.value !== (bar.latestOutreach?.status ?? "NOT_CONTACTED")) {
+                      handleOutreachStatusChange(e.target.value);
+                    }
+                  }}
+                  style={{
+                    padding: "0.375rem 0.5rem",
+                    borderRadius: "0.375rem",
+                    border: "1px solid #d1d5db",
+                    fontSize: "0.8125rem",
+                    fontWeight: 600,
+                    background: "white",
+                    cursor: "pointer",
+                    width: "100%",
+                  }}
+                >
+                  <option value="NOT_CONTACTED">Not Contacted</option>
+                  <option value="EMAILED">Emailed</option>
+                  <option value="CALLED">Called</option>
+                  <option value="IN_DISCUSSION">In Discussion</option>
+                  <option value="CLAIMED">Claimed</option>
+                  <option value="DECLINED">Declined</option>
+                </select>
+              </InfoGroup>
+              {bar.latestOutreach && bar.latestOutreach.status !== "NOT_CONTACTED" && (
+                <InfoGroup>
+                  <InfoLabel>Last Contact</InfoLabel>
+                  <InfoValue style={{ fontSize: "0.8125rem" }}>
+                    {new Date(bar.latestOutreach.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {" · "}
+                    {bar.latestOutreach.method === "EMAIL" ? "Email" :
+                     bar.latestOutreach.method === "PHONE_CALL" ? "Phone" :
+                     bar.latestOutreach.method === "IN_PERSON" ? "In Person" :
+                     bar.latestOutreach.method === "SOCIAL_MEDIA" ? "Social" : bar.latestOutreach.method}
+                    {bar.latestOutreach.user?.name ? ` by ${bar.latestOutreach.user.name}` : ""}
+                  </InfoValue>
+                </InfoGroup>
+              )}
             </ColumnFlex>
           </Card>
+
+          {/* Log Contact Form */}
+          {showLogForm && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Log Contact</CardTitle>
+              </CardHeader>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <InfoGroup>
+                  <InfoLabel>Method</InfoLabel>
+                  <select
+                    value={logMethod}
+                    onChange={(e) => setLogMethod(e.target.value)}
+                    style={{ padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #d1d5db", fontSize: "0.8125rem" }}
+                  >
+                    <option value="EMAIL">Email</option>
+                    <option value="PHONE_CALL">Phone</option>
+                    <option value="IN_PERSON">In Person</option>
+                    <option value="SOCIAL_MEDIA">Social</option>
+                  </select>
+                </InfoGroup>
+                <InfoGroup>
+                  <InfoLabel>Status</InfoLabel>
+                  <select
+                    value={logStatus}
+                    onChange={(e) => setLogStatusState(e.target.value)}
+                    style={{ padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #d1d5db", fontSize: "0.8125rem" }}
+                  >
+                    <option value="NOT_CONTACTED">Not Contacted</option>
+                    <option value="EMAILED">Emailed</option>
+                    <option value="CALLED">Called</option>
+                    <option value="IN_DISCUSSION">In Discussion</option>
+                    <option value="CLAIMED">Claimed</option>
+                    <option value="DECLINED">Declined</option>
+                  </select>
+                </InfoGroup>
+                <InfoGroup>
+                  <InfoLabel>Notes</InfoLabel>
+                  <textarea
+                    placeholder="What was discussed?"
+                    value={logNotes}
+                    onChange={(e) => setLogNotesState(e.target.value)}
+                    style={{ padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #d1d5db", fontSize: "0.8125rem", resize: "vertical", minHeight: "60px", fontFamily: "inherit" }}
+                  />
+                </InfoGroup>
+                <InfoGroup>
+                  <InfoLabel>Follow-up Date (optional)</InfoLabel>
+                  <input
+                    type="date"
+                    value={logFollowUp}
+                    onChange={(e) => setLogFollowUpState(e.target.value)}
+                    style={{ padding: "0.5rem", borderRadius: "0.375rem", border: "1px solid #d1d5db", fontSize: "0.8125rem" }}
+                  />
+                </InfoGroup>
+                <div style={{ display: "flex", gap: "0.5rem" }}>
+                  <Button $variant="primary" onClick={handleSubmitLog} disabled={logSubmitting}>
+                    {logSubmitting ? "Saving..." : "Save"}
+                  </Button>
+                  <Button onClick={() => setShowLogForm(false)} disabled={logSubmitting}>Cancel</Button>
+                </div>
+              </div>
+            </Card>
+          )}
 
           {/* Claim Information */}
           {bar.claims && bar.claims.length > 0 && (
@@ -1222,12 +1429,11 @@ const BarDetails = () => {
                       </PendingEmail>
                       {claim.reviewedBy && (
                         <PendingEmail>
-                          Reviewer: {claim.reviewedBy.name ||
-                            claim.reviewedBy.email}
+                          Reviewer:{" "}
+                          {claim.reviewedBy.name || claim.reviewedBy.email}
                         </PendingEmail>
                       )}
-                      {claim.documentUrls &&
-                        claim.documentUrls.length > 0 && (
+                      {claim.documentUrls && claim.documentUrls.length > 0 && (
                         <div
                           style={{
                             marginTop: "0.25rem",
@@ -1286,16 +1492,29 @@ const BarDetails = () => {
                   <InfoGroup>
                     <InfoLabel>Engagement Clicks</InfoLabel>
                     <InfoValue>
-                      {((bar.directionClicks || 0) + (bar.websiteClicks || 0) + (bar.callClicks || 0)).toLocaleString()} total
+                      {(
+                        (bar.directionClicks || 0) +
+                        (bar.websiteClicks || 0) +
+                        (bar.callClicks || 0)
+                      ).toLocaleString()}{" "}
+                      total
                     </InfoValue>
                   </InfoGroup>
                   <InfoGroup>
                     <InfoLabel>Shares</InfoLabel>
-                    <InfoValue>{bar.shareCount?.toLocaleString() || 0}</InfoValue>
+                    <InfoValue>
+                      {bar.shareCount?.toLocaleString() || 0}
+                    </InfoValue>
                   </InfoGroup>
                 </>
               ) : (
-                <div style={{ color: "#9ca3af", fontSize: "0.875rem", padding: "0.5rem 0" }}>
+                <div
+                  style={{
+                    color: "#9ca3af",
+                    fontSize: "0.875rem",
+                    padding: "0.5rem 0",
+                  }}
+                >
                   Quality scores not yet calculated.{" "}
                   <a
                     href="#"
@@ -1366,7 +1585,7 @@ const BarDetails = () => {
             <QuickActionsContainer>
               <Button
                 $variant="secondary"
-                onClick={() => handleStatusUpdate("VERIFIED")}
+                onClick={() => handleStatusUpdate("VERIFIED", { isVerified: true })}
                 disabled={bar.isVerified}
               >
                 ✅ Verify Bar
@@ -1374,7 +1593,10 @@ const BarDetails = () => {
               <Button
                 $variant="secondary"
                 onClick={() =>
-                  handleStatusUpdate(bar.isActive ? "SUSPENDED" : "CLAIMED")
+                  handleStatusUpdate(
+                    bar.isActive ? "SUSPENDED" : "CLAIMED",
+                    bar.isActive ? { isActive: false } : { isActive: true }
+                  )
                 }
               >
                 {bar.isActive ? "⏸️ Suspend" : "▶️ Activate"}
@@ -1385,24 +1607,12 @@ const BarDetails = () => {
               >
                 📧 Invite Bar Owner
               </Button>
-              <LinkButton
-                href={`/admin/bars/${barId}/staff`}
+              <Button
                 $variant="secondary"
+                onClick={openLogForm}
               >
-                👥 Manage Staff
-              </LinkButton>
-              <LinkButton
-                href={`/admin/bars/${barId}/promotions`}
-                $variant="secondary"
-              >
-                🎉 View Promotions
-              </LinkButton>
-              <LinkButton
-                href={`/admin/bars/${barId}/vip-passes`}
-                $variant="secondary"
-              >
-                ⭐ VIP Passes
-              </LinkButton>
+                📝 Log Contact
+              </Button>
             </QuickActionsContainer>
           </Card>
         </Sidebar>

@@ -1681,7 +1681,9 @@ const DashboardContent = () => {
         }
       } catch (fetchError) {
         console.error("Error fetching stats:", fetchError);
-        setError("Could not load dashboard data. Please check your connection and try again.");
+        setError(
+          "Could not load dashboard data. Please check your connection and try again.",
+        );
       } finally {
         setLoading(false);
       }
@@ -1796,7 +1798,10 @@ const DashboardContent = () => {
       setShowScoreModal(true);
     } catch (err) {
       console.error("Recalculate error:", err);
-      setScoreResult({ success: false, error: "Network error. Please try again." });
+      setScoreResult({
+        success: false,
+        error: "Network error. Please try again.",
+      });
       setShowScoreModal(true);
     } finally {
       setRecalculating(false);
@@ -1807,25 +1812,26 @@ const DashboardContent = () => {
     {
       title: "View Analytics",
       description: "Deep dive into platform performance and insights",
-      icon: "📊",
+      icon: "",
       onClick: () => router.push("/admin/analytics"),
     },
     {
       title: "Manage Bars",
       description: "Review and manage bar registrations and verifications",
-      icon: "🍻",
+      icon: "",
       onClick: () => router.push("/admin/bars"),
     },
     {
       title: "User Management",
       description: "View and manage platform users and permissions",
-      icon: "👥",
+      icon: "",
       onClick: () => router.push("/admin/users"),
     },
     {
       title: recalculating ? "Calculating..." : "Recalculate Scores",
-      description: "Recompute quality scores and performance tiers for all bars",
-      icon: "📈",
+      description:
+        "Recompute quality scores and performance tiers for all bars",
+      icon: "",
       onClick: () => handleRecalculateScores(),
     },
   ];
@@ -1882,7 +1888,11 @@ const DashboardContent = () => {
           setError("Unexpected response from server. Please try again.");
         }
       })
-      .catch(() => setError("Could not load dashboard data. Please check your connection and try again."))
+      .catch(() =>
+        setError(
+          "Could not load dashboard data. Please check your connection and try again.",
+        ),
+      )
       .finally(() => setLoading(false));
   };
 
@@ -2134,7 +2144,9 @@ const DashboardContent = () => {
         <ModalOverlay onClick={() => setShowScoreModal(false)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
             <ModalTitle>
-              {scoreResult.success ? "Scores Recalculated" : "Recalculation Failed"}
+              {scoreResult.success
+                ? "Scores Recalculated"
+                : "Recalculation Failed"}
             </ModalTitle>
             <ModalBody>
               {scoreResult.success ? (
