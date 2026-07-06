@@ -4,6 +4,8 @@ import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
 import { hashPassword } from "@/lib/auth";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
+import { checkPlanLimit } from "@/lib/plan-limits";
+import { handleApiError } from "@/lib/api-error";
 
 export type BarStaffRole =
   | "OWNER"
@@ -76,6 +78,18 @@ export async function POST(
         { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
         { status: 429 },
       );
+    }
+
+    // Plan limit check: ensure bar hasn't exceeded max staff
+    const barPlan = await prisma.bar.findUnique({
+      where: { id: barId },
+      select: { plan: true, _count: { select: { staff: true } } },
+    });
+    if (barPlan) {
+      const limitCheck = checkPlanLimit(barPlan.plan, "staff", barPlan._count.staff);
+      if (!limitCheck.allowed) {
+        return NextResponse.json({ error: limitCheck.reason }, { status: 402 });
+      }
     }
 
     const { email, name, role, password }: CreateStaffRequest =
@@ -163,11 +177,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error("Create bar staff error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Create bar staff error");
   }
 }
 
@@ -280,11 +290,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Fetch bar staff error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Fetch bar staff error");
   }
 }
 
@@ -370,11 +376,7 @@ export async function PUT(
       staff,
     });
   } catch (error) {
-    console.error("Update bar staff error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Update bar staff error");
   }
 }
 
@@ -445,11 +447,7 @@ export async function DELETE(
       message: "Staff member deleted successfully",
     });
   } catch (error) {
-    console.error("Delete bar staff error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Delete bar staff error");
   }
 }
 

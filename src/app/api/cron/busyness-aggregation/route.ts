@@ -9,12 +9,20 @@
 
 import { NextResponse } from "next/server";
 import { aggregateAllBars } from "@/lib/scheduler/busyness-aggregator";
+import { acquireLock, releaseLock } from "@/lib/cron-lock";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(request: Request): Promise<NextResponse> {
   const authHeader = request.headers.get("authorization");
   const expected = `Bearer ${process.env.CRON_SECRET}`;
   if (!authHeader || authHeader !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Prevent overlapping runs — daily aggregation, allow generous time
+  const lock = await acquireLock("busyness-aggregation", 30 * 60 * 1000); // 30 min max
+  if (!lock) {
+    return NextResponse.json({ ok: true, skipped: true, reason: "Lock held" });
   }
 
   try {
@@ -27,11 +35,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     console.log("[Busyness] Cron complete:", summary);
     return NextResponse.json({ ok: true, summary });
-  } catch (err) {
-    console.error("[Busyness] Cron failed:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 },
-    );
+  } catch (error) {
+    return handleApiError(error, "Busyness cron");
+  } finally {
+    await releaseLock("busyness-aggregation");
   }
 }

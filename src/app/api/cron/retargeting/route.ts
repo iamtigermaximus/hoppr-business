@@ -9,6 +9,8 @@
 
 import { NextResponse } from "next/server";
 import { runRetargetingForAllBars } from "@/lib/retargeting/engine";
+import { acquireLock, releaseLock } from "@/lib/cron-lock";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(request: Request): Promise<NextResponse> {
   // Auth: CRON_SECRET bearer token
@@ -16,6 +18,12 @@ export async function GET(request: Request): Promise<NextResponse> {
   const expected = `Bearer ${process.env.CRON_SECRET}`;
   if (!authHeader || authHeader !== expected) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Prevent overlapping runs
+  const lock = await acquireLock("retargeting", 15 * 60 * 1000); // 15 min max
+  if (!lock) {
+    return NextResponse.json({ ok: true, skipped: true, reason: "Lock held" });
   }
 
   try {
@@ -32,11 +40,9 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     console.log("[Retargeting] Cron complete:", summary);
     return NextResponse.json({ ok: true, summary });
-  } catch (err) {
-    console.error("[Retargeting] Cron failed:", err);
-    return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Unknown error" },
-      { status: 500 },
-    );
+  } catch (error) {
+    return handleApiError(error, "Retargeting cron");
+  } finally {
+    await releaseLock("retargeting");
   }
 }

@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   try {
@@ -96,10 +97,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Fetch claims error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Fetch claims error:");
   }
 }

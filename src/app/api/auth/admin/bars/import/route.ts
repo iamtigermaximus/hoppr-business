@@ -9,7 +9,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import {
-  PrismaClient,
   BarType,
   PriceRange,
   ImportStatus,
@@ -17,8 +16,7 @@ import {
 } from "@prisma/client";
 import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 import { handleApiError, AppError } from "@/lib/api-error";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/database";
 
 // ---- CSV Parsing Helpers ----
 

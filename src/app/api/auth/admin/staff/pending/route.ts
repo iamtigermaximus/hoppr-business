@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
 import { sendWelcomeEmail } from "@/lib/email";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,11 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ pending });
   } catch (error) {
-    console.error("Fetch pending staff error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch pending staff error:");
   }
 }
 
@@ -115,10 +112,6 @@ export async function PATCH(request: NextRequest) {
       staff: updated,
     });
   } catch (error) {
-    console.error("Approve staff error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Approve staff error:");
   }
 }

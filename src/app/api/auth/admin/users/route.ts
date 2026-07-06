@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
 import { hashPassword } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 export type AdminRole =
   | "SUPER_ADMIN"
@@ -46,11 +47,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ users: adminUsers });
   } catch (error) {
-    console.error("Get admin users error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Get admin users error:");
   }
 }
 
@@ -117,11 +114,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Create admin error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Create admin error:");
   }
 }
 
@@ -216,11 +209,7 @@ export async function PUT(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Update admin error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Update admin error:");
   }
 }
 
@@ -283,10 +272,6 @@ export async function DELETE(request: NextRequest) {
       message: "Admin user deleted successfully",
     });
   } catch (error) {
-    console.error("Delete admin error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Delete admin error:");
   }
 }

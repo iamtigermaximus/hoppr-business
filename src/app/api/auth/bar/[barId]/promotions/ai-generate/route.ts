@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
+import { planHasFeature } from "@/lib/plan-limits";
 import { buildGeneratePrompt, type PromptLanguage } from "@/lib/compliance/prompts";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import {
@@ -141,6 +142,18 @@ export async function POST(
       return NextResponse.json(
         { error: "Forbidden: You don't have access to this bar" },
         { status: 403 },
+      );
+    }
+
+    // Plan feature gate: only PRO/PREMIUM plans can use AI generation
+    const barPlan = await prisma.bar.findUnique({
+      where: { id: barId },
+      select: { plan: true },
+    });
+    if (barPlan && !planHasFeature(barPlan.plan, "aiGeneration")) {
+      return NextResponse.json(
+        { error: "AI generation requires a PRO or PREMIUM plan. Upgrade to access this feature." },
+        { status: 402 },
       );
     }
 

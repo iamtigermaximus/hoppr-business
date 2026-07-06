@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { RULE_DEFINITIONS } from "@/lib/retargeting/rules";
+import { planHasFeature } from "@/lib/plan-limits";
 
 export async function GET(
   request: NextRequest,
@@ -62,6 +63,18 @@ export async function PUT(
   const { barId } = await params;
   if (payload.barId !== barId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Feature gate: retargeting requires PRO or PREMIUM plan
+  const barPlan = await prisma.bar.findUnique({
+    where: { id: barId },
+    select: { plan: true },
+  });
+  if (barPlan && !planHasFeature(barPlan.plan, "retargeting")) {
+    return NextResponse.json(
+      { error: "Retargeting requires a PRO or PREMIUM plan. Upgrade to access this feature." },
+      { status: 402 },
+    );
   }
 
   const body = await request.json();

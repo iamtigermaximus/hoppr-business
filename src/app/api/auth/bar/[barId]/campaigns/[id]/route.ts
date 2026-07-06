@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 const VALID_STATUSES = ["DRAFT", "PENDING_REVIEW", "ACTIVE", "PAUSED", "COMPLETED", "CANCELLED"];
 
@@ -59,11 +60,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Fetch campaign error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch campaign error");
   }
 }
 

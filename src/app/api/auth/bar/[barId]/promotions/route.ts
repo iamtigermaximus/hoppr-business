@@ -5,6 +5,7 @@ import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
 import { checkPlanLimit } from "@/lib/plan-limits";
+import { handleApiError } from "@/lib/api-error";
 
 interface CreatePromotionBody {
   title: string;
@@ -128,11 +129,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Fetch promotions error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch promotions error");
   }
 }
 

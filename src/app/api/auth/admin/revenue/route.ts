@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
+import { handleApiError } from "@/lib/api-error";
 
 // ---- Types ----
 
@@ -281,10 +282,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, revenue: revenueData });
   } catch (error) {
-    console.error("Revenue fetch error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Revenue fetch error:");
   }
 }

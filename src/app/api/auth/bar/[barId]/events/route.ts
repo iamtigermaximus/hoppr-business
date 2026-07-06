@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { scanCompliance, complianceSummary } from "@/lib/compliance-engine";
+import { handleApiError } from "@/lib/api-error";
 
 interface CreateEventBody {
   title: string;
@@ -106,11 +107,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Fetch bar events error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch bar events error");
   }
 }
 

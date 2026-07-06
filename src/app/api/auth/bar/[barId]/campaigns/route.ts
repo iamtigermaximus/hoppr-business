@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
+import { checkPlanLimit } from "@/lib/plan-limits";
 
 const VALID_TYPES = ["FEATURED_LISTING", "BANNER_AD", "BOOSTED_PROMO", "SPONSORED_EVENT"];
 
@@ -116,11 +118,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Fetch campaigns error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch campaigns error");
   }
 }
 
@@ -145,6 +143,18 @@ export async function POST(
         { error: "Only owners and managers can create campaigns" },
         { status: 403 },
       );
+    }
+
+    // Plan limit check
+    const barPlan = await prisma.bar.findUnique({
+      where: { id: barId },
+      select: { plan: true, _count: { select: { adCampaigns: true } } },
+    });
+    if (barPlan) {
+      const limitCheck = checkPlanLimit(barPlan.plan, "adCampaigns", barPlan._count.adCampaigns);
+      if (!limitCheck.allowed) {
+        return NextResponse.json({ error: limitCheck.reason }, { status: 402 });
+      }
     }
 
     const body = await request.json();

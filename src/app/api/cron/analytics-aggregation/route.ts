@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aggregateYesterday } from "@/lib/analytics/aggregator";
+import { acquireLock, releaseLock } from "@/lib/cron-lock";
+import { handleApiError } from "@/lib/api-error";
 
 /**
  * POST /api/cron/analytics-aggregation
@@ -9,16 +11,17 @@ import { aggregateYesterday } from "@/lib/analytics/aggregator";
  *
  * Vercel Cron config (vercel.json):
  *   { "path": "/api/cron/analytics-aggregation", "schedule": "0 1 * * *" }
- *
- * Concurrency note: This endpoint processes bars sequentially in
- * batches. Each bar's aggregation is a single upsert. At beta scale
- * (<100 bars, ~500 events/bar/day) this completes in under 10 seconds.
- * If it grows, we can parallelize with Promise.allSettled in chunks.
  */
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Prevent overlapping runs
+  const lock = await acquireLock("analytics-aggregation", 30 * 60 * 1000); // 30 min max
+  if (!lock) {
+    return NextResponse.json({ success: true, skipped: true, reason: "Lock held" });
   }
 
   try {
@@ -31,11 +34,9 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Analytics aggregation cron error:", error);
-    return NextResponse.json(
-      { error: "Aggregation failed", details: String(error) },
-      { status: 500 },
-    );
+    return handleApiError(error, "Analytics aggregation cron");
+  } finally {
+    await releaseLock("analytics-aggregation");
   }
 }
 

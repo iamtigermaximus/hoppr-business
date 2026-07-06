@@ -3,8 +3,9 @@
 // Query params: range (7d, 30d, 90d, 1y)
 
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
+import { prisma } from "@/lib/database";
+import { handleApiError } from "@/lib/api-error";
 import {
   AdminDashboardStats,
   AdminTimeRange,
@@ -14,8 +15,6 @@ import {
   DistrictStat,
   BarTypeGap,
 } from "@/types/admin-analytics";
-
-const prisma = new PrismaClient();
 
 function getDateRange(range: AdminTimeRange): {
   startDate: Date;
@@ -376,10 +375,6 @@ export async function GET(request: NextRequest) {
       },
     );
   } catch (error) {
-    console.error("Analytics summary error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Analytics summary error:");
   }
 }

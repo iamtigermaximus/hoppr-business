@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -497,10 +498,6 @@ export async function GET(
       quickStats,
     });
   } catch (error) {
-    console.error("Intelligence fetch error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Intelligence fetch error");
   }
 }

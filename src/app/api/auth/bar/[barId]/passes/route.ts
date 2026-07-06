@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
+import { checkPlanLimit } from "@/lib/plan-limits";
 
 interface CreatePassBody {
   name: string;
@@ -121,11 +123,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Fetch bar passes error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch bar passes error");
   }
 }
 
@@ -150,6 +148,18 @@ export async function POST(
         { error: "Only owners and managers can create VIP passes" },
         { status: 403 },
       );
+    }
+
+    // Plan limit check
+    const barPlan = await prisma.bar.findUnique({
+      where: { id: barId },
+      select: { plan: true, _count: { select: { vipPassesEnhanced: true } } },
+    });
+    if (barPlan) {
+      const limitCheck = checkPlanLimit(barPlan.plan, "passes", barPlan._count.vipPassesEnhanced);
+      if (!limitCheck.allowed) {
+        return NextResponse.json({ error: limitCheck.reason }, { status: 402 });
+      }
     }
 
     const body = (await request.json()) as CreatePassBody;

@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   const payload = verifyAuthHeader(request);
@@ -44,10 +45,6 @@ export async function GET(request: NextRequest) {
       latest,
     });
   } catch (error) {
-    console.error("Claims diagnostic error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Claims diagnostic error:");
   }
 }

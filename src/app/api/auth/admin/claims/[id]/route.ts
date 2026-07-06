@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
 import { sendWelcomeEmail } from "@/lib/email";
+import { handleApiError } from "@/lib/api-error";
 
 type AuthResult =
   | { error: NextResponse; user?: undefined }
@@ -65,8 +66,7 @@ export async function DELETE(
       message: `Claim for "${existing.bar.name}" deleted.`,
     });
   } catch (error) {
-    console.error("Delete claim error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error, "Delete claim error:");
   }
 }
 
@@ -240,10 +240,6 @@ export async function PATCH(
           : "Claim rejected.",
     });
   } catch (error) {
-    console.error("Update claim error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Update claim error:");
   }
 }

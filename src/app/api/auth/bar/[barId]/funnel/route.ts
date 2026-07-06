@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(
   request: NextRequest,
@@ -145,10 +146,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Funnel fetch error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Funnel fetch error");
   }
 }

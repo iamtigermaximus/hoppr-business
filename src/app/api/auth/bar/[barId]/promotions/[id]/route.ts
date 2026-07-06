@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 // GET - Fetch single promotion details
 export async function GET(
@@ -40,11 +41,7 @@ export async function GET(
       promotion,
     });
   } catch (error) {
-    console.error("Fetch promotion detail error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch promotion detail error");
   }
 }
 
@@ -121,11 +118,7 @@ export async function PATCH(
       promotion,
     });
   } catch (error) {
-    console.error("Update promotion error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Update promotion error");
   }
 }
 
@@ -161,10 +154,6 @@ export async function DELETE(
       message: "Promotion deleted successfully",
     });
   } catch (error) {
-    console.error("Delete error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Delete error");
   }
 }

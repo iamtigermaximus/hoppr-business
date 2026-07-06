@@ -4,6 +4,7 @@ import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
 import { sendInviteEmail } from "@/lib/email";
 import crypto from "crypto";
+import { handleApiError } from "@/lib/api-error";
 
 export async function POST(
   request: NextRequest,
@@ -98,11 +99,7 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error("Create invitation error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Create invitation error:");
   }
 }
 
@@ -132,10 +129,6 @@ export async function GET(
 
     return NextResponse.json({ invitations });
   } catch (error) {
-    console.error("Fetch invitations error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch invitations error:");
   }
 }

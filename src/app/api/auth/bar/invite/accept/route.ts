@@ -1,10 +1,8 @@
 //app/api/bar/invite/accept/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { hash } from "bcryptjs";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/database";
 
 export async function POST(request: NextRequest) {
   try {

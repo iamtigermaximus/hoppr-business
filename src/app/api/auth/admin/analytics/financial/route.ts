@@ -1,100 +1,8 @@
-// import { NextRequest, NextResponse } from "next/server";
-// import { PrismaClient } from "@prisma/client";
-// import { verify } from "jsonwebtoken";
-
-// const prisma = new PrismaClient();
-// const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-
-// export async function GET(request: NextRequest) {
-//   try {
-//     const token = request.headers.get("authorization")?.replace("Bearer ", "");
-
-//     if (!token) {
-//       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-//     }
-
-//     const decoded = verify(token, JWT_SECRET) as { role: string };
-
-//     if (decoded.role !== "SUPER_ADMIN") {
-//       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-//     }
-
-//     const { searchParams } = new URL(request.url);
-//     const range = searchParams.get("range") || "30d";
-
-//     const startDate = new Date();
-//     switch (range) {
-//       case "7d":
-//         startDate.setDate(startDate.getDate() - 7);
-//         break;
-//       case "90d":
-//         startDate.setDate(startDate.getDate() - 90);
-//         break;
-//       case "1y":
-//         startDate.setFullYear(startDate.getFullYear() - 1);
-//         break;
-//       default:
-//         startDate.setDate(startDate.getDate() - 30);
-//     }
-
-//     // Get VIP pass sales
-//     const vipPasses = await prisma.vIPPassEnhanced.findMany({
-//       where: { createdAt: { gte: startDate } },
-//       select: { soldCount: true, priceCents: true },
-//     });
-
-//     const totalRevenue = vipPasses.reduce(
-//       (sum, p) => sum + (p.soldCount * p.priceCents) / 100,
-//       0,
-//     );
-
-//     // Get sales by bar
-//     const salesByBar = await prisma.vIPPassEnhanced.groupBy({
-//       by: ["barId"],
-//       where: { createdAt: { gte: startDate } },
-//       _sum: { soldCount: true },
-//     });
-
-//     const barIds = salesByBar.map((s) => s.barId);
-//     const bars = await prisma.bar.findMany({
-//       where: { id: { in: barIds } },
-//       select: { id: true, name: true },
-//     });
-
-//     const barMap = new Map(bars.map((b) => [b.id, b.name]));
-
-//     const topBars = salesByBar
-//       .map((s) => ({
-//         barId: s.barId,
-//         barName: barMap.get(s.barId) || "Unknown",
-//         sales: s._sum.soldCount || 0,
-//       }))
-//       .sort((a, b) => b.sales - a.sales)
-//       .slice(0, 5);
-
-//     return NextResponse.json({
-//       success: true,
-//       financial: {
-//         totalRevenue,
-//         vipPassRevenue: totalRevenue,
-//         platformFee: totalRevenue * 0.1,
-//         topBars,
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Financial analytics error:", error);
-//     return NextResponse.json(
-//       { error: "Internal server error" },
-//       { status: 500 },
-//     );
-//   }
-// }
 // Route: GET /api/auth/admin/analytics/financial
 // Description: Get financial analytics data
 // Query params: range (7d, 30d, 90d, 1y)
 
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 import {
   FinancialData,
@@ -103,8 +11,8 @@ import {
   RevenueByCity,
   AdminTimeRange,
 } from "@/types/admin-analytics";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/database";
+import { handleApiError } from "@/lib/api-error";
 
 function getDateRange(range: AdminTimeRange): {
   startDate: Date;
@@ -295,10 +203,6 @@ export async function GET(request: NextRequest) {
       financial: financialData,
     });
   } catch (error) {
-    console.error("Financial analytics error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Financial analytics error:");
   }
 }

@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
+import { handleApiError } from "@/lib/api-error";
 import {
   calculateQualityScore,
   QualityInput,
@@ -171,10 +172,6 @@ export async function POST(request: NextRequest) {
       results: results.sort((a, b) => b.score - a.score),
     });
   } catch (error) {
-    console.error("Calculate scores error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Calculate scores error:");
   }
 }

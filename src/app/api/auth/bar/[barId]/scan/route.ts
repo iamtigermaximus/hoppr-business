@@ -6,6 +6,7 @@ import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import { track, activateUserIfNeeded } from "@/lib/analytics-tracker";
+import { handleApiError } from "@/lib/api-error";
 
 // ---- POST ----
 
@@ -67,11 +68,7 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error("Scan error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Scan error");
   }
 }
 

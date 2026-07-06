@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
+import { handleApiError } from "@/lib/api-error";
 
 // ---- Types ----
 
@@ -130,11 +131,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ success: true, columns });
   } catch (error) {
-    console.error("Fetch outreach error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Fetch outreach error:");
   }
 }
 
@@ -251,10 +248,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Create outreach error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Create outreach error:");
   }
 }

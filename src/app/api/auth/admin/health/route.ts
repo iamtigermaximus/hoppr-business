@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
+import { handleApiError } from "@/lib/api-error";
 
 // ---- Types ----
 
@@ -22,6 +23,14 @@ interface ErrorBucket {
   count: number;
 }
 
+interface CronJobHealth {
+  name: string;
+  label: string;
+  lastRun: string | null;
+  isStale: boolean;
+  expectedInterval: string;
+}
+
 interface SystemHealth {
   overall: HealthStatus;
   components: ComponentHealth[];
@@ -34,6 +43,7 @@ interface SystemHealth {
     avgDbQueryMs: number;
   };
   errorsByHour: ErrorBucket[];
+  cronJobs: CronJobHealth[];
   thresholds: {
     dbLatencyMs: number;
     errorRate: number;
@@ -182,7 +192,62 @@ export async function GET(request: NextRequest) {
       prisma.outreachLog.count().catch(() => -1),
     ]);
 
-    // 5. Error distribution by hour (last 24h)
+    // 5. Cron job health — check CronLock table for last run times
+    const cronJobs: CronJobHealth[] = [];
+    const cronConfig: Record<string, { label: string; maxIntervalMs: number }> = {
+      "analytics-aggregation": { label: "Daily analytics rollup", maxIntervalMs: 25 * 60 * 60 * 1000 },
+      "busyness-aggregation": { label: "Daily busyness patterns", maxIntervalMs: 25 * 60 * 60 * 1000 },
+      "insights": { label: "Insight generation (3hr)", maxIntervalMs: 4 * 60 * 60 * 1000 },
+      "retargeting": { label: "Retargeting push (2hr)", maxIntervalMs: 3 * 60 * 60 * 1000 },
+      "scheduler": { label: "Notification scheduler (15min)", maxIntervalMs: 30 * 60 * 1000 },
+    };
+
+    try {
+      const locks = await prisma.cronLock.findMany({
+        select: { lockName: true, acquiredAt: true },
+      });
+
+      for (const [name, config] of Object.entries(cronConfig)) {
+        const lock = locks.find((l) => l.lockName === name);
+        const lastRun = lock ? lock.acquiredAt.toISOString() : null;
+        const isStale = lastRun
+          ? now.getTime() - new Date(lastRun).getTime() > config.maxIntervalMs
+          : true;
+
+        cronJobs.push({
+          name,
+          label: config.label,
+          lastRun,
+          isStale,
+          expectedInterval: config.label,
+        });
+      }
+    } catch {
+      // CronLock table might not exist yet — gracefully degrade
+      for (const [name, config] of Object.entries(cronConfig)) {
+        cronJobs.push({
+          name,
+          label: config.label,
+          lastRun: null,
+          isStale: false, // Don't alert if the table hasn't been created yet
+          expectedInterval: config.label,
+        });
+      }
+    }
+
+    // If any cron is stale, add a component warning
+    const staleCronJobs = cronJobs.filter((j) => j.isStale);
+    if (staleCronJobs.length > 0) {
+      components.push({
+        name: "Cron Jobs",
+        status: staleCronJobs.length === cronJobs.length ? "DOWN" : "DEGRADED",
+        latencyMs: 0,
+        message: `${staleCronJobs.length}/${cronJobs.length} cron jobs stale: ${staleCronJobs.map((j) => j.name).join(", ")}`,
+        checkedAt: now.toISOString(),
+      });
+    }
+
+    // 6. Error distribution by hour (last 24h)
     const errorsByHour: ErrorBucket[] = [];
     try {
       for (let h = 23; h >= 0; h--) {
@@ -221,15 +286,12 @@ export async function GET(request: NextRequest) {
         avgDbQueryMs,
       },
       errorsByHour,
+      cronJobs,
       thresholds,
     };
 
     return NextResponse.json({ success: true, health });
   } catch (error) {
-    console.error("Health check error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error, "Health check error:");
   }
 }

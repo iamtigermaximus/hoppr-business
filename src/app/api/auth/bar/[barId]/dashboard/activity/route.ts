@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { AnalyticsEventType } from "@prisma/client";
+import { handleApiError } from "@/lib/api-error";
 
 // Maps AnalyticsEventType to human-readable activity descriptions
 const ACTIVITY_TEMPLATES: Record<
@@ -201,10 +202,6 @@ export async function GET(
       hasActivity: limited.length > 0,
     });
   } catch (error) {
-    console.error("Dashboard activity error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Dashboard activity error");
   }
 }

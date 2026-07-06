@@ -1,10 +1,3 @@
-// import type { NextConfig } from "next";
-
-// const nextConfig: NextConfig = {
-//   /* config options here */
-// };
-
-// export default nextConfig;
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
@@ -45,6 +38,16 @@ const nextConfig: NextConfig = {
       },
       // Add any other image hosts you use
     ],
+  },
+  // API versioning: /api/v1/* rewrites to /api/* for backward compatibility
+  // Clients can use /api/v1/... and both paths resolve identically
+  async rewrites() {
+    return [
+      {
+        source: "/api/v1/:path*",
+        destination: "/api/:path*",
+      },
+    ];
   },
 };
 

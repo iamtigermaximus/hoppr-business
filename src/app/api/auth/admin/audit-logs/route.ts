@@ -3,11 +3,10 @@
 // Query params: limit (number, default 50)
 
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
 import { verifyAuthHeader, isAdminToken } from "@/lib/auth";
 import { AuditLogsResponse, AuditLog } from "@/types/admin-analytics";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/database";
+import { handleApiError } from "@/lib/api-error";
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,10 +51,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error) {
-    console.error("Audit logs error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Audit logs error:");
   }
 }

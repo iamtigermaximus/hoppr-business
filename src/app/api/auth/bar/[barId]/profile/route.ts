@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 // GET - Fetch bar profile
 export async function GET(
@@ -51,11 +52,7 @@ export async function GET(
 
     return NextResponse.json(bar);
   } catch (error) {
-    console.error("Fetch bar profile error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Fetch bar profile error");
   }
 }
 
@@ -120,10 +117,6 @@ export async function PUT(
       bar: updatedBar,
     });
   } catch (error) {
-    console.error("Update bar profile error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Update bar profile error");
   }
 }

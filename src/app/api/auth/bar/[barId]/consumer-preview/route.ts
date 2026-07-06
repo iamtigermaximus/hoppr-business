@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { handleApiError } from "@/lib/api-error";
 
 /** Normalize operatingHours from stored format to consumer format. */
 function normalizeHours(raw: unknown): Record<string, string> | null {
@@ -176,10 +177,6 @@ export async function GET(
       })),
     });
   } catch (error) {
-    console.error("Consumer preview fetch error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return handleApiError(error, "Consumer preview fetch error");
   }
 }
