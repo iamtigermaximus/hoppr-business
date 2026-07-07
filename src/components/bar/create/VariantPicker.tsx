@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PromotionImage } from "@/lib/og-templates/generate";
 import type { PromotionImageInput } from "@/lib/og-templates/generate";
+import type { InferredChips } from "@/lib/prompts/infer-image-chips";
 
 // ---- Types ----
 
@@ -14,6 +15,8 @@ export interface PromotionVariant {
   callToAction: string;
   accentColor: string;
   conditions: string;
+  /** AI-inferred image generation chips — used to auto-generate background images */
+  imageChips?: InferredChips;
   visual?: {
     template: "split" | "centered" | "card";
     mood: "warm" | "cool" | "vibrant" | "dark" | "minimal";
@@ -27,10 +30,12 @@ interface VariantPickerProps {
   variants: PromotionVariant[];
   barName: string;
   barCoverImage?: string | null;
+  /** AI-generated background image — shared across all variant cards */
+  sharedBgImage?: string | null;
   venueLocation?: string;
   cardFormat?: CardFormat;
   onSelect: (variant: PromotionVariant) => void;
-  onRegenerate: () => void;
+  onRegenerate?: () => void;
   loading?: boolean;
 }
 
@@ -75,6 +80,7 @@ function mapVariantToImageInput(
   barName: string,
   barCoverImage: string | null | undefined,
   venueLocation: string,
+  bgImage?: string | null,
 ): PromotionImageInput {
   return {
     barName: barName || "Your Bar",
@@ -86,7 +92,7 @@ function mapVariantToImageInput(
     accentColor: v.accentColor || "#8b5cf6",
     discount: v.discount ?? null,
     conditions: v.conditions || "Valid with ID. Terms apply.",
-    photoUrl: null, // no default — user picks a background separately
+    photoUrl: bgImage || null,
     venueLocation: venueLocation || "Helsinki",
     visual: v.visual,
   };
@@ -98,10 +104,10 @@ export default function VariantPicker({
   variants,
   barName,
   barCoverImage,
+  sharedBgImage,
   venueLocation = "Helsinki",
   cardFormat = "wide",
   onSelect,
-  onRegenerate,
   loading,
 }: VariantPickerProps) {
   const scale = previewScale(cardFormat);
@@ -113,7 +119,6 @@ export default function VariantPicker({
   const handleSelect = (idx: number) => {
     setSelectedIdx(idx);
     setConfirming(true);
-    // Brief delay so the user sees the selection highlight before the transition
     setTimeout(() => {
       onSelect(variants[idx]);
     }, 300);
@@ -144,8 +149,8 @@ export default function VariantPicker({
           Choose your favorite — you can refine it after
         </div>
         <div style={styles.headerSub}>
-          Each option uses a different angle and visual style. Pick the one that
-          best fits your bar, then tweak the details.
+          Same background, different text and layout. Pick the copy that best
+          fits your bar, then tweak the details.
         </div>
       </div>
 
@@ -164,7 +169,7 @@ export default function VariantPicker({
               }}
               onClick={() => !confirming && handleSelect(i)}
             >
-              {/* OG Image preview — the actual social card at native resolution, scaled to fit */}
+              {/* Image area — OG social card with shared AI background + variant text layout */}
               <div style={{ ...styles.imageWrap, height: imgHeight }}>
                 <div style={{
                   ...styles.imageInner,
@@ -173,11 +178,11 @@ export default function VariantPicker({
                   transform: `scale(${scale})`,
                 }}>
                   <PromotionImage
-                    input={mapVariantToImageInput(v, barName, barCoverImage, venueLocation)}
+                    input={mapVariantToImageInput(v, barName, barCoverImage, venueLocation, sharedBgImage)}
                     format={cardFormat}
                   />
                 </div>
-                {/* Selection overlay on hover */}
+                {/* Selection overlay */}
                 <div style={styles.imageOverlay}>
                   <div style={styles.selectButton}>
                     {isSelected ? "✓ Selected" : "Choose this one"}
@@ -212,15 +217,8 @@ export default function VariantPicker({
       </div>
 
       <div style={styles.footer}>
-        <button
-          style={styles.regenerateButton}
-          onClick={onRegenerate}
-          disabled={confirming}
-        >
-          🔄 Generate 3 more options
-        </button>
         <span style={styles.footerHint}>
-          Or type a new brief above for different results
+          Not what you're looking for? Go back and refine your brief for different results.
         </span>
       </div>
     </div>
@@ -355,17 +353,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: 16,
     paddingTop: 12,
     borderTop: "1px solid #262626",
-  },
-  regenerateButton: {
-    padding: "8px 16px",
-    background: "transparent",
-    color: "#a78bfa",
-    border: "1px solid #374151",
-    borderRadius: 8,
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: "pointer",
-    transition: "all 0.15s",
   },
   footerHint: {
     fontSize: 11,

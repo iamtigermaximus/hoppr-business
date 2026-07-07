@@ -4,6 +4,8 @@ import { prisma } from "@/lib/database";
 import { planHasFeature } from "@/lib/plan-limits";
 import { buildGeneratePrompt, type PromptLanguage } from "@/lib/compliance/prompts";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
+import { inferImageChips } from "@/lib/prompts/infer-image-chips";
+import { logUsage } from "@/lib/credit-tracker";
 import {
   getFallbackPromotion,
   type PromotionType,
@@ -69,16 +71,27 @@ function normalizePromotion(
   tone?: ContentTone | null,
   layoutHint?: string | null,
 ) {
+  // Extract the AI's visual choices — these represent the model's creative intent.
+  // Only fall back to presets when the AI didn't provide a value.
+  const rawVisual = (raw.visual as Record<string, unknown> | undefined);
+
   // Use tone-compatible presets when a tone is set, otherwise cycle all presets
   const compatibleIndices = tone ? TONE_PRESET_MAP[tone] ?? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 4];
   const presetIndex = compatibleIndices[index % compatibleIndices.length];
   const preset = VISUAL_PRESETS[presetIndex];
 
-  // When the user explicitly chooses a layout, lock all variants to that template
-  // while still cycling mood/accentColor for visual variety between variants.
+  // When the user explicitly chooses a layout, lock all variants to that template.
+  // Otherwise, respect the AI's template choice, then fall back to preset.
   const template = (layoutHint && ["split", "centered", "card"].includes(layoutHint))
     ? layoutHint
-    : preset.template;
+    : (typeof rawVisual?.template === "string" && ["split", "centered", "card"].includes(rawVisual.template as string))
+      ? (rawVisual.template as "split" | "centered" | "card")
+      : preset.template;
+
+  // Respect AI's mood choice, then fall back to preset
+  const mood = (typeof rawVisual?.mood === "string" && ["warm", "cool", "vibrant", "dark", "minimal"].includes(rawVisual.mood as string))
+    ? (rawVisual.mood as "warm" | "cool" | "vibrant" | "dark" | "minimal")
+    : preset.mood;
 
   return {
     title: raw.title || `${barName} Special`,
@@ -93,9 +106,9 @@ function normalizePromotion(
     visual: {
       template,
       photoPreference: hasPhoto ? "use_bar_cover" : "gradient_only",
-      mood: preset.mood,
-      overlayOpacity: typeof (raw.visual as Record<string, unknown> | undefined)?.overlayOpacity === "number"
-        ? (raw.visual as Record<string, unknown> | undefined)!.overlayOpacity as number
+      mood,
+      overlayOpacity: typeof rawVisual?.overlayOpacity === "number"
+        ? rawVisual.overlayOpacity as number
         : preset.overlayOpacity,
     },
   };
@@ -145,16 +158,19 @@ export async function POST(
       );
     }
 
-    // Plan feature gate: only PRO/PREMIUM plans can use AI generation
-    const barPlan = await prisma.bar.findUnique({
-      where: { id: barId },
-      select: { plan: true },
-    });
-    if (barPlan && !planHasFeature(barPlan.plan, "aiGeneration")) {
-      return NextResponse.json(
-        { error: "AI generation requires a PRO or PREMIUM plan. Upgrade to access this feature." },
-        { status: 402 },
-      );
+    // Plan feature gate: only PRO/PREMIUM plans can use AI generation.
+    // Skipped in development so the full flow can be tested without plan setup.
+    if (process.env.NODE_ENV === "production") {
+      const barPlan = await prisma.bar.findUnique({
+        where: { id: barId },
+        select: { plan: true },
+      });
+      if (barPlan && !planHasFeature(barPlan.plan, "aiGeneration")) {
+        return NextResponse.json(
+          { error: "AI generation requires a PRO or PREMIUM plan. Upgrade to access this feature." },
+          { status: 402 },
+        );
+      }
     }
 
     // Rate limit: 10 AI generations per minute per bar
@@ -191,7 +207,7 @@ export async function POST(
       : undefined;
 
     // Validate language parameter
-    const validLanguages: PromptLanguage[] = ["en", "fi", "sv"];
+    const validLanguages: PromptLanguage[] = ["en", "fi"];
     const lang: PromptLanguage = validLanguages.includes(language as PromptLanguage)
       ? (language as PromptLanguage)
       : "en";
@@ -249,15 +265,26 @@ export async function POST(
       variants,
     );
 
-    const languageName = lang === "fi" ? "Finnish" : lang === "sv" ? "Swedish" : "English";
+    const isFi = lang === "fi";
+    const languageName = isFi ? "Finnish" : "English";
     const toneInstruction = toneSystemInstruction(tone);
-    const systemPrompt = `You are a marketing expert specializing in bar and nightlife promotions.
-Create engaging, professional promotions for bars in ${languageName}. Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
+    const systemPrompt = isFi
+      ? `Olet Suomen baari- ja yöelämän markkinointiasiantuntija.
+Tunnet Alkoholilain (1102/2017) ja Valviran ohjeistukset.
+Jokainen tuottamasi tarjous on oletusarvoisesti lainmukainen — et koskaan ehdota kiellettyä sanamuotoa.
+Luo kiinnostavia, ammattimaisia tarjouksia suomalaisille baareille SUOMEKSI.
+KAIKKI teksti TÄYTYY olla suomeksi. Palauta VAIN validi JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`
+      : `You are a marketing expert specializing in bar and nightlife promotions in Finland.
+You understand Finnish alcohol marketing law (Alkoholilaki 1102/2017) and Valvira guidelines.
+Every promotion you write is compliant by default — you never suggest prohibited language.
+Create engaging, professional promotions for bars in English.
+Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
 
     // 7. Try DeepSeek API; fall back to templates on any failure
     let generatedPromotions: Record<string, unknown>[] = [];
     let aiGenerated = false;
     let warning: string | undefined;
+    let aiUsage: { promptTokens: number; completionTokens: number } | null = null;
 
     if (useAI) {
       try {
@@ -281,6 +308,14 @@ Create engaging, professional promotions for bars in ${languageName}. Return ONL
         if (response.ok) {
           const data = await response.json();
           const aiResponse = data.choices[0].message.content;
+
+          // Capture actual token usage for credit tracking
+          if (data.usage) {
+            aiUsage = {
+              promptTokens: data.usage.prompt_tokens || 0,
+              completionTokens: data.usage.completion_tokens || 0,
+            };
+          }
 
           try {
             // Try parsing as JSON array first (multi-variant), then as single object
@@ -319,6 +354,19 @@ Create engaging, professional promotions for bars in ${languageName}. Return ONL
       warning = "AI service is not configured. Promotions are generated from templates. Set DEEPSEEK_API_KEY to enable AI generation.";
     }
 
+    // Log credit usage for admin monitoring (non-blocking, fire-and-forget)
+    if (aiGenerated && aiUsage) {
+      logUsage({
+        provider: "deepseek",
+        endpoint: "chat/completions",
+        tokensIn: aiUsage.promptTokens,
+        tokensOut: aiUsage.completionTokens,
+        barId,
+        barName: bar.name,
+        metadata: { variants, language: lang },
+      }).catch(() => {}); // silently ignore logging failures
+    }
+
     // 8. Use fallback templates if AI didn't produce valid results
     if (generatedPromotions.length === 0) {
       const promoType = VALID_PROMO_TYPES.includes(type as any)
@@ -350,6 +398,29 @@ Create engaging, professional promotions for bars in ${languageName}. Return ONL
       normalizePromotion(p, bar.name, hasPhoto, i, tone, layoutHint),
     );
 
+    // Attach inferred image chips to each variant so the client can
+    // auto-generate matching images without the user manually picking chips.
+    const variantsWithChips = promotions.map((p) => ({
+      ...p,
+      imageChips: inferImageChips(
+        prompt || "",
+        {
+          name: bar.name,
+          type: bar.type,
+          description: bar.description ?? undefined,
+          district: bar.district ?? undefined,
+          priceRange: bar.priceRange ?? undefined,
+          amenities: bar.amenities?.join(", ") ?? undefined,
+        },
+        {
+          title: p.title as string,
+          description: p.description as string,
+          type: p.type as string,
+          discount: p.discount as number | null,
+        },
+      ),
+    }));
+
     // Return variants array for multi-variant, single promotion for backward compat
     return NextResponse.json({
       success: true,
@@ -357,8 +428,8 @@ Create engaging, professional promotions for bars in ${languageName}. Return ONL
       ...(warning && { warning }),
       language: lang,
       ...(variants > 1
-        ? { variants: promotions }
-        : { promotion: promotions[0] }),
+        ? { variants: variantsWithChips }
+        : { promotion: variantsWithChips[0] }),
     });
   } catch (error) {
     console.error("AI generation error:", error);

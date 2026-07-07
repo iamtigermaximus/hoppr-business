@@ -342,6 +342,7 @@ const AdminNavbar = () => {
     { href: "/admin/bars", label: "Bars" },
     { href: "/admin/analytics", label: "Analytics" },
     { href: "/admin/revenue", label: "Revenue" },
+    { href: "/admin/credits", label: "Credits" },
   ];
 
   const handleLogout = () => {

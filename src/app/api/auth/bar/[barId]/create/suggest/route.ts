@@ -7,6 +7,7 @@ import {
   buildUserReminder,
 } from "@/lib/compliance/prompts";
 import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
+import { logUsage } from "@/lib/credit-tracker";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -71,7 +72,7 @@ export async function POST(
     }
 
     // Validate language
-    const validLanguages = ["en", "fi", "sv"];
+    const validLanguages = ["en", "fi"];
     const lang = validLanguages.includes(language) ? language : "en";
 
     // 3. Fetch bar context
@@ -98,12 +99,30 @@ export async function POST(
 
     // 5. Build AI prompt — compliance rules injected from canonical source
     const complianceRules = buildComplianceSystemPrompt(
-      lang as "en" | "fi" | "sv",
+      lang as "en" | "fi",
     );
 
-    const languageName = lang === "fi" ? "Finnish" : lang === "sv" ? "Swedish" : "English";
+    const isFi = lang === "fi";
+    const languageName = isFi ? "Finnish" : "English";
 
-    const systemPrompt = `You are an expert at understanding bar and nightlife content. Given a natural language description in ${languageName}, determine whether the user wants to create an EVENT, PROMOTION, VIP PASS, or AD CAMPAIGN. Then extract all relevant fields and generate content IN ${languageName.toUpperCase()}.
+    const systemPrompt = isFi
+      ? `Olet Suomen baari- ja yöelämäsisällön asiantuntija. Sinun TÄYTYY tuottaa KAIKKI sisältö SUOMEKSI — älä käytä englantia missään kentässä. Määritä, haluaako käyttäjä luoda TAPAHTUMAN, TARJOUKSEN, VIP-PASSIN vai MAINOSKAMPANJAN. Poimi kaikki olennaiset kentät ja tuota sisältö SUOMEKSI.
+
+${complianceRules}
+
+Tarjouksissa: suosi FOOD_SPECIAL- tai ruokapainotteisia tyyppejä, kun mahdollista. Ruokatarjouksilla ei ole mainosrajoituksia.
+Tapahtumissa: keskity viihteeseen (musiikki, pelit, tunnelma) juomisen sijaan.
+Mainoskampanjoissa: tunnista, kun käyttäjä pyytää "feature", "boost", "mainosta", "kampanjaa".
+
+Palauta VAIN validi JSON — ei muuta tekstiä — tällä rakenteella:
+
+{
+  "inferredType": "event" | "promotion" | "pass" | "campaign",
+  "confidence": 0.0-1.0,
+  "title": "Kiinnostava otsikko (max 60 merkkiä) — Alkoholilain mukainen",
+  "description": "Kiinnostava kuvaus (max 200 merkkiä) — Alkoholilain mukainen",
+  "reasoning": "Lyhyt selitys tyypin päättelystä",`
+      : `You are an expert at understanding bar and nightlife content. Given a natural language description in English, determine whether the user wants to create an EVENT, PROMOTION, VIP PASS, or AD CAMPAIGN. Then extract all relevant fields and generate content IN ENGLISH.
 
 ${complianceRules}
 
@@ -151,7 +170,25 @@ Return ONLY valid JSON with this structure — no other text:
   "imageSuggestion": "Which default image category fits best: cocktails | live-music | party | beer | vip | wine | special-offer | karaoke | sports | outdoor-terrace | dj-night | bar-ambiance"
 }`;
 
-    const userPrompt = `A bar staff member at "${bar.name}" (a ${bar.type} bar in ${bar.district}, ${bar.cityName}) described what they want to create:
+    const userPrompt = isFi
+      ? `Ravintolan "${bar.name}" (${bar.type}-baari, ${bar.district}, ${bar.cityName}) henkilökunta kuvaili mitä he haluavat luoda:
+
+"${text}"
+
+HUOM: Vaikka yllä oleva kuvaus saattaa olla englanniksi, SINUN TÄYTYY tuottaa KAIKKI kentät SUOMEKSI. Otsikko, kuvaus, ehdot — kaikki suomeksi. Älä kopioi englanninkielistä tekstiä. Käännä ja luo uusi suomenkielinen sisältö.
+
+Baarin tiedot:
+- Tyyppi: ${bar.type}
+- Hintataso: ${bar.priceRange || "Kohtalainen"}
+- Palvelut: ${bar.amenities?.join(", ") || "Vakiovarustelu"}
+- Kuvaus: ${bar.description || "Loistava paikka nauttia illasta"}
+- VIP käytössä: ${bar.vipEnabled ? "Kyllä" : "Ei"}
+- Päivämäärä: ${new Date().toISOString()}
+
+Analysoi teksti: tapahtuma, tarjous vai VIP-passi? Poimi kaikki olennaiset kentät. Tuota KAIKKI sisältö SUOMEKSI.
+
+${buildUserReminder("fi")}`
+      : `A bar staff member at "${bar.name}" (a ${bar.type} bar in ${bar.district}, ${bar.cityName}) described what they want to create:
 
 "${text}"
 
@@ -163,14 +200,15 @@ Bar context:
 - VIP Available: ${bar.vipEnabled ? "Yes" : "No"}
 - Current Date: ${new Date().toISOString()}
 
-Analyze the text and determine: event, promotion, or VIP pass? Extract all relevant fields. Generate ALL content in ${lang === "fi" ? "Finnish" : lang === "sv" ? "Swedish" : "English"}.
+Analyze the text: event, promotion, or VIP pass? Extract all relevant fields. Generate ALL content in English.
 
-${buildUserReminder(lang as "en" | "fi" | "sv")}`;
+${buildUserReminder("en")}`;
 
     // 6. Try DeepSeek API; fall back to templates on any failure
     let result: Record<string, unknown> | null = null;
     let aiGenerated = false;
     let warning: string | undefined;
+    let aiUsage: { promptTokens: number; completionTokens: number } | null = null;
 
     if (useAI) {
       try {
@@ -195,6 +233,14 @@ ${buildUserReminder(lang as "en" | "fi" | "sv")}`;
           const data = await response.json();
           const aiResponse = data.choices[0].message.content;
 
+          // Capture actual token usage for credit tracking
+          if (data.usage) {
+            aiUsage = {
+              promptTokens: data.usage.prompt_tokens || 0,
+              completionTokens: data.usage.completion_tokens || 0,
+            };
+          }
+
           try {
             const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
             result = jsonMatch
@@ -212,6 +258,19 @@ ${buildUserReminder(lang as "en" | "fi" | "sv")}`;
       }
     } else {
       warning = "AI service is not configured. Suggestions are generated from templates. Set DEEPSEEK_API_KEY to enable AI suggestions.";
+    }
+
+    // Log credit usage for admin monitoring (non-blocking, fire-and-forget)
+    if (aiGenerated && aiUsage) {
+      logUsage({
+        provider: "deepseek",
+        endpoint: "chat/completions",
+        tokensIn: aiUsage.promptTokens,
+        tokensOut: aiUsage.completionTokens,
+        barId,
+        barName: bar.name,
+        metadata: { step: "suggest", language: lang },
+      }).catch(() => {});
     }
 
     // 7. Fall back to template-based suggestion if AI didn't produce results

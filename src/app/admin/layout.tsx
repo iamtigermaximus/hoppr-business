@@ -21,6 +21,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { authService } from "@/services/auth-service";
 import AdminNavbar from "@/components/shared/Navigation/AdminNavbar";
+import CreditWarningBanner from "@/components/admin/CreditWarningBanner";
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -51,6 +52,7 @@ export default async function AdminLayout({
   return (
     <div className="admin-layout">
       <AdminNavbar />
+      <CreditWarningBanner />
       <main style={{ margin: 0, padding: 0, minHeight: "100vh" }}>
         {children}
       </main>

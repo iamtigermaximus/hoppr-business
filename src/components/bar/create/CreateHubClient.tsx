@@ -629,6 +629,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
       const updates: Partial<FormState> = {
         title: (data.title as string) || formState.title,
         description: (data.description as string) || formState.description,
+        imageUrl: data.imageUrl ? (data.imageUrl as string) : formState.imageUrl,
       };
 
       if (effectiveType === "event") {

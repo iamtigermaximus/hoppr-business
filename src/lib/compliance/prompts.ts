@@ -18,7 +18,7 @@ import {
 } from "./rules";
 import { getCitationHeader, getCitationsForViolations } from "./valvira-reference";
 
-export type PromptLanguage = "en" | "fi" | "sv";
+export type PromptLanguage = "en" | "fi";
 
 // ---------------------------------------------------------------------------
 // Finnish prohibited → approved translation maps for AI prompt injection
@@ -105,31 +105,6 @@ const FI_APPROVED_MAP: Record<string, string> = {
   "Tasting board": "Maistelulautanen",
 };
 
-const SV_PROHIBITED_MAP: Record<string, string> = {
-  "happy hour": "happy hour",
-  "free drinks": "gratis drinkar",
-  "2 for 1": "2 för 1",
-  "buy one get one": "köp en få en",
-  "unlimited drinks": "obegränsat med drinkar",
-  "get wasted": "bli full / berusad",
-  "get drunk": "bli full",
-  "student discount": "studentrabatt",
-  "vodka": "vodka",
-  "whiskey": "whiskey",
-  "tequila": "tequila",
-};
-
-const SV_APPROVED_MAP: Record<string, string> = {
-  "After-work special": "After-work-erbjudande",
-  "Featured selection": "Utvalda drycker",
-  "House specials": "Husets specialiteter",
-  "Signature cocktails": "Signature-cocktails",
-  "Great atmosphere": "Härlig atmosfär",
-  "Premium spirits": "Premium-sprit",
-  "Young adult offer (20+)": "Unga vuxna (20+)",
-  "Tasting board": "Smakprovsbricka",
-};
-
 // ---------------------------------------------------------------------------
 // 1. Full Compliance System Prompt Section
 //    Injected into the AI's system prompt for content generation routes
@@ -153,7 +128,6 @@ export function buildComplianceSystemPrompt(language: PromptLanguage = "en"): st
     .flatMap((r) => r.prohibited)
     .map((p) => {
       if (language === "fi") return `- "${p}" / "${FI_PROHIBITED_MAP[p] || p}"`;
-      if (language === "sv") return `- "${p}" / "${SV_PROHIBITED_MAP[p] || p}"`;
       return `- "${p}"`;
     })
     .join("\n");
@@ -164,7 +138,6 @@ export function buildComplianceSystemPrompt(language: PromptLanguage = "en"): st
     .slice(0, 20) // keep it concise
     .map((a) => {
       if (language === "fi") return `- "${a}" / "${FI_APPROVED_MAP[a] || a}"`;
-      if (language === "sv") return `- "${a}" / "${SV_APPROVED_MAP[a] || a}"`;
       return `- "${a}"`;
     })
     .join("\n");
@@ -221,42 +194,6 @@ TÄRKEIMMÄT PERIAATTEET:
 8. Kampanjoissa: keskity arvoon ja elämykseen, älä alkoholin hintaan tai määrään
 9. Älä koskaan sisällytä alkoholiin liittyviä pelejä, kilpailuja tai arvontoja
 10. Älä koskaan kannusta jakamaan alkoholisisältöä sosiaalisessa mediassa
-============================================================`;
-  }
-
-  if (language === "sv") {
-    return `
-============================================================
-FINLÄNDSK ALKOHOLMARKNADSFÖRING — OBLIGATORISKA REGLER
-============================================================
-
-KÄLLA: ${getCitationHeader()}
-
-Din text kontrolleras automatiskt mot dessa regler.
-HIGH-överträdelser BLOCKERAR publicering.
-
-LAGSTIFTNING: Alkohollagen (1102/2017)
-- §50(1): Marknadsföring av stark alkohol (>22%) till konsumenter är förbjuden
-- §50(2): Marknadsföring av milda drycker (≤22%) är tillåten med restriktioner
-- §51: Restriktioner för prisannonsering av alkoholdrycker
-
-════════════════════════════════════════════════════════════
-FÖRBJUDET — ANVÄND INTE dessa ord eller fraser:
-════════════════════════════════════════════════════════════
-${doNotList}
-
-════════════════════════════════════════════════════════════
-TILLÅTET — ANVÄND dessa godkända alternativ:
-════════════════════════════════════════════════════════════
-${doList}
-
-VIKTIGASTE PRINCIPERNA:
-1. Fokusera på atmosfär, upplevelse, musik, mat och social miljö
-2. Marknadsför aldrig tillfälliga alkoholprissänkningar eller gratis alkohol
-3. Använd aldrig språk som riktar sig till minderåriga — ange 20+ när relevant
-4. Uppmuntra aldrig överdriven konsumtion eller berusning
-5. Ersätt spritmärken med "premium-sprit" eller "husets drinkar"
-6. Prioritera FOOD_SPECIAL-erbjudanden — mat har inga alkoholreklambegränsningar
 ============================================================`;
   }
 
@@ -323,17 +260,6 @@ MUISTA — Alkoholilain vaatimukset:
 - Ei terveysväittämiä, sosiaalisen menestyksen lupauksia tai ajoneuvoyhteyksiä
 - Ei alkoholiin liittyviä pelejä/kilpailuja, ei "jaa juomasi" -toimintakehotuksia
 - Keskity tunnelmaan, elämykseen, ruokaan ja viihteeseen — älä alkoholiin`;
-  }
-
-  if (language === "sv") {
-    return `
-KOM IHÅG — Alkohollagens krav:
-- Inga tillfälliga alkoholprissänkningar, gratis drinkar eller kvantitetsrabatter
-- Inget språk som riktar sig till minderåriga — ange 20+
-- Ingen uppmuntran till överdriven konsumtion eller berusning
-- Inga spritmärken — använd "premium-sprit" eller "husets drinkar"
-- Inga hälsopåståenden, löften om social framgång eller fordonsassociationer
-- Fokusera på atmosfär, upplevelse, mat och underhållning — inte alkohol`;
   }
 
   return `
@@ -456,66 +382,84 @@ export function buildGeneratePrompt(
   language: PromptLanguage = "en",
   numVariants: number = 1,
 ): string {
+  const isFi = language === "fi";
+
   const recentList = recentTitles.length > 0
-    ? `\nRecent promotions (avoid similar titles/concepts):\n${recentTitles.map((t) => `- ${t}`).join("\n")}`
+    ? (isFi
+        ? `\nAiemmat tarjoukset (vältä samankaltaisia otsikoita/konsepteja):\n${recentTitles.map((t) => `- ${t}`).join("\n")}`
+        : `\nRecent promotions (avoid similar titles/concepts):\n${recentTitles.map((t) => `- ${t}`).join("\n")}`)
     : "";
 
-  const audienceLine = targetAudience ? `\nTarget Audience: ${targetAudience}` : "";
+  const audienceLine = targetAudience
+    ? (isFi ? `\nKohderyhmä: ${targetAudience}` : `\nTarget Audience: ${targetAudience}`)
+    : "";
 
   const complianceSection = buildComplianceSystemPrompt(language);
 
-  // Language-specific output instruction — placed prominently
-  const isFi = language === "fi";
-  const isSv = language === "sv";
-
-  const langInstruction = isFi
-    ? "KAIKKI teksti TÄYTYY olla suomeksi. Otsikko, kuvaus, toimintakehote ja ehdot — kaikki suomeksi."
-    : isSv
-      ? "ALL text MUST be in Swedish. Title, description, CTA, and conditions — all in Swedish."
-      : "All text MUST be in English.";
-
   // Language-specific field labels for the JSON output schema
-  const titleLabel = isFi ? "otsikko (max 60 merkkiä)" : isSv ? "titel (max 60 tecken)" : "title (max 60 chars)";
-  const descLabel = isFi ? "kuvaus (max 200 merkkiä)" : isSv ? "beskrivning (max 200 tecken)" : "description (max 200 chars)";
+  const titleLabel = isFi ? "otsikko (max 60 merkkiä)" : "title (max 60 chars)";
+  const descLabel = isFi ? "kuvaus (max 200 merkkiä)" : "description (max 200 chars)";
   const typeLabel = "HAPPY_HOUR | DRINK_SPECIAL | FOOD_SPECIAL | LADIES_NIGHT | THEME_NIGHT | VIP_OFFER | COVER_DISCOUNT | LIVE_MUSIC_EVENT | GAME_NIGHT | SEASONAL";
-  const ctaLabel = isFi ? "toimintakehote" : isSv ? "call-to-action" : "CTA text";
-  const conditionsLabel = isFi ? "ehdot — vain sallittua sanamuotoa" : isSv ? "villkor — endast tillåten formulering" : "conditions — compliant wording only";
+  const ctaLabel = isFi ? "toimintakehote" : "CTA text";
+  const conditionsLabel = isFi ? "ehdot — vain sallittua sanamuotoa" : "conditions — compliant wording only";
 
   // Visual template descriptions in the user's language
   const templateDesc = isFi
     ? "'split' (kuva+teksti), 'centered' (otsikko keskiössä), 'card' (neliö, kuva edellä)"
-    : isSv
-      ? "'split' (bild+text), 'centered' (rubrik i fokus), 'card' (kvadratiskt, bild först)"
-      : "'split' (photo+text), 'centered' (headline focus), 'card' (square, photo-forward)";
+    : "'split' (photo+text), 'centered' (headline focus), 'card' (square, photo-forward)";
 
   const moodDesc = isFi
     ? "'warm' (lämmin), 'cool' (viileä), 'vibrant' (eloisa), 'dark' (tumma), 'minimal' (pelkistetty)"
-    : isSv
-      ? "'warm' (varm), 'cool' (sval), 'vibrant' (livlig), 'dark' (mörk), 'minimal' (avskalad)"
-      : "'warm' (amber/purple), 'cool' (blue), 'vibrant' (orange/gold), 'dark' (deep purple), 'minimal' (gray)";
+    : "'warm' (amber/purple), 'cool' (blue), 'vibrant' (orange/gold), 'dark' (deep purple), 'minimal' (gray)";
 
   // Multi-variant instruction
+  const templates = ["split", "centered", "card"];
+  const moods = ["warm", "cool", "vibrant", "dark", "minimal"];
   const variantsInstruction = numVariants > 1
     ? (isFi
-        ? `\nLuo ${numVariants} ERI vaihtoehtoa. Jokaisen on oltava ainutlaatuinen: eri näkökulma, tarvittaessa eri tyyppi, eri otsikkotyyli, JA eri visuaalinen ilme (template + mood + accentColor). Kahdella vaihtoehdolla ei saa olla samaa template/mood-yhdistelmää. Palauta JSON-taulukkona.`
-        : isSv
-          ? `\nSkapa ${numVariants} OLIKA varianter. Varje måste vara unik: olika vinkel, annan typ vid behov, olika rubrikstil, OCH olika visuell stil (template + mood + accentColor). Inga två varianter får dela samma template/mood-kombination. Returnera som JSON-array.`
-          : `\nGenerate ${numVariants} DIFFERENT variants. Each must be unique: different angle, different type if appropriate, different title style, AND different visual design (template + mood + accentColor). No two variants should share the same visual template/mood combination. Return them as a JSON array.`)
+        ? `\nLuo ${numVariants} TÄYSIN ERI vaihtoehtoa — uniikki sisältö JA visuaalinen ilme per variantti.\nERI template: ${templates.slice(0, numVariants).join(", ")} (yksi per variantti, EI toistoa)\nERI mood: ${moods.slice(0, numVariants).join(", ")} (yksi per variantti, EI toistoa)\nERI accentColor per variantti. Palauta JSON-taulukkona.`
+        : `\nGenerate ${numVariants} COMPLETELY DIFFERENT variants — unique content AND visual design per variant.\nDIFFERENT template: ${templates.slice(0, numVariants).join(", ")} (one per variant, NO repeats)\nDIFFERENT mood: ${moods.slice(0, numVariants).join(", ")} (one per variant, NO repeats)\nDIFFERENT accentColor per variant. Return as JSON array.`)
     : "";
 
   // Language-specific visual guidelines
   const visualGuidelines = isFi
     ? `VISUAALISET OHJEET:\n- 'split': parhaiten ruoka/juoma-tarjouksiin kun baarilla on kuvia\n- 'centered': parhaiten livemusiikkiin, teemailtoihin, esiintyjäilmoituksiin\n- 'card': parhaiten yleisiin tarjouksiin ja some-jakoon\n- accentColor: sovita tunnelmaan (lämpimät sävyt ruualle/kodikkuudelle, viileät musiikille, eloisat juhliin)\n- overlayOpacity: 0.3 kirkkaille kuville, 0.5 tummille kuville, 0.4 oletus`
-    : isSv
-      ? `VISUELLA RIKTLINJER:\n- 'split': bäst för mat/dryck-erbjudanden när baren har bilder\n- 'centered': bäst för livemusik, temakvällar, artistmeddelanden\n- 'card': bäst för allmänna erbjudanden och sociala medier\n- accentColor: matcha stämningen (varma toner för mat/mysigt, svala för musik, livliga för fester)\n- overlayOpacity: 0.3 för ljusa bilder, 0.5 för mörka bilder, 0.4 standard`
-      : `VISUAL GUIDELINES:\n- 'split': best for food/drink promos when the bar has photos\n- 'centered': best for live music events, theme nights, performer announcements\n- 'card': best for general promos and social media sharing\n- accentColor: match the mood (warm tones for food/cozy, cool tones for music, vibrant for parties)\n- overlayOpacity: 0.3 for bright photos, 0.5 for dark photos, 0.4 default`;
+    : `VISUAL GUIDELINES:\n- 'split': best for food/drink promos when the bar has photos\n- 'centered': best for live music events, theme nights, performer announcements\n- 'card': best for general promos and social media sharing\n- accentColor: match the mood (warm tones for food/cozy, cool tones for music, vibrant for parties)\n- overlayOpacity: 0.3 for bright photos, 0.5 for dark photos, 0.4 default`;
 
-  // Single unified output format — respects language for field descriptions
+  // Output format — fully bilingual
   const outputFormat = numVariants > 1
-    ? `Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": number 0-100 or null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex color",\n    "conditions": "${conditionsLabel} (max 150 chars)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n  },\n  ...\n]`
-    : `Return ONLY this exact JSON (no other text):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": number 0-100 or null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex color",\n  "conditions": "${conditionsLabel} (max 150 chars)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n}`;
+    ? (isFi
+        ? `Palauta VAIN JSON-taulukko (ei muuta tekstiä):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": luku 0-100 tai null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex-väri",\n    "conditions": "${conditionsLabel} (max 150 merkkiä)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n  },\n  ...\n]`
+        : `Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": number 0-100 or null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex color",\n    "conditions": "${conditionsLabel} (max 150 chars)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n  },\n  ...\n]`)
+    : (isFi
+        ? `Palauta VAIN tämä JSON (ei muuta tekstiä):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": luku 0-100 tai null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex-väri",\n  "conditions": "${conditionsLabel} (max 150 merkkiä)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n}`
+        : `Return ONLY this exact JSON (no other text):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": number 0-100 or null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex color",\n  "conditions": "${conditionsLabel} (max 150 chars)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n}`);
 
-  return `${complianceSection}
+  // Fully bilingual return
+  return isFi
+    ? `${complianceSection}
+
+BAARIN TIEDOT:
+- Nimi: ${barContext.name}
+- Tyyppi: ${barContext.type}
+- Sijainti: ${barContext.district || ""}, ${barContext.cityName || ""}
+- Hintataso: ${barContext.priceRange || "Kohtalainen"}
+- Palvelut: ${barContext.amenities?.join(", ") || "Vakiovarustelu"}
+- Kuvaus: ${barContext.description || "Loistava paikka nauttia illasta"}${audienceLine}${recentList}
+
+KÄYTTÄJÄN PYYNTÖ:
+${userPrompt || `Luo ${type}-tyyppinen tarjous tälle baarille.`}
+
+TÄRKEÄÄ — Kaikki sisältö TÄYTYY olla SUOMEKSI. Jos tuotat englantia, tulos hylätään.
+
+KAIKKI teksti TÄYTYY olla suomeksi. Otsikko, kuvaus, toimintakehote ja ehdot — kaikki suomeksi.${variantsInstruction}
+
+${outputFormat}
+
+${visualGuidelines}
+
+Kaiken tekstin on noudatettava yllä olevia Suomen alkoholimarkkinointisääntöjä.`
+    : `${complianceSection}
 
 BAR CONTEXT:
 - Name: ${barContext.name}
@@ -528,13 +472,9 @@ BAR CONTEXT:
 USER REQUEST:
 ${userPrompt || `Create a ${type} promotion for this bar.`}
 
-${isFi
-  ? "TÄRKEÄÄ — Kaikki alla oleva sisältö on tuotettava SUOMEKSI. Jos tuotat englantia tai ruotsia, tulos hylätään."
-  : isSv
-    ? "VIKTIGT — Allt innehåll nedan måste produceras på SVENSKA. Om du producerar engelska eller finska kommer resultatet att avvisas."
-    : "IMPORTANT — All content below MUST be in English. Do not output Finnish or Swedish."}
+IMPORTANT — All content below MUST be in English. Do not output Finnish.
 
-${langInstruction}${variantsInstruction}
+All text MUST be in English.${variantsInstruction}
 
 ${outputFormat}
 

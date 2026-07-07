@@ -21,6 +21,35 @@ async function main() {
   });
   console.log(`✅ SUPER_ADMIN: ${admin.email}`);
 
+  // Seed AI credit pools for admin monitoring
+  console.log("\n💰 Seeding AI credit pools...");
+
+  await prisma.creditPool.upsert({
+    where: { provider: "deepseek" },
+    update: {},
+    create: {
+      provider: "deepseek",
+      totalCredits: 10.0,
+      alertThreshold: 2.0,
+      alertEmail: "admin@hoppr.fi",
+      isActive: true,
+    },
+  });
+  console.log("✅ CreditPool: deepseek ($10.00, alert at $2.00)");
+
+  await prisma.creditPool.upsert({
+    where: { provider: "bfl_flux" },
+    update: {},
+    create: {
+      provider: "bfl_flux",
+      totalCredits: 5.0,
+      alertThreshold: 1.0,
+      alertEmail: "admin@hoppr.fi",
+      isActive: true,
+    },
+  });
+  console.log("✅ CreditPool: bfl_flux ($5.00, alert at $1.00)");
+
   // Create bar staff records linked to existing bars
   const bars = await prisma.bar.findMany({
     take: 5,

@@ -104,3 +104,55 @@ export async function sendWelcomeEmail(params: {
 
   return data;
 }
+
+/** Internal admin alert — fired when AI credits drop below threshold.
+ *  Only visible to Hoppr admins, never to bar owners. */
+export async function sendCreditAlert(params: {
+  provider: string;
+  remaining: number;
+  threshold: number;
+  totalCredits: number;
+  to: string;
+}) {
+  const usagePct = Math.round(((params.totalCredits - params.remaining) / params.totalCredits) * 100);
+
+  const { data, error } = await getResend().emails.send({
+    from: FROM,
+    to: params.to,
+    subject: `⚠️ ${params.provider} credits low — $${params.remaining.toFixed(2)} remaining`,
+    html: `
+      <div style="max-width:560px;margin:0 auto;font-family:system-ui,sans-serif">
+        <h1 style="color:#7c3aed">Hoppr Admin</h1>
+        <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:16px;margin:16px 0">
+          <h2 style="margin:0 0 8px;color:#92400e">⚠️ Credit Alert</h2>
+          <p style="margin:0;color:#78350f">
+            <strong>${params.provider}</strong> API credits are running low.
+          </p>
+        </div>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0">
+          <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Total purchased</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600">$${params.totalCredits.toFixed(2)}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Remaining</td><td style="padding:8px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#dc2626">$${params.remaining.toFixed(2)}</td></tr>
+          <tr><td style="padding:8px;border-bottom:1px solid #e5e7eb;color:#6b7280">Alert threshold</td><td style="padding:8px;border-bottom:1px solid #e5e7eb">$${params.threshold.toFixed(2)}</td></tr>
+          <tr><td style="padding:8px;color:#6b7280">Used</td><td style="padding:8px;font-weight:600">${usagePct}%</td></tr>
+        </table>
+        <p style="color:#6b7280;font-size:14px">
+          AI-powered features (promotion text generation, image generation) will stop working when credits reach $0.00.
+          Bar owners will see fallback templates instead of AI-generated content.
+        </p>
+        <a href="${BASE_URL}/admin/credits" style="display:inline-block;padding:10px 20px;background:#7c3aed;color:white;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">
+          View Credit Dashboard
+        </a>
+        <p style="color:#9ca3af;font-size:12px;margin-top:24px">
+          This is an internal admin notification. Bar owners do not see credit status.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error("Failed to send credit alert:", error);
+    throw new Error("Failed to send credit alert");
+  }
+
+  return data;
+}

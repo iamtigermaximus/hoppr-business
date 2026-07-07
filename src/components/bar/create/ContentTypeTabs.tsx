@@ -17,7 +17,8 @@ const Tab = styled.button<{ $active: boolean }>`
   color: ${({ $active }) => ($active ? "#7c3aed" : "#6b7280")};
   background: none;
   border: none;
-  border-bottom: 2px solid ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
+  border-bottom: 2px solid
+    ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
   cursor: pointer;
   transition: all 0.15s;
   display: flex;
@@ -46,10 +47,10 @@ interface ContentTypeTabsProps {
 }
 
 const TAB_CONFIG: { value: ContentType; label: string; icon: string }[] = [
-  { value: "event", label: "Event", icon: "📅" },
-  { value: "promotion", label: "Promotion", icon: "🎁" },
-  { value: "campaign", label: "Ad", icon: "📢" },
-  { value: "pass", label: "Pass", icon: "🎟️" },
+  { value: "event", label: "Event", icon: "" },
+  { value: "promotion", label: "Promotion", icon: "" },
+  { value: "campaign", label: "Ad", icon: "" },
+  { value: "pass", label: "Pass", icon: "" },
 ];
 
 export default function ContentTypeTabs({

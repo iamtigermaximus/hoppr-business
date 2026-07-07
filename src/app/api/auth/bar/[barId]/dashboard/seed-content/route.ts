@@ -93,27 +93,49 @@ export async function POST(
     created.push(...promos.map((p) => `promotion:${p.id}`));
 
     // ── 1 sample event ───────────────────────────────────────────
-    const eventDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
-    eventDate.setHours(20, 0, 0, 0);
-    const eventEnd = new Date(eventDate.getTime() + 4 * 60 * 60 * 1000);
+    // Resolve the creator user — bar_staff entries now reference a User record
+    // via the userId FK. If the user doesn't exist (e.g. legacy bar without one),
+    // skip the sample event rather than crashing on the FK constraint.
+    let creatorId: string | null = null;
+    try {
+      const staff = await prisma.barStaff.findFirst({
+        where: { barId, userId: payload.userId },
+        select: { userId: true },
+      });
+      if (staff?.userId) {
+        const user = await prisma.user.findUnique({
+          where: { id: staff.userId },
+          select: { id: true },
+        });
+        creatorId = user?.id ?? null;
+      }
+    } catch {
+      creatorId = null;
+    }
 
-    const event = await prisma.event.create({
-      data: {
-        title: "Live Jazz & Cocktails",
-        description:
-          "An evening of live jazz from Helsinki's best trio, paired with our signature cocktail menu. No cover charge — just great music and drinks.",
-        venueId: barId,
-        venueName: barName,
-        startTime: eventDate,
-        endTime: eventEnd,
-        maxAttendees: 60,
-        isPrivate: false,
-        creatorId: payload.userId,
-        complianceStatus: "COMPLIANT",
-        category: SAMPLE_PREFIX,
-      },
-    });
-    created.push(`event:${event.id}`);
+    if (creatorId) {
+      const eventDate = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+      eventDate.setHours(20, 0, 0, 0);
+      const eventEnd = new Date(eventDate.getTime() + 4 * 60 * 60 * 1000);
+
+      const event = await prisma.event.create({
+        data: {
+          title: "Live Jazz & Cocktails",
+          description:
+            "An evening of live jazz from Helsinki's best trio, paired with our signature cocktail menu. No cover charge — just great music and drinks.",
+          venueId: barId,
+          venueName: barName,
+          startTime: eventDate,
+          endTime: eventEnd,
+          maxAttendees: 60,
+          isPrivate: false,
+          creatorId,
+          complianceStatus: "COMPLIANT",
+          category: SAMPLE_PREFIX,
+        },
+      });
+      created.push(`event:${event.id}`);
+    }
 
     // ── 1 sample VIP pass ────────────────────────────────────────
     const pass = await prisma.vIPPassEnhanced.create({

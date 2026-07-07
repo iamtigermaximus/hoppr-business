@@ -87,6 +87,10 @@ export const RateLimits = {
   SCAN: { windowSeconds: 60, maxRequests: 30 } as RateLimitConfig,
   /** Analytics/dashboard: 30 per minute per bar */
   ANALYTICS: { windowSeconds: 60, maxRequests: 30 } as RateLimitConfig,
+  /** AI image generation: 5 per minute per bar (prevents rapid regeneration spam) */
+  AI_IMAGE_PER_MINUTE: { windowSeconds: 60, maxRequests: 5 } as RateLimitConfig,
+  /** AI image generation: 50 per day per bar (cost cap — ~$0.75/day at Klein-9b prices) */
+  AI_IMAGE_PER_DAY: { windowSeconds: 86400, maxRequests: 50 } as RateLimitConfig,
 } as const;
 
 /** Extract a rate-limit key from the incoming request (IP-based fallback). */

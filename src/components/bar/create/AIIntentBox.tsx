@@ -18,7 +18,7 @@ interface AIIntentBoxProps {
   onFormatChange?: (format: CardFormat) => void;
 }
 
-type Language = "fi" | "en" | "sv";
+type Language = "fi" | "en";
 type Step = "brief" | "generating" | "variants";
 type CardFormat = "square" | "wide" | "banner";
 
@@ -28,29 +28,39 @@ const FORMAT_OPTIONS: { value: CardFormat; label: string; dims: string; hint: st
   { value: "banner", label: "Cover", dims: "3:1", hint: "Event headers, page covers, wide banners" },
 ];
 
-// ---- Quick templates (compliance-safe, same as before) ----
+// ---- Quick templates (compliance-safe, bilingual) ----
 
-const TEMPLATES = [
-  { label: "After-Work", prompt: "After-work evening — great music, relaxed atmosphere, and the perfect place to unwind after the office. Weekday afternoons 16:00–19:00. Focus on the vibe." },
-  { label: "Ladies Night", prompt: "Ladies Night — exclusive evening for women, Friday or Saturday. Welcoming atmosphere with great music, service, and company. No price mentions or special offers." },
-  { label: "Live Music", prompt: "Live music performance — band or DJ, evening event. Describe the experience, atmosphere, date and time." },
-  { label: "Game Night", prompt: "Quiz or bingo night — entry included, competitive team atmosphere, weekday evening. Focus on fun and social experience. No prizes or giveaways linked to purchases." },
-  { label: "Food Special", prompt: "Food special — featured menu items or combo selections, weekday evenings. Focus on food quality and pairing suggestions. Food promos have no alcohol advertising restrictions." },
-  { label: "VIP Experience", prompt: "Premium experience — priority entry, reserved seating, exclusive area access. Describe the elevated service and atmosphere." },
-  { label: "Signature Evening", prompt: "Signature evening — our team's top recommendations for the night. Focus on craftsmanship, unique flavours, and the bar's character. No price mentions, discounts, or brand names." },
-  { label: "Theme Night", prompt: "Theme night — karaoke, 80s retro, sports screening. Describe the theme and entertainment. Focus on the experience." },
-] as const;
+const TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
+  en: [
+    { label: "After-Work", prompt: "After-work evening — great music, relaxed atmosphere, and the perfect place to unwind after the office. Weekday afternoons 16:00–19:00. Focus on the vibe." },
+    { label: "Ladies Night", prompt: "Ladies Night — exclusive evening for women, Friday or Saturday. Welcoming atmosphere with great music, service, and company. No price mentions or special offers." },
+    { label: "Live Music", prompt: "Live music performance — band or DJ, evening event. Describe the experience, atmosphere, date and time." },
+    { label: "Game Night", prompt: "Quiz or bingo night — entry included, competitive team atmosphere, weekday evening. Focus on fun and social experience. No prizes or giveaways linked to purchases." },
+    { label: "Food Special", prompt: "Food special — featured menu items or combo selections, weekday evenings. Focus on food quality and pairing suggestions. Food promos have no alcohol advertising restrictions." },
+    { label: "VIP Experience", prompt: "Premium experience — priority entry, reserved seating, exclusive area access. Describe the elevated service and atmosphere." },
+    { label: "Signature Evening", prompt: "Signature evening — our team's top recommendations for the night. Focus on craftsmanship, unique flavours, and the bar's character. No price mentions, discounts, or brand names." },
+    { label: "Theme Night", prompt: "Theme night — karaoke, 80s retro, sports screening. Describe the theme and entertainment. Focus on the experience." },
+  ],
+  fi: [
+    { label: "After-Work", prompt: "After-work-ilta — hyvää musiikkia, rento tunnelma ja täydellinen paikka rentoutua toimiston jälkeen. Arki-iltapäivisin klo 16–19. Keskity tunnelmaan." },
+    { label: "Naistenilta", prompt: "Naistenilta — naisille suunnattu ilta, perjantai tai lauantai. Viihtyisä tunnelma, hyvää musiikkia, palvelua ja seuraa. Älä mainitse hintoja tai erikoistarjouksia." },
+    { label: "Elävä musiikki", prompt: "Live-esiintyminen — bändi tai DJ, iltatapahtuma. Kuvaile elämystä, tunnelmaa, päivämäärää ja kellonaikaa." },
+    { label: "Peli-ilta", prompt: "Tietovisa- tai bingoilta — osallistuminen sisältyy, kilpailuhenkinen joukkuetunnelma, arki-ilta. Keskity hauskuuteen ja sosiaaliseen kokemukseen. Ei palkintoja tai lahjoja." },
+    { label: "Ruokatarjous", prompt: "Ruokatarjous — suositeltuja annoksia tai yhdistelmiä, arki-iltaisin. Keskity ruoan laatuun ja yhdistelyvinkkeihin. Ruokatarjouksilla ei ole alkoholimainonnan rajoituksia." },
+    { label: "VIP-kokemus", prompt: "Premium-kokemus — etuoikeutettu sisäänpääsy, varattu istumapaikka, pääsy eksklusiiviselle alueelle. Kuvaile parempaa palvelua ja tunnelmaa." },
+    { label: "Talon suositukset", prompt: "Talon suositukset — tiimimme parhaat suositukset illalle. Keskity käsityötaitoon, ainutlaatuisiin makuihin ja baarin luonteeseen. Ei hintamainintoja, alennuksia tai tuotemerkkejä." },
+    { label: "Teemailta", prompt: "Teemailta — karaoke, 80-luvun retro, urheilulähetys. Kuvaile teemaa ja viihdettä. Keskity elämykseen." },
+  ],
+};
 
 const PLACEHOLDERS: Record<Language, string> = {
   fi: "Kuvaile mitä haluat luoda — esim. \"Perjantain after-work, klo 16–19, rento tunnelma ja hyvää musiikkia\"",
   en: "Describe what you want — e.g. \"Friday after-work, 16:00–19:00, relaxed atmosphere with great music\"",
-  sv: "Beskriv vad du vill skapa — t.ex. \"Fredags after-work, 16:00–19:00, avslappnad atmosfär med bra musik\"",
 };
 
 const GENERATING_MESSAGES: Record<Language, string> = {
   fi: "Tekoälymme luo vaihtoehtoja...",
   en: "Our AI is crafting your options...",
-  sv: "Vår AI skapar dina alternativ...",
 };
 
 // ---- Component ----
@@ -71,7 +81,7 @@ export default function AIIntentBox({
   const [error, setError] = useState<string | null>(null);
 
   // Controls
-  const [language, setLanguage] = useState<Language>("fi");
+  const [language, setLanguage] = useState<Language>("en");
   const [cardFormat, setCardFormat] = useState<CardFormat>("wide");
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
 
@@ -347,7 +357,7 @@ export default function AIIntentBox({
           {/* ---- Step 2: Pick a starting point ---- */}
           <div style={styles.stepLabel}>2. Pick a starting point</div>
           <div style={styles.templateGrid}>
-            {TEMPLATES.map((t) => (
+            {TEMPLATES[language].map((t) => (
               <button
                 key={t.label}
                 style={{
@@ -390,9 +400,8 @@ export default function AIIntentBox({
               <span style={styles.controlLabel}>Language</span>
               <div style={styles.pillGroup}>
                 {([
-                  ["fi", "FI"],
                   ["en", "EN"],
-                  ["sv", "SV"],
+                  ["fi", "FI"],
                 ] as const).map(([lang, label]) => (
                   <button
                     key={lang}
