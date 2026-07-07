@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ── Types ──
 
@@ -455,7 +456,21 @@ export default function CampaignManager({ barId, userRole }: { barId: string; us
   const formatBudget = (cents: number) => `€${(cents / 100).toFixed(0)}`;
   const ctr = (c: Campaign) => (c.impressions > 0 ? ((c.clicks / c.impressions) * 100).toFixed(1) : "0.0");
 
-  if (loading) return <Container><div style={{ color: "#6b7280", padding: "2rem", textAlign: "center" }}>Loading campaigns...</div></Container>;
+  if (loading) return (
+    <Container>
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="50%" $height="0.75rem" />
+              <SkeletonBox $width="80%" $height="1rem" />
+              <SkeletonBox $width="100%" $height="3rem" $radius="0.375rem" />
+            </SkeletonCard>
+          ))}
+        </div>
+      </div>
+    </Container>
+  );
 
   return (
     <Container>

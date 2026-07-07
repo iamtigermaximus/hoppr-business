@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 import {
   MapPin,
   Phone,
@@ -363,7 +364,25 @@ export default function BarConsumerPreview({ barId }: BarConsumerPreviewProps) {
   }, [barId]);
 
   if (loading) {
-    return <LoadingState>Loading preview…</LoadingState>;
+    return (
+      <PreviewWrapper>
+        <div
+          style={{
+            display: "grid",
+            gap: "1rem",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          }}
+        >
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="70%" $height="1.25rem" />
+              <SkeletonBox $width="100%" $height="0.75rem" />
+              <SkeletonBox $width="50%" $height="0.75rem" />
+            </SkeletonCard>
+          ))}
+        </div>
+      </PreviewWrapper>
+    );
   }
 
   if (error || !data) {

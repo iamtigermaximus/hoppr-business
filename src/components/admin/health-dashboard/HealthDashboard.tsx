@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ---- Styled Components ----
 
@@ -352,16 +353,54 @@ const EmptyGraph = styled.div`
   font-size: 0.875rem;
 `;
 
-// Loading/Error states
-const LoadingOverlay = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem;
-  color: #6b7280;
-  font-size: 1rem;
+// Cron jobs
+const CronJobsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 `;
 
+const CronJobCard = styled.div<{ $stale: boolean }>`
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid ${({ $stale }) => ($stale ? "#fecaca" : "#e5e7eb")};
+  border-left: 4px solid ${({ $stale }) => ($stale ? "#dc2626" : "#16a34a")};
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+`;
+
+const CronJobName = styled.div`
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+`;
+
+const CronJobInterval = styled.div`
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+`;
+
+const CronJobLastRun = styled.div<{ $stale: boolean }>`
+  font-size: 0.75rem;
+  color: ${({ $stale }) => ($stale ? "#dc2626" : "#16a34a")};
+  font-weight: ${({ $stale }) => ($stale ? "600" : "400")};
+`;
+
+const CronJobStaleBadge = styled.span`
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: #fef2f2;
+  color: #dc2626;
+  margin-left: 0.5rem;
+`;
+
+// Loading/Error states
 const ErrorBox = styled.div`
   background: #fef2f2;
   border: 1px solid #fecaca;
@@ -389,6 +428,14 @@ interface ErrorBucket {
   count: number;
 }
 
+interface CronJobHealth {
+  name: string;
+  label: string;
+  lastRun: string | null;
+  isStale: boolean;
+  expectedInterval: string;
+}
+
 interface SystemHealth {
   overall: HealthStatus;
   components: ComponentHealth[];
@@ -401,6 +448,7 @@ interface SystemHealth {
     avgDbQueryMs: number;
   };
   errorsByHour: ErrorBucket[];
+  cronJobs: CronJobHealth[];
   thresholds: {
     dbLatencyMs: number;
     errorRate: number;
@@ -480,7 +528,20 @@ const HealthDashboard = () => {
         <Header>
           <Title>Platform Health</Title>
         </Header>
-        <LoadingOverlay>Checking system health...</LoadingOverlay>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="60%" $height="0.75rem" />
+              <SkeletonBox $width="35%" $height="1.25rem" />
+            </SkeletonCard>
+          ))}
+        </div>
+        <SkeletonCard>
+          <SkeletonBox $width="40%" $height="0.75rem" />
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonBox key={i} $width="100%" $height="1rem" />
+          ))}
+        </SkeletonCard>
       </Container>
     );
   }
@@ -607,6 +668,32 @@ const HealthDashboard = () => {
           </BarChart>
         )}
       </GraphCard>
+
+      {/* Cron Jobs */}
+      {health.cronJobs && health.cronJobs.length > 0 && (
+        <>
+          <SectionTitle>Cron Jobs</SectionTitle>
+          <CronJobsGrid>
+            {health.cronJobs.map((job) => {
+              const lastRunDisplay = job.lastRun
+                ? new Date(job.lastRun).toLocaleString()
+                : "Never";
+              return (
+                <CronJobCard key={job.name} $stale={job.isStale}>
+                  <CronJobName>
+                    {job.label}
+                    {job.isStale && <CronJobStaleBadge>STALE</CronJobStaleBadge>}
+                  </CronJobName>
+                  <CronJobInterval>{job.expectedInterval}</CronJobInterval>
+                  <CronJobLastRun $stale={job.isStale}>
+                    Last run: {lastRunDisplay}
+                  </CronJobLastRun>
+                </CronJobCard>
+              );
+            })}
+          </CronJobsGrid>
+        </>
+      )}
 
       {/* Alert Thresholds */}
       <SectionTitle>Alert Thresholds</SectionTitle>

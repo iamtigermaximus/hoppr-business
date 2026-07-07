@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
 import Link from "next/link";
+import { SkeletonBox, SkeletonTable, SkeletonTableRow, SkeletonTableCell } from "@/components/ui/Skeleton";
 
 // Styled Components (keep all your existing styled components - they're fine)
 const Container = styled.div`
@@ -603,7 +604,22 @@ const BarsDatabase = () => {
   if (loading && bars.length === 0) {
     return (
       <Container>
-        <LoadingState>Loading bars...</LoadingState>
+        <SkeletonTable style={{ marginTop: "1rem" }}>
+          <SkeletonBox $height="44px" $width="100%" $radius="0" />
+          {Array.from({ length: 12 }).map((_, i) => (
+            <SkeletonTableRow key={i}>
+              <SkeletonTableCell $width="20%" />
+              <SkeletonTableCell $width="12%" />
+              <SkeletonTableCell $width="10%" />
+              <SkeletonTableCell $width="8%" />
+              <SkeletonTableCell $width="10%" />
+              <SkeletonTableCell $width="10%" />
+              <SkeletonTableCell $width="12%" />
+              <SkeletonTableCell $width="8%" />
+              <SkeletonTableCell $width="10%" />
+            </SkeletonTableRow>
+          ))}
+        </SkeletonTable>
       </Container>
     );
   }

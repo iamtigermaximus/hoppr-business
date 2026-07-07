@@ -1243,6 +1243,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 const Container = styled.div`
   padding: 1.5rem;
@@ -1958,9 +1959,26 @@ const DashboardContent = () => {
           <Title>Welcome back!</Title>
           <Subtitle>Loading dashboard data...</Subtitle>
         </Header>
-        <LoadingState>
-          <div>Loading your dashboard...</div>
-        </LoadingState>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="60%" $height="0.75rem" />
+              <SkeletonBox $width="40%" $height="1.5rem" />
+            </SkeletonCard>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
+          <SkeletonCard>
+            <SkeletonBox $width="30%" $height="0.75rem" />
+            <SkeletonBox $width="100%" $height="200px" $radius="0.5rem" />
+          </SkeletonCard>
+          <SkeletonCard>
+            <SkeletonBox $width="50%" $height="0.75rem" />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonBox key={i} $width="100%" $height="1rem" />
+            ))}
+          </SkeletonCard>
+        </div>
       </Container>
     );
   }

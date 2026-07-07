@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard, SkeletonPageHeader, SkeletonContentGrid, SkeletonSidebar } from "@/components/ui/Skeleton";
 import ImageUpload from "@/components/admin/image-upload/ImageUpload";
 
 const Container = styled.div`
@@ -866,10 +867,35 @@ const EditBar = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingState>
-          <LoadingSpinner />
-          <p>Loading bar details...</p>
-        </LoadingState>
+        <SkeletonPageHeader>
+          <div>
+            <SkeletonBox $width="180px" $height="1.5rem" />
+            <SkeletonBox $width="240px" $height="0.875rem" style={{ marginTop: "0.5rem" }} />
+          </div>
+        </SkeletonPageHeader>
+        <SkeletonContentGrid>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <SkeletonCard>
+              <SkeletonBox $width="100px" $height="1rem" />
+              <SkeletonBox $width="100%" $height="2.5rem" $radius="0.375rem" />
+              <SkeletonBox $width="100%" $height="2.5rem" $radius="0.375rem" />
+              <SkeletonBox $width="100%" $height="5rem" $radius="0.375rem" />
+            </SkeletonCard>
+            <SkeletonCard>
+              <SkeletonBox $width="120px" $height="1rem" />
+              <SkeletonBox $width="100%" $height="2.5rem" $radius="0.375rem" />
+              <SkeletonBox $width="100%" $height="2.5rem" $radius="0.375rem" />
+            </SkeletonCard>
+          </div>
+          <SkeletonSidebar>
+            <SkeletonCard>
+              <SkeletonBox $width="80px" $height="1rem" />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <SkeletonBox key={i} $width="100%" $height="2.25rem" $radius="0.5rem" />
+              ))}
+            </SkeletonCard>
+          </SkeletonSidebar>
+        </SkeletonContentGrid>
       </Container>
     );
   }

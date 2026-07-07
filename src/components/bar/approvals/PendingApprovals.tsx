@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ---- Styled Components ----
 
@@ -605,7 +606,22 @@ const PendingApprovals = ({ barId, userRole }: PendingApprovalsProps) => {
       )}
 
       {loading ? (
-        <LoadingOverlay>Loading pending approvals...</LoadingOverlay>
+        <div
+          style={{
+            display: "grid",
+            gap: "1rem",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            padding: "1rem 0",
+          }}
+        >
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="70%" $height="1.25rem" />
+              <SkeletonBox $width="100%" $height="0.75rem" />
+              <SkeletonBox $width="50%" $height="0.75rem" />
+            </SkeletonCard>
+          ))}
+        </div>
       ) : allItems.length === 0 ? (
         <EmptyState>
           <EmptyIcon>✅</EmptyIcon>

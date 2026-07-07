@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ---- Styled Components ----
 
@@ -379,7 +380,18 @@ const RevenueDashboard = () => {
         <Header>
           <Title>Revenue Dashboard</Title>
         </Header>
-        <LoadingOverlay>Loading revenue data...</LoadingOverlay>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="50%" $height="0.75rem" />
+              <SkeletonBox $width="35%" $height="1.25rem" />
+            </SkeletonCard>
+          ))}
+        </div>
+        <SkeletonCard>
+          <SkeletonBox $width="30%" $height="0.75rem" />
+          <SkeletonBox $width="100%" $height="250px" $radius="0.5rem" />
+        </SkeletonCard>
       </Container>
     );
   }

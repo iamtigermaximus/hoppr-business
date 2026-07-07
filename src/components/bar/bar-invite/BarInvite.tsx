@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 const Container = styled.div`
   min-height: 100vh;
@@ -231,8 +232,10 @@ export default function InvitePage() {
     return (
       <Container>
         <Card>
-          <Title>Loading...</Title>
-          <Subtitle>Verifying your invitation</Subtitle>
+          <SkeletonCard>
+            <SkeletonBox $width="60%" $height="1.5rem" style={{ margin: "0 auto" }} />
+            <SkeletonBox $width="80%" $height="1rem" style={{ margin: "0.5rem auto 0" }} />
+          </SkeletonCard>
         </Card>
       </Container>
     );

@@ -96,22 +96,23 @@ export async function GET(request: NextRequest) {
 
     // 1. Database health check — time a simple query
     const dbStart = performance.now();
+    let dbLatencyMs = 0;
     let dbStatus: HealthStatus = "HEALTHY";
     let dbMessage = "Database is responsive";
 
     try {
       await prisma.$queryRawUnsafe(`SELECT 1`);
-      const dbLatency = Math.round(performance.now() - dbStart);
-      dbStatus = determineStatus(dbLatency, thresholds.dbLatencyMs);
+      dbLatencyMs = Math.round(performance.now() - dbStart);
+      dbStatus = determineStatus(dbLatencyMs, thresholds.dbLatencyMs);
       if (dbStatus !== "HEALTHY") {
-        dbMessage = `Database latency (${dbLatency}ms) exceeds threshold (${thresholds.dbLatencyMs}ms)`;
+        dbMessage = `Database latency (${dbLatencyMs}ms) exceeds threshold (${thresholds.dbLatencyMs}ms)`;
       } else {
-        dbMessage = `Response time: ${dbLatency}ms`;
+        dbMessage = `Response time: ${dbLatencyMs}ms`;
       }
       components.push({
         name: "Database",
         status: dbStatus,
-        latencyMs: dbLatency,
+        latencyMs: dbLatencyMs,
         message: dbMessage,
         checkedAt: now.toISOString(),
       });
@@ -143,7 +144,7 @@ export async function GET(request: NextRequest) {
 
     const apiLatency = Math.round(performance.now() - apiStart);
     const apiStatus: HealthStatus =
-      errorsLast24h > 50 ? "DEGRADED" : errorsLast24h > 100 ? "DOWN" : "HEALTHY";
+      errorsLast24h > 100 ? "DOWN" : errorsLast24h > 50 ? "DEGRADED" : "HEALTHY";
 
     components.push({
       name: "API Routes",
@@ -247,30 +248,34 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // 6. Error distribution by hour (last 24h)
+    // 6. Error distribution by hour (last 24h) — parallel Prisma queries
     const errorsByHour: ErrorBucket[] = [];
     try {
-      for (let h = 23; h >= 0; h--) {
+      const hourPromises = Array.from({ length: 24 }, (_, h) => {
         const hourStart = new Date(now.getTime() - h * 60 * 60 * 1000);
         const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000);
-        const count = await prisma.auditLog.count({
-          where: {
-            createdAt: { gte: hourStart, lt: hourEnd },
-            action: { contains: "ERROR", mode: "insensitive" },
-          },
-        });
-        errorsByHour.push({
-          hour: hourStart.toISOString().slice(11, 13) + ":00",
-          count,
-        });
-      }
+        return prisma.auditLog
+          .count({
+            where: {
+              createdAt: { gte: hourStart, lt: hourEnd },
+              action: { contains: "ERROR", mode: "insensitive" },
+            },
+          })
+          .then((count) => ({
+            hour: hourStart.toISOString().slice(11, 13) + ":00",
+            count,
+          }));
+      });
+
+      const results = await Promise.all(hourPromises);
+      // Reverse so most recent hour is last (matches chart display order)
+      results.reverse();
+      errorsByHour.push(...results);
     } catch {
       // Non-critical — return empty
     }
 
-    const avgDbQueryMs = components.length > 0
-      ? Math.round(components.reduce((s, c) => s + c.latencyMs, 0) / components.length)
-      : 0;
+    const avgDbQueryMs = dbLatencyMs;
 
     const overall = determineOverall(components);
 

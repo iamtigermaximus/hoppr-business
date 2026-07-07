@@ -4,6 +4,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ── Styled Components ──────────────────────────────────────────
 
@@ -577,10 +578,23 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
 
   if (loading) {
     return (
-      <LoadingWrap>
-        <Spinner />
-        <p>Loading calendar...</p>
-      </LoadingWrap>
+      <Container>
+        <div
+          style={{
+            display: "grid",
+            gap: "1rem",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          }}
+        >
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="70%" $height="1.25rem" />
+              <SkeletonBox $width="100%" $height="0.75rem" />
+              <SkeletonBox $width="50%" $height="0.75rem" />
+            </SkeletonCard>
+          ))}
+        </div>
+      </Container>
     );
   }
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 import ImageUpload from "@/components/admin/image-upload/ImageUpload";
 import Image from "next/image";
 import ToneSelector, { type ContentTone } from "@/components/bar/create/ToneSelector";
@@ -763,6 +764,18 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
       <Container>
         <Title>Bar Profile</Title>
         <Subtitle>Loading your bar information...</Subtitle>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", marginTop: "1.5rem" }}>
+          <SkeletonCard>
+            <SkeletonBox $width="30%" $height="0.75rem" />
+            <SkeletonBox $width="100%" $height="2.5rem" $radius="0.375rem" />
+            <SkeletonBox $width="100%" $height="2.5rem" $radius="0.375rem" />
+          </SkeletonCard>
+          <SkeletonCard>
+            <SkeletonBox $width="40%" $height="0.75rem" />
+            <SkeletonBox $width="100%" $height="2.5rem" $radius="0.375rem" />
+            <SkeletonBox $width="100%" $height="6rem" $radius="0.375rem" />
+          </SkeletonCard>
+        </div>
       </Container>
     );
   }

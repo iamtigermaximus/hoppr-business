@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 import ComplianceIndicator from "@/components/shared/ComplianceIndicator";
 
 // ---- Styled Components ----
@@ -845,7 +846,17 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
       )}
 
       {loading ? (
-        <LoadingOverlay>Loading events...</LoadingOverlay>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonCard key={i}>
+                <SkeletonBox $width="50%" $height="0.75rem" />
+                <SkeletonBox $width="80%" $height="1rem" />
+                <SkeletonBox $width="100%" $height="3rem" $radius="0.375rem" />
+              </SkeletonCard>
+            ))}
+          </div>
+        </div>
       ) : events.length === 0 ? (
         <EmptyState>
           <EmptyIcon>📅</EmptyIcon>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonTableRow, SkeletonTableCell } from "@/components/ui/Skeleton";
 
 // ---- Styled Components ----
 
@@ -749,7 +750,20 @@ const ClaimsList = () => {
           </div>
         )}
         {loading ? (
-          <LoadingSpinner />
+          <div style={{ padding: "1rem" }}>
+            <SkeletonBox $height="36px" $width="100%" $radius="0" style={{ marginBottom: 0 }} />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonTableRow key={i}>
+                <SkeletonTableCell $width="22%" />
+                <SkeletonTableCell $width="16%" />
+                <SkeletonTableCell $width="14%" />
+                <SkeletonTableCell $width="10%" />
+                <SkeletonTableCell $width="12%" />
+                <SkeletonTableCell $width="14%" />
+                <SkeletonTableCell $width="12%" />
+              </SkeletonTableRow>
+            ))}
+          </div>
         ) : claims.length === 0 && !error ? (
           <EmptyState>
             <p style={{ fontWeight: 600, fontSize: "1rem", marginBottom: "0.5rem" }}>

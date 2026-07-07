@@ -2663,6 +2663,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 import { AdminUser, TimeRange } from "@/types/analytics";
 import {
   AdminDashboardStats,
@@ -3041,9 +3042,26 @@ const AdminAnalytics = ({ user }: AdminAnalyticsProps) => {
             </DateFilter>
           </HeaderControls>
         </Header>
-        <LoadingState>
-          <div>Loading analytics data...</div>
-        </LoadingState>
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1rem" }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <SkeletonCard key={i}>
+                <SkeletonBox $width="55%" $height="0.75rem" />
+                <SkeletonBox $width="30%" $height="1.5rem" />
+              </SkeletonCard>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem" }}>
+            <SkeletonCard>
+              <SkeletonBox $width="40%" $height="0.75rem" />
+              <SkeletonBox $width="100%" $height="200px" $radius="0.5rem" />
+            </SkeletonCard>
+            <SkeletonCard>
+              <SkeletonBox $width="50%" $height="0.75rem" />
+              <SkeletonBox $width="100%" $height="200px" $radius="0.5rem" />
+            </SkeletonCard>
+          </div>
+        </div>
       </Container>
     );
   }

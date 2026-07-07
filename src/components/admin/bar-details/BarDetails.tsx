@@ -4,6 +4,14 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import styled from "styled-components";
 import Link from "next/link";
+import {
+  SkeletonBox,
+  SkeletonCard,
+  SkeletonText,
+  SkeletonContentGrid,
+  SkeletonSidebar,
+  SkeletonPageHeader,
+} from "@/components/ui/Skeleton";
 
 const Container = styled.div`
   padding: 1rem;
@@ -925,10 +933,43 @@ const BarDetails = () => {
   if (loading) {
     return (
       <Container>
-        <LoadingState>
-          <LoadingSpinner />
-          <p>Loading bar details...</p>
-        </LoadingState>
+        <SkeletonPageHeader>
+          <div>
+            <SkeletonBox $width="140px" $height="1.5rem" />
+            <SkeletonBox $width="200px" $height="0.875rem" style={{ marginTop: "0.5rem" }} />
+          </div>
+          <div style={{ display: "flex", gap: "0.75rem" }}>
+            <SkeletonBox $width="100px" $height="2.75rem" $radius="0.5rem" />
+            <SkeletonBox $width="100px" $height="2.75rem" $radius="0.5rem" />
+            <SkeletonBox $width="100px" $height="2.75rem" $radius="0.5rem" />
+          </div>
+        </SkeletonPageHeader>
+        <SkeletonContentGrid>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+            <SkeletonCard>
+              <SkeletonBox $width="120px" $height="1rem" />
+              <SkeletonText $lines={3} />
+            </SkeletonCard>
+            <SkeletonCard>
+              <SkeletonBox $width="100px" $height="1rem" />
+              <SkeletonText $lines={4} />
+            </SkeletonCard>
+          </div>
+          <SkeletonSidebar>
+            <SkeletonCard>
+              <SkeletonBox $width="80px" $height="1rem" />
+              <SkeletonText $lines={4} $lastShort />
+            </SkeletonCard>
+            <SkeletonCard>
+              <SkeletonBox $width="100px" $height="1rem" />
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                <SkeletonBox $width="100%" $height="2.25rem" $radius="0.5rem" />
+                <SkeletonBox $width="100%" $height="2.25rem" $radius="0.5rem" />
+                <SkeletonBox $width="100%" $height="2.25rem" $radius="0.5rem" />
+              </div>
+            </SkeletonCard>
+          </SkeletonSidebar>
+        </SkeletonContentGrid>
       </Container>
     );
   }

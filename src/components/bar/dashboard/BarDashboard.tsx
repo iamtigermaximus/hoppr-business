@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 import { InsightCard } from "./InsightCard";
 import { ChatPanel } from "./ChatPanel";
 
@@ -554,6 +555,24 @@ const BarDashboardContent = ({ user }: BarDashboardContentProps) => {
           <Title>Welcome to {user.barName}! 🎉</Title>
           <Subtitle>Loading your dashboard...</Subtitle>
         </WelcomeSection>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "1rem", marginBottom: "2rem" }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="60%" $height="0.75rem" />
+              <SkeletonBox $width="35%" $height="1.25rem" />
+            </SkeletonCard>
+          ))}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
+          <SkeletonCard>
+            <SkeletonBox $width="40%" $height="0.75rem" />
+            <SkeletonBox $width="100%" $height="180px" $radius="0.5rem" />
+          </SkeletonCard>
+          <SkeletonCard>
+            <SkeletonBox $width="50%" $height="0.75rem" />
+            <SkeletonBox $width="100%" $height="120px" $radius="0.5rem" />
+          </SkeletonCard>
+        </div>
       </Container>
     );
   }

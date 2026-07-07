@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ---- Types ----
 
@@ -366,7 +367,14 @@ export default function NotificationCenter({ barId }: NotificationCenterProps) {
   if (loading) {
     return (
       <Container>
-        <LoadingState>Loading notification data...</LoadingState>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", padding: "1rem" }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="60%" $height="0.75rem" />
+              <SkeletonBox $width="90%" $height="0.625rem" />
+            </SkeletonCard>
+          ))}
+        </div>
       </Container>
     );
   }

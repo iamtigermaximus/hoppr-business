@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import styled, { css } from "styled-components";
+import { SkeletonBox, SkeletonTable, SkeletonTableRow, SkeletonTableCell } from "@/components/ui/Skeleton";
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -1497,7 +1498,21 @@ const OutreachKanban = () => {
 
       {/* Content */}
       {loading ? (
-        <LoadingState>Loading outreach data...</LoadingState>
+        <SkeletonTable>
+          <SkeletonBox $height="40px" $width="100%" $radius="0" />
+          {Array.from({ length: 10 }).map((_, i) => (
+            <SkeletonTableRow key={i}>
+              <SkeletonTableCell $width="22%" />
+              <SkeletonTableCell $width="14%" />
+              <SkeletonTableCell $width="10%" />
+              <SkeletonTableCell $width="6%" />
+              <SkeletonTableCell $width="10%" />
+              <SkeletonTableCell $width="16%" />
+              <SkeletonTableCell $width="12%" />
+              <SkeletonTableCell $width="10%" />
+            </SkeletonTableRow>
+          ))}
+        </SkeletonTable>
       ) : error ? (
         <ErrorState>
           <p>{error}</p>

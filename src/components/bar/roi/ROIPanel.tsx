@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ---- Types ----
 
@@ -444,7 +445,21 @@ export default function ROIPanel({ barId }: ROIPanelProps) {
   if (loading) {
     return (
       <Container>
-        <LoadingState>Calculating your ROI...</LoadingState>
+        <div
+          style={{
+            display: "grid",
+            gap: "1rem",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+          }}
+        >
+          {Array.from({ length: 3 }).map((_, i) => (
+            <SkeletonCard key={i}>
+              <SkeletonBox $width="70%" $height="1.25rem" />
+              <SkeletonBox $width="100%" $height="0.75rem" />
+              <SkeletonBox $width="50%" $height="0.75rem" />
+            </SkeletonCard>
+          ))}
+        </div>
       </Container>
     );
   }
