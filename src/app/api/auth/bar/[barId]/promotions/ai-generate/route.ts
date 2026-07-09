@@ -12,6 +12,7 @@ import {
   getFallbackPromotion,
   type PromotionType,
 } from "@/lib/ai/fallback-templates";
+import { toneSystemInstruction } from "@/lib/prompts/tone-voices";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -44,25 +45,6 @@ const TONE_PRESET_MAP: Record<ContentTone, number[]> = {
   ELEGANT_PREMIUM: [2, 4],       // cool centered, minimal split
   PLAYFUL_FUN: [3, 1],           // vibrant card, warm split
 };
-
-/** Tone-specific system prompt instruction */
-function toneSystemInstruction(tone: ContentTone | undefined): string {
-  if (!tone) return "";
-  switch (tone) {
-    case "BOLD_ENERGETIC":
-      return "VOICE: Bold & Energetic. Short sentences. Active verbs. Direct CTAs. Use urgency (tonight, now, this weekend). No hedging. No filler words.";
-    case "WARM_INVITING":
-      return "VOICE: Warm & Inviting. Hospitality-focused. Focus on atmosphere and experience. Use words like: join us, welcome, relaxed, cosy. No aggressive sales language.";
-    case "EDGY_IRREVERENT":
-      return "VOICE: Edgy & Irreverent. Casual, direct, personality-driven. Short punchy lines. Humor welcome. Avoid corporate language and marketing cliches.";
-    case "ELEGANT_PREMIUM":
-      return "VOICE: Elegant & Premium. Understated sophistication. No exclamation marks. Use words like: craft, curated, considered, evening. Avoid discount language and slang.";
-    case "PLAYFUL_FUN":
-      return "VOICE: Playful & Fun. Upbeat, emoji-friendly, energetic. Fun over formal. Use emojis naturally. Avoid corporate language and restraint.";
-    default:
-      return "";
-  }
-}
 
 /** Normalize a raw AI-generated promotion object into the standard response shape. */
 function normalizePromotion(
@@ -246,6 +228,7 @@ export async function POST(
         priceRange: true,
         amenities: true,
         description: true,
+        musicTags: true,
         vipEnabled: true,
         coverImage: true,
       },
@@ -294,11 +277,14 @@ export async function POST(
         priceRange: bar.priceRange ?? undefined,
         amenities: bar.amenities ?? undefined,
         description: bar.description ?? undefined,
+        musicTags: (bar.musicTags as string[]) ?? undefined,
       },
+      barId,
       recentPromotions.map((p) => p.title),
       prompt || "",
       type || "unique",
       template || undefined,
+      tone || undefined,
       context || undefined,
       targetAudience || undefined,
       lang,

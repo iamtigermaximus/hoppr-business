@@ -17,6 +17,11 @@ import {
   type ComplianceViolation,
 } from "./rules";
 import { getCitationHeader, getCitationsForViolations } from "./valvira-reference";
+import { getTonePromptBlock, type ContentTone } from "../prompts/tone-voices";
+import { getTemplateVoiceBlock, getBlendInstruction } from "../prompts/template-voices";
+import { getSynergyInstructions } from "../prompts/synergy-rules";
+import { buildRotationBlock } from "../prompts/prompt-rotation";
+import { buildBarHooksBlock, type BarHookContext } from "../prompts/bar-hooks";
 
 export type PromptLanguage = "en" | "fi";
 
@@ -403,11 +408,14 @@ export function buildGeneratePrompt(
     priceRange?: string;
     amenities?: string[];
     description?: string;
+    musicTags?: string[];
   },
+  barId: string,
   recentTitles: string[],
   userPrompt: string,
   type: string,
   template?: string,
+  tone?: ContentTone | null,
   context?: string[],
   targetAudience?: string,
   language: PromptLanguage = "en",
@@ -505,6 +513,28 @@ export function buildGeneratePrompt(
           : `\nTemplate type: ${template}${traits ? ` — characteristics: ${traits}` : ""}. Use these as creative direction only — do NOT copy pre-written text. Write original content for this specific bar.`;
       })()
     : "";
+  const toneBlock = tone
+    ? (isFi
+        ? `\n\nKIRJOITUSTYYLIN SÄÄNNÖT — NÄITÄ ON NOUDATETTAVA TARKASTI:\n${getTonePromptBlock(tone, "fi")}`
+        : `\n\nWRITING VOICE RULES — FOLLOW THESE STRICTLY:\n${getTonePromptBlock(tone, "en")}`)
+    : "";
+  const templateVoiceBlock = template
+    ? (isFi
+        ? `\n\n${getTemplateVoiceBlock(template, "fi")}`
+        : `\n\n${getTemplateVoiceBlock(template, "en")}`)
+    : "";
+  const blendInstruction =
+    tone && template ? getBlendInstruction(isFi ? "fi" : "en") : "";
+  const synergyInstructions = getSynergyInstructions(
+    tone || null,
+    template || null,
+    context || null,
+    isFi ? "fi" : "en",
+  );
+  const synergyBlock =
+    synergyInstructions.length > 0
+      ? `\n\n${synergyInstructions.join("\n\n")}`
+      : "";
   const userBriefLine = userPrompt
     ? (isFi
         ? `\nKäyttäjän kuvaus: ${userPrompt}`
@@ -521,9 +551,21 @@ export function buildGeneratePrompt(
         : `\nVariation seed: ${nonce} — generate COMPLETELY DIFFERENT content than previous seeds.`)
     : "";
 
+  const rotationBlock = buildRotationBlock(barId, numVariants, isFi ? "fi" : "en");
+  const barHooksBlock = buildBarHooksBlock(
+    {
+      type: barContext.type,
+      district: barContext.district,
+      amenities: barContext.amenities,
+      priceRange: barContext.priceRange,
+      musicTags: barContext.musicTags,
+    },
+    isFi ? "fi" : "en",
+  );
+
   const ingredientsBlock = isFi
-    ? `${templateLine}${userBriefLine}${contextLine}${nonceLine}\n\nTÄRKEÄÄ — LUOVA OHJEISTUS:\nYhdistä yllä olevat ainekset ${numVariants} ainutlaatuiseksi ${type}-tyypin tarjoukseksi baarille "${barContext.name}".\n\nJOKAINEN variantti ammentaa eri asiasta:\n- Baarin ainutlaatuisista yksityiskohdista (${barContext.type} tyyli, ${barContext.district || "sijainti"}, ${barContext.priceRange || "hintataso"})\n- Valitusta äänensävystä ja kampanjatyypin ominaispiirteistä\n- Kontekstin ajankohtaisuudesta (kausi, vuorokaudenaika, säätila)\n\nKIELLETTY:\n- Geneeriset "liity meihin" / "tervetuloa" / "paras baari" -fraasit\n- Saman lauseen toistaminen eri varianteissa\n- Yleisluontoiset kuvaukset jotka sopisivat mihin tahansa baariin\n\nTEE NÄIN:\n- Mainitse KONKREETTISIA yksityiskohtia tästä baarista\n- Kirjoita niin kuin olisit itse paikalla — mitä näet, kuulet, tunnet\n- Jokainen variantti kuulostaa eri ihmisen kirjoittamalta`
-    : `${templateLine}${userBriefLine}${contextLine}${nonceLine}\n\nCRITICAL — CREATIVE INSTRUCTION:\nCombine the ingredients above into ${numVariants} unique ${type} promotions for "${barContext.name}".\n\nEACH variant draws from different aspects:\n- The bar's unique details (${barContext.type} style, ${barContext.district || "location"}, ${barContext.priceRange || "price level"})\n- The chosen tone and template characteristics\n- The context's timeliness (season, time of day, weather)\n\nFORBIDDEN:\n- Generic "join us" / "welcome" / "best bar in town" filler\n- Repeating the same sentence across variants\n- Bland descriptions that could fit any bar anywhere\n\nDO THIS:\n- Mention SPECIFIC, CONCRETE details about THIS bar\n- Write as if you're standing in the room — what you see, hear, feel\n- Each variant sounds like a different person wrote it`;
+    ? `${templateLine}${toneBlock}${templateVoiceBlock}${blendInstruction}${synergyBlock}${userBriefLine}${contextLine}${nonceLine}${rotationBlock}${barHooksBlock}\n\nTÄRKEÄÄ — LUOVA OHJEISTUS:\nYhdistä yllä olevat ainekset ${numVariants} ainutlaatuiseksi ${type}-tyypin tarjoukseksi baarille "${barContext.name}".\n\nJOKAINEN variantti ammentaa eri asiasta:\n- Baarin ainutlaatuisista yksityiskohdista (${barContext.type} tyyli, ${barContext.district || "sijainti"}, ${barContext.priceRange || "hintataso"})\n- Valitusta äänensävystä ja kampanjatyypin ominaispiirteistä\n- Kontekstin ajankohtaisuudesta (kausi, vuorokaudenaika, säätila)\n\nKIELLETTY:\n- Geneeriset "liity meihin" / "tervetuloa" / "paras baari" -fraasit\n- Saman lauseen toistaminen eri varianteissa\n- Yleisluontoiset kuvaukset jotka sopisivat mihin tahansa baariin\n\nTEE NÄIN:\n- Mainitse KONKREETTISIA yksityiskohtia tästä baarista\n- Kirjoita niin kuin olisit itse paikalla — mitä näet, kuulet, tunnet\n- Jokainen variantti kuulostaa eri ihmisen kirjoittamalta`
+    : `${templateLine}${toneBlock}${templateVoiceBlock}${blendInstruction}${synergyBlock}${userBriefLine}${contextLine}${nonceLine}${rotationBlock}${barHooksBlock}\n\nCRITICAL — CREATIVE INSTRUCTION:\nCombine the ingredients above into ${numVariants} unique ${type} promotions for "${barContext.name}".\n\nEACH variant draws from different aspects:\n- The bar's unique details (${barContext.type} style, ${barContext.district || "location"}, ${barContext.priceRange || "price level"})\n- The chosen tone and template characteristics\n- The context's timeliness (season, time of day, weather)\n\nFORBIDDEN:\n- Generic "join us" / "welcome" / "best bar in town" filler\n- Repeating the same sentence across variants\n- Bland descriptions that could fit any bar anywhere\n\nDO THIS:\n- Mention SPECIFIC, CONCRETE details about THIS bar\n- Write as if you're standing in the room — what you see, hear, feel\n- Each variant sounds like a different person wrote it`;
 
   // Fully bilingual return
   // IMPORTANT: The creative instruction (ingredientsBlock) comes FIRST after bar context.

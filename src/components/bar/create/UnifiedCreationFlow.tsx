@@ -227,88 +227,122 @@ const PROGRESS_LABELS: Record<FlowStep, string> = {
 
 // ---- Contextual suggestions ----
 
-function getContextualSuggestions(language: Language): string[] {
+interface ContextSuggestion {
+  label: string; // Short display text that fits in chips
+  value: string; // Full description injected into prompt generation
+}
+
+function getContextualSuggestions(language: Language): ContextSuggestion[] {
   const now = new Date();
   const month = now.getMonth();
   const day = now.getDate();
   const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
   const hour = now.getHours();
-  const suggestions: string[] = [];
+  const suggestions: ContextSuggestion[] = [];
 
   if (dayOfWeek === "Friday" || dayOfWeek === "Saturday") {
-    suggestions.push(
-      language === "fi"
-        ? `${dayOfWeek === "Friday" ? "Perjantai" : "Lauantai"}-illan tunnelma, viikonlopun aloitus, bilekansa liikkeellä`
-        : "Weekend energy — the crowd is ready, the vibe is high, the night is wide open",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Viikonloppu" : "Weekend energy",
+      value:
+        language === "fi"
+          ? "Viikonlopun tunnelma, bilekansa liikkeellä, korkea energia"
+          : "Weekend energy — the crowd is ready, the vibe is high, the night is wide open",
+    });
   } else if (dayOfWeek === "Thursday") {
-    suggestions.push(
-      language === "fi"
-        ? "Torstai on uusi perjantai — viikonlopun odotus, rento mutta energinen fiilis"
-        : "Thursday — the weekend starts early, the smart crowd is already out",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Torstai-ilta" : "Thursday night",
+      value:
+        language === "fi"
+          ? "Torstai on uusi perjantai — viikonlopun odotus, rento mutta energinen fiilis"
+          : "Thursday — the weekend starts early, the smart crowd is already out",
+    });
   } else {
-    suggestions.push(
-      language === "fi"
-        ? "Arki-illan rentous — vähemmän tungosta, enemmän tilaa nauttia"
-        : "Weekday calm — less crowd, more room to breathe, the regulars' night",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Arki-ilta" : "Weekday calm",
+      value:
+        language === "fi"
+          ? "Arki-illan rentous — vähemmän tungosta, enemmän tilaa nauttia"
+          : "Weekday calm — less crowd, more room to breathe, the regulars' night",
+    });
   }
 
   if (hour < 12) {
-    suggestions.push(
-      language === "fi"
-        ? "Päivätapahtuma — brunssi, lounas, aikainen startti"
-        : "Daytime event — brunch, lunch, early start, different energy",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Päivätapahtuma" : "Daytime",
+      value:
+        language === "fi"
+          ? "Päivätapahtuma — brunssi, lounas, aikainen startti"
+          : "Daytime event — brunch, lunch, early start, different energy",
+    });
   } else if (hour >= 16 && hour < 20) {
-    suggestions.push(
-      language === "fi"
-        ? "After-work-aika — toimistolta suoraan, rentoutumisen hetki"
-        : "After-work hours — straight from the office, the decompression hour",
-    );
+    suggestions.push({
+      label: language === "fi" ? "After-work" : "After-work",
+      value:
+        language === "fi"
+          ? "After-work-aika — toimistolta suoraan, rentoutumisen hetki"
+          : "After-work hours — straight from the office, the decompression hour",
+    });
   } else {
-    suggestions.push(
-      language === "fi"
-        ? "Iltatunnelma — myöhäinen ilta, bileet käynnissä, yöelämän syke"
-        : "Late night energy — the party is alive, the night crowd has arrived",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Myöhäinen ilta" : "Late night",
+      value:
+        language === "fi"
+          ? "Iltatunnelma — myöhäinen ilta, bileet käynnissä, yöelämän syke"
+          : "Late night energy — the party is alive, the night crowd has arrived",
+    });
   }
 
   if (month >= 5 && month <= 7) {
-    suggestions.push(
-      language === "fi"
-        ? "Kesäterassi — ulkoilma, auringonlasku, pitkät illat"
-        : "Summer terrace season — outdoor, sunset, long evenings, fresh air",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Kesäterassi" : "Summer terrace",
+      value:
+        language === "fi"
+          ? "Kesäterassi — ulkoilma, auringonlasku, pitkät illat"
+          : "Summer terrace season — outdoor, sunset, long evenings, fresh air",
+    });
   } else if (month >= 11 || month <= 1) {
-    suggestions.push(
-      language === "fi"
-        ? "Talvinen tunnelma — lämmintä valoa, pimeyttä vastaan, sisätilojen kodikkuus"
-        : "Winter warmth — cozy indoors, warm lighting, escape from the cold",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Talvitunnelma" : "Winter cozy",
+      value:
+        language === "fi"
+          ? "Talvinen tunnelma — lämmintä valoa, pimeyttä vastaan, sisätilojen kodikkuus"
+          : "Winter warmth — cozy indoors, warm lighting, escape from the cold",
+    });
   }
 
   if (month === 4 && day >= 28 && day <= 30) {
-    suggestions.push(
-      language === "fi"
-        ? "Vappu-tunnelma — kevään juhla, kaupungin suurin karnevaali"
-        : "Vappu celebration — Finland's biggest carnival, spring festival",
-    );
+    suggestions.push({
+      label: language === "fi" ? "Vappu" : "Vappu",
+      value:
+        language === "fi"
+          ? "Vappu-tunnelma — kevään juhla, kaupungin suurin karnevaali"
+          : "Vappu celebration — Finland's biggest carnival, spring festival",
+    });
   }
 
-  suggestions.push(
-    language === "fi"
-      ? "Syntymäpäivät tai juhlat — ryhmävaraukset, yksityistila"
-      : "Birthday or celebration — group bookings, private area",
-  );
-  suggestions.push(
-    language === "fi"
-      ? "Treffi-ilta — intiimi tunnelma, kahden hengen pöydät"
-      : "Date night — intimate atmosphere, tables for two",
-  );
+  suggestions.push({
+    label: language === "fi" ? "Syntymäpäivät" : "Birthday",
+    value:
+      language === "fi"
+        ? "Syntymäpäivät tai juhlat — ryhmävaraukset, yksityistila"
+        : "Birthday or celebration — group bookings, private area",
+  });
+  suggestions.push({
+    label: language === "fi" ? "Treffi-ilta" : "Date night",
+    value:
+      language === "fi"
+        ? "Treffi-ilta — intiimi tunnelma, kahden hengen pöydät"
+        : "Date night — intimate atmosphere, tables for two",
+  });
 
   return suggestions;
+}
+
+/** Builds a label→value lookup map from the current suggestion set. */
+function getContextValueMap(language: Language): Map<string, string> {
+  return new Map(
+    getContextualSuggestions(language).map((s) => [s.label, s.value]),
+  );
 }
 
 // ---- Tone instruction for appending to textarea ----
@@ -618,12 +652,12 @@ export default function UnifiedCreationFlow({
 
   // ---- Toggle context tag ----
 
-  const handleToggleContext = (suggestion: string) => {
+  const handleToggleContext = (suggestion: ContextSuggestion) => {
     setSelectedContexts((prev) => {
-      if (prev.includes(suggestion)) {
-        return prev.filter((s) => s !== suggestion);
+      if (prev.includes(suggestion.label)) {
+        return prev.filter((s) => s !== suggestion.label);
       }
-      return [...prev, suggestion];
+      return [...prev, suggestion.label];
     });
   };
 
@@ -695,7 +729,13 @@ export default function UnifiedCreationFlow({
             type,
             template: activeTemplate,
             tone: activeTone,
-            context: selectedContexts.length > 0 ? selectedContexts : undefined,
+            context:
+              selectedContexts.length > 0
+                ? selectedContexts.map(
+                    (label) =>
+                      getContextValueMap(language).get(label) || label,
+                  )
+                : undefined,
             language,
             numVariants: 3,
             nonce: nonceRef.current,
@@ -1374,18 +1414,17 @@ export default function UnifiedCreationFlow({
                   </HelperDesc>
                   <SuggestionRow>
                     {getContextualSuggestions(language).map((suggestion, i) => {
-                      const isSelected = selectedContexts.includes(suggestion);
+                      const isSelected = selectedContexts.includes(suggestion.label);
                       return (
                         <SuggestionChip
                           key={i}
                           $selected={isSelected}
                           onClick={() => handleToggleContext(suggestion)}
                           disabled={generatingText}
+                          title={suggestion.value}
                         >
                           {isSelected ? "✓ " : ""}
-                          {suggestion.length > 70
-                            ? suggestion.slice(0, 67) + "…"
-                            : suggestion}
+                          {suggestion.label}
                         </SuggestionChip>
                       );
                     })}
@@ -1444,9 +1483,11 @@ export default function UnifiedCreationFlow({
                       $kind="context"
                       onClick={() => handleRemoveContext(ctx)}
                       style={{ cursor: "pointer" }}
-                      title={language === "fi" ? "Poista" : "Remove"}
+                      title={
+                        getContextValueMap(language).get(ctx) || ctx
+                      }
                     >
-                      {ctx.length > 40 ? ctx.slice(0, 37) + "…" : ctx} ✕
+                      {ctx} ✕
                     </IngredientTag>
                   ))}
                 </IngredientsTags>
@@ -1486,7 +1527,10 @@ export default function UnifiedCreationFlow({
                       text,
                       activeTemplate,
                       activeTone,
-                      selectedContexts,
+                      selectedContexts.map(
+                        (label) =>
+                          getContextValueMap(language).get(label) || label,
+                      ),
                       language,
                     )
                       .split("\n")
@@ -2676,11 +2720,7 @@ const SuggestionChip = styled.button<{ $selected?: boolean }>`
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  white-space: nowrap;
   transition: all 0.15s;
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   &:hover:not(:disabled) {
     border-color: #7c3aed;
     color: #ffffff;
