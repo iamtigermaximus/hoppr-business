@@ -20,6 +20,71 @@ import { getCitationHeader, getCitationsForViolations } from "./valvira-referenc
 
 export type PromptLanguage = "en" | "fi";
 
+/** Short genre-specific characteristics — tells the AI WHAT makes each format
+ *  unique without giving it pre-written text to regurgitate. */
+export const TEMPLATE_CHARACTERISTICS: Record<string, { en: string; fi: string }> = {
+  "After-Work": {
+    en: "weekday timing (16:00–19:00), professional crowd unwinding, transition from work to evening, relaxed decompression, first drink of the evening",
+    fi: "arkipäivä (klo 16–19), ammattilaiset rentoutumassa, siirtymä työstä iltaan, rento tunnelma, illan ensimmäinen",
+  },
+  "Ladies Night": {
+    en: "group-focused, social energy, curated for friend groups, welcoming atmosphere, drinks and conversation, girls' night out",
+    fi: "ryhmille suunnattu, sosiaalinen energia, kuratoitu ystäväporukoille, tervetullut tunnelma, tyttöjen ilta",
+  },
+  "Live Music": {
+    en: "live performance focus, performer + audience dynamic, music genre as identity, sound filling the room, stage presence",
+    fi: "live-esiintyminen keskiössä, esiintyjän ja yleisön dynamiikka, musiikkigenre identiteettinä, ääni täyttää tilan",
+  },
+  "Game Night": {
+    en: "competitive socializing, team play, trivia/board games/bingo, playful tension, prizes and bragging rights",
+    fi: "kilpailuhenkinen seurustelu, joukkuepeli, tietovisa/lautapelit/bingo, leikkisä jännitys, palkinnot ja kerskumisoikeus",
+  },
+  "Food Special": {
+    en: "culinary focus, craftsmanship and ingredients, food as the main event, drink pairings, dining experience",
+    fi: "ruoka keskiössä, käsityö ja raaka-aineet, ruoka pääesiintyjänä, juomasuositukset, ruokailukokemus",
+  },
+  "VIP Experience": {
+    en: "elevated service, exclusive access, premium treatment, behind-the-rope, different level of attention",
+    fi: "kohotettu palvelu, eksklusiivinen pääsy, premium-kohtelu, köyden takana, eri huomion taso",
+  },
+  "Signature Evening": {
+    en: "one-of-a-kind concept, unique to this venue, curated atmosphere, something you'd cross town for",
+    fi: "ainutlaatuinen konsepti, uniikki tälle paikalle, kuratoitu tunnelma, jotain jonka takia matkustaa kaupungin halki",
+  },
+  "Theme Night": {
+    en: "immersive transformation, dress code, shared reality, the bar becomes something else for one night, theatrical",
+    fi: "uppouttava muutos, pukukoodi, jaettu todellisuus, baari muuttuu joksikin muuksi yhdeksi illaksi, teatterillinen",
+  },
+  "Naistenilta": {
+    en: "group-focused, social energy, curated for friend groups, welcoming atmosphere, drinks and conversation, girls' night out",
+    fi: "ryhmille suunnattu, sosiaalinen energia, kuratoitu ystäväporukoille, tervetullut tunnelma, tyttöjen ilta",
+  },
+  "Elävä musiikki": {
+    en: "live performance focus, performer + audience dynamic, music genre as identity, sound filling the room, stage presence",
+    fi: "live-esiintyminen keskiössä, esiintyjän ja yleisön dynamiikka, musiikkigenre identiteettinä, ääni täyttää tilan",
+  },
+  "Peli-ilta": {
+    en: "competitive socializing, team play, trivia/board games/bingo, playful tension, prizes and bragging rights",
+    fi: "kilpailuhenkinen seurustelu, joukkuepeli, tietovisa/lautapelit/bingo, leikkisä jännitys, palkinnot ja kerskumisoikeus",
+  },
+  "Ruokatarjous": {
+    en: "culinary focus, craftsmanship and ingredients, food as the main event, drink pairings, dining experience",
+    fi: "ruoka keskiössä, käsityö ja raaka-aineet, ruoka pääesiintyjänä, juomasuositukset, ruokailukokemus",
+  },
+  "VIP-kokemus": {
+    en: "elevated service, exclusive access, premium treatment, behind-the-rope, different level of attention",
+    fi: "kohotettu palvelu, eksklusiivinen pääsy, premium-kohtelu, köyden takana, eri huomion taso",
+  },
+  "Talon suositukset": {
+    en: "one-of-a-kind concept, unique to this venue, curated atmosphere, something you'd cross town for",
+    fi: "ainutlaatuinen konsepti, uniikki tälle paikalle, kuratoitu tunnelma, jotain jonka takia matkustaa kaupungin halki",
+  },
+  "Teemailta": {
+    en: "immersive transformation, dress code, shared reality, the bar becomes something else for one night, theatrical",
+    fi: "uppouttava muutos, pukukoodi, jaettu todellisuus, baari muuttuu joksikin muuksi yhdeksi illaksi, teatterillinen",
+  },
+};
+
 // ---------------------------------------------------------------------------
 // Finnish prohibited → approved translation maps for AI prompt injection
 // ---------------------------------------------------------------------------
@@ -378,9 +443,12 @@ export function buildGeneratePrompt(
   recentTitles: string[],
   userPrompt: string,
   type: string,
+  template?: string,
+  context?: string[],
   targetAudience?: string,
   language: PromptLanguage = "en",
   numVariants: number = 1,
+  nonce: number = 0,
 ): string {
   const isFi = language === "fi";
 
@@ -394,7 +462,12 @@ export function buildGeneratePrompt(
     ? (isFi ? `\nKohderyhmä: ${targetAudience}` : `\nTarget Audience: ${targetAudience}`)
     : "";
 
-  const complianceSection = buildComplianceSystemPrompt(language);
+  // Compliance guardrails — condensed from the full rules in rules.ts.
+  // Presented as creative BOUNDARIES, not a pick-list. The model must write
+  // original content that fits within these lines; it must NOT copy phrases.
+  const complianceReminder = isFi
+    ? `\n\nSUOMEN ALKOHOLIMARKKINOINNIN RAJAT — luovat raamit, EI sanalista:\nKIELLETTY: tilapaiset hinnanalennukset (happy hour, 2 yhden hinnalla), ilmaiset juomat, yli 22% viinat (vodka, viski, tequila), alaikaisiin vetoava kieli, juomapelit/kilpailut, humalahakuinen kulutus, terveysvaitteet.\nSALLITTU TYYLI (esimerkkeja, ALA kopioi): \"After-work tarjous\", \"Illan menu\", \"Talon kaadot\", \"Signature-cocktailit\", \"Premium-valikoima\", \"Reilut annokset\", \"Kuratoitu juomalista\".\nPERIAATE: kirjoita omaperaisesti naiden raamien sisalla — keskity tunnelmaan, elamykseen, ruokaan, musiikkiin ja sosiaaliseen ymparistoon.`
+    : `\n\nFINNISH ALCOHOL MARKETING BOUNDARIES — creative guardrails, NOT a word bank:\nPROHIBITED: temporary price cuts (happy hour, 2-for-1), free drinks, spirits over 22% ABV (vodka, whiskey, tequila), minor-targeting language, drinking games/contests, intoxication encouragement, health claims.\nCOMPLIANT STYLE (examples only — do NOT copy): \"After-work special\", \"Evening menu\", \"House pours\", \"Signature cocktails\", \"Premium selection\", \"Generous pours\", \"Curated drinks menu\".\nPRINCIPLE: write original content within these boundaries — focus on atmosphere, experience, food, music, and social environment.`;
 
   // Language-specific field labels for the JSON output schema
   const titleLabel = isFi ? "otsikko (max 60 merkkiä)" : "title (max 60 chars)";
@@ -417,8 +490,22 @@ export function buildGeneratePrompt(
   const moods = ["warm", "cool", "vibrant", "dark", "minimal"];
   const variantsInstruction = numVariants > 1
     ? (isFi
-        ? `\nLuo ${numVariants} TÄYSIN ERI vaihtoehtoa — uniikki sisältö JA visuaalinen ilme per variantti.\nERI template: ${templates.slice(0, numVariants).join(", ")} (yksi per variantti, EI toistoa)\nERI mood: ${moods.slice(0, numVariants).join(", ")} (yksi per variantti, EI toistoa)\nERI accentColor per variantti. Palauta JSON-taulukkona.`
-        : `\nGenerate ${numVariants} COMPLETELY DIFFERENT variants — unique content AND visual design per variant.\nDIFFERENT template: ${templates.slice(0, numVariants).join(", ")} (one per variant, NO repeats)\nDIFFERENT mood: ${moods.slice(0, numVariants).join(", ")} (one per variant, NO repeats)\nDIFFERENT accentColor per variant. Return as JSON array.`)
+        ? `\nLuo ${numVariants} TÄYSIN ERI vaihtoehtoa — JOKAINEN variantti ottaa ERI luovan kulman samaan tarjoukseen:\n` +
+          `1. TARJOUSKULMA: keskity siihen MITÄ asiakas saa — hinta, arvo, konkreettinen etu.\n` +
+          `2. TUNNELMAKULMA: keskity siihen MILTÄ TUNTUU — ilmapiiri, kokemus, aistit.\n` +
+          `3. SOSIAALINEN KULMA: keskity KENEEN ja KEHEN KANSSA — porukka, yhteisö, jaettu hetki.\n` +
+          `Jokaisella variantilla on ERI otsikko, ERI kuvaus, ERI sävy — ne eivät saa kuulostaa samalta.\n` +
+          `ERI template: ${templates.slice(0, numVariants).join(", ")} (yksi per variantti, EI toistoa)\n` +
+          `ERI mood: ${moods.slice(0, numVariants).join(", ")} (yksi per variantti, EI toistoa)\n` +
+          `ERI accentColor per variantti. Palauta JSON-taulukkona.`
+        : `\nGenerate ${numVariants} COMPLETELY DIFFERENT variants — EACH variant takes a DIFFERENT creative angle on the same promotion:\n` +
+          `1. OFFER ANGLE: focus on WHAT the customer gets — the deal, the value, the concrete benefit.\n` +
+          `2. VIBE ANGLE: focus on HOW IT FEELS — the atmosphere, the experience, the senses.\n` +
+          `3. SOCIAL ANGLE: focus on WHO and WITH WHOM — the crowd, the community, the shared moment.\n` +
+          `Each variant has a DIFFERENT title, DIFFERENT description, DIFFERENT voice — they must NOT sound the same.\n` +
+          `DIFFERENT template: ${templates.slice(0, numVariants).join(", ")} (one per variant, NO repeats)\n` +
+          `DIFFERENT mood: ${moods.slice(0, numVariants).join(", ")} (one per variant, NO repeats)\n` +
+          `DIFFERENT accentColor per variant. Return as JSON array.`)
     : "";
 
   // Language-specific visual guidelines
@@ -426,20 +513,60 @@ export function buildGeneratePrompt(
     ? `VISUAALISET OHJEET:\n- 'split': parhaiten ruoka/juoma-tarjouksiin kun baarilla on kuvia\n- 'centered': parhaiten livemusiikkiin, teemailtoihin, esiintyjäilmoituksiin\n- 'card': parhaiten yleisiin tarjouksiin ja some-jakoon\n- accentColor: sovita tunnelmaan (lämpimät sävyt ruualle/kodikkuudelle, viileät musiikille, eloisat juhliin)\n- overlayOpacity: 0.3 kirkkaille kuville, 0.5 tummille kuville, 0.4 oletus`
     : `VISUAL GUIDELINES:\n- 'split': best for food/drink promos when the bar has photos\n- 'centered': best for live music events, theme nights, performer announcements\n- 'card': best for general promos and social media sharing\n- accentColor: match the mood (warm tones for food/cozy, cool tones for music, vibrant for parties)\n- overlayOpacity: 0.3 for bright photos, 0.5 for dark photos, 0.4 default`;
 
+  // visualDirection field definition — shared across all output formats
+  const visualDirectionSchemaFi = `"visualDirection": {\n    "description": "TARKKA, KONKREETTINEN visuaalinen kohtaus, joka perustuu STRICTLY käyttäjän pyyntöön ja baarin ainutlaatuiseen identiteettiin. ÄLÄ kirjoita geneeristä baarin sisustusta. Kiinnitä jokainen yksityiskohta käyttäjän sanoihin — jos mainitaan terassi auringonlaskussa, kuvaile juuri HEIDÄN terassiaan siinä valossa. Jokaisen variantin visualDirection on OLTAVA TÄYSIN ERI — vaihtele tunnelmaa, perspektiiviä, vuorokaudenaikaa ja tilan tuntua.",\n    "keyElements": ["3-5 tarkkaa visuaalista elementtiä — jokaisen on oltava jäljitettävissä käyttäjän pyyntöön tai baarin identiteettiin. Ei geneerisiä 'baarituoleja'."],\n    "styleNotes": "valokuvaustyyli, joka sopii juuri tähän kohtaukseen"\n  }`;
+  const visualDirectionSchemaEn = `"visualDirection": {\n    "description": "A SPECIFIC, CONCRETE visual scene built STRICTLY from the user's request and the bar's unique identity. Do NOT write generic bar interiors. Anchor every detail in the user's own words — if they mention a terrace at sunset, describe THEIR terrace in that light. If they mention live music, describe the specific stage and performer. Every variant's visualDirection must be COMPLETELY DIFFERENT — vary the mood, perspective, time of day, and spatial feeling.",\n    "keyElements": ["3-5 specific visual elements — each must be traceable to the user's request or the bar's identity. No generic 'bar stools' or 'bottles'."],\n    "styleNotes": "photographic style that matches this specific scene (e.g. editorial, 35mm, golden hour, wide angle)"\n  }`;
+
   // Output format — fully bilingual
   const outputFormat = numVariants > 1
     ? (isFi
-        ? `Palauta VAIN JSON-taulukko (ei muuta tekstiä):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": luku 0-100 tai null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex-väri",\n    "conditions": "${conditionsLabel} (max 150 merkkiä)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n  },\n  ...\n]`
-        : `Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": number 0-100 or null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex color",\n    "conditions": "${conditionsLabel} (max 150 chars)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n  },\n  ...\n]`)
+        ? `Palauta VAIN JSON-taulukko (ei muuta tekstiä):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": luku 0-100 tai null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex-väri",\n    "conditions": "${conditionsLabel} (max 150 merkkiä)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n    ${visualDirectionSchemaFi}\n  },\n  ...\n]`
+        : `Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": number 0-100 or null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex color",\n    "conditions": "${conditionsLabel} (max 150 chars)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n    ${visualDirectionSchemaEn}\n  },\n  ...\n]`)
     : (isFi
-        ? `Palauta VAIN tämä JSON (ei muuta tekstiä):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": luku 0-100 tai null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex-väri",\n  "conditions": "${conditionsLabel} (max 150 merkkiä)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n}`
-        : `Return ONLY this exact JSON (no other text):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": number 0-100 or null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex color",\n  "conditions": "${conditionsLabel} (max 150 chars)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 }\n}`);
+        ? `Palauta VAIN tämä JSON (ei muuta tekstiä):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": luku 0-100 tai null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex-väri",\n  "conditions": "${conditionsLabel} (max 150 merkkiä)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n  ${visualDirectionSchemaFi}\n}`
+        : `Return ONLY this exact JSON (no other text):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": number 0-100 or null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex color",\n  "conditions": "${conditionsLabel} (max 150 chars)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n  ${visualDirectionSchemaEn}\n}`);
+
+  // Build the user request from ingredients — dynamic, not hardcoded
+  const contextTags = context && context.length > 0
+    ? context.map((c) => `- ${c}`).join("\n")
+    : "";
+  const templateLine = template
+    ? (() => {
+        const chars = TEMPLATE_CHARACTERISTICS[template];
+        const traits = chars
+          ? (isFi ? chars.fi : chars.en)
+          : null;
+        return isFi
+          ? `\nKampanjatyyppi: ${template}${traits ? ` — ominaispiirteet: ${traits}` : ""}. Käytä näitä luovana suuntana — älä kopioi valmista tekstiä. Kirjoita omaperäistä sisältöä juuri tälle baarille.`
+          : `\nTemplate type: ${template}${traits ? ` — characteristics: ${traits}` : ""}. Use these as creative direction only — do NOT copy pre-written text. Write original content for this specific bar.`;
+      })()
+    : "";
+  const userBriefLine = userPrompt
+    ? (isFi
+        ? `\nKäyttäjän kuvaus: ${userPrompt}`
+        : `\nUser's brief: ${userPrompt}`)
+    : "";
+  const contextLine = contextTags
+    ? (isFi
+        ? `\nLisäkonteksti:\n${contextTags}`
+        : `\nAdditional context:\n${contextTags}`)
+    : "";
+  const nonceLine = nonce > 0
+    ? (isFi
+        ? `\nVariaatioavain: ${nonce} — tuota TÄYSIN ERI sisältö kuin aiemmilla avaimilla.`
+        : `\nVariation seed: ${nonce} — generate COMPLETELY DIFFERENT content than previous seeds.`)
+    : "";
+
+  const ingredientsBlock = isFi
+    ? `${templateLine}${userBriefLine}${contextLine}${nonceLine}\n\nTÄRKEÄÄ — LUOVA OHJEISTUS:\nYhdistä yllä olevat ainekset ${numVariants} ainutlaatuiseksi ${type}-tyypin tarjoukseksi baarille "${barContext.name}".\n\nJOKAINEN variantti ammentaa eri asiasta:\n- Baarin ainutlaatuisista yksityiskohdista (${barContext.type} tyyli, ${barContext.district || "sijainti"}, ${barContext.priceRange || "hintataso"})\n- Valitusta äänensävystä ja kampanjatyypin ominaispiirteistä\n- Kontekstin ajankohtaisuudesta (kausi, vuorokaudenaika, säätila)\n\nKIELLETTY:\n- Geneeriset "liity meihin" / "tervetuloa" / "paras baari" -fraasit\n- Saman lauseen toistaminen eri varianteissa\n- Yleisluontoiset kuvaukset jotka sopisivat mihin tahansa baariin\n\nTEE NÄIN:\n- Mainitse KONKREETTISIA yksityiskohtia tästä baarista\n- Kirjoita niin kuin olisit itse paikalla — mitä näet, kuulet, tunnet\n- Jokainen variantti kuulostaa eri ihmisen kirjoittamalta`
+    : `${templateLine}${userBriefLine}${contextLine}${nonceLine}\n\nCRITICAL — CREATIVE INSTRUCTION:\nCombine the ingredients above into ${numVariants} unique ${type} promotions for "${barContext.name}".\n\nEACH variant draws from different aspects:\n- The bar's unique details (${barContext.type} style, ${barContext.district || "location"}, ${barContext.priceRange || "price level"})\n- The chosen tone and template characteristics\n- The context's timeliness (season, time of day, weather)\n\nFORBIDDEN:\n- Generic "join us" / "welcome" / "best bar in town" filler\n- Repeating the same sentence across variants\n- Bland descriptions that could fit any bar anywhere\n\nDO THIS:\n- Mention SPECIFIC, CONCRETE details about THIS bar\n- Write as if you're standing in the room — what you see, hear, feel\n- Each variant sounds like a different person wrote it`;
 
   // Fully bilingual return
+  // IMPORTANT: The creative instruction (ingredientsBlock) comes FIRST after bar context.
+  // Compliance is a short footnote at the end — the full rules are in the system prompt.
+  // This prevents compliance conservatism from collapsing all variants into near-identical text.
   return isFi
-    ? `${complianceSection}
-
-BAARIN TIEDOT:
+    ? `BAARIN TIEDOT:
 - Nimi: ${barContext.name}
 - Tyyppi: ${barContext.type}
 - Sijainti: ${barContext.district || ""}, ${barContext.cityName || ""}
@@ -448,20 +575,16 @@ BAARIN TIEDOT:
 - Kuvaus: ${barContext.description || "Loistava paikka nauttia illasta"}${audienceLine}${recentList}
 
 KÄYTTÄJÄN PYYNTÖ:
-${userPrompt || `Luo ${type}-tyyppinen tarjous tälle baarille.`}
+${ingredientsBlock}
 
-TÄRKEÄÄ — Kaikki sisältö TÄYTYY olla SUOMEKSI. Jos tuotat englantia, tulos hylätään.
+TARKEAA — Kaikki sisalto TAYTYY olla SUOMEKSI. Jos tuotat englantia, tulos hylataan.
 
-KAIKKI teksti TÄYTYY olla suomeksi. Otsikko, kuvaus, toimintakehote ja ehdot — kaikki suomeksi.${variantsInstruction}
+KAIKKI teksti TAYTYY olla suomeksi. Otsikko, kuvaus, toimintakehote ja ehdot — kaikki suomeksi.${variantsInstruction}
 
 ${outputFormat}
 
-${visualGuidelines}
-
-Kaiken tekstin on noudatettava yllä olevia Suomen alkoholimarkkinointisääntöjä.`
-    : `${complianceSection}
-
-BAR CONTEXT:
+${visualGuidelines}${complianceReminder}`
+    : `BAR CONTEXT:
 - Name: ${barContext.name}
 - Type: ${barContext.type}
 - Location: ${barContext.district || ""}, ${barContext.cityName || ""}
@@ -470,16 +593,11 @@ BAR CONTEXT:
 - Description: ${barContext.description || "A great place to enjoy nightlife"}${audienceLine}${recentList}
 
 USER REQUEST:
-${userPrompt || `Create a ${type} promotion for this bar.`}
+${ingredientsBlock}
 
-IMPORTANT — All content below MUST be in English. Do not output Finnish.
-
-All text MUST be in English.${variantsInstruction}
+IMPORTANT — All content MUST be in English. Do not output Finnish.${variantsInstruction}
 
 ${outputFormat}
 
-${visualGuidelines}
-
-All text MUST comply with Finnish alcohol marketing rules above.
-Title and description will be scanned and blocked if non-compliant.`;
+${visualGuidelines}${complianceReminder}`;
 }

@@ -229,7 +229,7 @@ export const COMPLIANCE_RULES: ComplianceRuleDefinition[] = [
       /underage/i,
       /high\s*school/i,
       /back\s*to\s*school/i,
-      /teen(s|ager)?/i,
+      /\bteen(s|agers?)?\b/i,
       /student\s*(discount|price|special|deal|night)/i,
       /prom\s*(night|party|special)/i,
       /graduation\s*(party|special|drink)/i,

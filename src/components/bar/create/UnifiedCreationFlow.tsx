@@ -1,19 +1,24 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import styled from "styled-components";
 import type { ContentType, FormState } from "./types";
 import { PROMOTION_TYPES } from "./types";
-import VariantPicker, { type PromotionVariant } from "./VariantPicker";
 import type { ContentTone } from "./ToneSelector";
 import { TONE_OPTIONS } from "./ToneSelector";
 import ImageUploader from "./shared/ImageUploader";
-import AIImageGenerator from "./shared/AIImageGenerator";
+import { deriveImageChips } from "@/lib/prompts/tone-to-image-chips";
+import { TEMPLATE_CHARACTERISTICS } from "@/lib/compliance/prompts";
+import {
+  getWizardForTemplate,
+  assembleWizardPrompt,
+  type WizardStep,
+} from "@/lib/prompts/template-wizards";
 
 // ---- Types ----
 
 type Language = "fi" | "en";
-type FlowStep = "type" | "brief" | "variants" | "review";
+type FlowStep = "type" | "brief" | "refine" | "images" | "publish";
 
 interface UnifiedCreationFlowProps {
   barId: string;
@@ -29,6 +34,23 @@ interface UnifiedCreationFlowProps {
   submitting?: boolean;
 }
 
+interface EditableVariant {
+  title: string;
+  description: string;
+  type: string;
+  discount: number | null;
+  callToAction: string;
+  accentColor: string;
+  conditions: string;
+  visualDirection: {
+    description: string;
+    keyElements: string[];
+    styleNotes: string;
+  } | null;
+  /** The Flux prompt — derived from visualDirection but fully editable */
+  fluxPrompt: string;
+}
+
 // ---- Constants ----
 
 const TYPE_OPTIONS: {
@@ -37,90 +59,221 @@ const TYPE_OPTIONS: {
   desc: string;
   emoji: string;
 }[] = [
-  {
-    value: "promotion",
-    label: "Promotion",
-    desc: "Happy hours, drink specials, food deals",
-    emoji: "",
-  },
-  {
-    value: "event",
-    label: "Event",
-    desc: "Live music, game nights, theme parties",
-    emoji: "",
-  },
-  {
-    value: "campaign",
-    label: "Ad Campaign",
-    desc: "Boosted listings, featured placements",
-    emoji: "",
-  },
-  {
-    value: "pass",
-    label: "Pass / Ticket",
-    desc: "Skip-line, VIP, cover charge passes",
-    emoji: "",
-  },
+  { value: "promotion", label: "Promotion", desc: "Happy hours, drink specials, food deals", emoji: "" },
+  { value: "event", label: "Event", desc: "Live music, game nights, theme parties", emoji: "" },
+  { value: "campaign", label: "Ad Campaign", desc: "Boosted listings, featured placements", emoji: "" },
+  { value: "pass", label: "Pass / Ticket", desc: "Skip-line, VIP, cover charge passes", emoji: "" },
 ];
 
 const TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
   en: [
-    { label: "After-Work", prompt: "After-work evening — great music, relaxed atmosphere, and the perfect place to unwind after the office. Weekday afternoons 16:00–19:00. Focus on the vibe." },
-    { label: "Ladies Night", prompt: "Ladies Night — exclusive evening for women, Friday or Saturday. Welcoming atmosphere with great music, service, and company. No price mentions or special offers." },
-    { label: "Live Music", prompt: "Live music performance — band or DJ, evening event. Describe the experience, atmosphere, date and time." },
-    { label: "Game Night", prompt: "Quiz or bingo night — entry included, competitive team atmosphere, weekday evening. Focus on fun and social experience." },
-    { label: "Food Special", prompt: "Food special — featured menu items or combo selections, weekday evenings. Focus on food quality and pairing suggestions." },
-    { label: "VIP Experience", prompt: "Premium experience — priority entry, reserved seating, exclusive area access. Describe the elevated service and atmosphere." },
-    { label: "Signature Evening", prompt: "Signature evening — our team's top recommendations for the night. Focus on craftsmanship, unique flavours, and the bar's character." },
-    { label: "Theme Night", prompt: "Theme night — karaoke, 80s retro, sports screening. Describe the theme and entertainment. Focus on the experience." },
+    { label: "After-Work", prompt: "After-work gathering. The moment the workday ends and the evening begins. Describe the transition — the first drink, the decompression, the shift in energy as people unwind. Focus on atmosphere over specifics." },
+    { label: "Ladies Night", prompt: "A night designed for groups of friends. The music, the welcome, the space — all curated to make groups feel at home. Describe the social energy, the laughter, the feeling of a night out with your people." },
+    { label: "Live Music", prompt: "Music takes over the room. The first chord, the shifting crowd, the shared experience of live sound. Describe the performer, the audience, the moment when everything else fades and only the music matters." },
+    { label: "Game Night", prompt: "Friendly competition with drinks in hand. The playful tension, the surprise victory, the laughter after a wrong answer. Describe the social glue of games — how they turn strangers into teammates." },
+    { label: "Food Special", prompt: "The kitchen is showing off. A dish worth planning your evening around. Describe the craftsmanship, the ingredients, the pairing, the satisfaction of a meal that exceeds expectations." },
+    { label: "VIP Experience", prompt: "Behind the rope, above the crowd. A different pace, a different level of attention. Describe what makes this experience feel elevated — not just exclusive, but genuinely better." },
+    { label: "Signature Evening", prompt: "A curated night that couldn't happen anywhere else. Something unique to this bar, this team, this moment. Describe the concept, the craft, the reason someone would cross town for this." },
+    { label: "Theme Night", prompt: "The bar transforms. A concept, a dress code, a shared reality that everyone in the room is part of. Describe the immersion — what it looks like, sounds like, feels like to step into a different world for one night." },
   ],
   fi: [
-    { label: "After-Work", prompt: "After-work-ilta — hyvää musiikkia, rento tunnelma ja täydellinen paikka rentoutua toimiston jälkeen. Arki-iltapäivisin klo 16–19. Keskity tunnelmaan." },
-    { label: "Naistenilta", prompt: "Naistenilta — naisille suunnattu ilta, perjantai tai lauantai. Viihtyisä tunnelma, hyvää musiikkia, palvelua ja seuraa. Älä mainitse hintoja tai erikoistarjouksia." },
-    { label: "Elävä musiikki", prompt: "Live-esiintyminen — bändi tai DJ, iltatapahtuma. Kuvaile elämystä, tunnelmaa, päivämäärää ja kellonaikaa." },
-    { label: "Peli-ilta", prompt: "Tietovisa- tai bingoilta — osallistuminen sisältyy, kilpailuhenkinen joukkuetunnelma, arki-ilta. Keskity hauskuuteen ja sosiaaliseen kokemukseen." },
-    { label: "Ruokatarjous", prompt: "Ruokatarjous — suositeltuja annoksia tai yhdistelmiä, arki-iltaisin. Keskity ruoan laatuun ja yhdistelyvinkkeihin." },
-    { label: "VIP-kokemus", prompt: "Premium-kokemus — etuoikeutettu sisäänpääsy, varattu istumapaikka, pääsy eksklusiiviselle alueelle. Kuvaile parempaa palvelua ja tunnelmaa." },
-    { label: "Talon suositukset", prompt: "Talon suositukset — tiimimme parhaat suositukset illalle. Keskity käsityötaitoon, ainutlaatuisiin makuihin ja baarin luonteeseen." },
-    { label: "Teemailta", prompt: "Teemailta — karaoke, 80-luvun retro, urheilulähetys. Kuvaile teemaa ja viihdettä. Keskity elämykseen." },
+    { label: "After-Work", prompt: "After-work-kokoontuminen. Hetki jolloin työpäivä päättyy ja ilta alkaa. Kuvaile siirtymä — ensimmäinen juoma, rentoutuminen, energian muutos. Keskity tunnelmaan." },
+    { label: "Naistenilta", prompt: "Ilta ystäväporukoille. Musiikki, vastaanotto, tila — kaikki kuratoitu ryhmien viihtymiseen. Kuvaile sosiaalista energiaa, naurua, yhdessä vietetyn illan tunnelmaa." },
+    { label: "Elävä musiikki", prompt: "Musiikki valtaa tilan. Ensimmäinen sointu, liikkuva yleisö, jaettu live-äänen kokemus. Kuvaile esiintyjää, yleisöä, hetkeä jolloin kaikki muu katoaa." },
+    { label: "Peli-ilta", prompt: "Ystävällismielistä kilpailua juoman äärellä. Leikkisä jännitys, yllätysvoitto, nauru väärän vastauksen jälkeen. Kuvaile pelien sosiaalista liimaa." },
+    { label: "Ruokatarjous", prompt: "Keittiö näyttää osaamistaan. Annos, jonka ympärille kannattaa suunnitella ilta. Kuvaile käsityötaitoa, raaka-aineita, makupareja, ateriaa joka ylittää odotukset." },
+    { label: "VIP-kokemus", prompt: "Köyden takana, väkijoukon yllä. Eri rytmi, eri huomion taso. Kuvaile mikä tekee tästä kokemuksesta kohotetun — ei vain eksklusiivisen, vaan aidosti paremman." },
+    { label: "Talon suositukset", prompt: "Kuratoitu ilta jota ei voisi tapahtua missään muualla. Jotain ainutlaatuista tälle baarille, tälle tiimille, tälle hetkelle. Kuvaile konsepti, syy miksi joku matkustaisi kaupungin halki tämän takia." },
+    { label: "Teemailta", prompt: "Baari muuntuu. Konsepti, pukukoodi, jaettu todellisuus. Kuvaile immersio — miltä näyttää, kuulostaa, tuntuu astua eri maailmaan yhden illan ajaksi." },
   ],
 };
 
 const LAYOUT_HINTS = [
-  {
-    template: "split" as const,
-    label: "Split",
-    desc: "Photo left, text right",
-  },
-  {
-    template: "centered" as const,
-    label: "Centered",
-    desc: "Bold headline focus",
-  },
+  { template: "split" as const, label: "Split", desc: "Photo left, text right" },
+  { template: "centered" as const, label: "Centered", desc: "Bold headline focus" },
   { template: "card" as const, label: "Card", desc: "Square, photo-forward" },
 ];
 
 const PLACEHOLDERS: Record<Language, string> = {
   fi: 'Kuvaile mitä haluat luoda — esim. "Perjantain after-work, klo 16–19, rento tunnelma ja hyvää musiikkia"',
-  en: 'Describe what you want — e.g. "Friday after-work, 16:00–19:00, relaxed atmosphere with great music"',
+  en: 'Describe what you want — e.g. "Friday after-work, 4–7pm, relaxed atmosphere with great music"',
 };
 
 const GENERATING_MESSAGES: Record<Language, string> = {
-  fi: "Tekoälymme luo vaihtoehtoja...",
-  en: "Our AI is crafting your options...",
+  fi: "Tekoäly luo vaihtoehtoja...",
+  en: "AI is crafting your options...",
 };
 
-// ---- Helpers ----
+const GENERATING_IMAGES_MSG: Record<Language, string> = {
+  fi: "Luodaan kuvia...",
+  en: "Generating images...",
+};
+
+// ---- Progress labels ----
 
 const STEP_LABELS: Record<FlowStep, string> = {
   type: "What are you creating?",
   brief: "Describe what's happening",
-  variants: "Choose your favorite",
-  review: "Review & publish",
+  refine: "Review & edit",
+  images: "Choose your image",
+  publish: "Review & publish",
 };
 
 function stepNumber(step: FlowStep): number {
-  return ["type", "brief", "variants", "review"].indexOf(step) + 1;
+  return ["type", "brief", "refine", "images", "publish"].indexOf(step) + 1;
+}
+
+// ---- Progress display labels (short, for the progress bar) ----
+
+const PROGRESS_LABELS: Record<FlowStep, string> = {
+  type: "Type",
+  brief: "Brief",
+  refine: "Refine",
+  images: "Image",
+  publish: "Publish",
+};
+
+// ---- Contextual suggestions ----
+
+function getContextualSuggestions(language: Language): string[] {
+  const now = new Date();
+  const month = now.getMonth();
+  const day = now.getDate();
+  const dayOfWeek = now.toLocaleDateString("en-US", { weekday: "long" });
+  const hour = now.getHours();
+  const suggestions: string[] = [];
+
+  if (dayOfWeek === "Friday" || dayOfWeek === "Saturday") {
+    suggestions.push(
+      language === "fi"
+        ? `${dayOfWeek === "Friday" ? "Perjantai" : "Lauantai"}-illan tunnelma, viikonlopun aloitus, bilekansa liikkeellä`
+        : "Weekend energy — the crowd is ready, the vibe is high, the night is wide open",
+    );
+  } else if (dayOfWeek === "Thursday") {
+    suggestions.push(
+      language === "fi"
+        ? "Torstai on uusi perjantai — viikonlopun odotus, rento mutta energinen fiilis"
+        : "Thursday — the weekend starts early, the smart crowd is already out",
+    );
+  } else {
+    suggestions.push(
+      language === "fi"
+        ? "Arki-illan rentous — vähemmän tungosta, enemmän tilaa nauttia"
+        : "Weekday calm — less crowd, more room to breathe, the regulars' night",
+    );
+  }
+
+  if (hour < 12) {
+    suggestions.push(language === "fi" ? "Päivätapahtuma — brunssi, lounas, aikainen startti" : "Daytime event — brunch, lunch, early start, different energy");
+  } else if (hour >= 16 && hour < 20) {
+    suggestions.push(language === "fi" ? "After-work-aika — toimistolta suoraan, rentoutumisen hetki" : "After-work hours — straight from the office, the decompression hour");
+  } else {
+    suggestions.push(language === "fi" ? "Iltatunnelma — myöhäinen ilta, bileet käynnissä, yöelämän syke" : "Late night energy — the party is alive, the night crowd has arrived");
+  }
+
+  if (month >= 5 && month <= 7) {
+    suggestions.push(language === "fi" ? "Kesäterassi — ulkoilma, auringonlasku, pitkät illat" : "Summer terrace season — outdoor, sunset, long evenings, fresh air");
+  } else if (month >= 11 || month <= 1) {
+    suggestions.push(language === "fi" ? "Talvinen tunnelma — lämmintä valoa, pimeyttä vastaan, sisätilojen kodikkuus" : "Winter warmth — cozy indoors, warm lighting, escape from the cold");
+  }
+
+  if (month === 4 && day >= 28 && day <= 30) {
+    suggestions.push(language === "fi" ? "Vappu-tunnelma — kevään juhla, kaupungin suurin karnevaali" : "Vappu celebration — Finland's biggest carnival, spring festival");
+  }
+
+  suggestions.push(language === "fi" ? "Syntymäpäivät tai juhlat — ryhmävaraukset, yksityistila" : "Birthday or celebration — group bookings, private area");
+  suggestions.push(language === "fi" ? "Treffi-ilta — intiimi tunnelma, kahden hengen pöydät" : "Date night — intimate atmosphere, tables for two");
+
+  return suggestions;
+}
+
+// ---- Tone instruction for appending to textarea ----
+
+function toneInstructionText(tone: ContentTone, language: Language): string {
+  if (language === "fi") {
+    const map: Record<ContentTone, string> = {
+      BOLD_ENERGETIC: "Äänensävy: rohkea ja energinen. Lyhyitä lauseita, aktiivisia verbejä, suoria kehotuksia.",
+      WARM_INVITING: "Äänensävy: lämmin ja kutsuva. Keskity tunnelmaan ja vieraanvaraisuuteen.",
+      EDGY_IRREVERENT: "Äänensävy: ronski ja railakas. Rentoa, suoraa, persoonallista.",
+      ELEGANT_PREMIUM: "Äänensävy: elegantti ja premium. Hillittyä, laadukasta, hienostunutta.",
+      PLAYFUL_FUN: "Äänensävy: leikkisä ja hauska. Iloinen, energinen, rento.",
+    };
+    return map[tone];
+  }
+  const map: Record<ContentTone, string> = {
+    BOLD_ENERGETIC: "Tone: bold and energetic. Short sentences, active verbs, direct CTAs.",
+    WARM_INVITING: "Tone: warm and inviting. Focus on atmosphere and hospitality.",
+    EDGY_IRREVERENT: "Tone: edgy and irreverent. Casual, direct, personality-driven.",
+    ELEGANT_PREMIUM: "Tone: elegant and premium. Understated sophistication.",
+    PLAYFUL_FUN: "Tone: playful and fun. Upbeat, emoji-friendly, energetic.",
+  };
+  return map[tone];
+}
+
+// ---- Build initial Flux prompt from visualDirection ----
+
+function buildInitialFluxPrompt(vd: { description: string; keyElements: string[]; styleNotes: string } | null | undefined): string {
+  if (!vd) return "";
+  const elements = vd.keyElements?.length ? `Key elements: ${vd.keyElements.join(", ")}.` : "";
+  const notes = vd.styleNotes ? `Style: ${vd.styleNotes}.` : "";
+  return [vd.description, elements, notes].filter(Boolean).join(" ");
+}
+
+// ---- Build live preview of the combined prompt from ingredients ----
+
+function buildPreviewPrompt(
+  barName: string,
+  prompt: string,
+  template: string | null,
+  tone: ContentTone | null,
+  contexts: string[],
+  language: Language,
+): string {
+  const parts: string[] = [];
+  const isFi = language === "fi";
+
+  if (template) {
+    const chars = TEMPLATE_CHARACTERISTICS[template];
+    const traits = chars ? (isFi ? chars.fi : chars.en) : null;
+    parts.push(
+      isFi
+        ? `Kampanjatyyppi: ${template}${traits ? ` — ${traits}` : ""}`
+        : `Template type: ${template}${traits ? ` — ${traits}` : ""}`,
+    );
+  }
+
+  if (tone) {
+    const toneLabel = TONE_OPTIONS.find((t) => t.value === tone)?.label || tone;
+    parts.push(
+      isFi ? `Äänensävy: ${toneLabel}` : `Tone: ${toneLabel}`,
+    );
+  }
+
+  if (contexts.length > 0) {
+    parts.push(
+      isFi
+        ? `Konteksti: ${contexts.join(", ")}`
+        : `Context: ${contexts.join(", ")}`,
+    );
+  }
+
+  if (prompt.trim()) {
+    parts.push(
+      isFi
+        ? `\nKäyttäjän kuvaus:\n${prompt.trim()}`
+        : `\nUser's brief:\n${prompt.trim()}`,
+    );
+  }
+
+  if (parts.length === 0) return "";
+
+  parts.push(
+    isFi
+      ? `\n\n→ Näistä aineksista luodaan 3 uniikkia varianttia baarille "${barName}".`
+      : `\n\n→ From these ingredients, 3 unique variants will be created for "${barName}".`,
+  );
+
+  return parts.join("\n");
 }
 
 // ---- Component ----
@@ -145,94 +298,183 @@ export default function UnifiedCreationFlow({
   // Brief state
   const [text, setText] = useState("");
   const [language, setLanguage] = useState<Language>("en");
-  const [activeTone, setActiveTone] = useState<ContentTone | null>(
-    contentTone ?? null,
-  );
+  const [activeTone, setActiveTone] = useState<ContentTone | null>(contentTone ?? null);
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
-  const [activeLayout, setActiveLayout] = useState<string | null>(null);
-
-  // Generation state
-  const [variants, setVariants] = useState<PromotionVariant[]>([]);
+  const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
+  const [customContextInput, setCustomContextInput] = useState("");
+  const nonceRef = useRef(0);
+  const [complianceBlocked, setComplianceBlocked] = useState<{ reasons: string[] } | null>(null);
+  const [complianceWarnings, setComplianceWarnings] = useState<string[] | null>(null);
+  const [usingFallback, setUsingFallback] = useState(false);
   const [inferredType, setInferredType] = useState<string>("promotion");
-  const [generating, setGenerating] = useState(false);
-  const [imageTab, setImageTab] = useState<"upload" | "ai">("upload");
-  const [sharedBgImage, setSharedBgImage] = useState<string | null>(null);
 
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+  // Helper collapse state
+  const [toneOpen, setToneOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // Wizard state
+  const [wizardActive, setWizardActive] = useState(false);
+  const [wizardStep, setWizardStep] = useState(0);
+  const [wizardAnswers, setWizardAnswers] = useState<Record<string, string>>({});
+  const wizardConfig = activeTemplate ? getWizardForTemplate(activeTemplate) : null;
+  const wizardSteps: WizardStep[] =
+    wizardConfig && wizardConfig.steps[language]
+      ? wizardConfig.steps[language]
+      : [];
+
+  // Auto-open preview when any ingredient is selected
+  const hasIngredients = !!(activeTone || activeTemplate || selectedContexts.length > 0 || text.trim());
+  useEffect(() => {
+    if (hasIngredients) {
+      setPreviewOpen(true);
+    }
+  }, [activeTone, activeTemplate, selectedContexts, text, hasIngredients]);
+
+  // Text generation state
+  const [variants, setVariants] = useState<EditableVariant[]>([]);
+  const [generatingText, setGeneratingText] = useState(false);
+
+  // Image generation state
+  const [variantImages, setVariantImages] = useState<(string | null)[]>([]);
+  const [variantImagesLoading, setVariantImagesLoading] = useState<boolean[]>([]);
+  const [generatingImages, setGeneratingImages] = useState(false);
+  const [variantLayouts, setVariantLayouts] = useState<Array<"split" | "centered" | "card">>([]);
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
 
   // ---- Tone ----
 
   const handleToneSelect = (tone: ContentTone) => {
-    setActiveTone(activeTone === tone ? null : tone);
+    const newTone = activeTone === tone ? null : tone;
+    setActiveTone(newTone);
+
+    if (newTone) {
+      const instruction = toneInstructionText(newTone, language);
+      setText((prev) => {
+        const trimmed = prev.trim();
+        // Replace existing tone line or append
+        const lines = trimmed.split("\n");
+        const toneIdx = lines.findIndex((l) => l.startsWith("Tone:") || l.startsWith("Äänensävy:"));
+        if (toneIdx >= 0) {
+          lines[toneIdx] = instruction;
+          return lines.join("\n");
+        }
+        return trimmed ? `${trimmed}\n\n${instruction}` : instruction;
+      });
+    }
   };
 
   // ---- Template click → fill textarea ----
 
-  const handleTemplateClick = (label: string, prompt: string) => {
-    setText(prompt);
+  const handleTemplateClick = (label: string) => {
+    const isDeselect = activeTemplate === label;
+    if (isDeselect) {
+      setActiveTemplate(null);
+      setWizardActive(false);
+      setWizardStep(0);
+      setWizardAnswers({});
+      return;
+    }
+
     setActiveTemplate(label);
+    const wizard = getWizardForTemplate(label);
+
+    if (wizard) {
+      setWizardActive(true);
+      setWizardStep(0);
+      setWizardAnswers({});
+    } else {
+      setWizardActive(false);
+      setWizardStep(0);
+      setWizardAnswers({});
+    }
   };
 
-  // ---- AI Generation ----
+  // ---- Wizard ----
 
-  /** Generate a single shared background image from inferred chips.
-   *  All variant cards display this same image — only the text layout varies. */
-  const generateSharedImage = useCallback(
-    async (variant: PromotionVariant, authToken: string) => {
-      if (!variant.imageChips) return;
-      try {
-        const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${authToken}`,
-          },
-          body: JSON.stringify({
-            styleId: variant.imageChips.styleId,
-            subjectId: variant.imageChips.subjectId,
-            compositionId: variant.imageChips.compositionId,
-            contentType: "promotion",
-            count: 2,
-            formContext: {
-              title: variant.title,
-              description: variant.description,
-              promotionType: variant.type,
-              barName,
-            },
-          }),
-        });
-        const data = await res.json();
-        if (data.urls && data.urls.length > 0) {
-          setSharedBgImage(data.urls[0]);
-        }
-      } catch {
-        // Silently fall back — cards show OG text overlay without background
+  const handleWizardAnswer = (stepLabel: string, promptFragment: string) => {
+    const updated = { ...wizardAnswers, [stepLabel]: promptFragment };
+    setWizardAnswers(updated);
+
+    if (wizardStep < wizardSteps.length - 1) {
+      setWizardStep(wizardStep + 1);
+      setText(assembleWizardPrompt(updated, barName, language));
+    } else {
+      setWizardActive(false);
+      setText(assembleWizardPrompt(updated, barName, language));
+    }
+  };
+
+  const handleWizardBack = () => {
+    if (wizardStep > 0) {
+      const currentStepLabel = wizardSteps[wizardStep].label;
+      const updated = { ...wizardAnswers };
+      delete updated[currentStepLabel];
+      setWizardAnswers(updated);
+      setWizardStep(wizardStep - 1);
+      setText(assembleWizardPrompt(updated, barName, language));
+    }
+  };
+
+  const handleWizardDismiss = () => {
+    setWizardActive(false);
+  };
+
+  // ---- Regenerate brief — re-calls AI with new nonce for guaranteed different output ----
+
+  const handleRegenerateBrief = () => {
+    nonceRef.current += 1;
+    handleGenerateText();
+  };
+
+  // ---- Toggle context tag ----
+
+  const handleToggleContext = (suggestion: string) => {
+    setSelectedContexts((prev) => {
+      if (prev.includes(suggestion)) {
+        return prev.filter((s) => s !== suggestion);
       }
-    },
-    [barId, barName],
-  );
+      return [...prev, suggestion];
+    });
+  };
 
-  const handleGenerate = useCallback(async () => {
+  // ---- Add custom context ----
+
+  const handleAddCustomContext = () => {
+    const trimmed = customContextInput.trim();
+    if (!trimmed) return;
+    if (selectedContexts.includes(trimmed)) return;
+    setSelectedContexts((prev) => [...prev, trimmed]);
+    setCustomContextInput("");
+  };
+
+  // ---- Remove context (from summary tags) ----
+
+  const handleRemoveContext = (ctx: string) => {
+    setSelectedContexts((prev) => prev.filter((s) => s !== ctx));
+  };
+
+  // ---- Step 2 → 3: Generate text ----
+
+  const handleGenerateText = useCallback(async () => {
     const input = text.trim();
-    if (!input || !token) return;
+    if (!token) return;
 
-    setGenerating(true);
+    setGeneratingText(true);
     setError(null);
+    setComplianceBlocked(null);
+    setComplianceWarnings(null);
+    setUsingFallback(false);
     setVariants([]);
 
     try {
+      // Type inference
       const suggestRes = await fetch(`/api/auth/bar/${barId}/create/suggest`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          text: input,
-          language,
-          contentTone: activeTone,
-        }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ text: input, language, contentTone: activeTone }),
       });
 
       if (!suggestRes.ok) {
@@ -244,144 +486,279 @@ export default function UnifiedCreationFlow({
       const type = (suggestData.inferredType as string) || "promotion";
       setInferredType(type);
 
-      const genRes = await fetch(
-        `/api/auth/bar/${barId}/promotions/ai-generate`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            prompt: input,
-            type,
-            language,
-            numVariants: 3,
-            contentTone: activeTone,
-            layoutHint: activeLayout,
-          }),
-        },
-      );
-
-      if (!genRes.ok) {
-        const data = await genRes.json();
-        throw new Error(data.error || "Variant generation failed");
-      }
+      // Text generation — sends structured ingredients, not hardcoded text
+      const genRes = await fetch(`/api/auth/bar/${barId}/promotions/ai-generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          prompt: input || undefined,
+          type,
+          template: activeTemplate,
+          tone: activeTone,
+          context: selectedContexts.length > 0 ? selectedContexts : undefined,
+          language,
+          numVariants: 3,
+          nonce: nonceRef.current,
+        }),
+      });
 
       const genData = await genRes.json();
 
-      if (genData.variants && Array.isArray(genData.variants)) {
-        const vars = genData.variants as PromotionVariant[];
-        setVariants(vars);
-        setStep("variants");
-
-        // Generate ONE shared background image from the first variant's inferred chips.
-        // The variant cards show different text layouts on this same image — not new images.
-        const first = vars[0];
-        if (first.imageChips) {
-          generateSharedImage(first, token);
+      if (!genRes.ok) {
+        // Handle compliance pre-check failure
+        if (genData.complianceBlocked) {
+          setComplianceBlocked({ reasons: genData.complianceBlocked });
+          throw new Error(genData.error || "Prompt blocked by compliance check");
         }
-
-        const previewVisual = activeLayout
-          ? {
-              template: activeLayout as "split" | "centered" | "card",
-              mood: "dark",
-              overlayOpacity: 0.4,
-            }
-          : first.visual;
-
-        onGenerated({
-          ...suggestData,
-          _previewOnly: true,
-          cardFormat: "wide",
-          title: first.title,
-          description: first.description,
-          promotionType: first.type,
-          discountValue: first.discount,
-          conditions: first.conditions,
-          callToAction: first.callToAction,
-          visual: {
-            ...(previewVisual || {}),
-            accentColor: first.accentColor,
-          },
-        });
-        return;
+        throw new Error(genData.error || "Variant generation failed");
       }
 
-      onGenerated({ ...suggestData, cardFormat: "wide" });
-      setStep("review");
+      // Show compliance post-check warnings if any (not errors — informational)
+      if (genData.complianceWarnings && genData.complianceWarnings.length > 0) {
+        setComplianceWarnings(genData.complianceWarnings as string[]);
+      } else {
+        setComplianceWarnings(null);
+      }
+
+      // Show fallback warning when AI wasn't used (key missing, API down, or all variants filtered)
+      if (!genData.aiGenerated && genData.warning) {
+        setUsingFallback(true);
+        setComplianceWarnings((prev) => [
+          ...(prev || []),
+          genData.warning as string,
+        ]);
+      } else {
+        setUsingFallback(false);
+      }
+
+      if (genData.variants && Array.isArray(genData.variants)) {
+        const rawVariants = genData.variants as Array<Record<string, unknown>>;
+
+        // Build editable variants with Flux prompts
+        const editableVariants: EditableVariant[] = rawVariants.map((v) => {
+          const vd = v.visualDirection as EditableVariant["visualDirection"] | undefined;
+          return {
+            title: (v.title as string) || "",
+            description: (v.description as string) || "",
+            type: (v.type as string) || type,
+            discount: (v.discount as number) ?? null,
+            callToAction: (v.callToAction as string) || "",
+            accentColor: (v.accentColor as string) || "#7c3aed",
+            conditions: (v.conditions as string) || "",
+            visualDirection: vd || null,
+            fluxPrompt: buildInitialFluxPrompt(vd),
+          };
+        });
+
+        setVariants(editableVariants);
+        // Use the AI's chosen template per variant, not hardcoded "split"
+        setVariantLayouts(
+          rawVariants.map((v) => {
+            const t = (v.visual as Record<string, unknown> | undefined)?.template as string | undefined;
+            return (t && ["split", "centered", "card"].includes(t)) ? t as "split" | "centered" | "card" : "split";
+          })
+        );
+        setVariantImages(new Array(editableVariants.length).fill(null));
+        setStep("refine");
+      } else {
+        throw new Error("No variants returned");
+      }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to generate. Try again.",
-      );
+      setError(err instanceof Error ? err.message : "Failed to generate. Try again.");
     } finally {
-      setGenerating(false);
+      setGeneratingText(false);
     }
-  }, [text, token, barId, language, activeTone, activeLayout, onGenerated]);
+  }, [text, token, barId, language, activeTone, activeTemplate, selectedContexts]);
 
-  // ---- Variant selection ----
+  // ---- Edit a variant field ----
 
-  const handleVariantSelect = useCallback(
-    (variant: PromotionVariant) => {
-      const visual = {
-        ...(variant.visual || {}),
-        accentColor: variant.accentColor,
-        ...(activeLayout ? { template: activeLayout } : {}),
-      };
+  const updateVariant = (index: number, field: keyof EditableVariant, value: unknown) => {
+    setVariants((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], [field]: value };
+      return next;
+    });
+  };
+
+  // ---- Delete a variant ----
+
+  const deleteVariant = (index: number) => {
+    setVariants((prev) => prev.filter((_, i) => i !== index));
+    setVariantImages((prev) => prev.filter((_, i) => i !== index));
+    setVariantLayouts((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // ---- Step 3 → 4: Generate images ----
+
+  const handleGenerateImages = useCallback(async () => {
+    if (!token || variants.length === 0) return;
+
+    setGeneratingImages(true);
+    setError(null);
+    setVariantImagesLoading(new Array(variants.length).fill(true));
+
+    try {
+      const chips = deriveImageChips(activeTone, activeTemplate, 0);
+
+      const variantVDs = variants.map((v, i) => ({
+        visualDirection: {
+          description: v.fluxPrompt || v.visualDirection?.description || "",
+          keyElements: v.visualDirection?.keyElements || [],
+          styleNotes: v.visualDirection?.styleNotes || "",
+        },
+        formContext: {
+          title: v.title,
+          description: v.description,
+          promotionType: v.type,
+          barName,
+        },
+      }));
+
+      const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          variantVisualDirections: variantVDs,
+          contentType: "promotion",
+          styleId: chips.styleId,
+          subjectId: chips.subjectId,
+          compositionId: chips.compositionId,
+          count: 1,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.variantUrls && Array.isArray(data.variantUrls)) {
+        const images: (string | null)[] = variantVDs.map((_, i) => data.variantUrls[i] || null);
+        setVariantImages(images);
+        setStep("images");
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error("Image generation returned unexpected response");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image generation failed. Try again.");
+    } finally {
+      setGeneratingImages(false);
+      setVariantImagesLoading(new Array(variants.length).fill(false));
+    }
+  }, [token, variants, barId, barName, activeTone, activeTemplate]);
+
+  // ---- Step 4 → 5: Select variant ----
+
+  const handleSelectVariant = useCallback(
+    (variantIndex: number) => {
+      const v = variants[variantIndex];
+      const layout = variantLayouts[variantIndex] || "split";
 
       onGenerated({
         inferredType,
         aiGenerated: true,
         confidence: 0.85,
-        title: variant.title,
-        description: variant.description,
-        reasoning: `Selected from ${variants.length} AI-generated options.`,
-        imageSuggestion: "bar-ambience",
-        imageUrl: sharedBgImage || null,
-        promotionType: variant.type,
-        discountValue: variant.discount,
-        conditions: variant.conditions,
-        targetAudience: "EVERYONE",
+        title: v.title,
+        description: v.description,
+        promotionType: v.type,
+        discountValue: v.discount,
+        conditions: v.conditions,
+        callToAction: v.callToAction,
+        imageUrl: variantImages[variantIndex] || null,
         cardFormat: "wide",
-        visual,
+        visual: {
+          template: layout,
+          mood: "dark",
+          overlayOpacity: 0.4,
+          accentColor: v.accentColor,
+        },
       });
-      setVariants([]);
-      setStep("review");
+
+      setStep("publish");
     },
-    [inferredType, variants.length, activeLayout, sharedBgImage, onGenerated],
+    [variants, variantLayouts, variantImages, inferredType, onGenerated],
+  );
+
+  // ---- Regenerate single image ----
+
+  const handleRegenerateImage = useCallback(
+    async (variantIndex: number) => {
+      const v = variants[variantIndex];
+      if (!v || !token) return;
+
+      const loading = [...variantImagesLoading];
+      loading[variantIndex] = true;
+      setVariantImagesLoading(loading);
+
+      try {
+        const chips = deriveImageChips(activeTone, activeTemplate, variantIndex);
+
+        const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            variantVisualDirections: [
+              {
+                visualDirection: {
+                  description: v.fluxPrompt || v.visualDirection?.description || "",
+                  keyElements: v.visualDirection?.keyElements || [],
+                  styleNotes: v.visualDirection?.styleNotes || "",
+                },
+                formContext: {
+                  title: v.title,
+                  description: v.description,
+                  promotionType: v.type,
+                  barName,
+                },
+              },
+            ],
+            contentType: "promotion",
+            styleId: chips.styleId,
+            subjectId: chips.subjectId,
+            compositionId: chips.compositionId,
+            count: 1,
+          }),
+        });
+
+        const data = await res.json();
+        if (data.variantUrls?.[0]) {
+          const images = [...variantImages];
+          images[variantIndex] = data.variantUrls[0];
+          setVariantImages(images);
+        }
+      } catch {
+        // Silently fail — keep existing image
+      } finally {
+        const loading = [...variantImagesLoading];
+        loading[variantIndex] = false;
+        setVariantImagesLoading(loading);
+      }
+    },
+    [variants, variantImages, variantImagesLoading, token, barId, barName, activeTone, activeTemplate],
   );
 
   // ---- Navigation ----
 
   const goBack = () => {
     if (step === "brief") setStep("type");
-    else if (step === "variants") {
-      setStep("brief");
-      setVariants([]);
-      setGenerating(false);
-    } else if (step === "review") setStep("variants");
+    else if (step === "refine") setStep("brief");
+    else if (step === "images") setStep("refine");
+    else if (step === "publish") setStep("images");
   };
 
   // ---- Render helpers ----
 
-  const isBusy = generating;
-  const toneInfo = activeTone
+  const toneLabel = activeTone
     ? TONE_OPTIONS.find((o) => o.value === activeTone)
     : null;
-  const profileTone =
-    !activeTone && contentTone
-      ? TONE_OPTIONS.find((o) => o.value === contentTone)
-      : null;
 
   return (
     <Container>
       {/* ---- Progress bar ---- */}
       <ProgressBar>
-        {(["type", "brief", "variants", "review"] as FlowStep[]).map((s, i) => {
-          const idx = i + 1;
+        {(["type", "brief", "refine", "images", "publish"] as FlowStep[]).map((s, i) => {
           const isActive = s === step;
           const isDone = stepNumber(step) > stepNumber(s);
-          const isClickable = isDone && s !== "variants";
+          const isClickable = isDone && s !== "refine" && s !== "images";
 
           return (
             <ProgressStep key={s}>
@@ -391,24 +768,17 @@ export default function UnifiedCreationFlow({
                 onClick={isClickable ? () => setStep(s) : undefined}
                 style={{ cursor: isClickable ? "pointer" : "default" }}
               >
-                {isDone ? "✓" : idx}
+                {isDone ? "✓" : i + 1}
               </ProgressDot>
               <ProgressLabel $active={isActive} $done={isDone}>
-                {s === "type"
-                  ? "Type"
-                  : s === "brief"
-                    ? "Brief"
-                    : s === "variants"
-                      ? "Pick"
-                      : "Review"}
+                {PROGRESS_LABELS[s]}
               </ProgressLabel>
-              {i < 3 && <ProgressLine $done={isDone} />}
+              {i < 4 && <ProgressLine $done={isDone} />}
             </ProgressStep>
           );
         })}
       </ProgressBar>
 
-      {/* ---- Step content ---- */}
       <StepBody>
         <StepTitle>
           <StepNum>{stepNumber(step)}.</StepNum> {STEP_LABELS[step]}
@@ -437,7 +807,7 @@ export default function UnifiedCreationFlow({
         {/* ===== STEP 2: BRIEF ===== */}
         {step === "brief" && (
           <div>
-            {/* Language — at top, affects all generated content */}
+            {/* Language toggle */}
             <ControlsRow style={{ marginTop: 0, marginBottom: 14 }}>
               <ControlGroup>
                 <ControlLabel>Language</ControlLabel>
@@ -447,229 +817,612 @@ export default function UnifiedCreationFlow({
                       key={lang}
                       $active={language === lang}
                       onClick={() => setLanguage(lang)}
-                      disabled={isBusy}
+                      disabled={generatingText}
                     >
                       {lang.toUpperCase()}
                     </Pill>
                   ))}
                 </PillGroup>
               </ControlGroup>
-              <LangHint $visible={language !== "en"}>
-                {language === "fi" ? "Sisältö luodaan suomeksi" : "Generated content will be in English"}
-              </LangHint>
             </ControlsRow>
 
-            {/* Tone selector */}
-            <SectionLabel>Voice</SectionLabel>
-            <ToneRow>
-              {TONE_OPTIONS.map((opt) => {
-                const isActive = activeTone === opt.value;
-                const isDefault = !activeTone && contentTone === opt.value;
-                return (
-                  <ToneCard
-                    key={opt.value}
-                    $active={isActive}
-                    $default={isDefault}
-                    onClick={() => handleToneSelect(opt.value)}
-                    disabled={isBusy}
-                    title={opt.description}
-                  >
-                    <ToneCardTop>
-                      <ToneEmoji>{opt.emoji}</ToneEmoji>
-                      <ToneLabel>{opt.label}</ToneLabel>
-                      {isDefault && !isActive && (
-                        <DefaultBadge>default</DefaultBadge>
-                      )}
-                    </ToneCardTop>
-                    <ToneSample $active={isActive}>
-                      &ldquo;{opt.sampleHeadline}&rdquo;
-                    </ToneSample>
-                  </ToneCard>
-                );
-              })}
-            </ToneRow>
-
-            {/* Selected tone preview */}
-            {toneInfo && (
-              <TonePreview>
-                <span style={{ marginRight: 8 }}>{toneInfo.emoji}</span>
-                <strong style={{ color: "#e5e7eb" }}>{toneInfo.label}</strong>
-                <span style={{ color: "#6b7280", marginLeft: 8, fontSize: 12 }}>
-                  — {toneInfo.socialStyle}
-                </span>
-              </TonePreview>
-            )}
-            {!activeTone && !contentTone && (
-              <ToneHint>
-                Pick a voice to shape how your cards look and sound. You can
-                skip this — the AI will infer tone from your brief.
-              </ToneHint>
-            )}
-
-            <Divider />
-
-            {/* Templates */}
-            <SectionLabel>Quick templates</SectionLabel>
-            <TemplateGrid>
-              {TEMPLATES[language].map((t) => (
-                <TemplateCard
-                  key={t.label}
-                  $active={activeTemplate === t.label}
-                  onClick={() => handleTemplateClick(t.label, t.prompt)}
-                  disabled={isBusy}
-                  title={t.prompt}
-                >
-                  <TemplateName>{t.label}</TemplateName>
-                  <TemplateDesc>{t.prompt}</TemplateDesc>
-                </TemplateCard>
-              ))}
-            </TemplateGrid>
-
-            <Divider />
-
-            {/* Textarea — the bar's own words */}
+            {/* Textarea — the core input */}
             <SectionLabel>Your brief</SectionLabel>
             <Textarea
               placeholder={PLACEHOLDERS[language]}
               value={text}
               onChange={(e) => {
                 setText(e.target.value);
-                setActiveTemplate(null);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
-                  handleGenerate();
+                  handleGenerateText();
                 }
               }}
-              disabled={isBusy}
+              disabled={generatingText}
             />
+            <BriefActionsRow>
+              {(activeTemplate || activeTone || selectedContexts.length > 0) && (
+                <RegenerateBriefButton onClick={handleRegenerateBrief} disabled={generatingText}>
+                  {language === "fi" ? "↻ Arvo uusi" : "↻ Regenerate"}
+                </RegenerateBriefButton>
+              )}
+              <TextareaHint>
+                {language === "fi"
+                  ? "Valitse alta apuvälineitä ja kirjoita vapaasti — tai jätä tyhjäksi ja anna tekoälyn hoitaa."
+                  : "Choose helpers below and write freely — or leave empty and let AI handle it."}
+              </TextareaHint>
+            </BriefActionsRow>
 
-            {/* Layout hints — before upload so the bar picks the look first */}
-            <SubLabel>Card layout (optional)</SubLabel>
-            <LayoutRow>
-              {LAYOUT_HINTS.map((layout) => (
-                <LayoutCard
-                  key={layout.template}
-                  $active={activeLayout === layout.template}
-                  onClick={() =>
-                    setActiveLayout(
-                      activeLayout === layout.template ? null : layout.template,
-                    )
-                  }
+            {/* ---- Collapsible Helpers ---- */}
+
+            {/* Tone helper */}
+            <HelperSection>
+              <HelperToggle onClick={() => setToneOpen(!toneOpen)}>
+                <HelperToggleIcon $open={toneOpen}>{toneOpen ? "▼" : "▶"}</HelperToggleIcon>
+                <HelperToggleLabel>
+                  {language === "fi" ? "Äänensävy" : "Tone"}
+                  {activeTone && (
+                    <HelperActiveTag>
+                      {toneLabel?.emoji} {toneLabel?.label}
+                    </HelperActiveTag>
+                  )}
+                </HelperToggleLabel>
+                {!toneOpen && (
+                  <HelperHint>{language === "fi" ? "Valinnainen" : "Optional"}</HelperHint>
+                )}
+              </HelperToggle>
+              {toneOpen && (
+                <HelperBody>
+                  <HelperDesc>
+                    {language === "fi"
+                      ? "Valitse äänensävy — se lisätään briefiin ohjeeksi tekoälylle."
+                      : "Pick a tone — it'll be appended to your brief as AI guidance."}
+                  </HelperDesc>
+                  <ToneRow>
+                    {TONE_OPTIONS.map((opt) => (
+                      <ToneChip
+                        key={opt.value}
+                        $active={activeTone === opt.value}
+                        onClick={() => handleToneSelect(opt.value)}
+                        disabled={generatingText}
+                      >
+                        <span>{opt.emoji}</span> {opt.label}
+                      </ToneChip>
+                    ))}
+                  </ToneRow>
+                </HelperBody>
+              )}
+            </HelperSection>
+
+            {/* Templates helper */}
+            <HelperSection>
+              <HelperToggle onClick={() => setTemplatesOpen(!templatesOpen)}>
+                <HelperToggleIcon $open={templatesOpen}>{templatesOpen ? "▼" : "▶"}</HelperToggleIcon>
+                <HelperToggleLabel>
+                  {language === "fi" ? "Pikamallit" : "Quick templates"}
+                  {activeTemplate && <HelperActiveTag>{activeTemplate}</HelperActiveTag>}
+                </HelperToggleLabel>
+                {!templatesOpen && (
+                  <HelperHint>{language === "fi" ? "Valinnainen" : "Optional"}</HelperHint>
+                )}
+              </HelperToggle>
+              {templatesOpen && (
+                <HelperBody>
+                  <HelperDesc>
+                    {language === "fi"
+                      ? "Klikkaa mallia täyttääksesi briefin. Mallit joissa on ohjattu toiminto auttavat rakentamaan briefin vaihe vaiheelta."
+                      : "Click a template to fill your brief. Templates with a wizard guide you step by step."}
+                  </HelperDesc>
+                  <TemplateGrid>
+                    {TEMPLATES[language].map((tpl) => {
+                      const hasWizard = !!getWizardForTemplate(tpl.label);
+                      return (
+                        <TemplateCard
+                          key={tpl.label}
+                          $active={activeTemplate === tpl.label}
+                          onClick={() => handleTemplateClick(tpl.label)}
+                          disabled={generatingText}
+                        >
+                          <TemplateName>
+                            {tpl.label}
+                            {hasWizard && <WizardBadge>{language === "fi" ? "ohjattu" : "wizard"}</WizardBadge>}
+                          </TemplateName>
+                          <TemplateDesc>
+                            {tpl.prompt.length > 80 ? tpl.prompt.slice(0, 77) + "…" : tpl.prompt}
+                          </TemplateDesc>
+                        </TemplateCard>
+                      );
+                    })}
+                  </TemplateGrid>
+
+                  {/* Wizard panel */}
+                  {wizardActive && wizardSteps.length > 0 && (
+                    <WizardPanel>
+                      <WizardProgress>
+                        <span>
+                          {language === "fi" ? "Vaihe" : "Step"} {wizardStep + 1}/{wizardSteps.length}
+                        </span>
+                        <WizardStepPips>
+                          {wizardSteps.map((_, i) => (
+                            <WizardPip
+                              key={i}
+                              $active={i === wizardStep}
+                              $done={i < wizardStep}
+                            />
+                          ))}
+                        </WizardStepPips>
+                      </WizardProgress>
+                      <WizardQuestion>{wizardSteps[wizardStep].question}</WizardQuestion>
+                      <WizardChipRow>
+                        {wizardSteps[wizardStep].options.map((opt, j) => (
+                          <WizardChip
+                            key={j}
+                            onClick={() => handleWizardAnswer(wizardSteps[wizardStep].label, opt.prompt)}
+                          >
+                            {opt.label}
+                          </WizardChip>
+                        ))}
+                      </WizardChipRow>
+                      <WizardActions>
+                        <WizardBackButton onClick={handleWizardBack} disabled={wizardStep === 0}>
+                          {language === "fi" ? "← Edellinen" : "← Back"}
+                        </WizardBackButton>
+                        <WizardSkipButton onClick={handleWizardDismiss}>
+                          {language === "fi" ? "Ohita" : "Skip"}
+                        </WizardSkipButton>
+                      </WizardActions>
+                    </WizardPanel>
+                  )}
+                </HelperBody>
+              )}
+            </HelperSection>
+
+            {/* Context helper */}
+            <HelperSection>
+              <HelperToggle onClick={() => setContextOpen(!contextOpen)}>
+                <HelperToggleIcon $open={contextOpen}>{contextOpen ? "▼" : "▶"}</HelperToggleIcon>
+                <HelperToggleLabel>
+                  {language === "fi" ? "Lisää kontekstia" : "Add context"}
+                </HelperToggleLabel>
+                {!contextOpen && (
+                  <HelperHint>{language === "fi" ? "Kausiluonteiset vinkit" : "Seasonal hooks"}</HelperHint>
+                )}
+              </HelperToggle>
+              {contextOpen && (
+                <HelperBody>
+                  <HelperDesc>
+                    {language === "fi"
+                      ? "Lisää ajankohtainen konteksti briefiin yhdellä klikkauksella."
+                      : "Add timely context to your brief with one click."}
+                  </HelperDesc>
+                  <SuggestionRow>
+                    {getContextualSuggestions(language).map((suggestion, i) => {
+                      const isSelected = selectedContexts.includes(suggestion);
+                      return (
+                        <SuggestionChip
+                          key={i}
+                          $selected={isSelected}
+                          onClick={() => handleToggleContext(suggestion)}
+                          disabled={generatingText}
+                        >
+                          {isSelected ? "✓ " : ""}
+                          {suggestion.length > 70 ? suggestion.slice(0, 67) + "…" : suggestion}
+                        </SuggestionChip>
+                      );
+                    })}
+                  </SuggestionRow>
+
+                  <CustomContextRow>
+                    <CustomContextInput
+                      placeholder={language === "fi" ? "Kirjoita oma konteksti..." : "Type your own context..."}
+                      value={customContextInput}
+                      onChange={(e) => setCustomContextInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddCustomContext();
+                        }
+                      }}
+                      disabled={generatingText}
+                    />
+                    <CustomContextAddBtn
+                      onClick={handleAddCustomContext}
+                      disabled={generatingText || !customContextInput.trim()}
+                    >
+                      {language === "fi" ? "Lisää" : "Add"}
+                    </CustomContextAddBtn>
+                  </CustomContextRow>
+                </HelperBody>
+              )}
+            </HelperSection>
+
+            {/* Active selections summary */}
+            {(activeTone || activeTemplate || selectedContexts.length > 0) && (
+              <IngredientsSummary>
+                <IngredientsLabel>
+                  {language === "fi" ? "Valitut ainekset:" : "Selected ingredients:"}
+                </IngredientsLabel>
+                <IngredientsTags>
+                  {activeTone && (
+                    <IngredientTag $kind="tone">
+                      {toneLabel?.emoji} {toneLabel?.label}
+                    </IngredientTag>
+                  )}
+                  {activeTemplate && (
+                    <IngredientTag $kind="template">{activeTemplate}</IngredientTag>
+                  )}
+                  {selectedContexts.map((ctx, i) => (
+                    <IngredientTag
+                      key={i}
+                      $kind="context"
+                      onClick={() => handleRemoveContext(ctx)}
+                      style={{ cursor: "pointer" }}
+                      title={language === "fi" ? "Poista" : "Remove"}
+                    >
+                      {ctx.length > 40 ? ctx.slice(0, 37) + "…" : ctx} ✕
+                    </IngredientTag>
+                  ))}
+                </IngredientsTags>
+              </IngredientsSummary>
+            )}
+
+            {/* Live preview of the combined prompt */}
+            {(activeTone || activeTemplate || selectedContexts.length > 0 || text.trim()) && (
+              <PreviewSection>
+                <PreviewToggle
+                  onClick={() => setPreviewOpen(!previewOpen)}
                 >
-                  <LayoutThumb $template={layout.template} />
-                  <LayoutName>{layout.label}</LayoutName>
-                  <LayoutDesc>{layout.desc}</LayoutDesc>
-                </LayoutCard>
-              ))}
-            </LayoutRow>
-
-            {/* Photo / banner — after layout so the image fits the chosen card style */}
-            <SubLabel>Photo or background</SubLabel>
-            <ImageTabRow>
-              <ImageTab
-                $active={imageTab === "upload"}
-                onClick={() => setImageTab("upload")}
-              >
-                Upload
-              </ImageTab>
-              <ImageTab
-                $active={imageTab === "ai"}
-                onClick={() => setImageTab("ai")}
-              >
-                ✨ AI Generate
-              </ImageTab>
-            </ImageTabRow>
-
-            {imageTab === "upload" && (
-              <ImageUploader
-                value={formState.imageUrl}
-                onChange={(url) => onFieldChange("imageUrl", url)}
-                contentType={contentType}
-                barId={barId}
-                dark
-              />
+                  <PreviewToggleIcon $open={previewOpen}>
+                    {previewOpen ? "▼" : "▶"}
+                  </PreviewToggleIcon>
+                  <PreviewToggleLabel>
+                    {language === "fi" ? "Esikatselu" : "Preview prompt"}
+                  </PreviewToggleLabel>
+                  <PreviewToggleHint>
+                    {language === "fi"
+                      ? "— mitä tekoälylle lähetetään"
+                      : "— what will be sent to AI"}
+                  </PreviewToggleHint>
+                </PreviewToggle>
+                {previewOpen && (
+                  <PreviewBody>
+                    {buildPreviewPrompt(
+                      barName,
+                      text,
+                      activeTemplate,
+                      activeTone,
+                      selectedContexts,
+                      language,
+                    )
+                      .split("\n")
+                      .map((line, i) => (
+                        <PreviewLine key={i}>{line || " "}</PreviewLine>
+                      ))}
+                  </PreviewBody>
+                )}
+              </PreviewSection>
             )}
 
-            {imageTab === "ai" && (
-              <AIImageGenerator
-                barId={barId}
-                contentType={contentType}
-                barName={barName}
-                formTitle={formState.title}
-                formDescription={formState.description}
-                formPromotionType={formState.promotionType}
-                onSelect={(url) => onFieldChange("imageUrl", url)}
-                dark
-              />
+            {/* Compliance pre-check blocked */}
+            {complianceBlocked && (
+              <ComplianceBlockedBox>
+                <ComplianceBlockedTitle>
+                  {language === "fi"
+                    ? "Prompt hylättiin sääntöjen vuoksi"
+                    : "Prompt blocked by compliance"}
+                </ComplianceBlockedTitle>
+                {complianceBlocked.reasons.map((reason, i) => (
+                  <ComplianceBlockedReason key={i}>{reason}</ComplianceBlockedReason>
+                ))}
+                <ComplianceBlockedHint>
+                  {language === "fi"
+                    ? "Muokkaa promptiasi ja yritä uudelleen."
+                    : "Edit your prompt and try again."}
+                </ComplianceBlockedHint>
+              </ComplianceBlockedBox>
             )}
 
-            {/* Controls row */}
-            <ControlsRow>
+            <Divider />
+
+            {/* Generate button */}
+            <GenerateRow>
               <FormatNote>
-                Social cards generated in all 3 formats: Instagram (1:1),
-                Facebook (1.91:1), Cover (3:1)
+                {language === "fi"
+                  ? "Tekoäly luo 3 tekstivarianttia valituista aineksista. Kuvat generoidaan erikseen."
+                  : "AI generates 3 text variants from your ingredients. Images are separate."}
               </FormatNote>
-
               <GenerateButton
-                onClick={handleGenerate}
-                disabled={isBusy || !text.trim()}
+                onClick={handleGenerateText}
+                disabled={generatingText}
               >
-                {isBusy ? (
-                  <span
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
-                  >
+                {generatingText ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Spinner /> {GENERATING_MESSAGES[language]}
                   </span>
                 ) : (
                   "Generate 3 options"
                 )}
               </GenerateButton>
-            </ControlsRow>
+            </GenerateRow>
 
             <HintRow>
-              <HintKey>⌘+Enter</HintKey>
-              <HintText> to generate</HintText>
-              {activeTemplate && (
-                <span style={{ marginLeft: 8, fontSize: 11, color: "#a78bfa" }}>
-                  — using &ldquo;{activeTemplate}&rdquo; template
-                </span>
-              )}
+              <HintKey>{language === "fi" ? "⌘+Enter" : "⌘+Enter"}</HintKey>
+              <HintText> {language === "fi" ? " generoidaksesi" : " to generate"}</HintText>
             </HintRow>
 
             {error && <ErrorBox>{error}</ErrorBox>}
-            <BackLink onClick={goBack}>← Change type</BackLink>
+            <BackLink onClick={goBack}>
+              {language === "fi" ? "← Vaihda tyyppi" : "← Change type"}
+            </BackLink>
           </div>
         )}
 
-        {/* ===== STEP 3: VARIANTS ===== */}
-        {step === "variants" && variants.length > 0 && (
+        {/* ===== STEP 3: REFINE (Review & Edit Text) ===== */}
+        {step === "refine" && variants.length > 0 && (
           <div>
             <BriefRecap>
-              <BriefLabel>Brief:</BriefLabel> {text}
-              {toneInfo && (
-                <span style={{ color: "#a78bfa", marginLeft: 8 }}>
-                  {toneInfo.emoji} {toneInfo.label}
-                </span>
-              )}
+              <BriefLabel>{language === "fi" ? "Brief:" : "Brief:"}</BriefLabel>{" "}
+              {text.length > 120 ? text.slice(0, 117) + "…" : text}
             </BriefRecap>
 
-            <VariantPicker
-              variants={variants}
-              barName={barName}
-              barCoverImage={barCoverImage}
-              sharedBgImage={sharedBgImage}
-              cardFormat="wide"
-              onSelect={handleVariantSelect}
-            />
+            <RefineGrid>
+              {variants.map((v, i) => (
+                <VariantCard key={i}>
+                  <VariantCardHeader>
+                    <VariantNumber>
+                      {language === "fi" ? "Vaihtoehto" : "Option"} {i + 1}
+                    </VariantNumber>
+                    {variants.length > 1 && (
+                      <DeleteButton
+                        onClick={() => deleteVariant(i)}
+                        title={language === "fi" ? "Poista tämä variantti" : "Remove this variant"}
+                      >
+                        {language === "fi" ? "Poista" : "Delete"}
+                      </DeleteButton>
+                    )}
+                  </VariantCardHeader>
 
-            <BackLink onClick={goBack}>← Back to brief</BackLink>
+                  <FieldGroup>
+                    <FieldLabel>{language === "fi" ? "Otsikko" : "Title"}</FieldLabel>
+                    <FieldInput
+                      value={v.title}
+                      onChange={(e) => updateVariant(i, "title", e.target.value)}
+                      placeholder={language === "fi" ? "Tarjouksen otsikko" : "Promotion title"}
+                    />
+                  </FieldGroup>
+
+                  <FieldGroup>
+                    <FieldLabel>{language === "fi" ? "Kuvaus" : "Description"}</FieldLabel>
+                    <FieldTextarea
+                      value={v.description}
+                      onChange={(e) => updateVariant(i, "description", e.target.value)}
+                      placeholder={language === "fi" ? "Kuvaus" : "Description"}
+                      rows={2}
+                    />
+                  </FieldGroup>
+
+                  <FieldRow>
+                    <FieldGroup style={{ flex: 1 }}>
+                      <FieldLabel>CTA</FieldLabel>
+                      <FieldInput
+                        value={v.callToAction}
+                        onChange={(e) => updateVariant(i, "callToAction", e.target.value)}
+                        placeholder="View Offer"
+                      />
+                    </FieldGroup>
+                    <FieldGroup style={{ flex: 1 }}>
+                      <FieldLabel>{language === "fi" ? "Ehdot" : "Conditions"}</FieldLabel>
+                      <FieldInput
+                        value={v.conditions}
+                        onChange={(e) => updateVariant(i, "conditions", e.target.value)}
+                        placeholder={language === "fi" ? "Ehdot" : "Conditions"}
+                      />
+                    </FieldGroup>
+                  </FieldRow>
+
+                  {/* Flux prompt editor — collapsible */}
+                  <FluxSection>
+                    <FluxToggle
+                      onClick={() => {
+                        const el = document.getElementById(`flux-editor-${i}`);
+                        if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+                      }}
+                    >
+                      <FluxToggleLabel>
+                        {language === "fi" ? "Muokkaa kuvapromptia" : "Edit image prompt"}
+                      </FluxToggleLabel>
+                      <FluxToggleHint>
+                        {language === "fi" ? "(Flux)" : "(Flux)"}
+                      </FluxToggleHint>
+                    </FluxToggle>
+                    <FluxEditor id={`flux-editor-${i}`} style={{ display: "none" }}>
+                      <FluxEditorHint>
+                        {language === "fi"
+                          ? "Tämä prompt lähetetään Flux-kuvageneraattorille. Muokkaa sitä suoraan — kuvaile mitä kuvassa pitäisi näkyä."
+                          : "This prompt is sent to the Flux image generator. Edit it directly — describe what should appear in the image."}
+                      </FluxEditorHint>
+                      <FieldTextarea
+                        value={v.fluxPrompt}
+                        onChange={(e) => updateVariant(i, "fluxPrompt", e.target.value)}
+                        rows={3}
+                        placeholder={language === "fi" ? "Flux-prompt..." : "Flux prompt..."}
+                      />
+                    </FluxEditor>
+                  </FluxSection>
+                </VariantCard>
+              ))}
+            </RefineGrid>
+
+            {error && <ErrorBox>{error}</ErrorBox>}
+
+            {usingFallback && (
+              <FallbackWarningBox>
+                {language === "fi"
+                  ? "Tekoäly ei ole käytettävissä — näytetään valmiit mallipohjat. Tarkista DEEPSEEK_API_KEY tai yritä myöhemmin uudelleen."
+                  : "AI is unavailable — showing template-based options instead. Check DEEPSEEK_API_KEY or try again later."}
+              </FallbackWarningBox>
+            )}
+
+            {complianceWarnings && complianceWarnings.length > 0 && (
+              <ComplianceWarningBox>
+                <ComplianceWarningTitle>
+                  {language === "fi" ? "Huomioita sisällöstä:" : "Compliance notes:"}
+                </ComplianceWarningTitle>
+                {complianceWarnings.map((w, i) => (
+                  <ComplianceWarningItem key={i}>{w}</ComplianceWarningItem>
+                ))}
+              </ComplianceWarningBox>
+            )}
+
+            <GenerateRow>
+              <FormatNote>
+                {language === "fi"
+                  ? `${variants.length} varianttia — kuvat generoidaan jokaiselle erikseen.`
+                  : `${variants.length} variants — images will be generated for each.`}
+              </FormatNote>
+              <GenerateButton
+                onClick={handleGenerateImages}
+                disabled={generatingImages || variants.length === 0}
+              >
+                {generatingImages ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Spinner /> {GENERATING_IMAGES_MSG[language]}
+                  </span>
+                ) : (
+                  "Generate Images"
+                )}
+              </GenerateButton>
+            </GenerateRow>
+
+            <BackLink onClick={goBack}>
+              {language === "fi" ? "← Takaisin briefiin" : "← Back to brief"}
+            </BackLink>
           </div>
         )}
 
-        {/* ===== STEP 4: REVIEW ===== */}
-        {step === "review" && (
+        {/* ===== STEP 4: IMAGES ===== */}
+        {step === "images" && variants.length > 0 && (
+          <div>
+            <ImageGrid>
+              {variants.map((v, i) => (
+                <ImageCard key={i}>
+                  <ImageCardBadge>
+                    {language === "fi" ? "Vaihtoehto" : "Option"} {i + 1}
+                  </ImageCardBadge>
+
+                  {/* Image or placeholder */}
+                  <ImagePreview>
+                    {variantImagesLoading[i] ? (
+                      <ImageLoading>
+                        <Spinner />
+                        <span>{language === "fi" ? "Luodaan..." : "Generating..."}</span>
+                      </ImageLoading>
+                    ) : variantImages[i] ? (
+                      <CardImage src={variantImages[i]} alt={v.title} />
+                    ) : (
+                      <ImagePlaceholder>
+                        {language === "fi" ? "Ei kuvaa" : "No image"}
+                      </ImagePlaceholder>
+                    )}
+                  </ImagePreview>
+
+                  {/* Variant text summary */}
+                  <ImageCardTitle>{v.title}</ImageCardTitle>
+                  <ImageCardDesc>
+                    {v.description.length > 100 ? v.description.slice(0, 97) + "…" : v.description}
+                  </ImageCardDesc>
+
+                  {/* Layout selector */}
+                  <LayoutLabel>{language === "fi" ? "Asettelu" : "Layout"}</LayoutLabel>
+                  <LayoutRow>
+                    {LAYOUT_HINTS.map((layout) => (
+                      <LayoutChip
+                        key={layout.template}
+                        $active={variantLayouts[i] === layout.template}
+                        onClick={() => {
+                          setVariantLayouts((prev) => {
+                            const next = [...prev];
+                            next[i] = layout.template;
+                            return next;
+                          });
+                        }}
+                      >
+                        {layout.label}
+                      </LayoutChip>
+                    ))}
+                  </LayoutRow>
+
+                  {/* Actions */}
+                  <ImageActionsRow>
+                    <ImageActionBtn
+                      onClick={() => handleRegenerateImage(i)}
+                      disabled={variantImagesLoading[i]}
+                    >
+                      {language === "fi" ? "↻ Arvo uusi" : "↻ Regenerate"}
+                    </ImageActionBtn>
+
+                    <FluxToggleSmall
+                      onClick={() => {
+                        const el = document.getElementById(`flux-img-editor-${i}`);
+                        if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+                      }}
+                    >
+                      {language === "fi" ? "Muokkaa promptia" : "Edit prompt"}
+                    </FluxToggleSmall>
+                  </ImageActionsRow>
+
+                  {/* Hidden Flux prompt editor */}
+                  <FluxImgEditor id={`flux-img-editor-${i}`} style={{ display: "none" }}>
+                    <FieldTextarea
+                      value={v.fluxPrompt}
+                      onChange={(e) => updateVariant(i, "fluxPrompt", e.target.value)}
+                      rows={2}
+                      placeholder={language === "fi" ? "Flux-prompt..." : "Flux prompt..."}
+                    />
+                    <ImageActionBtn
+                      onClick={() => handleRegenerateImage(i)}
+                      disabled={variantImagesLoading[i]}
+                      style={{ marginTop: 6 }}
+                    >
+                      {language === "fi" ? "Generoi uudelleen" : "Regenerate with new prompt"}
+                    </ImageActionBtn>
+                  </FluxImgEditor>
+
+                  {/* Upload alternative */}
+                  <ImageUploadWrapper>
+                    <ImageUploader
+                      value={variantImages[i] || ""}
+                      onChange={(url) => {
+                        const images = [...variantImages];
+                        images[i] = url;
+                        setVariantImages(images);
+                      }}
+                      contentType={contentType}
+                      barId={barId}
+                      dark
+                    />
+                  </ImageUploadWrapper>
+
+                  {/* Select button */}
+                  <SelectVariantBtn onClick={() => handleSelectVariant(i)}>
+                    {language === "fi" ? "Valitse tämä" : "Use this one"}
+                  </SelectVariantBtn>
+                </ImageCard>
+              ))}
+            </ImageGrid>
+
+            {error && <ErrorBox>{error}</ErrorBox>}
+
+            <BackLink onClick={goBack}>
+              {language === "fi" ? "← Takaisin muokkaukseen" : "← Back to edit"}
+            </BackLink>
+          </div>
+        )}
+
+        {/* ===== STEP 5: PUBLISH ===== */}
+        {step === "publish" && (
           <ReviewSection>
             <FieldGroup>
               <FieldLabel>Title</FieldLabel>
@@ -697,9 +1450,7 @@ export default function UnifiedCreationFlow({
                     <FieldLabel>Type</FieldLabel>
                     <SelectField
                       value={formState.promotionType}
-                      onChange={(e) =>
-                        onFieldChange("promotionType", e.target.value)
-                      }
+                      onChange={(e) => onFieldChange("promotionType", e.target.value)}
                     >
                       {PROMOTION_TYPES.map((pt) => (
                         <option key={pt.value} value={pt.value}>
@@ -714,10 +1465,7 @@ export default function UnifiedCreationFlow({
                       type="number"
                       value={formState.discountValue ?? ""}
                       onChange={(e) =>
-                        onFieldChange(
-                          "discountValue",
-                          e.target.value ? Number(e.target.value) : null,
-                        )
+                        onFieldChange("discountValue", e.target.value ? Number(e.target.value) : null)
                       }
                       placeholder="e.g. 20"
                     />
@@ -729,9 +1477,7 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="date"
                       value={formState.startDate?.slice(0, 10) || ""}
-                      onChange={(e) =>
-                        onFieldChange("startDate", e.target.value)
-                      }
+                      onChange={(e) => onFieldChange("startDate", e.target.value)}
                     />
                   </FieldGroup>
                   <FieldGroup style={{ flex: 1 }}>
@@ -747,9 +1493,7 @@ export default function UnifiedCreationFlow({
                   <FieldLabel>Conditions / fine print</FieldLabel>
                   <FieldInput
                     value={formState.conditions}
-                    onChange={(e) =>
-                      onFieldChange("conditions", e.target.value)
-                    }
+                    onChange={(e) => onFieldChange("conditions", e.target.value)}
                     placeholder="e.g. Valid on Fridays 16:00–19:00"
                   />
                 </FieldGroup>
@@ -764,9 +1508,7 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="datetime-local"
                       value={formState.startTime?.slice(0, 16) || ""}
-                      onChange={(e) =>
-                        onFieldChange("startTime", e.target.value)
-                      }
+                      onChange={(e) => onFieldChange("startTime", e.target.value)}
                     />
                   </FieldGroup>
                   <FieldGroup style={{ flex: 1 }}>
@@ -784,10 +1526,7 @@ export default function UnifiedCreationFlow({
                     type="number"
                     value={formState.maxAttendees ?? ""}
                     onChange={(e) =>
-                      onFieldChange(
-                        "maxAttendees",
-                        e.target.value ? Number(e.target.value) : null,
-                      )
+                      onFieldChange("maxAttendees", e.target.value ? Number(e.target.value) : null)
                     }
                     placeholder="Leave empty for unlimited"
                   />
@@ -801,9 +1540,7 @@ export default function UnifiedCreationFlow({
                   <FieldLabel>Campaign type</FieldLabel>
                   <SelectField
                     value={formState.campaignType}
-                    onChange={(e) =>
-                      onFieldChange("campaignType", e.target.value)
-                    }
+                    onChange={(e) => onFieldChange("campaignType", e.target.value)}
                   >
                     <option value="FEATURED_LISTING">Featured Listing</option>
                     <option value="BANNER_AD">Banner Ad</option>
@@ -815,12 +1552,7 @@ export default function UnifiedCreationFlow({
                   <FieldInput
                     type="number"
                     value={formState.campaignBudget}
-                    onChange={(e) =>
-                      onFieldChange(
-                        "campaignBudget",
-                        e.target.value ? Number(e.target.value) : 0,
-                      )
-                    }
+                    onChange={(e) => onFieldChange("campaignBudget", e.target.value ? Number(e.target.value) : 0)}
                     placeholder="e.g. 50"
                   />
                 </FieldGroup>
@@ -830,9 +1562,7 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="date"
                       value={formState.campaignStartDate?.slice(0, 10) || ""}
-                      onChange={(e) =>
-                        onFieldChange("campaignStartDate", e.target.value)
-                      }
+                      onChange={(e) => onFieldChange("campaignStartDate", e.target.value)}
                     />
                   </FieldGroup>
                   <FieldGroup style={{ flex: 1 }}>
@@ -840,9 +1570,7 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="date"
                       value={formState.campaignEndDate?.slice(0, 10) || ""}
-                      onChange={(e) =>
-                        onFieldChange("campaignEndDate", e.target.value)
-                      }
+                      onChange={(e) => onFieldChange("campaignEndDate", e.target.value)}
                     />
                   </FieldGroup>
                 </FieldRow>
@@ -855,9 +1583,7 @@ export default function UnifiedCreationFlow({
                   <FieldLabel>Price (EUR)</FieldLabel>
                   <FieldInput
                     value={formState.priceEuros}
-                    onChange={(e) =>
-                      onFieldChange("priceEuros", e.target.value)
-                    }
+                    onChange={(e) => onFieldChange("priceEuros", e.target.value)}
                     placeholder="e.g. 9.90"
                   />
                 </FieldGroup>
@@ -875,16 +1601,9 @@ export default function UnifiedCreationFlow({
               </FieldRow>
             )}
 
-            {toneInfo && (
-              <ToneTag>
-                {toneInfo.emoji} Generated with {toneInfo.label.toLowerCase()}{" "}
-                voice
-              </ToneTag>
-            )}
-
             <SubmitRow>
               <BackLink onClick={goBack} style={{ marginBottom: 0 }}>
-                ← Back to options
+                {language === "fi" ? "← Takaisin kuviin" : "← Back to images"}
               </BackLink>
               <SubmitButton
                 onClick={onSubmit}
@@ -904,7 +1623,9 @@ export default function UnifiedCreationFlow({
   );
 }
 
-// ---- Styled Components ----
+// ============================================================================
+// Styled Components
+// ============================================================================
 
 const Container = styled.div`
   background: linear-gradient(135deg, #1a1a2e 0%, #16162a 100%);
@@ -927,9 +1648,7 @@ const ProgressStep = styled.div`
   align-items: center;
   flex: 1;
   min-width: 0;
-  &:last-child {
-    flex: 0;
-  }
+  &:last-child { flex: 0; }
 `;
 
 const ProgressDot = styled.div<{ $active: boolean; $done: boolean }>`
@@ -997,40 +1716,6 @@ const SectionLabel = styled.div`
   margin-bottom: 8px;
 `;
 
-const SubLabel = styled.div`
-  font-size: 10px;
-  font-weight: 600;
-  color: #6b7280;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 6px;
-  margin-top: 12px;
-`;
-
-const ImageTabRow = styled.div`
-  display: flex;
-  gap: 0;
-  margin-bottom: 12px;
-  border-bottom: 2px solid #2d2d4a;
-`;
-
-const ImageTab = styled.button<{ $active: boolean }>`
-  padding: 8px 16px;
-  font-size: 12px;
-  font-weight: ${({ $active }) => ($active ? 600 : 400)};
-  color: ${({ $active }) => ($active ? "#a78bfa" : "#6b7280")};
-  background: none;
-  border: none;
-  border-bottom: 2px solid
-    ${({ $active }) => ($active ? "#a78bfa" : "transparent")};
-  margin-bottom: -2px;
-  cursor: pointer;
-  transition: all 0.15s;
-  &:hover {
-    color: #a78bfa;
-  }
-`;
-
 const Divider = styled.div`
   height: 1px;
   background: #2d2d4a;
@@ -1047,9 +1732,7 @@ const BackLink = styled.button`
   cursor: pointer;
   font-weight: 500;
   padding: 0;
-  &:hover {
-    color: #a78bfa;
-  }
+  &:hover { color: #a78bfa; }
 `;
 
 const ErrorBox = styled.div`
@@ -1074,36 +1757,137 @@ const TypeCard = styled.button<{ $selected: boolean }>`
   padding: 16px;
   border: 1px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#2d2d4a")};
   border-radius: 10px;
-  background: ${({ $selected }) =>
-    $selected ? "rgba(124, 58, 237, 0.1)" : "#0d0d1a"};
+  background: ${({ $selected }) => ($selected ? "rgba(124, 58, 237, 0.1)" : "#0d0d1a")};
   cursor: pointer;
   text-align: left;
   transition: all 0.15s;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  &:hover {
-    border-color: #7c3aed;
-    background: rgba(124, 58, 237, 0.06);
-  }
+  &:hover { border-color: #7c3aed; background: rgba(124, 58, 237, 0.06); }
 `;
 
-const TypeCardEmoji = styled.span`
-  font-size: 24px;
-  line-height: 1;
-`;
-const TypeCardLabel = styled.span`
+const TypeCardEmoji = styled.span` font-size: 24px; line-height: 1; `;
+const TypeCardLabel = styled.span` font-size: 14px; font-weight: 700; color: #f9fafb; `;
+const TypeCardDesc = styled.span` font-size: 11px; color: #6b7280; line-height: 1.4; `;
+
+// ---- Step 2: Textarea ----
+
+const Textarea = styled.textarea`
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #2d2d4a;
+  border-radius: 10px;
   font-size: 14px;
+  min-height: 240px;
+  resize: vertical;
+  box-sizing: border-box;
+  font-family: inherit;
+  line-height: 1.55;
+  background: #0d0d1a;
+  color: #e5e7eb;
+  transition: border-color 0.2s;
+  &:focus { outline: none; border-color: #7c3aed; }
+  &::placeholder { color: #4b5563; }
+`;
+
+const TextareaHint = styled.div`
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+`;
+
+const BriefActionsRow = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  margin-bottom: 2px;
+  gap: 12px;
+`;
+
+const RegenerateBriefButton = styled.button`
+  padding: 5px 12px;
+  border: 1px solid #2d2d4a;
+  border-radius: 6px;
+  background: #0d0d1a;
+  color: #a78bfa;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  &:hover:not(:disabled) { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+`;
+
+// ---- Helpers (collapsible) ----
+
+const HelperSection = styled.div`
+  margin-top: 12px;
+  border: 1px solid #2d2d4a;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const HelperToggle = styled.button`
+  width: 100%;
+  padding: 8px 12px;
+  background: #0d0d1a;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  &:hover { background: #1a1a2e; }
+`;
+
+const HelperToggleIcon = styled.span<{ $open: boolean }>`
+  font-size: 10px;
+  color: ${({ $open }) => ($open ? "#a78bfa" : "#6b7280")};
+  transition: transform 0.15s;
+`;
+
+const HelperToggleLabel = styled.span`
+  font-size: 12px;
   font-weight: 700;
   color: #f9fafb;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 `;
-const TypeCardDesc = styled.span`
+
+const HelperActiveTag = styled.span`
+  font-size: 10px;
+  font-weight: 500;
+  color: #a78bfa;
+  background: rgba(124, 58, 237, 0.15);
+  padding: 1px 6px;
+  border-radius: 3px;
+`;
+
+const HelperHint = styled.span`
+  font-size: 10px;
+  color: #4b5563;
+  margin-left: auto;
+`;
+
+const HelperBody = styled.div`
+  padding: 10px 12px 12px;
+  background: rgba(124, 58, 237, 0.04);
+  border-top: 1px solid #2d2d4a;
+`;
+
+const HelperDesc = styled.div`
   font-size: 11px;
-  color: #6b7280;
+  color: #9ca3af;
+  margin-bottom: 10px;
   line-height: 1.4;
 `;
 
-// ---- Step 2: Tone ----
+// ---- Tone chips ----
 
 const ToneRow = styled.div`
   display: flex;
@@ -1111,83 +1895,21 @@ const ToneRow = styled.div`
   flex-wrap: wrap;
 `;
 
-const ToneCard = styled.button<{ $active: boolean; $default: boolean }>`
-  flex: 1 1 100px;
-  min-width: 95px;
-  max-width: 140px;
-  padding: 8px 10px;
-  border: 1px solid
-    ${({ $active, $default }) =>
-      $active ? "#7c3aed" : $default ? "#4c1d95" : "#2d2d4a"};
+const ToneChip = styled.button<{ $active: boolean }>`
+  padding: 6px 12px;
+  border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
   border-radius: 8px;
-  background: ${({ $active }) =>
-    $active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a"};
-  cursor: pointer;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: all 0.15s;
-  ${({ $active }) =>
-    $active && "box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.3);"}
-  &:hover {
-    border-color: #7c3aed;
-  }
-`;
-
-const ToneCardTop = styled.span`
-  display: flex;
-  align-items: center;
-  gap: 4px;
-`;
-const ToneEmoji = styled.span`
-  font-size: 14px;
-  line-height: 1;
-`;
-const ToneLabel = styled.span`
-  font-size: 10px;
-  font-weight: 700;
-  color: #d1d5db;
-  line-height: 1.2;
-`;
-const DefaultBadge = styled.span`
-  font-size: 8px;
-  color: #7c3aed;
-  font-weight: 600;
-  background: rgba(124, 58, 237, 0.15);
-  padding: 1px 4px;
-  border-radius: 3px;
-  margin-left: auto;
-`;
-
-const ToneSample = styled.span<{ $active: boolean }>`
-  font-size: 9px;
-  color: ${({ $active }) => ($active ? "#a78bfa" : "#6b7280")};
-  font-style: italic;
-  line-height: 1.3;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-`;
-
-const TonePreview = styled.div`
-  margin-top: 10px;
-  padding: 8px 12px;
-  background: rgba(124, 58, 237, 0.08);
-  border: 1px solid rgba(124, 58, 237, 0.2);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
+  background: ${({ $active }) => ($active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a")};
+  color: ${({ $active }) => ($active ? "#ffffff" : "#d1d5db")};
   font-size: 12px;
-`;
-
-const ToneHint = styled.div`
-  margin-top: 8px;
-  font-size: 11px;
-  color: #4b5563;
-  line-height: 1.5;
-  font-style: italic;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  &:hover:not(:disabled) { border-color: #7c3aed; color: #ffffff; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
 `;
 
 // ---- Templates ----
@@ -1202,30 +1924,40 @@ const TemplateCard = styled.button<{ $active: boolean }>`
   padding: 10px 12px;
   border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
   border-radius: 8px;
-  background: ${({ $active }) =>
-    $active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a"};
+  background: ${({ $active }) => ($active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a")};
   cursor: pointer;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: 4px;
   transition: all 0.15s;
-  ${({ $active }) =>
-    $active && "box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.3);"}
-  &:hover {
-    border-color: #7c3aed;
-  }
+  ${({ $active }) => $active && "box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.3);"}
+  &:hover:not(:disabled) { border-color: #7c3aed; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
 `;
 
 const TemplateName = styled.span`
   font-size: 12px;
   font-weight: 700;
-  color: #d1d5db;
+  color: #f9fafb;
   line-height: 1.2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 `;
+
+const WizardBadge = styled.span`
+  font-size: 9px;
+  font-weight: 500;
+  color: #a78bfa;
+  background: rgba(124, 58, 237, 0.15);
+  padding: 0 4px;
+  border-radius: 3px;
+`;
+
 const TemplateDesc = styled.span`
   font-size: 10px;
-  color: #6b7280;
+  color: #9ca3af;
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1233,78 +1965,134 @@ const TemplateDesc = styled.span`
   overflow: hidden;
 `;
 
-// ---- Textarea ----
+// ---- Wizard ----
 
-const Textarea = styled.textarea`
-  width: 100%;
-  padding: 14px 16px;
-  border: 1px solid #2d2d4a;
+const WizardPanel = styled.div`
+  margin-top: 14px;
+  padding: 16px;
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.25);
   border-radius: 10px;
-  font-size: 14px;
-  min-height: 90px;
-  resize: vertical;
-  box-sizing: border-box;
-  font-family: inherit;
-  line-height: 1.55;
-  background: #0d0d1a;
-  color: #e5e7eb;
-  transition: border-color 0.2s;
-  &:focus {
-    outline: none;
-    border-color: #7c3aed;
-  }
-  &::placeholder {
-    color: #4b5563;
+  animation: wizardSlideIn 0.2s ease-out;
+  @keyframes wizardSlideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 `;
 
-// ---- Layout hints ----
-
-const LayoutRow = styled.div`
+const WizardProgress = styled.div`
   display: flex;
-  gap: 8px;
-`;
-
-const LayoutCard = styled.button<{ $active: boolean }>`
-  flex: 1;
-  padding: 10px;
-  border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
-  border-radius: 8px;
-  background: ${({ $active }) =>
-    $active ? "rgba(124, 58, 237, 0.1)" : "#0d0d1a"};
-  cursor: pointer;
-  text-align: center;
-  transition: all 0.15s;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  &:hover {
-    border-color: #7c3aed;
-  }
-`;
-
-const LayoutThumb = styled.div<{ $template: string }>`
-  width: 60px;
-  height: ${({ $template }) => ($template === "card" ? "60px" : "34px")};
-  border-radius: 4px;
-  background: ${({ $template }) =>
-    $template === "split"
-      ? "linear-gradient(90deg, #3b82f6 40%, #1e293b 40%)"
-      : $template === "centered"
-        ? "linear-gradient(135deg, #8b5cf6, #1e293b)"
-        : "linear-gradient(180deg, #ef4444 45%, #1e293b 45%)"};
-`;
-
-const LayoutName = styled.span`
+  justify-content: space-between;
   font-size: 11px;
-  font-weight: 700;
-  color: #d1d5db;
+  font-weight: 600;
+  color: #a78bfa;
+  margin-bottom: 12px;
 `;
-const LayoutDesc = styled.span`
-  font-size: 9px;
-  color: #6b7280;
+
+const WizardStepPips = styled.div`
+  display: flex;
+  gap: 4px;
+`;
+
+const WizardPip = styled.div<{ $active: boolean; $done: boolean }>`
+  width: ${({ $active }) => ($active ? "20px" : "6px")};
+  height: 6px;
+  border-radius: 3px;
+  background: ${({ $active, $done }) =>
+    $active ? "#a78bfa" : $done ? "#7c3aed" : "#2d2d4a"};
+  transition: all 0.2s;
+`;
+
+const WizardQuestion = styled.div`
+  font-size: 14px;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 12px;
+  line-height: 1.4;
+`;
+
+const WizardChipRow = styled.div`
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+`;
+
+const WizardChip = styled.button`
+  padding: 8px 14px;
+  border: 1px solid #2d2d4a;
+  border-radius: 8px;
+  background: #0d0d1a;
+  color: #f9fafb;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
   line-height: 1.3;
+  flex: 1 1 140px;
+  min-width: 120px;
+  max-width: 220px;
+  &:hover:not(:disabled) { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); color: #ffffff; }
+  &:disabled { opacity: 0.3; cursor: not-allowed; }
+`;
+
+const WizardActions = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #2d2d4a;
+`;
+
+const WizardBackButton = styled.button`
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  &:hover { color: #a78bfa; }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+`;
+
+const WizardSkipButton = styled.button`
+  background: none;
+  border: none;
+  color: #4b5563;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  font-style: italic;
+  &:hover { color: #6b7280; }
+`;
+
+// ---- Context chips ----
+
+const SuggestionRow = styled.div`
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+`;
+
+const SuggestionChip = styled.button<{ $selected?: boolean }>`
+  padding: 5px 12px;
+  border: 1px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#2d2d4a")};
+  border-radius: 14px;
+  background: ${({ $selected }) => ($selected ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a")};
+  color: ${({ $selected }) => ($selected ? "#ffffff" : "#d1d5db")};
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  &:hover:not(:disabled) { border-color: #7c3aed; color: #ffffff; background: #1a1a2e; }
+  &:disabled { opacity: 0.3; cursor: not-allowed; }
 `;
 
 // ---- Controls ----
@@ -1315,33 +2103,19 @@ const ControlsRow = styled.div`
   gap: 16px;
   margin-top: 14px;
 `;
+
 const ControlGroup = styled.div`
   display: flex;
   flex-direction: column;
   gap: 4px;
 `;
+
 const ControlLabel = styled.span`
   font-size: 10px;
   font-weight: 600;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-`;
-const FormatNote = styled.span`
-  font-size: 10px;
-  color: #6b7280;
-  font-style: italic;
-  flex: 1;
-  text-align: center;
-  padding-bottom: 4px;
-`;
-
-const LangHint = styled.span<{ $visible: boolean }>`
-  font-size: 10px;
-  color: #a78bfa;
-  font-weight: 500;
-  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
-  transition: opacity 0.2s;
 `;
 
 const PillGroup = styled.div`
@@ -1363,9 +2137,22 @@ const Pill = styled.button<{ $active: boolean }>`
   background: ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
   color: ${({ $active }) => ($active ? "white" : "#6b7280")};
   transition: all 0.15s;
-  &:hover {
-    color: ${({ $active }) => ($active ? "white" : "#d1d5db")};
-  }
+  &:hover { color: ${({ $active }) => ($active ? "white" : "#d1d5db")}; }
+`;
+
+const GenerateRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+`;
+
+const FormatNote = styled.span`
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+  flex: 1;
+  text-align: center;
 `;
 
 const GenerateButton = styled.button`
@@ -1378,15 +2165,9 @@ const GenerateButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  margin-left: auto;
   white-space: nowrap;
-  &:hover:not(:disabled) {
-    background: #6d28d9;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:hover:not(:disabled) { background: #6d28d9; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;
 
 const Spinner = styled.span`
@@ -1397,17 +2178,14 @@ const Spinner = styled.span`
   border-radius: 50%;
   display: inline-block;
   animation: spin 0.7s linear infinite;
-  @keyframes spin {
-    to {
-      transform: rotate(360deg);
-    }
-  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 `;
 
 const HintRow = styled.div`
   margin-top: 10px;
   text-align: center;
 `;
+
 const HintKey = styled.span`
   font-size: 11px;
   color: #4b5563;
@@ -1416,12 +2194,13 @@ const HintKey = styled.span`
   border-radius: 3px;
   border: 1px solid #2d2d4a;
 `;
+
 const HintText = styled.span`
   font-size: 11px;
   color: #4b5563;
 `;
 
-// ---- Variants ----
+// ---- Step 3: Refine ----
 
 const BriefRecap = styled.div`
   font-size: 12px;
@@ -1439,7 +2218,254 @@ const BriefLabel = styled.span`
   color: #9ca3af;
 `;
 
-// ---- Step 4: Review ----
+const RefineGrid = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+`;
+
+const VariantCard = styled.div`
+  padding: 16px;
+  border: 1px solid #2d2d4a;
+  border-radius: 10px;
+  background: #0d0d1a;
+`;
+
+const VariantCardHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+`;
+
+const VariantNumber = styled.span`
+  font-size: 12px;
+  font-weight: 700;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+const DeleteButton = styled.button`
+  padding: 3px 8px;
+  border: 1px solid #2d2d4a;
+  border-radius: 6px;
+  background: transparent;
+  color: #ef4444;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  &:hover { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; }
+`;
+
+// ---- Flux prompt editor (Step 3) ----
+
+const FluxSection = styled.div`
+  margin-top: 12px;
+  border: 1px solid #2d2d4a;
+  border-radius: 6px;
+  overflow: hidden;
+`;
+
+const FluxToggle = styled.button`
+  width: 100%;
+  padding: 6px 10px;
+  background: #0a0a14;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  &:hover { background: #111122; }
+`;
+
+const FluxToggleLabel = styled.span`
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+`;
+
+const FluxToggleHint = styled.span`
+  font-size: 9px;
+  color: #4b5563;
+  text-transform: uppercase;
+`;
+
+const FluxEditor = styled.div`
+  padding: 8px 10px 10px;
+  border-top: 1px solid #2d2d4a;
+  background: #060610;
+`;
+
+const FluxEditorHint = styled.div`
+  font-size: 10px;
+  color: #4b5563;
+  margin-bottom: 6px;
+  line-height: 1.4;
+`;
+
+// ---- Step 4: Images ----
+
+const ImageGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+`;
+
+const ImageCard = styled.div`
+  padding: 14px;
+  border: 1px solid #2d2d4a;
+  border-radius: 10px;
+  background: #0d0d1a;
+  display: flex;
+  flex-direction: column;
+`;
+
+const ImageCardBadge = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  color: #a78bfa;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+`;
+
+const ImagePreview = styled.div`
+  width: 100%;
+  height: 160px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2d2d4a;
+  margin-bottom: 10px;
+  background: #0a0a14;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+`;
+
+const CardImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+`;
+
+const ImagePlaceholder = styled.div`
+  font-size: 12px;
+  color: #4b5563;
+`;
+
+const ImageLoading = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #6b7280;
+`;
+
+const ImageCardTitle = styled.div`
+  font-size: 13px;
+  font-weight: 700;
+  color: #f9fafb;
+  margin-bottom: 4px;
+`;
+
+const ImageCardDesc = styled.div`
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-bottom: 10px;
+`;
+
+const LayoutLabel = styled.div`
+  font-size: 10px;
+  font-weight: 600;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  margin-top: 6px;
+`;
+
+const LayoutRow = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+`;
+
+const LayoutChip = styled.button<{ $active: boolean }>`
+  padding: 3px 8px;
+  border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
+  border-radius: 5px;
+  background: ${({ $active }) => ($active ? "rgba(124, 58, 237, 0.15)" : "transparent")};
+  color: ${({ $active }) => ($active ? "#f9fafb" : "#6b7280")};
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover { border-color: #7c3aed; }
+`;
+
+const ImageActionsRow = styled.div`
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+`;
+
+const ImageActionBtn = styled.button`
+  padding: 4px 10px;
+  border: 1px solid #2d2d4a;
+  border-radius: 6px;
+  background: transparent;
+  color: #a78bfa;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover:not(:disabled) { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+`;
+
+const FluxToggleSmall = styled.button`
+  padding: 4px 10px;
+  border: 1px solid #2d2d4a;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  &:hover { color: #9ca3af; border-color: #4b5563; }
+`;
+
+const FluxImgEditor = styled.div`
+  padding: 8px;
+  border: 1px solid #2d2d4a;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  background: #060610;
+`;
+
+const ImageUploadWrapper = styled.div`
+  margin-bottom: 8px;
+`;
+
+const SelectVariantBtn = styled.button`
+  width: 100%;
+  padding: 8px;
+  border: none;
+  border-radius: 8px;
+  background: #7c3aed;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: auto;
+  &:hover { background: #6d28d9; }
+`;
+
+// ---- Step 5: Publish ----
 
 const ReviewSection = styled.div`
   display: flex;
@@ -1452,6 +2478,7 @@ const FieldGroup = styled.div`
   flex-direction: column;
   gap: 4px;
 `;
+
 const FieldLabel = styled.label`
   font-size: 11px;
   font-weight: 600;
@@ -1467,27 +2494,13 @@ const inputStyles = `
   &::placeholder { color: #4b5563; }
 `;
 
-const FieldInput = styled.input`
-  ${inputStyles}
-`;
-const FieldTextarea = styled.textarea`
-  ${inputStyles} resize: vertical;
-`;
-const SelectField = styled.select`
-  ${inputStyles}
-`;
+const FieldInput = styled.input` ${inputStyles} `;
+const FieldTextarea = styled.textarea` ${inputStyles} resize: vertical; `;
+const SelectField = styled.select` ${inputStyles} `;
+
 const FieldRow = styled.div`
   display: flex;
   gap: 10px;
-`;
-
-const ToneTag = styled.div`
-  font-size: 11px;
-  color: #a78bfa;
-  padding: 6px 10px;
-  background: rgba(124, 58, 237, 0.1);
-  border-radius: 6px;
-  font-weight: 500;
 `;
 
 const SubmitRow = styled.div`
@@ -1497,6 +2510,216 @@ const SubmitRow = styled.div`
   margin-top: 8px;
   padding-top: 12px;
   border-top: 1px solid #2d2d4a;
+`;
+
+// ---- Ingredients summary ----
+
+const IngredientsSummary = styled.div`
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: rgba(124, 58, 237, 0.05);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: 8px;
+`;
+
+const IngredientsLabel = styled.div`
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+`;
+
+const IngredientsTags = styled.div`
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+`;
+
+// ---- Preview prompt ----
+
+const PreviewSection = styled.div`
+  margin-top: 12px;
+  border: 1px solid #2d2d4a;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const PreviewToggle = styled.button`
+  width: 100%;
+  padding: 8px 12px;
+  background: #0d0d1a;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  &:hover { background: #1a1a2e; }
+`;
+
+const PreviewToggleIcon = styled.span<{ $open: boolean }>`
+  font-size: 10px;
+  color: ${({ $open }) => ($open ? "#60a5fa" : "#6b7280")};
+`;
+
+const PreviewToggleLabel = styled.span`
+  font-size: 12px;
+  font-weight: 700;
+  color: #f9fafb;
+`;
+
+const PreviewToggleHint = styled.span`
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+`;
+
+const PreviewBody = styled.div`
+  padding: 12px;
+  background: #060610;
+  border-top: 1px solid #2d2d4a;
+  font-family: "SF Mono", "Fira Code", monospace;
+`;
+
+const PreviewLine = styled.div`
+  font-size: 11px;
+  color: #d1d5db;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
+// ---- Custom context input ----
+
+const CustomContextRow = styled.div`
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #2d2d4a;
+`;
+
+const CustomContextInput = styled.input`
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #2d2d4a;
+  border-radius: 6px;
+  background: #0d0d1a;
+  color: #e5e7eb;
+  font-size: 11px;
+  font-family: inherit;
+  &:focus { outline: none; border-color: #3b82f6; }
+  &::placeholder { color: #4b5563; }
+  &:disabled { opacity: 0.4; }
+`;
+
+const CustomContextAddBtn = styled.button`
+  padding: 6px 12px;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.12);
+  color: #60a5fa;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  &:hover:not(:disabled) { background: rgba(59, 130, 246, 0.2); }
+  &:disabled { opacity: 0.3; cursor: not-allowed; }
+`;
+
+const IngredientTag = styled.span<{ $kind: "tone" | "template" | "context" }>`
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  background: ${({ $kind }) =>
+    $kind === "tone"
+      ? "rgba(245, 158, 11, 0.12)"
+      : $kind === "template"
+        ? "rgba(124, 58, 237, 0.15)"
+        : "rgba(59, 130, 246, 0.12)"};
+  color: ${({ $kind }) =>
+    $kind === "tone" ? "#f59e0b" : $kind === "template" ? "#a78bfa" : "#60a5fa"};
+  border: 1px solid ${({ $kind }) =>
+    $kind === "tone"
+      ? "rgba(245, 158, 11, 0.25)"
+      : $kind === "template"
+        ? "rgba(124, 58, 237, 0.25)"
+        : "rgba(59, 130, 246, 0.25)"};
+`;
+
+// ---- Compliance blocked ----
+
+const ComplianceBlockedBox = styled.div`
+  margin-top: 14px;
+  padding: 12px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+`;
+
+const ComplianceBlockedTitle = styled.div`
+  font-size: 12px;
+  font-weight: 700;
+  color: #ef4444;
+  margin-bottom: 8px;
+`;
+
+const ComplianceBlockedReason = styled.div`
+  font-size: 11px;
+  color: #fca5a5;
+  margin-bottom: 4px;
+  padding-left: 8px;
+  border-left: 2px solid rgba(239, 68, 68, 0.3);
+  line-height: 1.4;
+`;
+
+const ComplianceBlockedHint = styled.div`
+  font-size: 10px;
+  color: #6b7280;
+  margin-top: 8px;
+  font-style: italic;
+`;
+
+// ---- Compliance warning (post-check) ----
+
+const ComplianceWarningBox = styled.div`
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.06);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+`;
+
+const FallbackWarningBox = styled.div`
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.06);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #f87171;
+  line-height: 1.4;
+`;
+
+const ComplianceWarningTitle = styled.div`
+  font-size: 11px;
+  font-weight: 700;
+  color: #f59e0b;
+  margin-bottom: 6px;
+`;
+
+const ComplianceWarningItem = styled.div`
+  font-size: 10px;
+  color: #fcd34d;
+  margin-bottom: 3px;
+  padding-left: 6px;
+  border-left: 2px solid rgba(245, 158, 11, 0.3);
+  line-height: 1.4;
 `;
 
 const SubmitButton = styled.button`
@@ -1509,11 +2732,6 @@ const SubmitButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  &:hover:not(:disabled) {
-    background: #059669;
-  }
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:hover:not(:disabled) { background: #059669; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 `;

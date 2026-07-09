@@ -18,12 +18,21 @@ import type { ContentType } from "@/components/bar/create/types";
 
 // ---- Public API ----
 
+export interface VisualDirection {
+  description: string;
+  keyElements: string[];
+  styleNotes: string;
+}
+
 export interface PromptSelections {
   styleId: string;
   subjectId: string;
   compositionId: string;
   /** Additional context from the form (bar name, promo title, description) */
   context: string;
+  /** AI-generated visual scene description — when provided, becomes the
+   *  primary prompt content. Style/subject/composition act as framing. */
+  visualDirection?: VisualDirection;
 }
 
 export interface BuiltPrompt {
@@ -58,15 +67,33 @@ export function buildImagePrompt(
     throw new Error("Invalid selection: style, subject, or composition not found.");
   }
 
-  // Build the raw prompt from structured selections
-  const rawPrompt = [
-    style.visualPrompt,
-    subject.visualPrompt,
-    composition.visualPrompt,
-    selections.context || "",
-  ]
-    .filter(Boolean)
-    .join(". ");
+  // Build the prompt. When visualDirection is provided (from AI-generated text),
+  // it becomes the primary scene description. Style/subject/composition add
+  // framing — they set the overall visual mood without overriding the AI's scene.
+  let rawPrompt: string;
+  if (selections.visualDirection) {
+    const vd = selections.visualDirection;
+    const elements = vd.keyElements?.length ? `Featuring: ${vd.keyElements.join(", ")}.` : "";
+    const notes = vd.styleNotes ? `Photographic style: ${vd.styleNotes}.` : "";
+    rawPrompt = [
+      vd.description,
+      elements,
+      notes,
+      style.visualPrompt,
+      selections.context || "",
+    ]
+      .filter(Boolean)
+      .join(". ");
+  } else {
+    rawPrompt = [
+      style.visualPrompt,
+      subject.visualPrompt,
+      composition.visualPrompt,
+      selections.context || "",
+    ]
+      .filter(Boolean)
+      .join(". ");
+  }
 
   // Run compliance check
   const contentTypeLabel = contentTypeLabelMap[contentType] || "hospitality venue";
