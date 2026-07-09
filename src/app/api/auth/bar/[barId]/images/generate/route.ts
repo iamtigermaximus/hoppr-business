@@ -37,7 +37,7 @@ export async function POST(
     }
 
     // Plan gate — only enforced for real (paid) providers in production.
-    if (process.env.NODE_ENV === "production" && authResult.type === "bar_staff" && isProviderReal()) {
+    if (process.env.REQUIRE_PLAN_FOR_AI === "true" && authResult.type === "bar_staff") {
       const bar = await prisma.bar.findUnique({
         where: { id: barId },
         select: { plan: true },

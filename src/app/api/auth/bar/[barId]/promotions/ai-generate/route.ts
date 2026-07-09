@@ -167,8 +167,9 @@ export async function POST(
     }
 
     // Plan feature gate: only PRO/PREMIUM plans can use AI generation.
-    // Skipped in development so the full flow can be tested without plan setup.
-    if (process.env.NODE_ENV === "production") {
+    // Controlled by REQUIRE_PLAN_FOR_AI env var — set to "true" when
+    // subscriptions launch. Currently disabled for development.
+    if (process.env.REQUIRE_PLAN_FOR_AI === "true") {
       const barPlan = await prisma.bar.findUnique({
         where: { id: barId },
         select: { plan: true },
