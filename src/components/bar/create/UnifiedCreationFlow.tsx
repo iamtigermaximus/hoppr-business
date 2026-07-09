@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import styled from "styled-components";
 import type { ContentType, FormState } from "./types";
 import { PROMOTION_TYPES } from "./types";
@@ -59,38 +59,130 @@ const TYPE_OPTIONS: {
   desc: string;
   emoji: string;
 }[] = [
-  { value: "promotion", label: "Promotion", desc: "Happy hours, drink specials, food deals", emoji: "" },
-  { value: "event", label: "Event", desc: "Live music, game nights, theme parties", emoji: "" },
-  { value: "campaign", label: "Ad Campaign", desc: "Boosted listings, featured placements", emoji: "" },
-  { value: "pass", label: "Pass / Ticket", desc: "Skip-line, VIP, cover charge passes", emoji: "" },
+  {
+    value: "promotion",
+    label: "Promotion",
+    desc: "Happy hours, drink specials, food deals",
+    emoji: "",
+  },
+  {
+    value: "event",
+    label: "Event",
+    desc: "Live music, game nights, theme parties",
+    emoji: "",
+  },
+  {
+    value: "campaign",
+    label: "Ad Campaign",
+    desc: "Boosted listings, featured placements",
+    emoji: "",
+  },
+  {
+    value: "pass",
+    label: "Pass / Ticket",
+    desc: "Skip-line, VIP, cover charge passes",
+    emoji: "",
+  },
 ];
 
 const TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
   en: [
-    { label: "After-Work", prompt: "After-work gathering. The moment the workday ends and the evening begins. Describe the transition — the first drink, the decompression, the shift in energy as people unwind. Focus on atmosphere over specifics." },
-    { label: "Ladies Night", prompt: "A night designed for groups of friends. The music, the welcome, the space — all curated to make groups feel at home. Describe the social energy, the laughter, the feeling of a night out with your people." },
-    { label: "Live Music", prompt: "Music takes over the room. The first chord, the shifting crowd, the shared experience of live sound. Describe the performer, the audience, the moment when everything else fades and only the music matters." },
-    { label: "Game Night", prompt: "Friendly competition with drinks in hand. The playful tension, the surprise victory, the laughter after a wrong answer. Describe the social glue of games — how they turn strangers into teammates." },
-    { label: "Food Special", prompt: "The kitchen is showing off. A dish worth planning your evening around. Describe the craftsmanship, the ingredients, the pairing, the satisfaction of a meal that exceeds expectations." },
-    { label: "VIP Experience", prompt: "Behind the rope, above the crowd. A different pace, a different level of attention. Describe what makes this experience feel elevated — not just exclusive, but genuinely better." },
-    { label: "Signature Evening", prompt: "A curated night that couldn't happen anywhere else. Something unique to this bar, this team, this moment. Describe the concept, the craft, the reason someone would cross town for this." },
-    { label: "Theme Night", prompt: "The bar transforms. A concept, a dress code, a shared reality that everyone in the room is part of. Describe the immersion — what it looks like, sounds like, feels like to step into a different world for one night." },
+    {
+      label: "After-Work",
+      prompt:
+        "After-work gathering. The moment the workday ends and the evening begins. Describe the transition — the first drink, the decompression, the shift in energy as people unwind. Focus on atmosphere over specifics.",
+    },
+    {
+      label: "Ladies Night",
+      prompt:
+        "A night designed for groups of friends. The music, the welcome, the space — all curated to make groups feel at home. Describe the social energy, the laughter, the feeling of a night out with your people.",
+    },
+    {
+      label: "Live Music",
+      prompt:
+        "Music takes over the room. The first chord, the shifting crowd, the shared experience of live sound. Describe the performer, the audience, the moment when everything else fades and only the music matters.",
+    },
+    {
+      label: "Game Night",
+      prompt:
+        "Friendly competition with drinks in hand. The playful tension, the surprise victory, the laughter after a wrong answer. Describe the social glue of games — how they turn strangers into teammates.",
+    },
+    {
+      label: "Food Special",
+      prompt:
+        "The kitchen is showing off. A dish worth planning your evening around. Describe the craftsmanship, the ingredients, the pairing, the satisfaction of a meal that exceeds expectations.",
+    },
+    {
+      label: "VIP Experience",
+      prompt:
+        "Behind the rope, above the crowd. A different pace, a different level of attention. Describe what makes this experience feel elevated — not just exclusive, but genuinely better.",
+    },
+    {
+      label: "Signature Evening",
+      prompt:
+        "A curated night that couldn't happen anywhere else. Something unique to this bar, this team, this moment. Describe the concept, the craft, the reason someone would cross town for this.",
+    },
+    {
+      label: "Theme Night",
+      prompt:
+        "The bar transforms. A concept, a dress code, a shared reality that everyone in the room is part of. Describe the immersion — what it looks like, sounds like, feels like to step into a different world for one night.",
+    },
   ],
   fi: [
-    { label: "After-Work", prompt: "After-work-kokoontuminen. Hetki jolloin työpäivä päättyy ja ilta alkaa. Kuvaile siirtymä — ensimmäinen juoma, rentoutuminen, energian muutos. Keskity tunnelmaan." },
-    { label: "Naistenilta", prompt: "Ilta ystäväporukoille. Musiikki, vastaanotto, tila — kaikki kuratoitu ryhmien viihtymiseen. Kuvaile sosiaalista energiaa, naurua, yhdessä vietetyn illan tunnelmaa." },
-    { label: "Elävä musiikki", prompt: "Musiikki valtaa tilan. Ensimmäinen sointu, liikkuva yleisö, jaettu live-äänen kokemus. Kuvaile esiintyjää, yleisöä, hetkeä jolloin kaikki muu katoaa." },
-    { label: "Peli-ilta", prompt: "Ystävällismielistä kilpailua juoman äärellä. Leikkisä jännitys, yllätysvoitto, nauru väärän vastauksen jälkeen. Kuvaile pelien sosiaalista liimaa." },
-    { label: "Ruokatarjous", prompt: "Keittiö näyttää osaamistaan. Annos, jonka ympärille kannattaa suunnitella ilta. Kuvaile käsityötaitoa, raaka-aineita, makupareja, ateriaa joka ylittää odotukset." },
-    { label: "VIP-kokemus", prompt: "Köyden takana, väkijoukon yllä. Eri rytmi, eri huomion taso. Kuvaile mikä tekee tästä kokemuksesta kohotetun — ei vain eksklusiivisen, vaan aidosti paremman." },
-    { label: "Talon suositukset", prompt: "Kuratoitu ilta jota ei voisi tapahtua missään muualla. Jotain ainutlaatuista tälle baarille, tälle tiimille, tälle hetkelle. Kuvaile konsepti, syy miksi joku matkustaisi kaupungin halki tämän takia." },
-    { label: "Teemailta", prompt: "Baari muuntuu. Konsepti, pukukoodi, jaettu todellisuus. Kuvaile immersio — miltä näyttää, kuulostaa, tuntuu astua eri maailmaan yhden illan ajaksi." },
+    {
+      label: "After-Work",
+      prompt:
+        "After-work-kokoontuminen. Hetki jolloin työpäivä päättyy ja ilta alkaa. Kuvaile siirtymä — ensimmäinen juoma, rentoutuminen, energian muutos. Keskity tunnelmaan.",
+    },
+    {
+      label: "Naistenilta",
+      prompt:
+        "Ilta ystäväporukoille. Musiikki, vastaanotto, tila — kaikki kuratoitu ryhmien viihtymiseen. Kuvaile sosiaalista energiaa, naurua, yhdessä vietetyn illan tunnelmaa.",
+    },
+    {
+      label: "Elävä musiikki",
+      prompt:
+        "Musiikki valtaa tilan. Ensimmäinen sointu, liikkuva yleisö, jaettu live-äänen kokemus. Kuvaile esiintyjää, yleisöä, hetkeä jolloin kaikki muu katoaa.",
+    },
+    {
+      label: "Peli-ilta",
+      prompt:
+        "Ystävällismielistä kilpailua juoman äärellä. Leikkisä jännitys, yllätysvoitto, nauru väärän vastauksen jälkeen. Kuvaile pelien sosiaalista liimaa.",
+    },
+    {
+      label: "Ruokatarjous",
+      prompt:
+        "Keittiö näyttää osaamistaan. Annos, jonka ympärille kannattaa suunnitella ilta. Kuvaile käsityötaitoa, raaka-aineita, makupareja, ateriaa joka ylittää odotukset.",
+    },
+    {
+      label: "VIP-kokemus",
+      prompt:
+        "Köyden takana, väkijoukon yllä. Eri rytmi, eri huomion taso. Kuvaile mikä tekee tästä kokemuksesta kohotetun — ei vain eksklusiivisen, vaan aidosti paremman.",
+    },
+    {
+      label: "Talon suositukset",
+      prompt:
+        "Kuratoitu ilta jota ei voisi tapahtua missään muualla. Jotain ainutlaatuista tälle baarille, tälle tiimille, tälle hetkelle. Kuvaile konsepti, syy miksi joku matkustaisi kaupungin halki tämän takia.",
+    },
+    {
+      label: "Teemailta",
+      prompt:
+        "Baari muuntuu. Konsepti, pukukoodi, jaettu todellisuus. Kuvaile immersio — miltä näyttää, kuulostaa, tuntuu astua eri maailmaan yhden illan ajaksi.",
+    },
   ],
 };
 
 const LAYOUT_HINTS = [
-  { template: "split" as const, label: "Split", desc: "Photo left, text right" },
-  { template: "centered" as const, label: "Centered", desc: "Bold headline focus" },
+  {
+    template: "split" as const,
+    label: "Split",
+    desc: "Photo left, text right",
+  },
+  {
+    template: "centered" as const,
+    label: "Centered",
+    desc: "Bold headline focus",
+  },
   { template: "card" as const, label: "Card", desc: "Square, photo-forward" },
 ];
 
@@ -100,8 +192,8 @@ const PLACEHOLDERS: Record<Language, string> = {
 };
 
 const GENERATING_MESSAGES: Record<Language, string> = {
-  fi: "Tekoäly luo vaihtoehtoja...",
-  en: "AI is crafting your options...",
+  fi: "Luodaan vaihtoehtoja...",
+  en: "Creating your options...",
 };
 
 const GENERATING_IMAGES_MSG: Record<Language, string> = {
@@ -164,25 +256,57 @@ function getContextualSuggestions(language: Language): string[] {
   }
 
   if (hour < 12) {
-    suggestions.push(language === "fi" ? "Päivätapahtuma — brunssi, lounas, aikainen startti" : "Daytime event — brunch, lunch, early start, different energy");
+    suggestions.push(
+      language === "fi"
+        ? "Päivätapahtuma — brunssi, lounas, aikainen startti"
+        : "Daytime event — brunch, lunch, early start, different energy",
+    );
   } else if (hour >= 16 && hour < 20) {
-    suggestions.push(language === "fi" ? "After-work-aika — toimistolta suoraan, rentoutumisen hetki" : "After-work hours — straight from the office, the decompression hour");
+    suggestions.push(
+      language === "fi"
+        ? "After-work-aika — toimistolta suoraan, rentoutumisen hetki"
+        : "After-work hours — straight from the office, the decompression hour",
+    );
   } else {
-    suggestions.push(language === "fi" ? "Iltatunnelma — myöhäinen ilta, bileet käynnissä, yöelämän syke" : "Late night energy — the party is alive, the night crowd has arrived");
+    suggestions.push(
+      language === "fi"
+        ? "Iltatunnelma — myöhäinen ilta, bileet käynnissä, yöelämän syke"
+        : "Late night energy — the party is alive, the night crowd has arrived",
+    );
   }
 
   if (month >= 5 && month <= 7) {
-    suggestions.push(language === "fi" ? "Kesäterassi — ulkoilma, auringonlasku, pitkät illat" : "Summer terrace season — outdoor, sunset, long evenings, fresh air");
+    suggestions.push(
+      language === "fi"
+        ? "Kesäterassi — ulkoilma, auringonlasku, pitkät illat"
+        : "Summer terrace season — outdoor, sunset, long evenings, fresh air",
+    );
   } else if (month >= 11 || month <= 1) {
-    suggestions.push(language === "fi" ? "Talvinen tunnelma — lämmintä valoa, pimeyttä vastaan, sisätilojen kodikkuus" : "Winter warmth — cozy indoors, warm lighting, escape from the cold");
+    suggestions.push(
+      language === "fi"
+        ? "Talvinen tunnelma — lämmintä valoa, pimeyttä vastaan, sisätilojen kodikkuus"
+        : "Winter warmth — cozy indoors, warm lighting, escape from the cold",
+    );
   }
 
   if (month === 4 && day >= 28 && day <= 30) {
-    suggestions.push(language === "fi" ? "Vappu-tunnelma — kevään juhla, kaupungin suurin karnevaali" : "Vappu celebration — Finland's biggest carnival, spring festival");
+    suggestions.push(
+      language === "fi"
+        ? "Vappu-tunnelma — kevään juhla, kaupungin suurin karnevaali"
+        : "Vappu celebration — Finland's biggest carnival, spring festival",
+    );
   }
 
-  suggestions.push(language === "fi" ? "Syntymäpäivät tai juhlat — ryhmävaraukset, yksityistila" : "Birthday or celebration — group bookings, private area");
-  suggestions.push(language === "fi" ? "Treffi-ilta — intiimi tunnelma, kahden hengen pöydät" : "Date night — intimate atmosphere, tables for two");
+  suggestions.push(
+    language === "fi"
+      ? "Syntymäpäivät tai juhlat — ryhmävaraukset, yksityistila"
+      : "Birthday or celebration — group bookings, private area",
+  );
+  suggestions.push(
+    language === "fi"
+      ? "Treffi-ilta — intiimi tunnelma, kahden hengen pöydät"
+      : "Date night — intimate atmosphere, tables for two",
+  );
 
   return suggestions;
 }
@@ -192,18 +316,25 @@ function getContextualSuggestions(language: Language): string[] {
 function toneInstructionText(tone: ContentTone, language: Language): string {
   if (language === "fi") {
     const map: Record<ContentTone, string> = {
-      BOLD_ENERGETIC: "Äänensävy: rohkea ja energinen. Lyhyitä lauseita, aktiivisia verbejä, suoria kehotuksia.",
-      WARM_INVITING: "Äänensävy: lämmin ja kutsuva. Keskity tunnelmaan ja vieraanvaraisuuteen.",
-      EDGY_IRREVERENT: "Äänensävy: ronski ja railakas. Rentoa, suoraa, persoonallista.",
-      ELEGANT_PREMIUM: "Äänensävy: elegantti ja premium. Hillittyä, laadukasta, hienostunutta.",
+      BOLD_ENERGETIC:
+        "Äänensävy: rohkea ja energinen. Lyhyitä lauseita, aktiivisia verbejä, suoria kehotuksia.",
+      WARM_INVITING:
+        "Äänensävy: lämmin ja kutsuva. Keskity tunnelmaan ja vieraanvaraisuuteen.",
+      EDGY_IRREVERENT:
+        "Äänensävy: ronski ja railakas. Rentoa, suoraa, persoonallista.",
+      ELEGANT_PREMIUM:
+        "Äänensävy: elegantti ja premium. Hillittyä, laadukasta, hienostunutta.",
       PLAYFUL_FUN: "Äänensävy: leikkisä ja hauska. Iloinen, energinen, rento.",
     };
     return map[tone];
   }
   const map: Record<ContentTone, string> = {
-    BOLD_ENERGETIC: "Tone: bold and energetic. Short sentences, active verbs, direct CTAs.",
-    WARM_INVITING: "Tone: warm and inviting. Focus on atmosphere and hospitality.",
-    EDGY_IRREVERENT: "Tone: edgy and irreverent. Casual, direct, personality-driven.",
+    BOLD_ENERGETIC:
+      "Tone: bold and energetic. Short sentences, active verbs, direct CTAs.",
+    WARM_INVITING:
+      "Tone: warm and inviting. Focus on atmosphere and hospitality.",
+    EDGY_IRREVERENT:
+      "Tone: edgy and irreverent. Casual, direct, personality-driven.",
     ELEGANT_PREMIUM: "Tone: elegant and premium. Understated sophistication.",
     PLAYFUL_FUN: "Tone: playful and fun. Upbeat, emoji-friendly, energetic.",
   };
@@ -212,9 +343,16 @@ function toneInstructionText(tone: ContentTone, language: Language): string {
 
 // ---- Build initial Flux prompt from visualDirection ----
 
-function buildInitialFluxPrompt(vd: { description: string; keyElements: string[]; styleNotes: string } | null | undefined): string {
+function buildInitialFluxPrompt(
+  vd:
+    | { description: string; keyElements: string[]; styleNotes: string }
+    | null
+    | undefined,
+): string {
   if (!vd) return "";
-  const elements = vd.keyElements?.length ? `Key elements: ${vd.keyElements.join(", ")}.` : "";
+  const elements = vd.keyElements?.length
+    ? `Key elements: ${vd.keyElements.join(", ")}.`
+    : "";
   const notes = vd.styleNotes ? `Style: ${vd.styleNotes}.` : "";
   return [vd.description, elements, notes].filter(Boolean).join(" ");
 }
@@ -244,9 +382,7 @@ function buildPreviewPrompt(
 
   if (tone) {
     const toneLabel = TONE_OPTIONS.find((t) => t.value === tone)?.label || tone;
-    parts.push(
-      isFi ? `Äänensävy: ${toneLabel}` : `Tone: ${toneLabel}`,
-    );
+    parts.push(isFi ? `Äänensävy: ${toneLabel}` : `Tone: ${toneLabel}`);
   }
 
   if (contexts.length > 0) {
@@ -298,13 +434,28 @@ export default function UnifiedCreationFlow({
   // Brief state
   const [text, setText] = useState("");
   const [language, setLanguage] = useState<Language>("en");
-  const [activeTone, setActiveTone] = useState<ContentTone | null>(contentTone ?? null);
+  const [activeTone, setActiveTone] = useState<ContentTone | null>(
+    contentTone ?? null,
+  );
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
   const [selectedContexts, setSelectedContexts] = useState<string[]>([]);
   const [customContextInput, setCustomContextInput] = useState("");
   const nonceRef = useRef(0);
-  const [complianceBlocked, setComplianceBlocked] = useState<{ reasons: string[] } | null>(null);
-  const [complianceWarnings, setComplianceWarnings] = useState<string[] | null>(null);
+  const [complianceBlocked, setComplianceBlocked] = useState<{
+    reasons: string[];
+  } | null>(null);
+  const [complianceWarnings, setComplianceWarnings] = useState<string[] | null>(
+    null,
+  );
+  const [variantViolations, setVariantViolations] = useState<
+    Array<{
+      rule: string;
+      keyword: string;
+      severity: string;
+      message: string;
+      suggestion: string;
+    }>[]
+  >([]);
   const [usingFallback, setUsingFallback] = useState(false);
   const [inferredType, setInferredType] = useState<string>("promotion");
 
@@ -317,20 +468,38 @@ export default function UnifiedCreationFlow({
   // Wizard state
   const [wizardActive, setWizardActive] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
-  const [wizardAnswers, setWizardAnswers] = useState<Record<string, string>>({});
-  const wizardConfig = activeTemplate ? getWizardForTemplate(activeTemplate) : null;
+  const [wizardAnswers, setWizardAnswers] = useState<Record<string, string>>(
+    {},
+  );
+  const wizardConfig = activeTemplate
+    ? getWizardForTemplate(activeTemplate)
+    : null;
   const wizardSteps: WizardStep[] =
     wizardConfig && wizardConfig.steps[language]
       ? wizardConfig.steps[language]
       : [];
 
   // Auto-open preview when any ingredient is selected
-  const hasIngredients = !!(activeTone || activeTemplate || selectedContexts.length > 0 || text.trim());
+  const hasIngredients = !!(
+    activeTone ||
+    activeTemplate ||
+    selectedContexts.length > 0 ||
+    text.trim()
+  );
   useEffect(() => {
     if (hasIngredients) {
       setPreviewOpen(true);
     }
   }, [activeTone, activeTemplate, selectedContexts, text, hasIngredients]);
+
+  // Auto-open tone section when entering Step 2 (brief)
+  useEffect(() => {
+    if (step === "brief") {
+      setToneOpen(true);
+      setTemplatesOpen(false);
+      setContextOpen(false);
+    }
+  }, [step]);
 
   // Text generation state
   const [variants, setVariants] = useState<EditableVariant[]>([]);
@@ -338,11 +507,16 @@ export default function UnifiedCreationFlow({
 
   // Image generation state
   const [variantImages, setVariantImages] = useState<(string | null)[]>([]);
-  const [variantImagesLoading, setVariantImagesLoading] = useState<boolean[]>([]);
+  const [variantImagesLoading, setVariantImagesLoading] = useState<boolean[]>(
+    [],
+  );
   const [generatingImages, setGeneratingImages] = useState(false);
-  const [variantLayouts, setVariantLayouts] = useState<Array<"split" | "centered" | "card">>([]);
+  const [variantLayouts, setVariantLayouts] = useState<
+    Array<"split" | "centered" | "card">
+  >([]);
 
-  const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
 
   // ---- Tone ----
 
@@ -354,15 +528,19 @@ export default function UnifiedCreationFlow({
       const instruction = toneInstructionText(newTone, language);
       setText((prev) => {
         const trimmed = prev.trim();
-        // Replace existing tone line or append
         const lines = trimmed.split("\n");
-        const toneIdx = lines.findIndex((l) => l.startsWith("Tone:") || l.startsWith("Äänensävy:"));
+        const toneIdx = lines.findIndex(
+          (l) => l.startsWith("Tone:") || l.startsWith("Äänensävy:"),
+        );
         if (toneIdx >= 0) {
           lines[toneIdx] = instruction;
           return lines.join("\n");
         }
         return trimmed ? `${trimmed}\n\n${instruction}` : instruction;
       });
+      // Auto-advance: close tone, open templates
+      setToneOpen(false);
+      setTemplatesOpen(true);
     }
   };
 
@@ -385,10 +563,14 @@ export default function UnifiedCreationFlow({
       setWizardActive(true);
       setWizardStep(0);
       setWizardAnswers({});
+      // Keep templates open so user can complete the wizard
     } else {
       setWizardActive(false);
       setWizardStep(0);
       setWizardAnswers({});
+      // Close templates, open context after non-wizard selection
+      setTemplatesOpen(false);
+      setContextOpen(true);
     }
   };
 
@@ -402,7 +584,10 @@ export default function UnifiedCreationFlow({
       setWizardStep(wizardStep + 1);
       setText(assembleWizardPrompt(updated, barName, language));
     } else {
+      // Wizard complete — close templates, open context
       setWizardActive(false);
+      setTemplatesOpen(false);
+      setContextOpen(true);
       setText(assembleWizardPrompt(updated, barName, language));
     }
   };
@@ -420,6 +605,8 @@ export default function UnifiedCreationFlow({
 
   const handleWizardDismiss = () => {
     setWizardActive(false);
+    setTemplatesOpen(false);
+    setContextOpen(true);
   };
 
   // ---- Regenerate brief — re-calls AI with new nonce for guaranteed different output ----
@@ -466,6 +653,7 @@ export default function UnifiedCreationFlow({
     setError(null);
     setComplianceBlocked(null);
     setComplianceWarnings(null);
+    setVariantViolations([]);
     setUsingFallback(false);
     setVariants([]);
 
@@ -473,8 +661,15 @@ export default function UnifiedCreationFlow({
       // Type inference
       const suggestRes = await fetch(`/api/auth/bar/${barId}/create/suggest`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text: input, language, contentTone: activeTone }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          text: input,
+          language,
+          contentTone: activeTone,
+        }),
       });
 
       if (!suggestRes.ok) {
@@ -487,20 +682,26 @@ export default function UnifiedCreationFlow({
       setInferredType(type);
 
       // Text generation — sends structured ingredients, not hardcoded text
-      const genRes = await fetch(`/api/auth/bar/${barId}/promotions/ai-generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          prompt: input || undefined,
-          type,
-          template: activeTemplate,
-          tone: activeTone,
-          context: selectedContexts.length > 0 ? selectedContexts : undefined,
-          language,
-          numVariants: 3,
-          nonce: nonceRef.current,
-        }),
-      });
+      const genRes = await fetch(
+        `/api/auth/bar/${barId}/promotions/ai-generate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            prompt: input || undefined,
+            type,
+            template: activeTemplate,
+            tone: activeTone,
+            context: selectedContexts.length > 0 ? selectedContexts : undefined,
+            language,
+            numVariants: 3,
+            nonce: nonceRef.current,
+          }),
+        },
+      );
 
       const genData = await genRes.json();
 
@@ -508,25 +709,53 @@ export default function UnifiedCreationFlow({
         // Handle compliance pre-check failure
         if (genData.complianceBlocked) {
           setComplianceBlocked({ reasons: genData.complianceBlocked });
-          throw new Error(genData.error || "Prompt blocked by compliance check");
+          throw new Error(
+            genData.error || "Prompt blocked by compliance check",
+          );
         }
         throw new Error(genData.error || "Variant generation failed");
       }
 
-      // Show compliance post-check warnings if any (not errors — informational)
-      if (genData.complianceWarnings && genData.complianceWarnings.length > 0) {
-        setComplianceWarnings(genData.complianceWarnings as string[]);
+      // Per-variant compliance violations — shown inline under each variant card
+      if (
+        genData.complianceResults &&
+        Array.isArray(genData.complianceResults)
+      ) {
+        const violationsByVariant: Array<
+          Array<{
+            rule: string;
+            keyword: string;
+            severity: string;
+            message: string;
+            suggestion: string;
+          }>
+        > = new Array((genData.variants as Array<unknown>).length)
+          .fill(null)
+          .map(() => []);
+        for (const cr of genData.complianceResults as Array<{
+          variantIndex: number;
+          violations: Array<{
+            rule: string;
+            keyword: string;
+            severity: string;
+            message: string;
+            suggestion: string;
+          }>;
+        }>) {
+          if (cr.variantIndex < violationsByVariant.length) {
+            violationsByVariant[cr.variantIndex] = cr.violations;
+          }
+        }
+        setVariantViolations(violationsByVariant);
+        setComplianceWarnings(null);
       } else {
+        setVariantViolations([]);
         setComplianceWarnings(null);
       }
 
-      // Show fallback warning when AI wasn't used (key missing, API down, or all variants filtered)
+      // Show fallback warning when AI wasn't used
       if (!genData.aiGenerated && genData.warning) {
         setUsingFallback(true);
-        setComplianceWarnings((prev) => [
-          ...(prev || []),
-          genData.warning as string,
-        ]);
       } else {
         setUsingFallback(false);
       }
@@ -536,7 +765,9 @@ export default function UnifiedCreationFlow({
 
         // Build editable variants with Flux prompts
         const editableVariants: EditableVariant[] = rawVariants.map((v) => {
-          const vd = v.visualDirection as EditableVariant["visualDirection"] | undefined;
+          const vd = v.visualDirection as
+            | EditableVariant["visualDirection"]
+            | undefined;
           return {
             title: (v.title as string) || "",
             description: (v.description as string) || "",
@@ -554,9 +785,12 @@ export default function UnifiedCreationFlow({
         // Use the AI's chosen template per variant, not hardcoded "split"
         setVariantLayouts(
           rawVariants.map((v) => {
-            const t = (v.visual as Record<string, unknown> | undefined)?.template as string | undefined;
-            return (t && ["split", "centered", "card"].includes(t)) ? t as "split" | "centered" | "card" : "split";
-          })
+            const t = (v.visual as Record<string, unknown> | undefined)
+              ?.template as string | undefined;
+            return t && ["split", "centered", "card"].includes(t)
+              ? (t as "split" | "centered" | "card")
+              : "split";
+          }),
         );
         setVariantImages(new Array(editableVariants.length).fill(null));
         setStep("refine");
@@ -564,15 +798,29 @@ export default function UnifiedCreationFlow({
         throw new Error("No variants returned");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate. Try again.");
+      setError(
+        err instanceof Error ? err.message : "Failed to generate. Try again.",
+      );
     } finally {
       setGeneratingText(false);
     }
-  }, [text, token, barId, language, activeTone, activeTemplate, selectedContexts]);
+  }, [
+    text,
+    token,
+    barId,
+    language,
+    activeTone,
+    activeTemplate,
+    selectedContexts,
+  ]);
 
   // ---- Edit a variant field ----
 
-  const updateVariant = (index: number, field: keyof EditableVariant, value: unknown) => {
+  const updateVariant = (
+    index: number,
+    field: keyof EditableVariant,
+    value: unknown,
+  ) => {
     setVariants((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
@@ -586,6 +834,57 @@ export default function UnifiedCreationFlow({
     setVariants((prev) => prev.filter((_, i) => i !== index));
     setVariantImages((prev) => prev.filter((_, i) => i !== index));
     setVariantLayouts((prev) => prev.filter((_, i) => i !== index));
+    setVariantViolations((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // ---- Fix variant violations via AI ----
+
+  const [fixingVariant, setFixingVariant] = useState<number | null>(null);
+
+  const handleFixVariant = async (index: number) => {
+    if (!token || !variantViolations[index]?.length) return;
+    setFixingVariant(index);
+
+    try {
+      const v = variants[index];
+      const res = await fetch(`/api/auth/bar/${barId}/create/suggest-fix`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: v.title,
+          description: v.description,
+          violations: variantViolations[index],
+          contentType: "promotion",
+        }),
+      });
+
+      if (!res.ok) throw new Error("Fix generation failed");
+
+      const data = await res.json();
+      if (data.alternatives?.length > 0) {
+        // Auto-apply the first compliant alternative
+        const fix = data.alternatives[0];
+        updateVariant(index, "title", fix.title);
+        updateVariant(index, "description", fix.description);
+        // Clear violations for this variant
+        setVariantViolations((prev) => {
+          const next = [...prev];
+          next[index] = [];
+          return next;
+        });
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Fix failed. Edit manually instead.",
+      );
+    } finally {
+      setFixingVariant(null);
+    }
   };
 
   // ---- Step 3 → 4: Generate images ----
@@ -616,7 +915,10 @@ export default function UnifiedCreationFlow({
 
       const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           variantVisualDirections: variantVDs,
           contentType: "promotion",
@@ -630,16 +932,30 @@ export default function UnifiedCreationFlow({
       const data = await res.json();
 
       if (data.variantUrls && Array.isArray(data.variantUrls)) {
-        const images: (string | null)[] = variantVDs.map((_, i) => data.variantUrls[i] || null);
+        const images: (string | null)[] = variantVDs.map(
+          (_, i) => data.variantUrls[i] || null,
+        );
         setVariantImages(images);
         setStep("images");
+      } else if (data.blockedReasons && Array.isArray(data.blockedReasons)) {
+        // Compliance block — show specific reasons so user knows what to fix
+        const variantLabel = data.variantIndex != null
+          ? ` (Option ${data.variantIndex + 1})`
+          : "";
+        const reasons = data.blockedReasons.join("; ");
+        const hint = data.hint ? ` ${data.hint}` : "";
+        setError(`Image blocked${variantLabel}: ${reasons}.${hint}`);
       } else if (data.error) {
         throw new Error(data.error);
       } else {
         throw new Error("Image generation returned unexpected response");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Image generation failed. Try again.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Image generation failed. Try again.",
+      );
     } finally {
       setGeneratingImages(false);
       setVariantImagesLoading(new Array(variants.length).fill(false));
@@ -690,16 +1006,24 @@ export default function UnifiedCreationFlow({
       setVariantImagesLoading(loading);
 
       try {
-        const chips = deriveImageChips(activeTone, activeTemplate, variantIndex);
+        const chips = deriveImageChips(
+          activeTone,
+          activeTemplate,
+          variantIndex,
+        );
 
         const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             variantVisualDirections: [
               {
                 visualDirection: {
-                  description: v.fluxPrompt || v.visualDirection?.description || "",
+                  description:
+                    v.fluxPrompt || v.visualDirection?.description || "",
                   keyElements: v.visualDirection?.keyElements || [],
                   styleNotes: v.visualDirection?.styleNotes || "",
                 },
@@ -733,7 +1057,16 @@ export default function UnifiedCreationFlow({
         setVariantImagesLoading(loading);
       }
     },
-    [variants, variantImages, variantImagesLoading, token, barId, barName, activeTone, activeTemplate],
+    [
+      variants,
+      variantImages,
+      variantImagesLoading,
+      token,
+      barId,
+      barName,
+      activeTone,
+      activeTemplate,
+    ],
   );
 
   // ---- Navigation ----
@@ -755,28 +1088,32 @@ export default function UnifiedCreationFlow({
     <Container>
       {/* ---- Progress bar ---- */}
       <ProgressBar>
-        {(["type", "brief", "refine", "images", "publish"] as FlowStep[]).map((s, i) => {
-          const isActive = s === step;
-          const isDone = stepNumber(step) > stepNumber(s);
-          const isClickable = isDone && s !== "refine" && s !== "images";
+        {(["type", "brief", "refine", "images", "publish"] as FlowStep[]).map(
+          (s, i) => {
+            const isActive = s === step;
+            const isDone = stepNumber(step) > stepNumber(s);
+            const isClickable = isDone && s !== "refine" && s !== "images";
 
-          return (
-            <ProgressStep key={s}>
-              <ProgressDot
-                $active={isActive}
-                $done={isDone}
-                onClick={isClickable ? () => setStep(s) : undefined}
-                style={{ cursor: isClickable ? "pointer" : "default" }}
-              >
-                {isDone ? "✓" : i + 1}
-              </ProgressDot>
-              <ProgressLabel $active={isActive} $done={isDone}>
-                {PROGRESS_LABELS[s]}
-              </ProgressLabel>
-              {i < 4 && <ProgressLine $done={isDone} />}
-            </ProgressStep>
-          );
-        })}
+            return (
+              <React.Fragment key={s}>
+                <ProgressStep>
+                  <ProgressDot
+                    $active={isActive}
+                    $done={isDone}
+                    onClick={isClickable ? () => setStep(s) : undefined}
+                    style={{ cursor: isClickable ? "pointer" : "default" }}
+                  >
+                    {isDone ? "✓" : i + 1}
+                  </ProgressDot>
+                  <ProgressLabel $active={isActive} $done={isDone}>
+                    {PROGRESS_LABELS[s]}
+                  </ProgressLabel>
+                </ProgressStep>
+                {i < 4 && <ProgressLine $done={isDone} />}
+              </React.Fragment>
+            );
+          },
+        )}
       </ProgressBar>
 
       <StepBody>
@@ -843,15 +1180,20 @@ export default function UnifiedCreationFlow({
               disabled={generatingText}
             />
             <BriefActionsRow>
-              {(activeTemplate || activeTone || selectedContexts.length > 0) && (
-                <RegenerateBriefButton onClick={handleRegenerateBrief} disabled={generatingText}>
+              {(activeTemplate ||
+                activeTone ||
+                selectedContexts.length > 0) && (
+                <RegenerateBriefButton
+                  onClick={handleRegenerateBrief}
+                  disabled={generatingText}
+                >
                   {language === "fi" ? "↻ Arvo uusi" : "↻ Regenerate"}
                 </RegenerateBriefButton>
               )}
               <TextareaHint>
                 {language === "fi"
-                  ? "Valitse alta apuvälineitä ja kirjoita vapaasti — tai jätä tyhjäksi ja anna tekoälyn hoitaa."
-                  : "Choose helpers below and write freely — or leave empty and let AI handle it."}
+                  ? "Valitse alta apuvälineitä ja kirjoita vapaasti — tai jätä tyhjäksi ja luo automaattisesti."
+                  : "Choose helpers below and write freely — or leave empty to generate automatically."}
               </TextareaHint>
             </BriefActionsRow>
 
@@ -860,7 +1202,9 @@ export default function UnifiedCreationFlow({
             {/* Tone helper */}
             <HelperSection>
               <HelperToggle onClick={() => setToneOpen(!toneOpen)}>
-                <HelperToggleIcon $open={toneOpen}>{toneOpen ? "▼" : "▶"}</HelperToggleIcon>
+                <HelperToggleIcon $open={toneOpen}>
+                  {toneOpen ? "▼" : "▶"}
+                </HelperToggleIcon>
                 <HelperToggleLabel>
                   {language === "fi" ? "Äänensävy" : "Tone"}
                   {activeTone && (
@@ -870,15 +1214,17 @@ export default function UnifiedCreationFlow({
                   )}
                 </HelperToggleLabel>
                 {!toneOpen && (
-                  <HelperHint>{language === "fi" ? "Valinnainen" : "Optional"}</HelperHint>
+                  <HelperHint>
+                    {language === "fi" ? "Valinnainen" : "Optional"}
+                  </HelperHint>
                 )}
               </HelperToggle>
               {toneOpen && (
                 <HelperBody>
                   <HelperDesc>
                     {language === "fi"
-                      ? "Valitse äänensävy — se lisätään briefiin ohjeeksi tekoälylle."
-                      : "Pick a tone — it'll be appended to your brief as AI guidance."}
+                      ? "Valitse äänensävy — se lisätään briefiin ohjeeksi."
+                      : "Pick a tone — it'll be included in your brief as guidance."}
                   </HelperDesc>
                   <ToneRow>
                     {TONE_OPTIONS.map((opt) => (
@@ -899,13 +1245,19 @@ export default function UnifiedCreationFlow({
             {/* Templates helper */}
             <HelperSection>
               <HelperToggle onClick={() => setTemplatesOpen(!templatesOpen)}>
-                <HelperToggleIcon $open={templatesOpen}>{templatesOpen ? "▼" : "▶"}</HelperToggleIcon>
+                <HelperToggleIcon $open={templatesOpen}>
+                  {templatesOpen ? "▼" : "▶"}
+                </HelperToggleIcon>
                 <HelperToggleLabel>
                   {language === "fi" ? "Pikamallit" : "Quick templates"}
-                  {activeTemplate && <HelperActiveTag>{activeTemplate}</HelperActiveTag>}
+                  {activeTemplate && (
+                    <HelperActiveTag>{activeTemplate}</HelperActiveTag>
+                  )}
                 </HelperToggleLabel>
                 {!templatesOpen && (
-                  <HelperHint>{language === "fi" ? "Valinnainen" : "Optional"}</HelperHint>
+                  <HelperHint>
+                    {language === "fi" ? "Valinnainen" : "Optional"}
+                  </HelperHint>
                 )}
               </HelperToggle>
               {templatesOpen && (
@@ -927,10 +1279,16 @@ export default function UnifiedCreationFlow({
                         >
                           <TemplateName>
                             {tpl.label}
-                            {hasWizard && <WizardBadge>{language === "fi" ? "ohjattu" : "wizard"}</WizardBadge>}
+                            {hasWizard && (
+                              <WizardBadge>
+                                {language === "fi" ? "ohjattu" : "wizard"}
+                              </WizardBadge>
+                            )}
                           </TemplateName>
                           <TemplateDesc>
-                            {tpl.prompt.length > 80 ? tpl.prompt.slice(0, 77) + "…" : tpl.prompt}
+                            {tpl.prompt.length > 80
+                              ? tpl.prompt.slice(0, 77) + "…"
+                              : tpl.prompt}
                           </TemplateDesc>
                         </TemplateCard>
                       );
@@ -942,7 +1300,8 @@ export default function UnifiedCreationFlow({
                     <WizardPanel>
                       <WizardProgress>
                         <span>
-                          {language === "fi" ? "Vaihe" : "Step"} {wizardStep + 1}/{wizardSteps.length}
+                          {language === "fi" ? "Vaihe" : "Step"}{" "}
+                          {wizardStep + 1}/{wizardSteps.length}
                         </span>
                         <WizardStepPips>
                           {wizardSteps.map((_, i) => (
@@ -954,19 +1313,29 @@ export default function UnifiedCreationFlow({
                           ))}
                         </WizardStepPips>
                       </WizardProgress>
-                      <WizardQuestion>{wizardSteps[wizardStep].question}</WizardQuestion>
+                      <WizardQuestion>
+                        {wizardSteps[wizardStep].question}
+                      </WizardQuestion>
                       <WizardChipRow>
                         {wizardSteps[wizardStep].options.map((opt, j) => (
                           <WizardChip
                             key={j}
-                            onClick={() => handleWizardAnswer(wizardSteps[wizardStep].label, opt.prompt)}
+                            onClick={() =>
+                              handleWizardAnswer(
+                                wizardSteps[wizardStep].label,
+                                opt.prompt,
+                              )
+                            }
                           >
                             {opt.label}
                           </WizardChip>
                         ))}
                       </WizardChipRow>
                       <WizardActions>
-                        <WizardBackButton onClick={handleWizardBack} disabled={wizardStep === 0}>
+                        <WizardBackButton
+                          onClick={handleWizardBack}
+                          disabled={wizardStep === 0}
+                        >
                           {language === "fi" ? "← Edellinen" : "← Back"}
                         </WizardBackButton>
                         <WizardSkipButton onClick={handleWizardDismiss}>
@@ -982,12 +1351,18 @@ export default function UnifiedCreationFlow({
             {/* Context helper */}
             <HelperSection>
               <HelperToggle onClick={() => setContextOpen(!contextOpen)}>
-                <HelperToggleIcon $open={contextOpen}>{contextOpen ? "▼" : "▶"}</HelperToggleIcon>
+                <HelperToggleIcon $open={contextOpen}>
+                  {contextOpen ? "▼" : "▶"}
+                </HelperToggleIcon>
                 <HelperToggleLabel>
                   {language === "fi" ? "Lisää kontekstia" : "Add context"}
                 </HelperToggleLabel>
                 {!contextOpen && (
-                  <HelperHint>{language === "fi" ? "Kausiluonteiset vinkit" : "Seasonal hooks"}</HelperHint>
+                  <HelperHint>
+                    {language === "fi"
+                      ? "Kausiluonteiset vinkit"
+                      : "Seasonal hooks"}
+                  </HelperHint>
                 )}
               </HelperToggle>
               {contextOpen && (
@@ -1008,7 +1383,9 @@ export default function UnifiedCreationFlow({
                           disabled={generatingText}
                         >
                           {isSelected ? "✓ " : ""}
-                          {suggestion.length > 70 ? suggestion.slice(0, 67) + "…" : suggestion}
+                          {suggestion.length > 70
+                            ? suggestion.slice(0, 67) + "…"
+                            : suggestion}
                         </SuggestionChip>
                       );
                     })}
@@ -1016,7 +1393,11 @@ export default function UnifiedCreationFlow({
 
                   <CustomContextRow>
                     <CustomContextInput
-                      placeholder={language === "fi" ? "Kirjoita oma konteksti..." : "Type your own context..."}
+                      placeholder={
+                        language === "fi"
+                          ? "Kirjoita oma konteksti..."
+                          : "Type your own context..."
+                      }
                       value={customContextInput}
                       onChange={(e) => setCustomContextInput(e.target.value)}
                       onKeyDown={(e) => {
@@ -1042,7 +1423,9 @@ export default function UnifiedCreationFlow({
             {(activeTone || activeTemplate || selectedContexts.length > 0) && (
               <IngredientsSummary>
                 <IngredientsLabel>
-                  {language === "fi" ? "Valitut ainekset:" : "Selected ingredients:"}
+                  {language === "fi"
+                    ? "Valitut ainekset:"
+                    : "Selected ingredients:"}
                 </IngredientsLabel>
                 <IngredientsTags>
                   {activeTone && (
@@ -1051,7 +1434,9 @@ export default function UnifiedCreationFlow({
                     </IngredientTag>
                   )}
                   {activeTemplate && (
-                    <IngredientTag $kind="template">{activeTemplate}</IngredientTag>
+                    <IngredientTag $kind="template">
+                      {activeTemplate}
+                    </IngredientTag>
                   )}
                   {selectedContexts.map((ctx, i) => (
                     <IngredientTag
@@ -1069,11 +1454,19 @@ export default function UnifiedCreationFlow({
             )}
 
             {/* Live preview of the combined prompt */}
-            {(activeTone || activeTemplate || selectedContexts.length > 0 || text.trim()) && (
+            {!hasIngredients ? (
               <PreviewSection>
-                <PreviewToggle
-                  onClick={() => setPreviewOpen(!previewOpen)}
-                >
+                <PreviewBody>
+                  <PreviewPlaceholder>
+                    {language === "fi"
+                      ? "Valitse tyyppi, äänensävy ja kuvaile promootiosi nähdäksesi esikatselun."
+                      : "Select a template, tone, and describe your promotion to see a preview."}
+                  </PreviewPlaceholder>
+                </PreviewBody>
+              </PreviewSection>
+            ) : (
+              <PreviewSection>
+                <PreviewToggle onClick={() => setPreviewOpen(!previewOpen)}>
                   <PreviewToggleIcon $open={previewOpen}>
                     {previewOpen ? "▼" : "▶"}
                   </PreviewToggleIcon>
@@ -1082,8 +1475,8 @@ export default function UnifiedCreationFlow({
                   </PreviewToggleLabel>
                   <PreviewToggleHint>
                     {language === "fi"
-                      ? "— mitä tekoälylle lähetetään"
-                      : "— what will be sent to AI"}
+                      ? "— mitä generoidaan"
+                      : "— what will be generated"}
                   </PreviewToggleHint>
                 </PreviewToggle>
                 {previewOpen && (
@@ -1098,7 +1491,7 @@ export default function UnifiedCreationFlow({
                     )
                       .split("\n")
                       .map((line, i) => (
-                        <PreviewLine key={i}>{line || " "}</PreviewLine>
+                        <PreviewLine key={i}>{line || " "}</PreviewLine>
                       ))}
                   </PreviewBody>
                 )}
@@ -1114,7 +1507,9 @@ export default function UnifiedCreationFlow({
                     : "Prompt blocked by compliance"}
                 </ComplianceBlockedTitle>
                 {complianceBlocked.reasons.map((reason, i) => (
-                  <ComplianceBlockedReason key={i}>{reason}</ComplianceBlockedReason>
+                  <ComplianceBlockedReason key={i}>
+                    {reason}
+                  </ComplianceBlockedReason>
                 ))}
                 <ComplianceBlockedHint>
                   {language === "fi"
@@ -1130,15 +1525,17 @@ export default function UnifiedCreationFlow({
             <GenerateRow>
               <FormatNote>
                 {language === "fi"
-                  ? "Tekoäly luo 3 tekstivarianttia valituista aineksista. Kuvat generoidaan erikseen."
-                  : "AI generates 3 text variants from your ingredients. Images are separate."}
+                  ? "Luo 3 tekstivarianttia valinnoistasi. Kuvat generoidaan erikseen."
+                  : "Generates 3 text variants from your selections. Images are separate."}
               </FormatNote>
               <GenerateButton
                 onClick={handleGenerateText}
                 disabled={generatingText}
               >
                 {generatingText ? (
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
                     <Spinner /> {GENERATING_MESSAGES[language]}
                   </span>
                 ) : (
@@ -1149,7 +1546,10 @@ export default function UnifiedCreationFlow({
 
             <HintRow>
               <HintKey>{language === "fi" ? "⌘+Enter" : "⌘+Enter"}</HintKey>
-              <HintText> {language === "fi" ? " generoidaksesi" : " to generate"}</HintText>
+              <HintText>
+                {" "}
+                {language === "fi" ? " generoidaksesi" : " to generate"}
+              </HintText>
             </HintRow>
 
             {error && <ErrorBox>{error}</ErrorBox>}
@@ -1177,7 +1577,11 @@ export default function UnifiedCreationFlow({
                     {variants.length > 1 && (
                       <DeleteButton
                         onClick={() => deleteVariant(i)}
-                        title={language === "fi" ? "Poista tämä variantti" : "Remove this variant"}
+                        title={
+                          language === "fi"
+                            ? "Poista tämä variantti"
+                            : "Remove this variant"
+                        }
                       >
                         {language === "fi" ? "Poista" : "Delete"}
                       </DeleteButton>
@@ -1185,19 +1589,31 @@ export default function UnifiedCreationFlow({
                   </VariantCardHeader>
 
                   <FieldGroup>
-                    <FieldLabel>{language === "fi" ? "Otsikko" : "Title"}</FieldLabel>
+                    <FieldLabel>
+                      {language === "fi" ? "Otsikko" : "Title"}
+                    </FieldLabel>
                     <FieldInput
                       value={v.title}
-                      onChange={(e) => updateVariant(i, "title", e.target.value)}
-                      placeholder={language === "fi" ? "Tarjouksen otsikko" : "Promotion title"}
+                      onChange={(e) =>
+                        updateVariant(i, "title", e.target.value)
+                      }
+                      placeholder={
+                        language === "fi"
+                          ? "Tarjouksen otsikko"
+                          : "Promotion title"
+                      }
                     />
                   </FieldGroup>
 
                   <FieldGroup>
-                    <FieldLabel>{language === "fi" ? "Kuvaus" : "Description"}</FieldLabel>
+                    <FieldLabel>
+                      {language === "fi" ? "Kuvaus" : "Description"}
+                    </FieldLabel>
                     <FieldTextarea
                       value={v.description}
-                      onChange={(e) => updateVariant(i, "description", e.target.value)}
+                      onChange={(e) =>
+                        updateVariant(i, "description", e.target.value)
+                      }
                       placeholder={language === "fi" ? "Kuvaus" : "Description"}
                       rows={2}
                     />
@@ -1208,15 +1624,21 @@ export default function UnifiedCreationFlow({
                       <FieldLabel>CTA</FieldLabel>
                       <FieldInput
                         value={v.callToAction}
-                        onChange={(e) => updateVariant(i, "callToAction", e.target.value)}
+                        onChange={(e) =>
+                          updateVariant(i, "callToAction", e.target.value)
+                        }
                         placeholder="View Offer"
                       />
                     </FieldGroup>
                     <FieldGroup style={{ flex: 1 }}>
-                      <FieldLabel>{language === "fi" ? "Ehdot" : "Conditions"}</FieldLabel>
+                      <FieldLabel>
+                        {language === "fi" ? "Ehdot" : "Conditions"}
+                      </FieldLabel>
                       <FieldInput
                         value={v.conditions}
-                        onChange={(e) => updateVariant(i, "conditions", e.target.value)}
+                        onChange={(e) =>
+                          updateVariant(i, "conditions", e.target.value)
+                        }
                         placeholder={language === "fi" ? "Ehdot" : "Conditions"}
                       />
                     </FieldGroup>
@@ -1227,17 +1649,24 @@ export default function UnifiedCreationFlow({
                     <FluxToggle
                       onClick={() => {
                         const el = document.getElementById(`flux-editor-${i}`);
-                        if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+                        if (el)
+                          el.style.display =
+                            el.style.display === "none" ? "block" : "none";
                       }}
                     >
                       <FluxToggleLabel>
-                        {language === "fi" ? "Muokkaa kuvapromptia" : "Edit image prompt"}
+                        {language === "fi"
+                          ? "Muokkaa kuvapromptia"
+                          : "Edit image prompt"}
                       </FluxToggleLabel>
                       <FluxToggleHint>
                         {language === "fi" ? "(Flux)" : "(Flux)"}
                       </FluxToggleHint>
                     </FluxToggle>
-                    <FluxEditor id={`flux-editor-${i}`} style={{ display: "none" }}>
+                    <FluxEditor
+                      id={`flux-editor-${i}`}
+                      style={{ display: "none" }}
+                    >
                       <FluxEditorHint>
                         {language === "fi"
                           ? "Tämä prompt lähetetään Flux-kuvageneraattorille. Muokkaa sitä suoraan — kuvaile mitä kuvassa pitäisi näkyä."
@@ -1245,12 +1674,58 @@ export default function UnifiedCreationFlow({
                       </FluxEditorHint>
                       <FieldTextarea
                         value={v.fluxPrompt}
-                        onChange={(e) => updateVariant(i, "fluxPrompt", e.target.value)}
+                        onChange={(e) =>
+                          updateVariant(i, "fluxPrompt", e.target.value)
+                        }
                         rows={3}
-                        placeholder={language === "fi" ? "Flux-prompt..." : "Flux prompt..."}
+                        placeholder={
+                          language === "fi"
+                            ? "Flux-prompt..."
+                            : "Flux prompt..."
+                        }
                       />
                     </FluxEditor>
                   </FluxSection>
+
+                  {/* Inline compliance violations per variant */}
+                  {variantViolations[i] && variantViolations[i].length > 0 && (
+                    <ViolationList>
+                      {variantViolations[i].map((v, vi) => (
+                        <ViolationItem key={vi} $severity={v.severity}>
+                          <ViolationBadge $severity={v.severity}>
+                            {v.severity === "high"
+                              ? "BLOCKED"
+                              : v.severity === "medium"
+                                ? "WARNING"
+                                : "ADVISORY"}
+                          </ViolationBadge>
+                          <ViolationText>
+                            <strong>"{v.keyword}"</strong> — {v.message}
+                            {v.suggestion && (
+                              <ViolationSuggestion>
+                                {language === "fi"
+                                  ? "Korjausehdotus"
+                                  : "Suggestion"}
+                                : {v.suggestion}
+                              </ViolationSuggestion>
+                            )}
+                          </ViolationText>
+                        </ViolationItem>
+                      ))}
+                      <FixVariantButton
+                        onClick={() => handleFixVariant(i)}
+                        disabled={fixingVariant === i}
+                      >
+                        {fixingVariant === i
+                          ? language === "fi"
+                            ? "Korjataan..."
+                            : "Fixing..."
+                          : language === "fi"
+                            ? "Korjaa automaattisesti"
+                            : "Fix automatically"}
+                      </FixVariantButton>
+                    </ViolationList>
+                  )}
                 </VariantCard>
               ))}
             </RefineGrid>
@@ -1260,15 +1735,17 @@ export default function UnifiedCreationFlow({
             {usingFallback && (
               <FallbackWarningBox>
                 {language === "fi"
-                  ? "Tekoäly ei ole käytettävissä — näytetään valmiit mallipohjat. Tarkista DEEPSEEK_API_KEY tai yritä myöhemmin uudelleen."
-                  : "AI is unavailable — showing template-based options instead. Check DEEPSEEK_API_KEY or try again later."}
+                  ? "Luontipalvelu ei ole käytettävissä — näytetään valmiit mallipohjat. Yritä myöhemmin uudelleen."
+                  : "Generation service is unavailable — showing template-based options instead. Please try again later."}
               </FallbackWarningBox>
             )}
 
             {complianceWarnings && complianceWarnings.length > 0 && (
               <ComplianceWarningBox>
                 <ComplianceWarningTitle>
-                  {language === "fi" ? "Huomioita sisällöstä:" : "Compliance notes:"}
+                  {language === "fi"
+                    ? "Huomioita sisällöstä:"
+                    : "Compliance notes:"}
                 </ComplianceWarningTitle>
                 {complianceWarnings.map((w, i) => (
                   <ComplianceWarningItem key={i}>{w}</ComplianceWarningItem>
@@ -1287,7 +1764,9 @@ export default function UnifiedCreationFlow({
                 disabled={generatingImages || variants.length === 0}
               >
                 {generatingImages ? (
-                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
                     <Spinner /> {GENERATING_IMAGES_MSG[language]}
                   </span>
                 ) : (
@@ -1317,7 +1796,9 @@ export default function UnifiedCreationFlow({
                     {variantImagesLoading[i] ? (
                       <ImageLoading>
                         <Spinner />
-                        <span>{language === "fi" ? "Luodaan..." : "Generating..."}</span>
+                        <span>
+                          {language === "fi" ? "Luodaan..." : "Generating..."}
+                        </span>
                       </ImageLoading>
                     ) : variantImages[i] ? (
                       <CardImage src={variantImages[i]} alt={v.title} />
@@ -1331,11 +1812,15 @@ export default function UnifiedCreationFlow({
                   {/* Variant text summary */}
                   <ImageCardTitle>{v.title}</ImageCardTitle>
                   <ImageCardDesc>
-                    {v.description.length > 100 ? v.description.slice(0, 97) + "…" : v.description}
+                    {v.description.length > 100
+                      ? v.description.slice(0, 97) + "…"
+                      : v.description}
                   </ImageCardDesc>
 
                   {/* Layout selector */}
-                  <LayoutLabel>{language === "fi" ? "Asettelu" : "Layout"}</LayoutLabel>
+                  <LayoutLabel>
+                    {language === "fi" ? "Asettelu" : "Layout"}
+                  </LayoutLabel>
                   <LayoutRow>
                     {LAYOUT_HINTS.map((layout) => (
                       <LayoutChip
@@ -1365,8 +1850,12 @@ export default function UnifiedCreationFlow({
 
                     <FluxToggleSmall
                       onClick={() => {
-                        const el = document.getElementById(`flux-img-editor-${i}`);
-                        if (el) el.style.display = el.style.display === "none" ? "block" : "none";
+                        const el = document.getElementById(
+                          `flux-img-editor-${i}`,
+                        );
+                        if (el)
+                          el.style.display =
+                            el.style.display === "none" ? "block" : "none";
                       }}
                     >
                       {language === "fi" ? "Muokkaa promptia" : "Edit prompt"}
@@ -1374,19 +1863,28 @@ export default function UnifiedCreationFlow({
                   </ImageActionsRow>
 
                   {/* Hidden Flux prompt editor */}
-                  <FluxImgEditor id={`flux-img-editor-${i}`} style={{ display: "none" }}>
+                  <FluxImgEditor
+                    id={`flux-img-editor-${i}`}
+                    style={{ display: "none" }}
+                  >
                     <FieldTextarea
                       value={v.fluxPrompt}
-                      onChange={(e) => updateVariant(i, "fluxPrompt", e.target.value)}
+                      onChange={(e) =>
+                        updateVariant(i, "fluxPrompt", e.target.value)
+                      }
                       rows={2}
-                      placeholder={language === "fi" ? "Flux-prompt..." : "Flux prompt..."}
+                      placeholder={
+                        language === "fi" ? "Flux-prompt..." : "Flux prompt..."
+                      }
                     />
                     <ImageActionBtn
                       onClick={() => handleRegenerateImage(i)}
                       disabled={variantImagesLoading[i]}
                       style={{ marginTop: 6 }}
                     >
-                      {language === "fi" ? "Generoi uudelleen" : "Regenerate with new prompt"}
+                      {language === "fi"
+                        ? "Generoi uudelleen"
+                        : "Regenerate with new prompt"}
                     </ImageActionBtn>
                   </FluxImgEditor>
 
@@ -1450,7 +1948,9 @@ export default function UnifiedCreationFlow({
                     <FieldLabel>Type</FieldLabel>
                     <SelectField
                       value={formState.promotionType}
-                      onChange={(e) => onFieldChange("promotionType", e.target.value)}
+                      onChange={(e) =>
+                        onFieldChange("promotionType", e.target.value)
+                      }
                     >
                       {PROMOTION_TYPES.map((pt) => (
                         <option key={pt.value} value={pt.value}>
@@ -1465,7 +1965,10 @@ export default function UnifiedCreationFlow({
                       type="number"
                       value={formState.discountValue ?? ""}
                       onChange={(e) =>
-                        onFieldChange("discountValue", e.target.value ? Number(e.target.value) : null)
+                        onFieldChange(
+                          "discountValue",
+                          e.target.value ? Number(e.target.value) : null,
+                        )
                       }
                       placeholder="e.g. 20"
                     />
@@ -1477,7 +1980,9 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="date"
                       value={formState.startDate?.slice(0, 10) || ""}
-                      onChange={(e) => onFieldChange("startDate", e.target.value)}
+                      onChange={(e) =>
+                        onFieldChange("startDate", e.target.value)
+                      }
                     />
                   </FieldGroup>
                   <FieldGroup style={{ flex: 1 }}>
@@ -1493,7 +1998,9 @@ export default function UnifiedCreationFlow({
                   <FieldLabel>Conditions / fine print</FieldLabel>
                   <FieldInput
                     value={formState.conditions}
-                    onChange={(e) => onFieldChange("conditions", e.target.value)}
+                    onChange={(e) =>
+                      onFieldChange("conditions", e.target.value)
+                    }
                     placeholder="e.g. Valid on Fridays 16:00–19:00"
                   />
                 </FieldGroup>
@@ -1508,7 +2015,9 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="datetime-local"
                       value={formState.startTime?.slice(0, 16) || ""}
-                      onChange={(e) => onFieldChange("startTime", e.target.value)}
+                      onChange={(e) =>
+                        onFieldChange("startTime", e.target.value)
+                      }
                     />
                   </FieldGroup>
                   <FieldGroup style={{ flex: 1 }}>
@@ -1526,7 +2035,10 @@ export default function UnifiedCreationFlow({
                     type="number"
                     value={formState.maxAttendees ?? ""}
                     onChange={(e) =>
-                      onFieldChange("maxAttendees", e.target.value ? Number(e.target.value) : null)
+                      onFieldChange(
+                        "maxAttendees",
+                        e.target.value ? Number(e.target.value) : null,
+                      )
                     }
                     placeholder="Leave empty for unlimited"
                   />
@@ -1540,7 +2052,9 @@ export default function UnifiedCreationFlow({
                   <FieldLabel>Campaign type</FieldLabel>
                   <SelectField
                     value={formState.campaignType}
-                    onChange={(e) => onFieldChange("campaignType", e.target.value)}
+                    onChange={(e) =>
+                      onFieldChange("campaignType", e.target.value)
+                    }
                   >
                     <option value="FEATURED_LISTING">Featured Listing</option>
                     <option value="BANNER_AD">Banner Ad</option>
@@ -1552,7 +2066,12 @@ export default function UnifiedCreationFlow({
                   <FieldInput
                     type="number"
                     value={formState.campaignBudget}
-                    onChange={(e) => onFieldChange("campaignBudget", e.target.value ? Number(e.target.value) : 0)}
+                    onChange={(e) =>
+                      onFieldChange(
+                        "campaignBudget",
+                        e.target.value ? Number(e.target.value) : 0,
+                      )
+                    }
                     placeholder="e.g. 50"
                   />
                 </FieldGroup>
@@ -1562,7 +2081,9 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="date"
                       value={formState.campaignStartDate?.slice(0, 10) || ""}
-                      onChange={(e) => onFieldChange("campaignStartDate", e.target.value)}
+                      onChange={(e) =>
+                        onFieldChange("campaignStartDate", e.target.value)
+                      }
                     />
                   </FieldGroup>
                   <FieldGroup style={{ flex: 1 }}>
@@ -1570,7 +2091,9 @@ export default function UnifiedCreationFlow({
                     <FieldInput
                       type="date"
                       value={formState.campaignEndDate?.slice(0, 10) || ""}
-                      onChange={(e) => onFieldChange("campaignEndDate", e.target.value)}
+                      onChange={(e) =>
+                        onFieldChange("campaignEndDate", e.target.value)
+                      }
                     />
                   </FieldGroup>
                 </FieldRow>
@@ -1583,7 +2106,9 @@ export default function UnifiedCreationFlow({
                   <FieldLabel>Price (EUR)</FieldLabel>
                   <FieldInput
                     value={formState.priceEuros}
-                    onChange={(e) => onFieldChange("priceEuros", e.target.value)}
+                    onChange={(e) =>
+                      onFieldChange("priceEuros", e.target.value)
+                    }
                     placeholder="e.g. 9.90"
                   />
                 </FieldGroup>
@@ -1640,15 +2165,14 @@ const Container = styled.div`
 const ProgressBar = styled.div`
   display: flex;
   align-items: center;
-  padding: 16px 20px 0;
+  justify-content: center;
+  padding: 16px 16px;
 `;
 
 const ProgressStep = styled.div`
   display: flex;
   align-items: center;
-  flex: 1;
-  min-width: 0;
-  &:last-child { flex: 0; }
+  flex-shrink: 0;
 `;
 
 const ProgressDot = styled.div<{ $active: boolean; $done: boolean }>`
@@ -1681,7 +2205,8 @@ const ProgressLabel = styled.span<{ $active: boolean; $done: boolean }>`
 const ProgressLine = styled.div<{ $done: boolean }>`
   flex: 1;
   height: 1px;
-  margin: 0 8px;
+  min-width: 8px;
+  margin: 0 6px;
   background: ${({ $done }) => ($done ? "#10b981" : "#2d2d4a")};
   transition: background 0.3s;
 `;
@@ -1732,7 +2257,9 @@ const BackLink = styled.button`
   cursor: pointer;
   font-weight: 500;
   padding: 0;
-  &:hover { color: #a78bfa; }
+  &:hover {
+    color: #a78bfa;
+  }
 `;
 
 const ErrorBox = styled.div`
@@ -1757,19 +2284,34 @@ const TypeCard = styled.button<{ $selected: boolean }>`
   padding: 16px;
   border: 1px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#2d2d4a")};
   border-radius: 10px;
-  background: ${({ $selected }) => ($selected ? "rgba(124, 58, 237, 0.1)" : "#0d0d1a")};
+  background: ${({ $selected }) =>
+    $selected ? "rgba(124, 58, 237, 0.1)" : "#0d0d1a"};
   cursor: pointer;
   text-align: left;
   transition: all 0.15s;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  &:hover { border-color: #7c3aed; background: rgba(124, 58, 237, 0.06); }
+  &:hover {
+    border-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.06);
+  }
 `;
 
-const TypeCardEmoji = styled.span` font-size: 24px; line-height: 1; `;
-const TypeCardLabel = styled.span` font-size: 14px; font-weight: 700; color: #f9fafb; `;
-const TypeCardDesc = styled.span` font-size: 11px; color: #6b7280; line-height: 1.4; `;
+const TypeCardEmoji = styled.span`
+  font-size: 24px;
+  line-height: 1;
+`;
+const TypeCardLabel = styled.span`
+  font-size: 14px;
+  font-weight: 700;
+  color: #f9fafb;
+`;
+const TypeCardDesc = styled.span`
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.4;
+`;
 
 // ---- Step 2: Textarea ----
 
@@ -1787,8 +2329,13 @@ const Textarea = styled.textarea`
   background: #0d0d1a;
   color: #e5e7eb;
   transition: border-color 0.2s;
-  &:focus { outline: none; border-color: #7c3aed; }
-  &::placeholder { color: #4b5563; }
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+  }
+  &::placeholder {
+    color: #4b5563;
+  }
 `;
 
 const TextareaHint = styled.div`
@@ -1818,8 +2365,14 @@ const RegenerateBriefButton = styled.button`
   white-space: nowrap;
   transition: all 0.15s;
   flex-shrink: 0;
-  &:hover:not(:disabled) { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.1);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 `;
 
 // ---- Helpers (collapsible) ----
@@ -1841,7 +2394,9 @@ const HelperToggle = styled.button`
   align-items: center;
   gap: 8px;
   text-align: left;
-  &:hover { background: #1a1a2e; }
+  &:hover {
+    background: #1a1a2e;
+  }
 `;
 
 const HelperToggleIcon = styled.span<{ $open: boolean }>`
@@ -1899,7 +2454,8 @@ const ToneChip = styled.button<{ $active: boolean }>`
   padding: 6px 12px;
   border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
   border-radius: 8px;
-  background: ${({ $active }) => ($active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a")};
+  background: ${({ $active }) =>
+    $active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a"};
   color: ${({ $active }) => ($active ? "#ffffff" : "#d1d5db")};
   font-size: 12px;
   font-weight: 700;
@@ -1908,8 +2464,14 @@ const ToneChip = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: 4px;
-  &:hover:not(:disabled) { border-color: #7c3aed; color: #ffffff; }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+    color: #ffffff;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 `;
 
 // ---- Templates ----
@@ -1924,16 +2486,23 @@ const TemplateCard = styled.button<{ $active: boolean }>`
   padding: 10px 12px;
   border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
   border-radius: 8px;
-  background: ${({ $active }) => ($active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a")};
+  background: ${({ $active }) =>
+    $active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a"};
   cursor: pointer;
   text-align: left;
   display: flex;
   flex-direction: column;
   gap: 4px;
   transition: all 0.15s;
-  ${({ $active }) => $active && "box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.3);"}
-  &:hover:not(:disabled) { border-color: #7c3aed; }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  ${({ $active }) =>
+    $active && "box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.3);"}
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 `;
 
 const TemplateName = styled.span`
@@ -1975,8 +2544,14 @@ const WizardPanel = styled.div`
   border-radius: 10px;
   animation: wizardSlideIn 0.2s ease-out;
   @keyframes wizardSlideIn {
-    from { opacity: 0; transform: translateY(-6px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 `;
 
@@ -2033,8 +2608,15 @@ const WizardChip = styled.button`
   flex: 1 1 140px;
   min-width: 120px;
   max-width: 220px;
-  &:hover:not(:disabled) { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); color: #ffffff; }
-  &:disabled { opacity: 0.3; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.1);
+    color: #ffffff;
+  }
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
 `;
 
 const WizardActions = styled.div`
@@ -2054,8 +2636,13 @@ const WizardBackButton = styled.button`
   font-weight: 500;
   cursor: pointer;
   padding: 0;
-  &:hover { color: #a78bfa; }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &:hover {
+    color: #a78bfa;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 `;
 
 const WizardSkipButton = styled.button`
@@ -2066,7 +2653,9 @@ const WizardSkipButton = styled.button`
   cursor: pointer;
   padding: 0;
   font-style: italic;
-  &:hover { color: #6b7280; }
+  &:hover {
+    color: #6b7280;
+  }
 `;
 
 // ---- Context chips ----
@@ -2081,7 +2670,8 @@ const SuggestionChip = styled.button<{ $selected?: boolean }>`
   padding: 5px 12px;
   border: 1px solid ${({ $selected }) => ($selected ? "#7c3aed" : "#2d2d4a")};
   border-radius: 14px;
-  background: ${({ $selected }) => ($selected ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a")};
+  background: ${({ $selected }) =>
+    $selected ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a"};
   color: ${({ $selected }) => ($selected ? "#ffffff" : "#d1d5db")};
   font-size: 11px;
   font-weight: 600;
@@ -2091,8 +2681,15 @@ const SuggestionChip = styled.button<{ $selected?: boolean }>`
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
-  &:hover:not(:disabled) { border-color: #7c3aed; color: #ffffff; background: #1a1a2e; }
-  &:disabled { opacity: 0.3; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+    color: #ffffff;
+    background: #1a1a2e;
+  }
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
 `;
 
 // ---- Controls ----
@@ -2137,7 +2734,9 @@ const Pill = styled.button<{ $active: boolean }>`
   background: ${({ $active }) => ($active ? "#7c3aed" : "transparent")};
   color: ${({ $active }) => ($active ? "white" : "#6b7280")};
   transition: all 0.15s;
-  &:hover { color: ${({ $active }) => ($active ? "white" : "#d1d5db")}; }
+  &:hover {
+    color: ${({ $active }) => ($active ? "white" : "#d1d5db")};
+  }
 `;
 
 const GenerateRow = styled.div`
@@ -2166,8 +2765,13 @@ const GenerateButton = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
-  &:hover:not(:disabled) { background: #6d28d9; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    background: #6d28d9;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const Spinner = styled.span`
@@ -2178,7 +2782,11 @@ const Spinner = styled.span`
   border-radius: 50%;
   display: inline-block;
   animation: spin 0.7s linear infinite;
-  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
 `;
 
 const HintRow = styled.div`
@@ -2255,7 +2863,10 @@ const DeleteButton = styled.button`
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
-  &:hover { background: rgba(239, 68, 68, 0.1); border-color: #ef4444; }
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #ef4444;
+  }
 `;
 
 // ---- Flux prompt editor (Step 3) ----
@@ -2276,7 +2887,9 @@ const FluxToggle = styled.button`
   display: flex;
   align-items: center;
   justify-content: space-between;
-  &:hover { background: #111122; }
+  &:hover {
+    background: #111122;
+  }
 `;
 
 const FluxToggleLabel = styled.span`
@@ -2397,13 +3010,16 @@ const LayoutChip = styled.button<{ $active: boolean }>`
   padding: 3px 8px;
   border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
   border-radius: 5px;
-  background: ${({ $active }) => ($active ? "rgba(124, 58, 237, 0.15)" : "transparent")};
+  background: ${({ $active }) =>
+    $active ? "rgba(124, 58, 237, 0.15)" : "transparent"};
   color: ${({ $active }) => ($active ? "#f9fafb" : "#6b7280")};
   font-size: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  &:hover { border-color: #7c3aed; }
+  &:hover {
+    border-color: #7c3aed;
+  }
 `;
 
 const ImageActionsRow = styled.div`
@@ -2422,8 +3038,14 @@ const ImageActionBtn = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s;
-  &:hover:not(:disabled) { border-color: #7c3aed; background: rgba(124, 58, 237, 0.1); }
-  &:disabled { opacity: 0.4; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+    background: rgba(124, 58, 237, 0.1);
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 `;
 
 const FluxToggleSmall = styled.button`
@@ -2435,7 +3057,10 @@ const FluxToggleSmall = styled.button`
   font-size: 10px;
   font-weight: 500;
   cursor: pointer;
-  &:hover { color: #9ca3af; border-color: #4b5563; }
+  &:hover {
+    color: #9ca3af;
+    border-color: #4b5563;
+  }
 `;
 
 const FluxImgEditor = styled.div`
@@ -2462,7 +3087,9 @@ const SelectVariantBtn = styled.button`
   cursor: pointer;
   transition: all 0.2s;
   margin-top: auto;
-  &:hover { background: #6d28d9; }
+  &:hover {
+    background: #6d28d9;
+  }
 `;
 
 // ---- Step 5: Publish ----
@@ -2494,9 +3121,15 @@ const inputStyles = `
   &::placeholder { color: #4b5563; }
 `;
 
-const FieldInput = styled.input` ${inputStyles} `;
-const FieldTextarea = styled.textarea` ${inputStyles} resize: vertical; `;
-const SelectField = styled.select` ${inputStyles} `;
+const FieldInput = styled.input`
+  ${inputStyles}
+`;
+const FieldTextarea = styled.textarea`
+  ${inputStyles} resize: vertical;
+`;
+const SelectField = styled.select`
+  ${inputStyles}
+`;
 
 const FieldRow = styled.div`
   display: flex;
@@ -2556,7 +3189,9 @@ const PreviewToggle = styled.button`
   align-items: center;
   gap: 8px;
   text-align: left;
-  &:hover { background: #1a1a2e; }
+  &:hover {
+    background: #1a1a2e;
+  }
 `;
 
 const PreviewToggleIcon = styled.span<{ $open: boolean }>`
@@ -2591,6 +3226,14 @@ const PreviewLine = styled.div`
   word-break: break-word;
 `;
 
+const PreviewPlaceholder = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  padding: 16px 8px;
+  line-height: 1.5;
+`;
+
 // ---- Custom context input ----
 
 const CustomContextRow = styled.div`
@@ -2610,9 +3253,16 @@ const CustomContextInput = styled.input`
   color: #e5e7eb;
   font-size: 11px;
   font-family: inherit;
-  &:focus { outline: none; border-color: #3b82f6; }
-  &::placeholder { color: #4b5563; }
-  &:disabled { opacity: 0.4; }
+  &:focus {
+    outline: none;
+    border-color: #3b82f6;
+  }
+  &::placeholder {
+    color: #4b5563;
+  }
+  &:disabled {
+    opacity: 0.4;
+  }
 `;
 
 const CustomContextAddBtn = styled.button`
@@ -2626,8 +3276,13 @@ const CustomContextAddBtn = styled.button`
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s;
-  &:hover:not(:disabled) { background: rgba(59, 130, 246, 0.2); }
-  &:disabled { opacity: 0.3; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.2);
+  }
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
 `;
 
 const IngredientTag = styled.span<{ $kind: "tone" | "template" | "context" }>`
@@ -2642,13 +3297,18 @@ const IngredientTag = styled.span<{ $kind: "tone" | "template" | "context" }>`
         ? "rgba(124, 58, 237, 0.15)"
         : "rgba(59, 130, 246, 0.12)"};
   color: ${({ $kind }) =>
-    $kind === "tone" ? "#f59e0b" : $kind === "template" ? "#a78bfa" : "#60a5fa"};
-  border: 1px solid ${({ $kind }) =>
     $kind === "tone"
-      ? "rgba(245, 158, 11, 0.25)"
+      ? "#f59e0b"
       : $kind === "template"
-        ? "rgba(124, 58, 237, 0.25)"
-        : "rgba(59, 130, 246, 0.25)"};
+        ? "#a78bfa"
+        : "#60a5fa"};
+  border: 1px solid
+    ${({ $kind }) =>
+      $kind === "tone"
+        ? "rgba(245, 158, 11, 0.25)"
+        : $kind === "template"
+          ? "rgba(124, 58, 237, 0.25)"
+          : "rgba(59, 130, 246, 0.25)"};
 `;
 
 // ---- Compliance blocked ----
@@ -2682,6 +3342,90 @@ const ComplianceBlockedHint = styled.div`
   color: #6b7280;
   margin-top: 8px;
   font-style: italic;
+`;
+
+// ---- Inline per-variant violation display ----
+
+const ViolationList = styled.div`
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+`;
+
+const ViolationItem = styled.div<{ $severity: string }>`
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: ${({ $severity }) =>
+    $severity === "high"
+      ? "rgba(239,68,68,0.06)"
+      : $severity === "medium"
+        ? "rgba(245,158,11,0.06)"
+        : "rgba(59,130,246,0.04)"};
+  border: 1px solid
+    ${({ $severity }) =>
+      $severity === "high"
+        ? "rgba(239,68,68,0.25)"
+        : $severity === "medium"
+          ? "rgba(245,158,11,0.25)"
+          : "rgba(59,130,246,0.15)"};
+`;
+
+const ViolationBadge = styled.span<{ $severity: string }>`
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+  height: fit-content;
+  color: ${({ $severity }) =>
+    $severity === "high"
+      ? "#ef4444"
+      : $severity === "medium"
+        ? "#f59e0b"
+        : "#3b82f6"};
+  background: ${({ $severity }) =>
+    $severity === "high"
+      ? "rgba(239,68,68,0.15)"
+      : $severity === "medium"
+        ? "rgba(245,158,11,0.15)"
+        : "rgba(59,130,246,0.1)"};
+`;
+
+const ViolationText = styled.div`
+  font-size: 11px;
+  color: #d1d5db;
+  line-height: 1.4;
+`;
+
+const ViolationSuggestion = styled.div`
+  margin-top: 3px;
+  font-size: 10px;
+  color: #fbbf24;
+  font-style: italic;
+`;
+
+const FixVariantButton = styled.button`
+  margin-top: 4px;
+  padding: 5px 10px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 5px;
+  cursor: pointer;
+  align-self: flex-start;
+  &:hover {
+    background: rgba(251, 191, 36, 0.15);
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 // ---- Compliance warning (post-check) ----
@@ -2732,6 +3476,11 @@ const SubmitButton = styled.button`
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
-  &:hover:not(:disabled) { background: #059669; }
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    background: #059669;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;

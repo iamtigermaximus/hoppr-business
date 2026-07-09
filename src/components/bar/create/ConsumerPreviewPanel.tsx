@@ -356,10 +356,15 @@ export default function ConsumerPreviewPanel({
           <DeviceFrame>
             {!formState.title && !formState.description ? (
               <EmptyState>
-                <div style={{ fontSize: "1.5rem", marginBottom: "0.5rem" }}>👁️</div>
-                <div>Start typing or use AI to see a live preview</div>
+                <div>
+                  {contentTone
+                    ? "Your promotion card will appear here as you build it"
+                    : "Fill in your promotion details to see a live preview"}
+                </div>
                 <div style={{ fontSize: "0.6875rem", marginTop: "0.375rem", color: "#374151" }}>
-                  Updates as you type — no API calls
+                  {contentTone
+                    ? `Tone: ${toneLabel} · ${contentType}`
+                    : "Choose a template or describe your promotion to get started"}
                 </div>
               </EmptyState>
             ) : contentType === "event" ? (

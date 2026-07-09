@@ -493,63 +493,33 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
       normalizePromotion(p, bar.name, hasPhoto, i, tone, layoutHint),
     );
 
-    // 8a. Compliance POST-CHECK — scan each variant's title+description against rules.
-    // Filter out variants with high-severity violations; warn on medium/low.
-    const complianceWarnings: string[] = [];
-    const compliantPromotions = promotions.filter((p, i) => {
-      const scan = scanCompliance(p.title as string, p.description as string);
-      if (scan.status === "FLAGGED_AUTO") {
-        const highViolations = scan.violations.filter((v) => v.severity === "high");
-        if (highViolations.length > 0) {
-          complianceWarnings.push(
-            `Variant ${i + 1} filtered: ${highViolations.map((v) => v.message).join("; ")}`,
-          );
-          return false;
-        }
-        // Medium/low — warn but keep
-        const otherViolations = scan.violations.filter((v) => v.severity !== "high");
-        if (otherViolations.length > 0) {
-          complianceWarnings.push(
-            `Variant ${i + 1} advisory: ${otherViolations.map((v) => v.message).join("; ")}`,
-          );
-        }
-      }
-      return true;
-    });
+    // 8a. Compliance POST-CHECK — scan each variant and attach violation details.
+    // Variants are NEVER filtered — violations are shown inline so the user can
+    // see exactly what triggered and edit the text to fix it.
+    const complianceResults: Array<{
+      variantIndex: number;
+      violations: Array<{ rule: string; keyword: string; severity: string; message: string; suggestion: string }>;
+    }> = [];
 
-    // If all AI-generated variants were filtered, fall back to templates
-    let finalPromotions = compliantPromotions;
-    if (aiGenerated && compliantPromotions.length === 0) {
-      warning = "All AI-generated variants were filtered by compliance. Using safe templates instead.";
-      const promoType = VALID_PROMO_TYPES.includes(type as any)
-        ? (type as PromotionType)
-        : "DRINK_SPECIAL";
-      for (let i = 0; i < variants; i++) {
-        const fallback = getFallbackPromotion(
-          {
-            name: bar.name,
-            type: bar.type,
-            cityName: bar.cityName ?? undefined,
-            district: bar.district ?? undefined,
-          },
-          promoType,
-          targetAudience || undefined,
-        );
-        finalPromotions.push(normalizePromotion(
-          fallback as unknown as Record<string, unknown>,
-          bar.name,
-          hasPhoto,
-          i,
-          tone,
-          layoutHint,
-        ));
+    for (let i = 0; i < promotions.length; i++) {
+      const scan = scanCompliance(promotions[i].title as string, promotions[i].description as string);
+      if (scan.violations.length > 0) {
+        complianceResults.push({
+          variantIndex: i,
+          violations: scan.violations.map((v) => ({
+            rule: v.rule,
+            keyword: v.keyword,
+            severity: v.severity,
+            message: v.message,
+            suggestion: v.suggestion || "",
+          })),
+        });
       }
-      aiGenerated = false;
     }
 
     // Attach inferred image chips to each variant so the client can
     // auto-generate matching images without the user manually picking chips.
-    const variantsWithChips = finalPromotions.map((p) => ({
+    const variantsWithChips = promotions.map((p) => ({
       ...p,
       imageChips: inferImageChips(
         prompt || "",
@@ -575,7 +545,7 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
       success: true,
       aiGenerated,
       ...(warning && { warning }),
-      ...(complianceWarnings.length > 0 && { complianceWarnings }),
+      ...(complianceResults.length > 0 && { complianceResults }),
       language: lang,
       ...(variants > 1
         ? { variants: variantsWithChips }

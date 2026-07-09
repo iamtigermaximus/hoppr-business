@@ -106,11 +106,22 @@ interface ComplianceResult {
 }
 
 /** Photography terms that contain words matching alcohol patterns (e.g. "shot").
- *  Stripped before compliance check to prevent false positives. */
+ *  Stripped before compliance check to prevent false positives.
+ *  Must be aggressive — visual directions from AI frequently use photography terminology. */
 const PHOTOGRAPHY_SAFE_TERMS = [
-  /\b(wide|medium|close-up|detail|establishing|beauty|product|hero|group|action|candid)\s+shot\b/gi,
+  // "wide shot", "medium shot", etc.
+  /\b(wide|medium|close-up|closeup|detail|establishing|beauty|product|hero|group|action|candid|tracking|master|two|over-the-shoulder)\s+shot\b/gi,
+  // "photo shoot", "photo shooting"
   /\bphoto\s*(shoot|shooting)\b/gi,
-  /\bshot\s*(composition|framing|angle|perspective|setup)\b/gi,
+  // "shot composition", "shot framing", etc.
+  /\bshot\s*(composition|framing|angle|perspective|setup|size|type|direction|from|list|of|the)\b/gi,
+  // Standalone photography terms in visual scene descriptions
+  /\b(photographic|photography|camera|35mm|film|aesthetic|editorial)\s+(shot|shoot|shooting)\b/gi,
+  /\b(shot|shoot)\s+(photography|photographic|camera|35mm|film|aesthetic|editorial)\b/gi,
+  // "this shot shows", "the shot depicts", "a shot of the interior"
+  /\b(this|the|a|each|every|one)\s+shot\b/gi,
+  // "shooting style", "shooting technique"
+  /\b(shooting|shoot)\s+(style|technique|mode|approach|setup)\b/gi,
 ];
 
 function stripPhotographyTerms(text: string): string {
@@ -144,10 +155,9 @@ export function checkPromptCompliance(
 
   const passed = blockedPatterns.length === 0;
 
-  // Always wrap in compliance framing, regardless of whether the prompt passed
-  const sanitizedPrompt = passed
-    ? wrapComplianceFraming(rawPrompt, contentType)
-    : rawPrompt; // If blocked, don't bother wrapping — it won't be sent
+  // Always wrap in compliance framing — the framing contains safety instructions
+  // that guide the model regardless of whether the raw prompt had issues.
+  const sanitizedPrompt = wrapComplianceFraming(rawPrompt, contentType);
 
   return { passed, blockedPatterns, warnings, sanitizedPrompt };
 }

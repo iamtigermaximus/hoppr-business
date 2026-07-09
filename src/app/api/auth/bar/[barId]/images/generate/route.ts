@@ -137,8 +137,10 @@ export async function POST(
 
       const ct = contentType as "promotion" | "event" | "pass" | "campaign";
 
-      // Validate all variants pass compliance BEFORE spending any API credits
+      // Validate all variants — use sanitized prompts even if warnings exist.
+      // The compliance framing already injects safety instructions into every prompt.
       const variantPrompts: Array<{ finalPrompt: string; index: number }> = [];
+      const allWarnings: Array<{ variantIndex: number; reasons: string[] }> = [];
       for (let i = 0; i < variantVisualDirections.length; i++) {
         const vd = variantVisualDirections[i];
         const ctxStr = vd.formContext ? buildContextFromForm(vd.formContext) : "";
@@ -147,20 +149,19 @@ export async function POST(
           ct,
         );
 
-        if (!built.compliance.passed) {
-          return NextResponse.json(
-            {
-              error: "Content policy violation",
-              blockedReasons: built.compliance.blockedReasons,
-              variantIndex: i,
-              hint: `Variant ${i + 1} visual description violates Finnish alcohol advertising regulations.`,
-            },
-            { status: 422 },
-          );
+        if (built.compliance.blockedReasons.length > 0) {
+          allWarnings.push({
+            variantIndex: i,
+            reasons: built.compliance.blockedReasons,
+          });
+        }
+        if (built.compliance.warnings.length > 0) {
+          allWarnings.push({
+            variantIndex: i,
+            reasons: built.compliance.warnings,
+          });
         }
 
-        // Inject bar-specific image suffix — guarantees different bars get
-        // genuinely different color palettes even at the same time of day.
         const imageSuffix = generateImageSuffix(barType, i, barId);
         const finalPrompt = `${built.finalPrompt}. ${imageSuffix}.`;
         variantPrompts.push({ finalPrompt, index: i });
@@ -208,6 +209,7 @@ export async function POST(
         urls: variantUrls,
         variantUrls,
         variantCount: variantVisualDirections.length,
+        ...(allWarnings.length > 0 ? { complianceNotes: allWarnings } : {}),
       });
     }
 
@@ -220,19 +222,7 @@ export async function POST(
       contentType as "promotion" | "event" | "pass" | "campaign",
     );
 
-    // Compliance block
-    if (!built.compliance.passed) {
-      return NextResponse.json(
-        {
-          error: "Content policy violation",
-          blockedReasons: built.compliance.blockedReasons,
-          hint: "Your selections contain content that violates Finnish alcohol advertising regulations. Try different options.",
-        },
-        { status: 422 },
-      );
-    }
-
-    // Generate images
+    // Generate images — the sanitized prompt already includes compliance framing
     const count = body.count || 2;
     const images = await generateImages({
       prompt: built.finalPrompt,

@@ -355,69 +355,33 @@ export function buildFixPrompt(
   violations: ComplianceViolation[],
   contentType: string,
 ): string {
-  // Re-fetch the rule definitions for the violations that were triggered
-  const violatedRuleIds = new Set(violations.map((v) => v.rule));
-  const triggeredRules = COMPLIANCE_RULES.filter((r) => violatedRuleIds.has(r.id));
+  // Build concise violation summary — what's wrong and what principle to fix
+  const violationSummary = violations.map((v) => {
+    return `- Issue: ${v.message}. Fix: ${v.suggestion}`;
+  }).join("\n");
 
-  // Build detailed violation info with law references AND Valvira citations
-  const violationDetails = triggeredRules.map((rule) => {
-    const v = violations.find((x) => x.rule === rule.id)!;
-    const sectionRef = rule.valviraSection
-      ? ` (Valvira Ch.${rule.valviraSection.chapter}, pp. ${rule.valviraSection.pages})`
-      : "";
-    return [
-      `Rule: ${rule.name}${sectionRef}`,
-      `Law: ${rule.lawReference}`,
-      `Triggered by: "${v.keyword}"`,
-      `Why: ${v.message}`,
-      `Fix: ${rule.suggestion}`,
-      rule.examples.length > 0
-        ? `Example: "${rule.examples[0].violation}" → "${rule.examples[0].fix}"`
-        : null,
-    ].filter(Boolean).join("\n  ");
-  }).join("\n\n  ");
-
-  // Get Valvira section citations for all violated rules
-  const valviraCitations = getCitationsForViolations(
-    violations.map((v) => v.rule),
-  );
-
-  // Collect DO NOT and DO from the triggered rules
-  const prohibited = triggeredRules.flatMap((r) => r.prohibited);
-  const approved = triggeredRules.flatMap((r) => r.approved);
-
-  return `You are correcting marketing content to comply with Finnish alcohol
-marketing law. Reference the authoritative source:
-${getCitationHeader()}
+  return `You are rewriting Finnish bar marketing content to comply with alcohol advertising regulations.
 
 CONTENT TYPE: ${contentType}
 ORIGINAL TITLE: "${title}"
 ORIGINAL DESCRIPTION: "${description || "(none)"}"
 
-VIOLATIONS DETECTED (with Valvira guideline references):
-  ${violationDetails}
-
-RELEVANT VALVIRA GUIDELINE SECTIONS:
-${valviraCitations}
-
-PROHIBITED PHRASES TO AVOID:
-  ${prohibited.map((p) => `- "${p}"`).join("\n  ")}
-
-USE THESE ALTERNATIVES INSTEAD:
-  ${approved.map((a) => `- "${a}"`).join("\n  ")}
+VIOLATIONS TO FIX:
+${violationSummary}
 
 Generate 2-3 alternative versions of the title and description that:
 1. Preserve the original business intent and appeal
-2. Remove ALL prohibited language identified above
-3. Use only compliant alternatives from the approved list
-4. Sound natural and appealing to Finnish bar-goers
-5. Focus on atmosphere, experience, and quality — not price or quantity
-6. Must pass a re-scan against the compliance engine
+2. Fix each violation listed above — do NOT just swap synonyms
+3. Sound natural, original, and appealing to Finnish bar-goers
+4. Focus on atmosphere, experience, quality, and social setting — not price, quantity, or intoxication
+5. Write fresh, creative copy — never copy-paste from examples
+
+CRITICAL: Write authentic marketing copy, not legal-compliant filler. The goal is compelling text that happens to be compliant, not compliant text that sounds hollow.
 
 Return ONLY a JSON array (no other text):
 [{ "title": "...", "description": "...", "explanation": "..." }, ...]
 
-Each "explanation" should briefly note which rule was addressed.`;
+Each "explanation" should briefly note what was changed and why.`;
 }
 
 // ---------------------------------------------------------------------------
