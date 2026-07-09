@@ -152,7 +152,6 @@ const MonthGrid = styled.div`
 `;
 
 const DayCell = styled.button<{ $isToday: boolean; $isOtherMonth: boolean }>`
-  aspect-ratio: 1;
   min-height: 80px;
   padding: 6px;
   border: none;
@@ -167,6 +166,7 @@ const DayCell = styled.button<{ $isToday: boolean; $isOtherMonth: boolean }>`
   gap: 3px;
   transition: background 0.1s;
   position: relative;
+  width: 100%;
 
   &:hover {
     background: #f9fafb;
@@ -204,6 +204,17 @@ const DayDots = styled.div`
 
   @media (max-width: 480px) {
     gap: 2px;
+  }
+`;
+
+const DayCount = styled.span`
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-top: auto;
+
+  @media (max-width: 480px) {
+    font-size: 0.55rem;
   }
 `;
 
@@ -272,18 +283,32 @@ const EntryList = styled.div`
 
 const EntryCard = styled.a`
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  padding: 0.875rem 1rem;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   text-decoration: none;
-  transition: background 0.1s;
+  transition: all 0.15s;
 
   &:hover {
     background: #f3f4f6;
+    border-color: #d1d5db;
   }
+`;
+
+const EntryColorBar = styled.div<{ $color: string }>`
+  width: 3px;
+  align-self: stretch;
+  border-radius: 2px;
+  background: ${({ $color }) => $color};
+  flex-shrink: 0;
+`;
+
+const EntryContent = styled.div`
+  flex: 1;
+  min-width: 0;
 `;
 
 const EntryBadge = styled.span<{ $color: string }>`
@@ -291,7 +316,7 @@ const EntryBadge = styled.span<{ $color: string }>`
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: 4px;
   background: ${({ $color }) => $color}18;
   color: ${({ $color }) => $color};
@@ -302,12 +327,21 @@ const EntryTitle = styled.span`
   font-size: 0.9rem;
   font-weight: 600;
   color: #1f2937;
-  flex: 1;
+  display: block;
+  margin-bottom: 2px;
 `;
 
-const EntryMeta = styled.span`
+const EntrySub = styled.span`
   font-size: 0.75rem;
   color: #9ca3af;
+  display: block;
+`;
+
+const EntryRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 4px;
 `;
 
 const StatusBadge = styled.span<{ $status: string }>`
@@ -542,18 +576,18 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
     });
   }
 
-  // Next month filler (fill remaining grid cells)
-  const remaining = 7 - (cells.length % 7);
-  if (remaining < 7) {
+  // Next month filler — always pad to 6 full rows (42 cells) for consistent
+  // grid height month-to-month. Without this, months starting on Fri/Sat
+  // show only 4-5 rows and look misaligned with the 7-day header.
+  while (cells.length < 42) {
+    const d = cells.length - (daysInMonth + firstDayOfWeek) + 1;
     const nextM = viewMonth === 11 ? 0 : viewMonth + 1;
     const nextY = viewMonth === 11 ? viewYear + 1 : viewYear;
-    for (let d = 1; d <= remaining; d++) {
-      cells.push({
-        day: d,
-        date: `${nextY}-${String(nextM + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
-        isOtherMonth: true,
-      });
-    }
+    cells.push({
+      day: d,
+      date: `${nextY}-${String(nextM + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+      isOtherMonth: true,
+    });
   }
 
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -718,27 +752,15 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
                 }}
               >
                 <DayNumber $isToday={isToday}>{cell.day}</DayNumber>
-                {uniqueTypes.length > 0 && (
-                  <DayDots>
-                    {uniqueTypes.map((type) => (
-                      <Dot key={type} $color={TYPE_COLORS[type]} />
-                    ))}
-                  </DayDots>
-                )}
-                {/* Show first 2 entry titles on larger screens */}
                 {entries.length > 0 && (
-                  <DayLabels>
-                    {entries.slice(0, 2).map((e) => (
-                      <DayLabel key={e.id} $color={TYPE_COLORS[e.type]}>
-                        {e.title}
-                      </DayLabel>
-                    ))}
-                    {entries.length > 2 && (
-                      <DayLabel $color="#9ca3af">
-                        +{entries.length - 2} more
-                      </DayLabel>
-                    )}
-                  </DayLabels>
+                  <>
+                    <DayDots>
+                      {uniqueTypes.map((type) => (
+                        <Dot key={type} $color={TYPE_COLORS[type]} />
+                      ))}
+                    </DayDots>
+                    <DayCount>{entries.length}</DayCount>
+                  </>
                 )}
               </DayCell>
             );
@@ -771,49 +793,58 @@ export default function ContentCalendar({ barId }: ContentCalendarProps) {
           </DayDetailHeader>
           {selectedEntries.length > 0 ? (
             <EntryList>
-              {selectedEntries.map((entry) => (
-                <EntryCard
-                  key={entry.id}
-                  href={`/bar/${barId}/${entry.type === "event" ? "events" : entry.type === "promotion" ? "promotions" : entry.type === "campaign" ? "campaigns" : "passes"}`}
-                >
-                  <EntryBadge $color={TYPE_COLORS[entry.type]}>
-                    {entry.type === "campaign" && entry.campaignType
-                      ? entry.campaignType.replace(/_/g, " ")
-                      : entry.type}
-                  </EntryBadge>
-                  <EntryTitle>{entry.title}</EntryTitle>
-                  {entry.type === "pass" && entry.price != null && (
-                    <EntryMeta>€{entry.price}</EntryMeta>
-                  )}
-                  {entry.type === "campaign" && entry.budgetCents != null && (
-                    <EntryMeta>€{Math.round(entry.budgetCents / 100)}</EntryMeta>
-                  )}
-                  {entry.type === "event" && entry.time && (
-                    <EntryMeta>
-                      {new Date(entry.time).toLocaleTimeString("en-US", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </EntryMeta>
-                  )}
-                  {entry.type === "promotion" && entry.endDate && (
-                    <EntryMeta>
-                      → {new Date(entry.endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </EntryMeta>
-                  )}
-                  {entry.type === "campaign" && entry.endDate && (
-                    <EntryMeta>
-                      → {new Date(entry.endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                    </EntryMeta>
-                  )}
-                  <StatusBadge $status={entry.status}>
-                    {entry.status === "COMPLIANT" || entry.status === "ACTIVE"
-                      ? "✓"
-                      : "!"}{" "}
-                    {entry.status.replace(/_/g, " ")}
-                  </StatusBadge>
-                </EntryCard>
-              ))}
+              {selectedEntries.map((entry) => {
+                const color = TYPE_COLORS[entry.type];
+                const subParts: string[] = [];
+
+                if (entry.type === "event" && entry.time) {
+                  subParts.push(
+                    new Date(entry.time).toLocaleTimeString("en-US", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                  );
+                }
+                if (entry.startDate && entry.endDate) {
+                  subParts.push(
+                    `${new Date(entry.startDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })} → ${new Date(entry.endDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
+                  );
+                }
+                if (entry.type === "pass" && entry.price != null) {
+                  subParts.push(`€${entry.price}`);
+                }
+                if (entry.type === "campaign" && entry.budgetCents != null) {
+                  subParts.push(`Budget €${Math.round(entry.budgetCents / 100)}`);
+                }
+
+                return (
+                  <EntryCard
+                    key={entry.id}
+                    href={`/bar/${barId}/${entry.type === "event" ? "events" : entry.type === "promotion" ? "promotions" : entry.type === "campaign" ? "campaigns" : "passes"}`}
+                  >
+                    <EntryColorBar $color={color} />
+                    <EntryContent>
+                      <EntryTitle>{entry.title}</EntryTitle>
+                      {subParts.length > 0 && (
+                        <EntrySub>{subParts.join(" · ")}</EntrySub>
+                      )}
+                      <EntryRow>
+                        <EntryBadge $color={color}>
+                          {entry.type === "campaign" && entry.campaignType
+                            ? entry.campaignType.replace(/_/g, " ")
+                            : entry.type}
+                        </EntryBadge>
+                        <StatusBadge $status={entry.status}>
+                          {entry.status === "COMPLIANT" || entry.status === "ACTIVE"
+                            ? "✓"
+                            : "!"}{" "}
+                          {entry.status.replace(/_/g, " ")}
+                        </StatusBadge>
+                      </EntryRow>
+                    </EntryContent>
+                  </EntryCard>
+                );
+              })}
             </EntryList>
           ) : (
             <p style={{ color: "#9ca3af", textAlign: "center", padding: "1rem" }}>
