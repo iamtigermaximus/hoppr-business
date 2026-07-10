@@ -2244,6 +2244,10 @@ const ProgressLabel = styled.span<{ $active: boolean; $done: boolean }>`
   white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+
+  @media (max-width: 480px) {
+    display: none;
+  }
 `;
 
 const ProgressLine = styled.div<{ $done: boolean }>`
@@ -2259,6 +2263,10 @@ const ProgressLine = styled.div<{ $done: boolean }>`
 
 const StepBody = styled.div`
   padding: 20px;
+
+  @media (max-width: 480px) {
+    padding: 14px 10px;
+  }
 `;
 
 const StepTitle = styled.h2`
@@ -2269,6 +2277,11 @@ const StepTitle = styled.h2`
   display: flex;
   align-items: center;
   gap: 6px;
+
+  @media (max-width: 480px) {
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
 `;
 
 const StepNum = styled.span`
@@ -2322,6 +2335,10 @@ const TypeGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
+
+  @media (max-width: 480px) {
+    gap: 8px;
+  }
 `;
 
 const TypeCard = styled.button<{ $selected: boolean }>`
@@ -2339,6 +2356,10 @@ const TypeCard = styled.button<{ $selected: boolean }>`
   &:hover {
     border-color: #7c3aed;
     background: rgba(124, 58, 237, 0.06);
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
   }
 `;
 
@@ -2380,6 +2401,12 @@ const Textarea = styled.textarea`
   &::placeholder {
     color: #4b5563;
   }
+
+  @media (max-width: 480px) {
+    min-height: 160px;
+    font-size: 13px;
+    padding: 12px 14px;
+  }
 `;
 
 const TextareaHint = styled.div`
@@ -2395,6 +2422,10 @@ const BriefActionsRow = styled.div`
   margin-top: 6px;
   margin-bottom: 2px;
   gap: 12px;
+
+  @media (max-width: 480px) {
+    flex-wrap: wrap;
+  }
 `;
 
 const RegenerateBriefButton = styled.button`
@@ -2522,8 +2553,12 @@ const ToneChip = styled.button<{ $active: boolean }>`
 
 const TemplateGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 6px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  }
 `;
 
 const TemplateCard = styled.button<{ $active: boolean }>`
@@ -2784,6 +2819,11 @@ const GenerateRow = styled.div`
   align-items: center;
   gap: 16px;
   margin-top: 14px;
+
+  @media (max-width: 480px) {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 `;
 
 const FormatNote = styled.span`
@@ -2877,6 +2917,10 @@ const VariantCard = styled.div`
   border: 1px solid #2d2d4a;
   border-radius: 10px;
   background: #0d0d1a;
+
+  @media (max-width: 480px) {
+    padding: 12px;
+  }
 `;
 
 const VariantCardHeader = styled.div`
@@ -2963,6 +3007,11 @@ const ImageGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 `;
 
 const ImageCard = styled.div`
@@ -2972,6 +3021,10 @@ const ImageCard = styled.div`
   background: #0d0d1a;
   display: flex;
   flex-direction: column;
+
+  @media (max-width: 480px) {
+    padding: 10px;
+  }
 `;
 
 const ImageCardBadge = styled.span`
@@ -3174,6 +3227,11 @@ const SelectField = styled.select`
 const FieldRow = styled.div`
   display: flex;
   gap: 10px;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    gap: 8px;
+  }
 `;
 
 const SubmitRow = styled.div`
@@ -3183,6 +3241,11 @@ const SubmitRow = styled.div`
   margin-top: 8px;
   padding-top: 12px;
   border-top: 1px solid #2d2d4a;
+
+  @media (max-width: 480px) {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
 `;
 
 // ---- Ingredients summary ----

@@ -19,9 +19,15 @@ const StepsHeader = styled.div`
   background: #f9fafb;
 `;
 
+const StepLabel = styled.span`
+  @media (max-width: 480px) {
+    display: none;
+  }
+`;
+
 const StepTab = styled.button<{ $active: boolean; $completed: boolean }>`
   flex: 1;
-  padding: 0.875rem 0.75rem;
+  padding: 0.875rem 0.5rem;
   font-size: 0.8125rem;
   font-weight: ${({ $active }) => ($active ? 600 : 500)};
   color: ${({ $active, $completed }) =>
@@ -36,6 +42,11 @@ const StepTab = styled.button<{ $active: boolean; $completed: boolean }>`
   justify-content: center;
   gap: 0.375rem;
   white-space: nowrap;
+
+  @media (max-width: 480px) {
+    padding: 0.75rem 0.25rem;
+    font-size: 0.6875rem;
+  }
 
   &:hover {
     color: ${({ $completed }) => ($completed ? "#059669" : "#7c3aed")};
@@ -66,6 +77,11 @@ const StepNumber = styled.span<{ $active: boolean; $completed: boolean }>`
 const StepBody = styled.div`
   padding: 1.5rem;
   min-height: 300px;
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    min-height: auto;
+  }
 `;
 
 const StepFooter = styled.div`
@@ -76,6 +92,11 @@ const StepFooter = styled.div`
   border-top: 1px solid #e5e7eb;
   background: #f9fafb;
   gap: 0.75rem;
+
+  @media (max-width: 480px) {
+    padding: 0.75rem 1rem;
+    flex-wrap: wrap;
+  }
 `;
 
 const StepButton = styled.button<{ $variant: "primary" | "secondary" | "outline" }>`
@@ -147,12 +168,21 @@ const StepTitle = styled.h3`
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 0.5rem;
+
+  @media (max-width: 480px) {
+    font-size: 1rem;
+  }
 `;
 
 const StepSubtitle = styled.p`
   font-size: 0.875rem;
   color: #6b7280;
   margin: 0 0 1.25rem;
+
+  @media (max-width: 480px) {
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+  }
 `;
 
 const PreviewFrame = styled.div`
@@ -308,9 +338,7 @@ const ContentCreationStepper = forwardRef<StepperHandle, ContentCreationStepperP
             <StepNumber $active={step === i} $completed={completedSteps.has(i)}>
               {completedSteps.has(i) ? "✓" : i + 1}
             </StepNumber>
-            <span style={{ display: "none" }}> {/* Hide label on mobile, show on wider */}
-              {s.label}
-            </span>
+            <StepLabel>{s.label}</StepLabel>
           </StepTab>
         ))}
       </StepsHeader>

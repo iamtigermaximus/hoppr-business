@@ -59,12 +59,24 @@ const Title = styled.h1`
   font-weight: 700;
   color: #1f2937;
   margin: 0 0 0.25rem;
+
+  @media (max-width: 640px) {
+    font-size: 1.25rem;
+  }
 `;
 
 const Subtitle = styled.p`
   font-size: 0.875rem;
   color: #6b7280;
   margin: 0;
+`;
+
+const OuterWrapper = styled.div`
+  padding: 1.5rem;
+
+  @media (max-width: 640px) {
+    padding: 0.75rem;
+  }
 `;
 
 const ToastContainer = styled.div`
@@ -106,6 +118,10 @@ const SuccessCard = styled.div`
   padding: 1.5rem;
   margin-bottom: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+  }
 `;
 
 const SuccessHeader = styled.div`
@@ -211,6 +227,10 @@ const ShareHero = styled.div`
     border-radius: 50%;
     pointer-events: none;
   }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+  }
 `;
 
 const ShareHeroBadge = styled.div`
@@ -236,6 +256,10 @@ const ShareHeroTitle = styled.h3`
   display: flex;
   align-items: center;
   gap: 0.5rem;
+
+  @media (max-width: 480px) {
+    font-size: 1.0625rem;
+  }
 `;
 
 const ShareHeroSubtitle = styled.p`
@@ -541,32 +565,46 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   };
 
   /** Share to Facebook: uses Web Share API with URL (Facebook reliably appears for URL/text shares) */
+  /** Share the card image to Facebook.
+   *  Mobile: native share sheet with the image file (Facebook accepts image shares on iOS/Android).
+   *  Desktop: downloads the image, copies caption, opens Facebook in a new tab —
+   *  user drags the downloaded image into the post composer and pastes the caption. */
   const handleShareFacebook = async () => {
-    if (!createdItem) return;
+    if (!ogImageDataUrl || !createdItem) return;
     setSharingOg(true);
     try {
-      if (navigator.share) {
+      const res = await fetch(ogImageDataUrl);
+      const blob = await res.blob();
+      const safeName = createdItem.title.slice(0, 30).replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "");
+      const file = new File([blob], `hoppr-${createdItem.type}-${safeName}.png`, { type: "image/png" });
+
+      // Mobile: native share sheet — Facebook appears as an image share target
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           title: createdItem.title,
           text: shareCaption,
-          url: consumerUrl,
+          files: [file],
         });
         return;
       }
-      // Desktop fallback: open Facebook Share Dialog
-      const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(consumerUrl)}&quote=${encodeURIComponent(shareCaption)}`;
-      window.open(fbUrl, "_blank", "width=600,height=400");
+
+      // Desktop: download image + copy caption + open Facebook in new tab
+      await navigator.clipboard.writeText(shareCaption);
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.download = file.name;
+      a.href = downloadUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+      window.open("https://www.facebook.com/", "_blank");
     } catch (err) {
-      if (
-        err instanceof DOMException &&
-        (err.name === "AbortError" || err.name === "CancelError")
-      ) {
+      if (err instanceof DOMException && (err.name === "AbortError" || err.name === "CancelError")) {
         return;
       }
-      // Final fallback: copy caption + open Facebook
-      await navigator.clipboard.writeText(shareCaption);
-      const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(consumerUrl)}`;
-      window.open(fbUrl, "_blank", "width=600,height=400");
+      console.error("Facebook share failed:", err);
+      showToast("Couldn't share to Facebook. Try downloading and posting manually.", "error");
     } finally {
       setSharingOg(false);
     }
@@ -826,7 +864,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     : contentType.charAt(0).toUpperCase() + contentType.slice(1);
 
   return (
-    <div style={{ padding: "1.5rem" }}>
+    <OuterWrapper>
       <PageHeader>
         <Title>Create Content</Title>
         <Subtitle>
@@ -1115,6 +1153,6 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
           <Toast $type={toast.type}>{toast.message}</Toast>
         </ToastContainer>
       )}
-    </div>
+    </OuterWrapper>
   );
 }

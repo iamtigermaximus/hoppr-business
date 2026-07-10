@@ -176,6 +176,19 @@ const OGImageWrap = styled.div`
   overflow: hidden;
   border: 1px solid #262626;
   box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+  position: relative;
+  aspect-ratio: 1200 / 630;
+  width: 100%;
+`;
+
+const ScaledOgContainer = styled.div`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 303%;
+  height: 303%;
+  transform: scale(0.33);
+  transform-origin: top left;
 `;
 
 const ToneIndicator = styled.div`
@@ -303,7 +316,7 @@ export default function ConsumerPreviewPanel({
               </StyleValue>
             </VisualStyleMeta>
             <OGImageWrap>
-              <div style={{ transform: "scale(0.33)", transformOrigin: "top left", width: "300%", height: "300%" }}>
+              <ScaledOgContainer>
                 <PromotionImage
                   input={{
                     barName: barName || "Your Bar",
@@ -341,7 +354,7 @@ export default function ConsumerPreviewPanel({
                   }}
                   format={cardFormat}
                 />
-              </div>
+              </ScaledOgContainer>
             </OGImageWrap>
             {toneLabel && (
               <ToneIndicator>

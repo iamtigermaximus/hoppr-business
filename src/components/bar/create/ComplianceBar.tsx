@@ -80,6 +80,11 @@ const FixItem = styled.div`
   border: 1px solid #e5e7eb;
   border-radius: 6px;
   padding: 8px 10px;
+  word-break: break-word;
+
+  @media (max-width: 480px) {
+    padding: 6px 8px;
+  }
 `;
 
 const FixLabel = styled.span`
@@ -126,7 +131,8 @@ const ProactiveChip = styled.span`
   background: #f3f4f6;
   padding: 2px 8px;
   border-radius: 4px;
-  white-space: nowrap;
+  word-break: break-word;
+  line-height: 1.4;
 `;
 
 // ---- Proactive guidance ----
