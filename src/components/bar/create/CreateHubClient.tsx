@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo, useEffect } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
 import { scanCompliance } from "@/lib/compliance-engine";
@@ -173,92 +173,6 @@ const ActionButton = styled.button<{ $variant: "primary" | "secondary" | "outlin
 
 // ---- Social posting styled components ----
 
-const SocialPostSection = styled.div`
-  margin-top: 1rem;
-  padding: 1rem;
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.75rem;
-`;
-
-const SocialPostLabel = styled.div`
-  font-size: 0.75rem;
-  color: #6b7280;
-  font-weight: 500;
-  margin-bottom: 0.75rem;
-`;
-
-const SocialPostButtons = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-`;
-
-const SocialPostBtn = styled.button<{ $variant: "instagram" | "facebook" | "both" }>`
-  padding: 0.625rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  color: white;
-  transition: all 0.15s;
-  background: ${({ $variant }) =>
-    $variant === "instagram"
-      ? "linear-gradient(135deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)"
-      : $variant === "facebook"
-      ? "#1877f2"
-      : "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)"};
-
-  &:hover:not(:disabled) {
-    opacity: 0.9;
-    transform: translateY(-1px);
-  }
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-`;
-
-const SocialConnectBtn = styled.button`
-  padding: 0.625rem 1rem;
-  border-radius: 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px dashed #d1d5db;
-  background: #f9fafb;
-  color: #6b7280;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: #3b82f6;
-    color: #3b82f6;
-    background: #eff6ff;
-  }
-`;
-
-const SocialStatus = styled.div`
-  margin-top: 0.75rem;
-  font-size: 0.8125rem;
-  color: #6b7280;
-  font-style: italic;
-`;
-
-const SocialResults = styled.div`
-  margin-top: 0.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-`;
-
-const SocialResultItem = styled.div<{ $success: boolean }>`
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: ${({ $success }) => ($success ? "#059669" : "#dc2626")};
-`;
-
 const SocialCardWrapper = styled.div`
   border-radius: 12px;
   overflow: hidden;
@@ -267,31 +181,119 @@ const SocialCardWrapper = styled.div`
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 `;
 
-const DownloadButton = styled.a`
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  background: #7c3aed;
-  color: white;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 0.15s;
-
-  &:hover {
-    background: #6d28d9;
-  }
-`;
-
 const SocialLoadingHint = styled.div`
   font-size: 0.8125rem;
   color: #6b7280;
   font-style: italic;
   text-align: center;
   padding: 1rem;
+`;
+
+// ── Prominent sharing hero section (Option 1: Web Share API) ──
+
+const ShareHero = styled.div`
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 50%, #e0e7ff 100%);
+  border: 2px solid #c4b5fd;
+  border-radius: 1rem;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 120px;
+    height: 120px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+`;
+
+const ShareHeroBadge = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+  color: white;
+  margin-bottom: 0.75rem;
+`;
+
+const ShareHeroTitle = styled.h3`
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const ShareHeroSubtitle = styled.p`
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 1rem;
+  line-height: 1.5;
+`;
+
+// ── Share icon bar (react-share style) ──
+
+const ShareBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.75rem;
+  flex-wrap: wrap;
+`;
+
+const ShareIconBtn = styled.button<{ $color: string }>`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: white;
+  color: ${({ $color }) => $color};
+  font-size: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition: all 0.15s;
+  position: relative;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: wait;
+  }
+`;
+
+const ShareIconLabel = styled.span`
+  font-size: 0.6875rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
+  text-align: center;
+`;
+
+const ShareIconWrap = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.125rem;
 `;
 
 interface CreatedItem {
@@ -458,113 +460,117 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     setTimeout(() => setToast(null), 4000);
   };
 
-  // ---- Social posting (One-Tap Social Export) ----
+  const [sharingOg, setSharingOg] = useState(false);
 
-  const [socialConnections, setSocialConnections] = useState<
-    Array<{ platform: string; igUsername?: string | null; pageName?: string | null; isActive: boolean }>
-  >([]);
-  const [socialPosting, setSocialPosting] = useState<string | null>(null);
-  const [socialResults, setSocialResults] = useState<
-    Array<{ platform: string; status: string; postUrl?: string; error?: string }> | null
-  >(null);
 
-  // Fetch social connections on mount
-  useEffect(() => {
-    if (!token || !barId) return;
-    fetch(`/api/auth/bar/${barId}/social/status`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.connections) setSocialConnections(data.connections);
-      })
-      .catch(() => {});
-  }, [token, barId]);
+  // Pre-built caption used by share handlers — computed once, reused
+  const shareCaption = useMemo(() => {
+    if (!createdItem) return "";
+    return generateCaption(
+      {
+        contentType: createdItem.type as "event" | "promotion",
+        title: createdItem.title,
+        description: formState.description,
+        barName,
+        barLogo: barLogoUrl,
+        date:
+          createdItem.type === "promotion"
+            ? formState.startDate
+            : formState.startTime,
+        time:
+          createdItem.type === "event" && formState.startTime
+            ? new Date(formState.startTime).toLocaleTimeString("fi-FI", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : undefined,
+        consumerUrl: process.env.NEXT_PUBLIC_CONSUMER_URL || "hoppr.fi",
+        discountValue: formState.discountValue,
+        promotionType: formState.promotionType,
+      },
+      "fi",
+    );
+  }, [createdItem, formState, barName, barLogoUrl]);
 
-  const handleConnectSocial = async (platform: "instagram" | "facebook") => {
-    if (!token) return;
+  const consumerUrl = useMemo(() => {
+    return (process.env.NEXT_PUBLIC_CONSUMER_URL || "https://hoppr.fi") +
+      `/${createdItem?.type ?? "promotion"}s/${createdItem?.id ?? ""}`;
+  }, [createdItem]);
+
+  /** Share to Instagram: copy image to clipboard → open Instagram app */
+  const handleShareInstagram = async () => {
+    if (!ogImageDataUrl || !createdItem) return;
+    setSharingOg(true);
     try {
-      const res = await fetch(`/api/auth/bar/${barId}/social/connect`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ platform }),
-      });
-      const data = await res.json();
-      if (data.oauthUrl) {
-        window.location.href = data.oauthUrl;
+      const res = await fetch(ogImageDataUrl);
+      const blob = await res.blob();
+
+      // Copy image to clipboard (supported in Chrome/Edge; Safari needs fallback)
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+      } catch {
+        // Clipboard.write with images not supported — fall through to download
       }
-    } catch {
-      showToast("Failed to start connection. Try again.", "error");
-    }
-  };
 
-  const handleSocialPost = async (platforms: ("instagram" | "facebook")[]) => {
-    if (!token || !ogImageDataUrl) return;
-    const platformLabel = platforms.join(" & ");
-    setSocialPosting(platformLabel);
-    setSocialResults(null);
+      // Copy caption text too
+      await navigator.clipboard.writeText(shareCaption);
 
-    try {
-      const dataUrl = ogImageDataUrl;
-      const caption = generateCaption(
-        {
-          contentType: createdItem!.type as "event" | "promotion",
-          title: createdItem!.title,
-          description: formState.description,
-          barName,
-          barLogo: barLogoUrl,
-          date:
-            createdItem!.type === "promotion"
-              ? formState.startDate
-              : formState.startTime,
-          time:
-            createdItem!.type === "event" && formState.startTime
-              ? new Date(formState.startTime).toLocaleTimeString("fi-FI", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : undefined,
-          consumerUrl: process.env.NEXT_PUBLIC_CONSUMER_URL || "hoppr.fi",
-          discountValue: formState.discountValue,
-          promotionType: formState.promotionType,
-        },
-        "fi",
-      );
+      // Open Instagram app (falls back to Instagram web if app not installed)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const instagramUrl = isIOS
+        ? "instagram://"
+        : "intent://instagram.com/#Intent;package=com.instagram.android;end";
+      window.location.href = instagramUrl;
 
-      const res = await fetch(`/api/auth/bar/${barId}/social/post`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          imageDataUrl: dataUrl,
-          caption,
-          platforms,
-          contentType: createdItem!.type,
-          contentId: createdItem!.id,
-          contentTitle: createdItem!.title,
-        }),
-      });
-
-      const data = await res.json();
-      setSocialResults(data.results || []);
-    } catch {
-      showToast("Posting failed. Try downloading and posting manually.", "error");
+      // If Instagram didn't open within 2s, it's not installed — show instructions
+      setTimeout(() => {
+        if (document.hidden) return; // app opened successfully
+        showToast(
+          "Image & caption copied! Open Instagram and paste into a new post or story.",
+          "success",
+        );
+      }, 2000);
+    } catch (err) {
+      console.error("Instagram share failed:", err);
+      showToast("Couldn't open Instagram. Try downloading and posting manually.", "error");
     } finally {
-      setSocialPosting(null);
+      setSharingOg(false);
     }
   };
 
-  const instagramConnected = socialConnections.some(
-    (c) => c.platform === "INSTAGRAM" && c.isActive,
-  );
-  const facebookConnected = socialConnections.some(
-    (c) => c.platform === "FACEBOOK" && c.isActive,
-  );
+  /** Share to Facebook: uses Web Share API with URL (Facebook reliably appears for URL/text shares) */
+  const handleShareFacebook = async () => {
+    if (!createdItem) return;
+    setSharingOg(true);
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: createdItem.title,
+          text: shareCaption,
+          url: consumerUrl,
+        });
+        return;
+      }
+      // Desktop fallback: open Facebook Share Dialog
+      const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(consumerUrl)}&quote=${encodeURIComponent(shareCaption)}`;
+      window.open(fbUrl, "_blank", "width=600,height=400");
+    } catch (err) {
+      if (
+        err instanceof DOMException &&
+        (err.name === "AbortError" || err.name === "CancelError")
+      ) {
+        return;
+      }
+      // Final fallback: copy caption + open Facebook
+      await navigator.clipboard.writeText(shareCaption);
+      const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(consumerUrl)}`;
+      window.open(fbUrl, "_blank", "width=600,height=400");
+    } finally {
+      setSharingOg(false);
+    }
+  };
 
   const handleFieldChange = useCallback(
     (field: string, value: unknown) => {
@@ -885,18 +891,16 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
             </ActionRow>
           </SuccessCard>
 
-          {/* ---- Visible OG social media card (downloadable) ---- */}
+          {/* ---- Share to social media (Option 1: Web Share API) — prominent, no OAuth needed ---- */}
           {(createdItem.type === "event" || createdItem.type === "promotion") && (
-            <SuccessCard>
-              <SuccessHeader>
-                <SuccessIcon>🎨</SuccessIcon>
-                <div>
-                  <SuccessTitle>Your Social Media Card</SuccessTitle>
-                  <div style={{ fontSize: "0.8125rem", color: "#6b7280", marginTop: "0.125rem" }}>
-                    Ready to share on Instagram, Facebook, or download
-                  </div>
-                </div>
-              </SuccessHeader>
+            <ShareHero>
+              <ShareHeroBadge>✨ One-Tap Share</ShareHeroBadge>
+              <ShareHeroTitle>
+                📱 Share to Instagram & Facebook
+              </ShareHeroTitle>
+              <ShareHeroSubtitle>
+                Your card is ready. Share to social media with a tap.
+              </ShareHeroSubtitle>
 
               {ogImageDataUrl ? (
                 <>
@@ -907,19 +911,95 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                       style={{ width: "100%", display: "block" }}
                     />
                   </SocialCardWrapper>
-                  <DownloadButton
-                    href={ogImageDataUrl}
-                    download={`${createdItem.title.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "").toLowerCase()}-social-card.png`}
-                  >
-                    ⬇ Download Image
-                  </DownloadButton>
+
+                  <ShareBar>
+                    <ShareIconWrap>
+                      <ShareIconBtn
+                        onClick={handleShareFacebook}
+                        disabled={sharingOg}
+                        $color="#1877f2"
+                        title="Share to Facebook"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                      </ShareIconBtn>
+                      <ShareIconLabel>Facebook</ShareIconLabel>
+                    </ShareIconWrap>
+
+                    <ShareIconWrap>
+                      <ShareIconBtn
+                        onClick={handleShareInstagram}
+                        disabled={sharingOg}
+                        $color="#E4405F"
+                        title="Share to Instagram"
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+                        </svg>
+                      </ShareIconBtn>
+                      <ShareIconLabel>Instagram</ShareIconLabel>
+                    </ShareIconWrap>
+
+                    <ShareIconWrap>
+                      <ShareIconBtn
+                        onClick={() => {
+                          if (navigator.share && ogImageDataUrl) {
+                            fetch(ogImageDataUrl)
+                              .then(r => r.blob())
+                              .then(blob => {
+                                const file = new File([blob], "share.png", { type: "image/png" });
+                                navigator.share({
+                                  title: createdItem.title,
+                                  text: shareCaption,
+                                  files: [file],
+                                });
+                              })
+                              .catch(() => {});
+                          } else {
+                            handleShareFacebook(); // fallback
+                          }
+                        }}
+                        disabled={sharingOg}
+                        $color="#25D366"
+                        title="Share via..."
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="18" cy="5" r="3"/>
+                          <circle cx="6" cy="12" r="3"/>
+                          <circle cx="18" cy="19" r="3"/>
+                          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                        </svg>
+                      </ShareIconBtn>
+                      <ShareIconLabel>Share</ShareIconLabel>
+                    </ShareIconWrap>
+
+                    <ShareIconWrap>
+                      <ShareIconBtn
+                        as="a"
+                        href={ogImageDataUrl}
+                        download={`${createdItem.title.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-]/g, "").toLowerCase()}-social-card.png`}
+                        $color="#374151"
+                        title="Download image"
+                        style={{ textDecoration: "none" }}
+                      >
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                          <polyline points="7 10 12 15 17 10"/>
+                          <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                      </ShareIconBtn>
+                      <ShareIconLabel>Download</ShareIconLabel>
+                    </ShareIconWrap>
+                  </ShareBar>
                 </>
               ) : (
                 <SocialLoadingHint>
                   Generating your social media card...
                 </SocialLoadingHint>
               )}
-            </SuccessCard>
+            </ShareHero>
           )}
 
           {/* Hidden OG image capturer — generates the social media image matching the chosen variant */}
@@ -974,92 +1054,6 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
             );
           })()}
 
-          {/* One-tap social posting buttons */}
-          {(createdItem.type === "event" || createdItem.type === "promotion") && (
-            <SocialPostSection>
-              <SocialPostLabel>📤 Post directly to</SocialPostLabel>
-              <SocialPostButtons>
-                {instagramConnected ? (
-                  <SocialPostBtn
-                    $variant="instagram"
-                    disabled={socialPosting !== null || !ogImageDataUrl}
-                    onClick={() => handleSocialPost(["instagram"])}
-                  >
-                    {socialPosting === "instagram" ? "⏳ Posting..." : !ogImageDataUrl ? "⏳ Preparing..." : "📸 Instagram"}
-                  </SocialPostBtn>
-                ) : (
-                  <SocialConnectBtn
-                    onClick={() => handleConnectSocial("instagram")}
-                  >
-                    🔗 Connect Instagram
-                  </SocialConnectBtn>
-                )}
-
-                {facebookConnected ? (
-                  <SocialPostBtn
-                    $variant="facebook"
-                    disabled={socialPosting !== null || !ogImageDataUrl}
-                    onClick={() => handleSocialPost(["facebook"])}
-                  >
-                    {socialPosting === "facebook" ? "⏳ Posting..." : !ogImageDataUrl ? "⏳ Preparing..." : "📘 Facebook"}
-                  </SocialPostBtn>
-                ) : (
-                  <SocialConnectBtn
-                    onClick={() => handleConnectSocial("facebook")}
-                  >
-                    🔗 Connect Facebook
-                  </SocialConnectBtn>
-                )}
-
-                {instagramConnected && facebookConnected && (
-                  <SocialPostBtn
-                    $variant="both"
-                    disabled={socialPosting !== null || !ogImageDataUrl}
-                    onClick={() => handleSocialPost(["instagram", "facebook"])}
-                  >
-                    {socialPosting === "instagram & facebook"
-                      ? "⏳ Posting..."
-                      : !ogImageDataUrl
-                        ? "⏳ Preparing..."
-                        : "📸📘 Post to both"}
-                  </SocialPostBtn>
-                )}
-              </SocialPostButtons>
-
-              {!ogImageDataUrl && !socialPosting && (
-                <SocialStatus>
-                  Preparing social image from your chosen style...
-                </SocialStatus>
-              )}
-              {socialPosting && (
-                <SocialStatus>
-                  Posting to {socialPosting}...
-                </SocialStatus>
-              )}
-
-              {socialResults && (
-                <SocialResults>
-                  {socialResults.map((r, i) => (
-                    <SocialResultItem key={i} $success={r.status === "published"}>
-                      {r.status === "published"
-                        ? `✅ ${r.platform}: Posted${r.postUrl ? ` — view post` : ""}`
-                        : `❌ ${r.platform}: ${r.error || "Failed"}`}
-                      {r.postUrl && r.status === "published" && (
-                        <a
-                          href={r.postUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ marginLeft: "0.5rem", color: "#3b82f6" }}
-                        >
-                          Open ↗
-                        </a>
-                      )}
-                    </SocialResultItem>
-                  ))}
-                </SocialResults>
-              )}
-            </SocialPostSection>
-          )}
         </div>
       ) : (
         /* ---- Creation Form ---- */
