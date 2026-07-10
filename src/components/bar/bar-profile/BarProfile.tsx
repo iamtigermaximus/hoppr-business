@@ -6,6 +6,7 @@ import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 import ImageUpload from "@/components/admin/image-upload/ImageUpload";
 import Image from "next/image";
 import ToneSelector, { type ContentTone } from "@/components/bar/create/ToneSelector";
+import { getImageUrl } from "@/lib/cloudinary-url";
 
 const Container = styled.div`
   padding: 1.5rem 0;
@@ -1106,7 +1107,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
             {coverImage ? (
               <div>
                 <ImagePreview>
-                  <ImagePreviewImg src={coverImage} alt="Cover" />
+                  <ImagePreviewImg src={getImageUrl(coverImage, 800)} alt="Cover" />
                   {canEdit && (
                     <RemoveImageButton onClick={() => setCoverImage("")}>
                       ✕
@@ -1154,7 +1155,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
               <div>
                 <ImagePreview>
                   <ImagePreviewImg
-                    src={logoUrl}
+                    src={getImageUrl(logoUrl, 200)}
                     alt="Logo"
                     style={{ maxWidth: "150px", maxHeight: "150px" }}
                   />
@@ -1234,7 +1235,7 @@ const BarProfile = ({ barId, userRole }: BarProfileProps) => {
                     }}
                   >
                     <Image
-                      src={url}
+                      src={getImageUrl(url, 300)}
                       alt={`Gallery ${index + 1}`}
                       fill
                       sizes="150px"

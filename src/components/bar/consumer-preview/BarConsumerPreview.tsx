@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
+import { getImageUrl } from "@/lib/cloudinary-url";
 import {
   MapPin,
   Phone,
@@ -424,7 +425,7 @@ export default function BarConsumerPreview({ barId }: BarConsumerPreviewProps) {
           }}
         >
           <img
-            src={venue.imageUrl}
+            src={getImageUrl(venue.imageUrl, 800)}
             alt={venue.name}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />

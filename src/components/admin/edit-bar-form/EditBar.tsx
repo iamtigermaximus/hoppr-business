@@ -6,6 +6,7 @@ import Link from "next/link";
 import styled from "styled-components";
 import { SkeletonBox, SkeletonCard, SkeletonPageHeader, SkeletonContentGrid, SkeletonSidebar } from "@/components/ui/Skeleton";
 import ImageUpload from "@/components/admin/image-upload/ImageUpload";
+import { getImageUrl } from "@/lib/cloudinary-url";
 
 const Container = styled.div`
   padding: 1rem;
@@ -1446,7 +1447,7 @@ const EditBar = () => {
                 {imageUrls.map((url, index) => (
                   <GalleryImageContainer key={index}>
                     <GalleryImage
-                      src={url}
+                      src={getImageUrl(url, 300)}
                       alt={`Gallery ${index + 1}`}
                       onError={(e) => {
                         (e.target as HTMLImageElement).src =

@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "styled-components";
+import { getImageUrl } from "@/lib/cloudinary-url";
 
 // ── Image fallback hierarchy ────────────────────────────────────
 // 1. Content-specific image (imageUrl) — bar uploaded for this promo
@@ -243,7 +244,7 @@ export default function PromotionPreviewCard({
   return (
     <Card $hasContent={hasContent}>
       <CoverArea $mode={image.mode}>
-        {image.src && <img src={image.src} alt={title || "Promotion"} />}
+        {image.src && <img src={getImageUrl(image.src, 600)} alt={title || "Promotion"} />}
         {!image.src && "🎁"}
 
         {promotionType && <TypeBadge>{formatType(promotionType)}</TypeBadge>}

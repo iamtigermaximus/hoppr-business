@@ -12,6 +12,7 @@ import {
   SkeletonSidebar,
   SkeletonPageHeader,
 } from "@/components/ui/Skeleton";
+import { getImageUrl } from "@/lib/cloudinary-url";
 
 const Container = styled.div`
   padding: 1rem;
@@ -1232,7 +1233,7 @@ const BarDetails = () => {
                   <InfoLabel>Logo</InfoLabel>
                   <div style={{ marginTop: "0.5rem" }}>
                     <Image
-                      src={bar.logoUrl}
+                      src={getImageUrl(bar.logoUrl, 200)}
                       alt="Logo"
                       style={{
                         height: "100px",
@@ -1255,7 +1256,7 @@ const BarDetails = () => {
                 <div style={{ marginBottom: "1.5rem" }}>
                   <InfoLabel>Cover Image</InfoLabel>
                   <Image
-                    src={bar.coverImage}
+                    src={getImageUrl(bar.coverImage, 800)}
                     alt="Cover"
                     style={{
                       height: "200px",
@@ -1279,7 +1280,7 @@ const BarDetails = () => {
                     {bar.imageUrls.map((url, index) => (
                       <Image
                         key={index}
-                        src={url}
+                        src={getImageUrl(url, 300)}
                         alt={`Gallery ${index + 1}`}
                         onError={(e) => {
                           (e.target as HTMLImageElement).src =

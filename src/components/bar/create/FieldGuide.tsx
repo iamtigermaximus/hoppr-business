@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import type { ContentType, FormState } from "./types";
 import { PROMOTION_TYPES } from "./types";
+import { getImageUrl } from "@/lib/cloudinary-url";
 
 // ---- Types ----
 
@@ -352,7 +353,7 @@ function FieldInput({
           )}
           {typeof value === "string" && value && (
             <div style={inputStyles.preview}>
-              <img src={value} alt="Preview" style={inputStyles.previewImg} />
+              <img src={getImageUrl(value as string, 400)} alt="Preview" style={inputStyles.previewImg} />
               <div style={inputStyles.previewInfo}>
                 <span style={inputStyles.previewLabel}>✓ Image selected</span>
                 <button style={inputStyles.removeBtn} onClick={() => onChange(null)} type="button">

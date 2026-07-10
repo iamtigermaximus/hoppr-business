@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "styled-components";
+import { getImageUrl } from "@/lib/cloudinary-url";
 
 // Consumer-app dark theme
 const Card = styled.div`
@@ -149,7 +150,7 @@ export default function PassPreviewCard({
   return (
     <Card>
       <CoverArea>
-        {imageUrl && <img src={imageUrl} alt={title} />}
+        {imageUrl && <img src={getImageUrl(imageUrl, 600)} alt={title} />}
         {!imageUrl && "🎟️"}
         {passType && <TypeBadge>{formatType(passType)}</TypeBadge>}
       </CoverArea>

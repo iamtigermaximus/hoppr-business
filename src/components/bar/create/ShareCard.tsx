@@ -4,6 +4,7 @@ import { useState, useRef, forwardRef, useImperativeHandle } from "react";
 import styled from "styled-components";
 import PromotionPreviewCard from "./previews/PromotionPreviewCard";
 import EventPreviewCard from "./previews/EventPreviewCard";
+import { getImageUrl } from "@/lib/cloudinary-url";
 import {
   type SvgBackground,
   type ShareCategory,
@@ -477,7 +478,7 @@ const ShareCard = forwardRef<ShareCardHandle, ShareCardProps>(function ShareCard
         {/* Bar logo — floats over the card for brand recognition on social media */}
         {props.barLogo && (
           <BarLogoBadge>
-            <img src={props.barLogo} alt={props.barName || "Bar logo"} />
+            <img src={getImageUrl(props.barLogo, 200)} alt={props.barName || "Bar logo"} />
           </BarLogoBadge>
         )}
 

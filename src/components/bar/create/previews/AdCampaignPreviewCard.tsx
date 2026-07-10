@@ -1,6 +1,7 @@
 "use client";
 
 import styled from "styled-components";
+import { getImageUrl } from "@/lib/cloudinary-url";
 
 // ── Image fallback hierarchy (same logic as all preview cards) ──
 function resolveImage(
@@ -207,7 +208,7 @@ export default function AdCampaignPreviewCard({
   return (
     <Card $hasContent={hasContent}>
       <CoverArea $mode={image.mode}>
-        {image.src && <img src={image.src} alt={title || "Campaign"} />}
+        {image.src && <img src={getImageUrl(image.src, 600)} alt={title || "Campaign"} />}
         {!image.src && "📢"}
 
         <RelevanceBadge>{relevanceLabel(campaignType)}</RelevanceBadge>
