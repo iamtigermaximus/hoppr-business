@@ -102,6 +102,7 @@ export async function POST(
         temperature: 0.7,
         max_tokens: 1200,
       }),
+      signal: AbortSignal.timeout(15_000),
     });
 
     if (!response.ok) {

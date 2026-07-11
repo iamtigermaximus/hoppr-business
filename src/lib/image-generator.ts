@@ -63,6 +63,7 @@ async function generateWithBFL(
         "X-Key": apiKey,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!submitRes.ok) {
@@ -78,6 +79,7 @@ async function generateWithBFL(
       await new Promise((r) => setTimeout(r, 2000));
       const pollRes = await fetch(polling_url, {
         headers: { "X-Key": apiKey },
+        signal: AbortSignal.timeout(10_000),
       });
       result = await pollRes.json() as PollResult;
       if (result?.status === "Ready") break;
@@ -116,6 +118,7 @@ async function generateOpenAICompatible(
       size: opts.size || "1024x1024",
       response_format: "url",
     }),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!res.ok) {

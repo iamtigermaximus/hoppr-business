@@ -227,6 +227,7 @@ ${buildUserReminder("en")}`;
             temperature: 0.7,
             max_tokens: 1000,
           }),
+          signal: AbortSignal.timeout(15_000),
         });
 
         if (response.ok) {

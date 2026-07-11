@@ -342,6 +342,7 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
             temperature: 0.95,
             max_tokens: variants > 1 ? 2000 : 800,
           }),
+          signal: AbortSignal.timeout(15_000),
         });
 
         if (response.ok) {
