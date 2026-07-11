@@ -3,15 +3,74 @@ import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import {
-  buildComplianceSystemPrompt,
+  buildFullSystemPrompt,
   buildUserReminder,
 } from "@/lib/compliance/prompts";
+import { type BarPositioning } from "@/lib/compliance/persona";
 import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
 import { logUsage } from "@/lib/credit-tracker";
 import { handleApiError } from "@/lib/api-error";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+/** Infer differentiators from bar data for the persona */
+function inferDifferentiators(bar: {
+  type: string;
+  amenities?: string[] | null;
+  description?: string | null;
+  musicTags?: string[] | null;
+}): string[] {
+  const diffs: string[] = [];
+
+  const typeMap: Record<string, string> = {
+    COCKTAIL_BAR: "Hand-crafted cocktails with premium ingredients",
+    NIGHTCLUB: "High-energy nightlife with DJs and late-night dancing",
+    PUB: "Neighborhood gathering spot with welcoming atmosphere",
+    SPORTS_BAR: "Big screens and game-day energy",
+    WINE_BAR: "Curated wine selection in an intimate setting",
+    LOUNGE: "Relaxed, sophisticated space for conversation",
+    KARAOKE: "Stage-ready entertainment with group-friendly vibe",
+    LIVE_MUSIC: "Live performances in an acoustically tuned space",
+    TERRACE_BAR: "Outdoor drinking and dining with city views",
+    BEER_HALL: "Communal tables and craft beer culture",
+  };
+  if (typeMap[bar.type]) diffs.push(typeMap[bar.type]);
+
+  const amenityMap: Record<string, string> = {
+    terrace: "Outdoor terrace — one of the few in the area",
+    "live music": "Regular live performances you won't find elsewhere",
+    dj: "Resident and guest DJs spinning curated sets",
+    "private room": "Bookable private space for groups and events",
+    kitchen: "Full kitchen serving food alongside drinks",
+    "late hours": "One of the last places open in the neighborhood",
+    parking: "Rare on-site parking in the area",
+    waterfront: "Waterfront location with scenic views",
+  };
+  if (bar.amenities) {
+    bar.amenities.forEach((a) => {
+      const lower = a.toLowerCase();
+      const match = Object.entries(amenityMap).find(([key]) => lower.includes(key));
+      if (match) diffs.push(match[1]);
+    });
+  }
+
+  if (bar.musicTags && bar.musicTags.length > 0) {
+    diffs.push(`Music identity: ${bar.musicTags.slice(0, 3).join(", ")}`);
+  }
+
+  return diffs.length > 0 ? diffs : ["Quality drinks and welcoming atmosphere"];
+}
+
+/** Get seasonal context based on current date */
+function getSeasonalContext(): string {
+  const month = new Date().getMonth();
+  if (month >= 5 && month <= 7) return "Summer terrace season — outdoor spaces are premium. Long daylight hours favor evening-to-night transitions.";
+  if (month === 8) return "Late summer — people are back from holidays, craving social connection before autumn.";
+  if (month >= 9 && month <= 10) return "Autumn cozy season — indoor warmth, candles, comfort drinks. Students are back in town.";
+  if (month >= 11 || month <= 1) return "Winter holiday season — Christmas parties, New Year celebrations, cozy indoor gatherings. Dark evenings favor warm, intimate atmospheres.";
+  return "Spring awakening — people emerge from winter hibernation, terraces reopen, energy rises.";
+}
 
 export async function POST(
   request: NextRequest,
@@ -76,7 +135,7 @@ export async function POST(
     const validLanguages = ["en", "fi"];
     const lang = validLanguages.includes(language) ? language : "en";
 
-    // 3. Fetch bar context
+    // 4. Fetch bar context — include musicTags for positioning
     const bar = await prisma.bar.findUnique({
       where: { id: barId },
       select: {
@@ -87,6 +146,7 @@ export async function POST(
         priceRange: true,
         amenities: true,
         description: true,
+        musicTags: true,
         vipEnabled: true,
       },
     });
@@ -95,21 +155,28 @@ export async function POST(
       return NextResponse.json({ error: "Bar not found" }, { status: 404 });
     }
 
-    // 4. Check if DeepSeek API key is configured — use fallback templates if not
+    // 5. Build bar positioning for the senior marketing persona
+    const barPositioning: BarPositioning = {
+      name: bar.name,
+      type: bar.type,
+      district: bar.district ?? undefined,
+      cityName: bar.cityName ?? undefined,
+      priceRange: bar.priceRange ?? undefined,
+      amenities: bar.amenities ?? undefined,
+      description: bar.description ?? undefined,
+      musicTags: (bar.musicTags as string[]) ?? undefined,
+      differentiators: inferDifferentiators(bar),
+      seasonalContext: getSeasonalContext(),
+    };
+
+    // 6. Check if DeepSeek API key is configured — use fallback templates if not
     const useAI = !!DEEPSEEK_API_KEY;
 
-    // 5. Build AI prompt — compliance rules injected from canonical source
-    const complianceRules = buildComplianceSystemPrompt(
-      lang as "en" | "fi",
-    );
-
+    // 7. Build system prompt — senior marketing persona + compliance rules
     const isFi = lang === "fi";
-    const languageName = isFi ? "Finnish" : "English";
 
-    const systemPrompt = isFi
-      ? `Olet Suomen baari- ja yöelämäsisällön asiantuntija. Sinun TÄYTYY tuottaa KAIKKI sisältö SUOMEKSI — älä käytä englantia missään kentässä. Määritä, haluaako käyttäjä luoda TAPAHTUMAN, TARJOUKSEN, VIP-PASSIN vai MAINOSKAMPANJAN. Poimi kaikki olennaiset kentät ja tuota sisältö SUOMEKSI.
-
-${complianceRules}
+    const routeInstructions = isFi
+      ? `\n\nMääritä, haluaako käyttäjä luoda TAPAHTUMAN, TARJOUKSEN, VIP-PASSIN vai MAINOSKAMPANJAN. Poimi kaikki olennaiset kentät ja tuota sisältö SUOMEKSI.
 
 Tarjouksissa: suosi FOOD_SPECIAL- tai ruokapainotteisia tyyppejä, kun mahdollista. Ruokatarjouksilla ei ole mainosrajoituksia.
 Tapahtumissa: keskity viihteeseen (musiikki, pelit, tunnelma) juomisen sijaan.
@@ -123,9 +190,7 @@ Palauta VAIN validi JSON — ei muuta tekstiä — tällä rakenteella:
   "title": "Kiinnostava otsikko (max 60 merkkiä) — Alkoholilain mukainen",
   "description": "Kiinnostava kuvaus (max 200 merkkiä) — Alkoholilain mukainen",
   "reasoning": "Lyhyt selitys tyypin päättelystä",`
-      : `You are an expert at understanding bar and nightlife content. Given a natural language description in English, determine whether the user wants to create an EVENT, PROMOTION, VIP PASS, or AD CAMPAIGN. Then extract all relevant fields and generate content IN ENGLISH.
-
-${complianceRules}
+      : `\n\nDetermine whether the user wants to create an EVENT, PROMOTION, VIP PASS, or AD CAMPAIGN. Extract all relevant fields and generate content IN ENGLISH.
 
 For promotions: prefer FOOD_SPECIAL or non-alcohol-focused types when possible. Food promotions have no advertising restrictions.
 For events: focus on the entertainment (music, games, atmosphere) rather than drinking.
@@ -171,6 +236,8 @@ Return ONLY valid JSON with this structure — no other text:
   "imageSuggestion": "Which default image category fits best: cocktails | live-music | party | beer | vip | wine | special-offer | karaoke | sports | outdoor-terrace | dj-night | bar-ambiance"
 }`;
 
+    const systemPrompt = `${buildFullSystemPrompt(lang as "en" | "fi", barPositioning)}${routeInstructions}`;
+
     const userPrompt = isFi
       ? `Ravintolan "${bar.name}" (${bar.type}-baari, ${bar.district}, ${bar.cityName}) henkilökunta kuvaili mitä he haluavat luoda:
 
@@ -180,6 +247,7 @@ HUOM: Vaikka yllä oleva kuvaus saattaa olla englanniksi, SINUN TÄYTYY tuottaa 
 
 Baarin tiedot:
 - Tyyppi: ${bar.type}
+- Alue: ${bar.district || ""}, ${bar.cityName || ""}
 - Hintataso: ${bar.priceRange || "Kohtalainen"}
 - Palvelut: ${bar.amenities?.join(", ") || "Vakiovarustelu"}
 - Kuvaus: ${bar.description || "Loistava paikka nauttia illasta"}
@@ -195,6 +263,7 @@ ${buildUserReminder("fi")}`
 
 Bar context:
 - Type: ${bar.type}
+- Location: ${bar.district || ""}, ${bar.cityName || ""}
 - Price Range: ${bar.priceRange || "Moderate"}
 - Amenities: ${bar.amenities?.join(", ") || "Standard bar amenities"}
 - Description: ${bar.description || "A great place to enjoy nightlife"}
@@ -205,13 +274,17 @@ Analyze the text: event, promotion, or VIP pass? Extract all relevant fields. Ge
 
 ${buildUserReminder("en")}`;
 
-    // 6. Try DeepSeek API; fall back to templates on any failure
+    // 8. Try DeepSeek API; fall back to templates on any failure
     let result: Record<string, unknown> | null = null;
     let aiGenerated = false;
     let warning: string | undefined;
     let aiUsage: { promptTokens: number; completionTokens: number } | null = null;
 
     if (useAI) {
+      const totalPromptChars = systemPrompt.length + userPrompt.length;
+      const estimatedTokens = Math.round(totalPromptChars / 4);
+      console.log(`[suggest] Sending to DeepSeek — system: ${systemPrompt.length}c, user: ${userPrompt.length}c, total: ${totalPromptChars}c (~${estimatedTokens}t)`);
+
       try {
         const response = await fetch(DEEPSEEK_API_URL, {
           method: "POST",
@@ -249,14 +322,19 @@ ${buildUserReminder("en")}`;
               ? JSON.parse(jsonMatch[0])
               : JSON.parse(aiResponse);
             aiGenerated = true;
+            console.log("[suggest] AI generated type:", result?.inferredType);
           } catch {
             warning = "AI response could not be processed. Using template-based suggestion instead.";
           }
         } else {
-          warning = "AI service is temporarily unavailable. Using template-based suggestion instead.";
+          const errorText = await response.text().catch(() => "(could not read error body)");
+          console.error(`[suggest] DeepSeek API error — status ${response.status}: ${errorText.slice(0, 500)}`);
+          warning = `AI service returned error ${response.status}. Using template-based suggestion instead.`;
         }
       } catch (err) {
-        warning = "AI service is temporarily unavailable. Using template-based suggestion instead.";
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[suggest] DeepSeek fetch/network error: ${errMsg}`);
+        warning = `AI service unavailable (${errMsg.slice(0, 100)}). Using template-based suggestion instead.`;
       }
     } else {
       warning = "AI service is not configured. Suggestions are generated from templates. Set DEEPSEEK_API_KEY to enable AI suggestions.";
@@ -275,7 +353,7 @@ ${buildUserReminder("en")}`;
       }).catch(() => {});
     }
 
-    // 7. Fall back to template-based suggestion if AI didn't produce results
+    // 9. Fall back to template-based suggestion if AI didn't produce results
     if (!result) {
       result = getFallbackSuggestion(
         { name: bar.name, type: bar.type },
@@ -283,13 +361,13 @@ ${buildUserReminder("en")}`;
       ) as unknown as Record<string, unknown>;
     }
 
-    // 8. Validate and normalize inferred type
+    // 10. Validate and normalize inferred type
     const validTypes = ["event", "promotion", "pass", "campaign"];
     const inferredType = validTypes.includes(result.inferredType as string)
       ? (result.inferredType as string)
       : "promotion";
 
-    // 9. Build response with type-specific fields
+    // 11. Build response with type-specific fields
     const response_: Record<string, unknown> = {
       inferredType,
       aiGenerated,

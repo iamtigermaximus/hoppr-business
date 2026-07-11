@@ -5,6 +5,7 @@ import { buildDefaultVisual } from "./types";
 import { SplitTemplate } from "./split";
 import { CenteredTemplate } from "./centered";
 import { CardTemplate } from "./card";
+import type { TitleFontStyle } from "./fonts";
 
 export interface PromotionImageInput {
   barName: string;
@@ -19,6 +20,8 @@ export interface PromotionImageInput {
   photoUrl: string | null;
   venueLocation: string;
   visual?: Partial<VisualParams>;
+  /** Title font style — AI picks based on bar positioning and creative angle */
+  titleFontStyle?: TitleFontStyle | null;
 }
 
 const DIMENSIONS = {
@@ -45,6 +48,7 @@ export function buildTemplateProps(
       mood: input.visual?.mood || defaultVisual.mood,
       overlayOpacity: input.visual?.overlayOpacity ?? defaultVisual.overlayOpacity,
     },
+    titleFontStyle: input.titleFontStyle || null,
   };
 }
 

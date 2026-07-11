@@ -201,8 +201,19 @@ export async function POST(
       }
     }
 
-    // 3. Run server-side compliance scan (authoritative)
-    const compliance = scanCompliance(body.title, body.description);
+    // 3. Fetch bar for context-aware compliance scanning
+    const bar = await prisma.bar.findUnique({
+      where: { id: barId },
+      select: { name: true, type: true },
+    });
+    if (!bar) {
+      return NextResponse.json({ error: "Bar not found" }, { status: 404 });
+    }
+
+    // 4. Run server-side compliance scan (authoritative, bar-name-aware)
+    const compliance = scanCompliance(body.title, body.description, {
+      barName: bar.name,
+    });
 
     // 3a. Block HIGH-severity violations — user must fix before publishing
     const highViolations = compliance.violations.filter(
@@ -228,17 +239,7 @@ export async function POST(
     });
     const creatorUserId = barStaff?.userId;
 
-    // 5. Get bar context
-    const bar = await prisma.bar.findUnique({
-      where: { id: barId },
-      select: { name: true, type: true },
-    });
-
-    if (!bar) {
-      return NextResponse.json({ error: "Bar not found" }, { status: 404 });
-    }
-
-    // 6. Resolve compliance status for persistence
+    // 5. Resolve compliance status for persistence
     const resolvedComplianceStatus =
       compliance.status === "FLAGGED_AUTO" ? "FLAGGED_AUTO" : "COMPLIANT";
 

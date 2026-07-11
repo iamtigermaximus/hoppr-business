@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { scanCompliance } from "@/lib/compliance-engine";
 import { handleApiError } from "@/lib/api-error";
 
 const VALID_STATUSES = ["DRAFT", "PENDING_REVIEW", "ACTIVE", "PAUSED", "COMPLETED", "CANCELLED"];
@@ -135,6 +136,22 @@ export async function PUT(
       }
 
       updateData.status = next;
+    }
+
+    // Compliance scan if title or description changed
+    if (body.title !== undefined || body.description !== undefined) {
+      const titleToScan = body.title ?? campaign.title;
+      const descToScan = body.description !== undefined ? body.description : campaign.description;
+      const bar = await prisma.bar.findUnique({
+        where: { id: barId },
+        select: { name: true },
+      });
+      const compliance = scanCompliance(titleToScan, descToScan, {
+        barName: bar?.name,
+      });
+      if (compliance.status === "FLAGGED_AUTO") {
+        updateData.complianceStatus = "FLAGGED_AUTO";
+      }
     }
 
     const updated = await prisma.adCampaign.update({

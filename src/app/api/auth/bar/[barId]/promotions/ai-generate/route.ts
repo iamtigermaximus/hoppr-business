@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { planHasFeature } from "@/lib/plan-limits";
-import { buildGeneratePrompt, type PromptLanguage } from "@/lib/compliance/prompts";
+import { buildGeneratePrompt, buildFullSystemPrompt, type PromptLanguage } from "@/lib/compliance/prompts";
+import { type BarPositioning } from "@/lib/compliance/persona";
 import { checkPromptCompliance } from "@/lib/compliance/image-compliance";
 import { scanCompliance } from "@/lib/compliance/engine";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
@@ -30,7 +31,7 @@ const VALID_TONES = [
 ] as const;
 type ContentTone = (typeof VALID_TONES)[number];
 
-/** Visual style presets — cycled per variant so each looks distinct */
+/** Visual style presets */
 const VISUAL_PRESETS = [
   { template: "card" as const, mood: "dark" as const, overlayOpacity: 0.4, accentColor: "#8b5cf6" },
   { template: "split" as const, mood: "warm" as const, overlayOpacity: 0.35, accentColor: "#f59e0b" },
@@ -39,16 +40,75 @@ const VISUAL_PRESETS = [
   { template: "split" as const, mood: "minimal" as const, overlayOpacity: 0.5, accentColor: "#6b7280" },
 ];
 
-/** Map tone to compatible preset indices — avoids mismatched styles */
 const TONE_PRESET_MAP: Record<ContentTone, number[]> = {
-  BOLD_ENERGETIC: [1, 3],        // warm split, vibrant card
-  WARM_INVITING: [1, 2],         // warm split, cool centered
-  EDGY_IRREVERENT: [0, 4],       // dark card, minimal split
-  ELEGANT_PREMIUM: [2, 4],       // cool centered, minimal split
-  PLAYFUL_FUN: [3, 1],           // vibrant card, warm split
+  BOLD_ENERGETIC: [1, 3],
+  WARM_INVITING: [1, 2],
+  EDGY_IRREVERENT: [0, 4],
+  ELEGANT_PREMIUM: [2, 4],
+  PLAYFUL_FUN: [3, 1],
 };
 
-/** Normalize a raw AI-generated promotion object into the standard response shape. */
+/** Infer differentiators from bar data for the persona */
+function inferDifferentiators(bar: {
+  type: string;
+  amenities?: string[] | null;
+  description?: string | null;
+  musicTags?: string[] | null;
+}): string[] {
+  const diffs: string[] = [];
+
+  // Type-based differentiators
+  const typeMap: Record<string, string> = {
+    COCKTAIL_BAR: "Hand-crafted cocktails with premium ingredients",
+    NIGHTCLUB: "High-energy nightlife with DJs and late-night dancing",
+    PUB: "Neighborhood gathering spot with welcoming atmosphere",
+    SPORTS_BAR: "Big screens and game-day energy",
+    WINE_BAR: "Curated wine selection in an intimate setting",
+    LOUNGE: "Relaxed, sophisticated space for conversation",
+    KARAOKE: "Stage-ready entertainment with group-friendly vibe",
+    LIVE_MUSIC: "Live performances in an acoustically tuned space",
+    TERRACE_BAR: "Outdoor drinking and dining with city views",
+    BEER_HALL: "Communal tables and craft beer culture",
+  };
+  if (typeMap[bar.type]) diffs.push(typeMap[bar.type]);
+
+  // Amenity-based differentiators
+  const amenityMap: Record<string, string> = {
+    terrace: "Outdoor terrace — one of the few in the area",
+    "live music": "Regular live performances you won't find elsewhere",
+    dj: "Resident and guest DJs spinning curated sets",
+    "private room": "Bookable private space for groups and events",
+    kitchen: "Full kitchen serving food alongside drinks",
+    "late hours": "One of the last places open in the neighborhood",
+    parking: "Rare on-site parking in the area",
+    waterfront: "Waterfront location with scenic views",
+  };
+  if (bar.amenities) {
+    bar.amenities.forEach((a) => {
+      const lower = a.toLowerCase();
+      const match = Object.entries(amenityMap).find(([key]) => lower.includes(key));
+      if (match) diffs.push(match[1]);
+    });
+  }
+
+  // Music-based differentiators
+  if (bar.musicTags && bar.musicTags.length > 0) {
+    diffs.push(`Music identity: ${bar.musicTags.slice(0, 3).join(", ")}`);
+  }
+
+  return diffs.length > 0 ? diffs : ["Quality drinks and welcoming atmosphere"];
+}
+
+/** Get seasonal context based on current date */
+function getSeasonalContext(): string {
+  const month = new Date().getMonth(); // 0-11
+  if (month >= 5 && month <= 7) return "Summer terrace season — outdoor spaces are premium. Long daylight hours favor evening-to-night transitions.";
+  if (month === 8) return "Late summer — people are back from holidays, craving social connection before autumn.";
+  if (month >= 9 && month <= 10) return "Autumn cozy season — indoor warmth, candles, comfort drinks. Students are back in town.";
+  if (month >= 11 || month <= 1) return "Winter holiday season — Christmas parties, New Year celebrations, cozy indoor gatherings. Dark evenings favor warm, intimate atmospheres.";
+  return "Spring awakening — people emerge from winter hibernation, terraces reopen, energy rises.";
+}
+
 function normalizePromotion(
   raw: Record<string, unknown>,
   barName: string,
@@ -57,24 +117,18 @@ function normalizePromotion(
   tone?: ContentTone | null,
   layoutHint?: string | null,
 ) {
-  // Extract the AI's visual choices — these represent the model's creative intent.
-  // Only fall back to presets when the AI didn't provide a value.
   const rawVisual = (raw.visual as Record<string, unknown> | undefined);
 
-  // Use tone-compatible presets when a tone is set, otherwise cycle all presets
   const compatibleIndices = tone ? TONE_PRESET_MAP[tone] ?? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 4];
   const presetIndex = compatibleIndices[index % compatibleIndices.length];
   const preset = VISUAL_PRESETS[presetIndex];
 
-  // When the user explicitly chooses a layout, lock all variants to that template.
-  // Otherwise, respect the AI's template choice, then fall back to preset.
   const template = (layoutHint && ["split", "centered", "card"].includes(layoutHint))
     ? layoutHint
     : (typeof rawVisual?.template === "string" && ["split", "centered", "card"].includes(rawVisual.template as string))
       ? (rawVisual.template as "split" | "centered" | "card")
       : preset.template;
 
-  // Respect AI's mood choice, then fall back to preset
   const mood = (typeof rawVisual?.mood === "string" && ["warm", "cool", "vibrant", "dark", "minimal"].includes(rawVisual.mood as string))
     ? (rawVisual.mood as "warm" | "cool" | "vibrant" | "dark" | "minimal")
     : preset.mood;
@@ -97,7 +151,6 @@ function normalizePromotion(
         ? rawVisual.overlayOpacity as number
         : preset.overlayOpacity,
     },
-    // Pass through the AI's visualDirection so the frontend can build Flux prompts from it
     visualDirection: raw.visualDirection as {
       description: string;
       keyElements: string[];
@@ -111,7 +164,6 @@ export async function POST(
   { params }: { params: Promise<{ barId: string }> },
 ) {
   try {
-    // 1. Verify user is authenticated using custom JWT auth
     const authHeader = request.headers.get("authorization");
     const token = authHeader?.split(" ")[1];
 
@@ -131,7 +183,6 @@ export async function POST(
       );
     }
 
-    // Check if user is bar staff
     if (!isBarStaffToken(payload)) {
       return NextResponse.json(
         { error: "Forbidden: Bar staff access required" },
@@ -139,10 +190,8 @@ export async function POST(
       );
     }
 
-    // 2. Get bar ID from URL
     const { barId } = await params;
 
-    // Verify the staff belongs to this bar
     if (payload.barId !== barId) {
       return NextResponse.json(
         { error: "Forbidden: You don't have access to this bar" },
@@ -150,9 +199,6 @@ export async function POST(
       );
     }
 
-    // Plan feature gate: only PRO/PREMIUM plans can use AI generation.
-    // Controlled by REQUIRE_PLAN_FOR_AI env var — set to "true" when
-    // subscriptions launch. Currently disabled for development.
     if (process.env.REQUIRE_PLAN_FOR_AI === "true") {
       const barPlan = await prisma.bar.findUnique({
         where: { id: barId },
@@ -166,7 +212,6 @@ export async function POST(
       }
     }
 
-    // Rate limit: 10 AI generations per minute per bar
     const rateCheck = await checkRateLimit(`ai-generate:${barId}`, RateLimits.AI);
     if (!rateCheck.allowed) {
       return NextResponse.json(
@@ -202,7 +247,6 @@ export async function POST(
       layoutHint?: string | null;
     };
 
-    // Validate contentTone — accept both 'tone' (from new flow) and 'contentTone' (legacy)
     const tone: ContentTone | undefined =
       (toneParam && VALID_TONES.includes(toneParam as ContentTone)
         ? (toneParam as ContentTone)
@@ -210,16 +254,13 @@ export async function POST(
           ? (contentTone as ContentTone)
           : undefined);
 
-    // Validate language parameter
     const validLanguages: PromptLanguage[] = ["en", "fi"];
     const lang: PromptLanguage = validLanguages.includes(language as PromptLanguage)
       ? (language as PromptLanguage)
       : "en";
 
-    // Validate numVariants — clamp to 1-3
     const variants = Math.max(1, Math.min(3, numVariants || 1));
 
-    // 3. Fetch bar data to personalize the AI prompt
     const bar = await prisma.bar.findUnique({
       where: { id: barId },
       select: {
@@ -240,7 +281,6 @@ export async function POST(
       return NextResponse.json({ error: "Bar not found" }, { status: 404 });
     }
 
-    // 4. Get recent promotions to avoid repetition
     const recentPromotions = await prisma.barPromotion.findMany({
       where: { barId, isActive: true },
       orderBy: { createdAt: "desc" },
@@ -248,11 +288,23 @@ export async function POST(
       select: { title: true, type: true },
     });
 
-    // 5. Check if DeepSeek API key is configured — use fallback templates if not
+    // Build bar positioning context for the senior marketing persona
+    const barPositioning: BarPositioning = {
+      name: bar.name,
+      type: bar.type,
+      district: bar.district ?? undefined,
+      cityName: bar.cityName ?? undefined,
+      priceRange: bar.priceRange ?? undefined,
+      amenities: bar.amenities ?? undefined,
+      description: bar.description ?? undefined,
+      musicTags: (bar.musicTags as string[]) ?? undefined,
+      targetAudience: targetAudience || undefined,
+      differentiators: inferDifferentiators(bar),
+      seasonalContext: getSeasonalContext(),
+    };
+
     const useAI = !!DEEPSEEK_API_KEY;
 
-    // 5a. Compliance PRE-CHECK — block the prompt before it reaches DeepSeek
-    // Only check the user-facing content (prompt + context), not the full constructed message
     if (useAI) {
       const preCheckInput = [prompt, ...(context || [])].filter(Boolean).join(" ");
       if (preCheckInput.trim()) {
@@ -269,7 +321,6 @@ export async function POST(
       }
     }
 
-    // 6. Build the AI prompt using the canonical prompt builder
     const userPrompt = buildGeneratePrompt(
       {
         name: bar.name,
@@ -297,37 +348,27 @@ export async function POST(
     const isFi = lang === "fi";
     const toneInstruction = toneSystemInstruction(tone);
 
-    // Variant differentiation — injected into the system prompt where it carries more weight.
-    // The user message in buildGeneratePrompt reinforces this, but the system prompt is the
-    // primary instruction the model follows. Without this, compliance conservatism causes
-    // DeepSeek to converge on near-identical "safe" phrasing for all variants.
     const variantDifferentiation = isFi
-      ? `\n\nVARIAATIOIDEN EROTTELU — EHDOTTOMAN KRIITTINEN SÄÄNTÖ:\nKun luot useita variantteja, JOKAISELLA on oltava AIDOSTI ERI:\n- Otsikko: eri sanat, eri rakenne, eri koukku. Ala kierrata avainsanoja.\n- Kuvaus: eri kulma. 1) TARJOUSKESKEINEN (mita saa, hinta, konkreettinen etu). 2) TUNNELMAKESKEINEN (milta tuntuu, aistit, ilmapiiri). 3) SOSIAALINEN (kuka, kenen kanssa, yhteiso, jaettu hetki).\n- Aani: jokainen kuulostaa eri henkilon kirjoittamalta — yksi suora ja faktinen, yksi aistillinen ja kuvaileva, yksi sosiaalinen ja kutsuva.\n- ALA tuota kolmea uudelleenmuotoiltua versiota samasta ideasta. Niiden on luettava kuin eri ihmisten kirjoittamina.\n- Jokaisella variantilla on ERI visualDirection — eri kohtaus, eri perspektiivi, eri tunnelma, eri vuorokaudenaika.`
-      : `\n\nVARIANT DIFFERENTIATION — ABSOLUTELY CRITICAL RULE:\nWhen generating multiple variants, EACH one MUST have GENUINELY DIFFERENT:\n- Title: different words, different structure, different hook. Do NOT recycle keywords.\n- Description: different angle. 1) OFFER-FOCUSED (what you get, price, concrete benefit). 2) VIBE-FOCUSED (how it feels, senses, atmosphere). 3) SOCIAL-FOCUSED (who, with whom, community, shared moment).\n- Voice: each sounds like a different person wrote it — one direct and factual, one sensory and descriptive, one social and inviting.\n- Do NOT produce three rephrasings of the same idea. They must read as if written by different people.\n- Every variant has a DIFFERENT visualDirection — different scene, different perspective, different mood, different time of day.`;
+      ? `\n\nVARIAATIOIDEN EROTTELU — EHDOTTOMAN KRIITTINEN SAANTO:\nKun luot useita variantteja, JOKAISELLA on oltava AIDOSTI ERI:\n- Otsikko: eri sanat, eri rakenne, eri koukku. Ala kierrata avainsanoja.\n- Kuvaus: eri kulma. 1) TARJOUSKESKEINEN (mita saa, hinta, konkreettinen etu). 2) TUNNELMAKESKEINEN (milta tuntuu, aistit, ilmapiiri). 3) SOSIAALINEN (kuka, kenen kanssa, yhteiso, jaettu hetki).\n- Aani: jokainen kuulostaa eri henkilon kirjoittamalta - yksi suora ja faktinen, yksi aistillinen ja kuvaileva, yksi sosiaalinen ja kutsuva.\n- ALA tuota kolmea uudelleenmuotoiltua versiota samasta ideasta. Niiden on luettava kuin eri ihmisten kirjoittamina.\n- Jokaisella variantilla on ERI visualDirection - eri kohtaus, eri perspektiivi, eri tunnelma, eri vuorokaudenaika.`
+      : `\n\nVARIANT DIFFERENTIATION - ABSOLUTELY CRITICAL RULE:\nWhen generating multiple variants, EACH one MUST have GENUINELY DIFFERENT:\n- Title: different words, different structure, different hook. Do NOT recycle keywords.\n- Description: different angle. 1) OFFER-FOCUSED (what you get, price, concrete benefit). 2) VIBE-FOCUSED (how it feels, senses, atmosphere). 3) SOCIAL-FOCUSED (who, with whom, community, shared moment).\n- Voice: each sounds like a different person wrote it - one direct and factual, one sensory and descriptive, one social and inviting.\n- Do NOT produce three rephrasings of the same idea. They must read as if written by different people.\n- Every variant has a DIFFERENT visualDirection - different scene, different perspective, different mood, different time of day.`;
 
-    // System prompt — compliance rules are injected via buildGeneratePrompt in the user message.
-    // This prompt focuses on the model's role and the critical variant differentiation rule.
-    const systemPrompt = isFi
-      ? `Olet Suomen baari- ja yöelämän markkinointiasiantuntija.
-Tunnet Alkoholilain (1102/2017) ja Valviran ohjeistukset.
-Jokainen tuottamasi tarjous on oletusarvoisesti lainmukainen — et koskaan ehdota kiellettya sanamuotoa.
-Luo kiinnostavia, ammattimaisia tarjouksia suomalaisille baareille SUOMEKSI.${variantDifferentiation}
-ALA KOSKAAN mainitse lakiviitteita (Alkoholilaki, Valvira, compliance) otsikoissa, kuvauksissa, ehdoissa tai toimintakehotteissa — ne ovat asiakasteksteja, eivat lakidokumentteja.
-KAIKKI teksti TÄYTYY olla suomeksi. Palauta VAIN validi JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`
-      : `You are a marketing expert specializing in bar and nightlife promotions in Finland.
-You understand Finnish alcohol marketing law (Alkoholilaki 1102/2017) and Valvira guidelines.
-Every promotion you write is compliant by default — you never suggest prohibited language.
-Create engaging, professional promotions for bars in English.${variantDifferentiation}
-NEVER mention legal references (Alkoholilaki, Valvira, compliance) in titles, descriptions, conditions, or CTAs — these are customer-facing, not legal documents.
-Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
+    // System prompt: senior marketing persona + compliance rules + variant differentiation
+    const footerText = isFi
+      ? `\nALA KOSKAAN mainitse lakiviitteita (Alkoholilaki, Valvira, compliance) otsikoissa, kuvauksissa, ehdoissa tai toimintakehotteissa - ne ovat asiakasteksteja, eivat lakidokumentteja.\nKAIKKI teksti TAYTYY olla suomeksi. Palauta VAIN validi JSON.`
+      : `\nNEVER mention legal references (Alkoholilaki, Valvira, compliance) in titles, descriptions, conditions, or CTAs - these are customer-facing, not legal documents.\nReturn ONLY valid JSON.`;
 
-    // 7. Try DeepSeek API; fall back to templates on any failure
+    const systemPrompt = `${buildFullSystemPrompt(lang, barPositioning)}\n${variantDifferentiation}${footerText}${toneInstruction ? `\n${toneInstruction}` : ""}`;
+
     let generatedPromotions: Record<string, unknown>[] = [];
     let aiGenerated = false;
     let warning: string | undefined;
     let aiUsage: { promptTokens: number; completionTokens: number } | null = null;
 
     if (useAI) {
+      const totalPromptChars = systemPrompt.length + userPrompt.length;
+      const estimatedTokens = Math.round(totalPromptChars / 4);
+      console.log(`[ai-generate] Sending to DeepSeek — system: ${systemPrompt.length}c, user: ${userPrompt.length}c, total: ${totalPromptChars}c (~${estimatedTokens}t), variants: ${variants}, tone: ${tone || "none"}`);
+
       try {
         const response = await fetch(DEEPSEEK_API_URL, {
           method: "POST",
@@ -344,14 +385,13 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
             temperature: 0.95,
             max_tokens: variants > 1 ? 2000 : 800,
           }),
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout(30_000),
         });
 
         if (response.ok) {
           const data = await response.json();
           const aiResponse = data.choices[0].message.content;
 
-          // Capture actual token usage for credit tracking
           if (data.usage) {
             aiUsage = {
               promptTokens: data.usage.prompt_tokens || 0,
@@ -359,24 +399,20 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
             };
           }
 
-          // DEBUG: Log raw AI response to diagnose issues
           console.log("[ai-generate] Raw DeepSeek response (first 2000 chars):", aiResponse.slice(0, 2000));
 
           try {
             let jsonText = aiResponse.trim();
 
-            // Strip markdown code blocks: ```json ... ``` or ``` ... ```
             const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
             if (codeBlockMatch) {
               jsonText = codeBlockMatch[1].trim();
               console.log("[ai-generate] Stripped markdown code block");
             }
 
-            // Try parsing as JSON array (multi-variant)
             if (jsonText.startsWith("[")) {
               const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
               if (arrayMatch) {
-                // Clean common DeepSeek JSON issues: trailing commas before ]
                 let cleanJson = arrayMatch[0].replace(/,(\s*[}\]])/g, "$1");
                 try {
                   const parsed = JSON.parse(cleanJson);
@@ -388,14 +424,11 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
                   }
                 } catch (arrayErr) {
                   console.log("[ai-generate] Array parse failed, trying individual objects:", (arrayErr as Error).message);
-                  // Fall through to try extracting individual objects
                 }
               }
             }
 
-            // If array parsing failed or response wasn't an array, try single-object extraction
             if (generatedPromotions.length === 0) {
-              // Safe bracket-counting parser — O(n), no ReDoS risk
               const objectMatches = extractJsonObjects(jsonText, { maxObjects: 5, maxLength: 50_000 });
               for (const objStr of objectMatches) {
                 try {
@@ -411,14 +444,12 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
               }
             }
 
-            // Last resort: try the whole thing as JSON
             if (generatedPromotions.length === 0) {
               try {
                 const parsed = JSON.parse(jsonText);
                 generatedPromotions = Array.isArray(parsed) ? parsed : [parsed];
                 aiGenerated = true;
               } catch {
-                // Will trigger the catch below
                 throw new Error("Could not parse AI response as JSON. First 200 chars: " + jsonText.slice(0, 200));
               }
             }
@@ -427,16 +458,22 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
             warning = "AI response could not be processed. Using template-based generation instead.";
           }
         } else {
-          warning = "AI service is temporarily unavailable. Using template-based generation instead.";
+          const errorText = await response.text().catch(() => "(could not read error body)");
+          console.error(`[ai-generate] DeepSeek API error — status ${response.status}: ${errorText.slice(0, 500)}`);
+          console.error(`[ai-generate] System prompt length: ${systemPrompt.length} chars (~${Math.round(systemPrompt.length / 4)} tokens)`);
+          console.error(`[ai-generate] User prompt length: ${userPrompt.length} chars (~${Math.round(userPrompt.length / 4)} tokens)`);
+          warning = `AI service returned error ${response.status}. Using template-based generation instead.`;
         }
       } catch (err) {
-        warning = "AI service is temporarily unavailable. Using template-based generation instead.";
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error(`[ai-generate] DeepSeek fetch/network error: ${errMsg}`);
+        console.error(`[ai-generate] System prompt length: ${systemPrompt.length} chars`, err instanceof Error && err.name === "TimeoutError" ? "(timeout)" : "");
+        warning = `AI service unavailable (${errMsg.slice(0, 100)}). Using template-based generation instead.`;
       }
     } else {
       warning = "AI service is not configured. Promotions are generated from templates. Set DEEPSEEK_API_KEY to enable AI generation.";
     }
 
-    // Log credit usage for admin monitoring (non-blocking, fire-and-forget)
     if (aiGenerated && aiUsage) {
       logUsage({
         provider: "deepseek",
@@ -446,17 +483,14 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
         barId,
         barName: bar.name,
         metadata: { variants, language: lang },
-      }).catch(() => {}); // silently ignore logging failures
+      }).catch(() => {});
     }
 
-    // 8. Use fallback templates if AI didn't produce valid results
     if (generatedPromotions.length === 0) {
       const promoType = VALID_PROMO_TYPES.includes(type as any)
         ? (type as PromotionType)
         : "DRINK_SPECIAL";
 
-      // Generate requested number of variants — visual presets (template/mood/accentColor)
-      // cycle per index to give each variant a distinct look without polluting the title.
       for (let i = 0; i < variants; i++) {
         const fallback = getFallbackPromotion(
           {
@@ -474,22 +508,19 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
 
     const hasPhoto = !!(bar.coverImage as string | null);
 
-    // Normalize all promotions to standard shape — each gets a distinct visual style,
-    // filtered by tone preference when available
     const promotions = generatedPromotions.map((p, i) =>
       normalizePromotion(p, bar.name, hasPhoto, i, tone, layoutHint),
     );
 
-    // 8a. Compliance POST-CHECK — scan each variant and attach violation details.
-    // Variants are NEVER filtered — violations are shown inline so the user can
-    // see exactly what triggered and edit the text to fix it.
     const complianceResults: Array<{
       variantIndex: number;
       violations: Array<{ rule: string; keyword: string; severity: string; message: string; suggestion: string }>;
     }> = [];
 
     for (let i = 0; i < promotions.length; i++) {
-      const scan = scanCompliance(promotions[i].title as string, promotions[i].description as string);
+      const scan = scanCompliance(promotions[i].title as string, promotions[i].description as string, {
+        barName: bar.name,
+      });
       if (scan.violations.length > 0) {
         complianceResults.push({
           variantIndex: i,
@@ -504,8 +535,6 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
       }
     }
 
-    // Attach inferred image chips to each variant so the client can
-    // auto-generate matching images without the user manually picking chips.
     const variantsWithChips = promotions.map((p) => ({
       ...p,
       imageChips: inferImageChips(
@@ -527,7 +556,6 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
       ),
     }));
 
-    // Return variants array for multi-variant, single promotion for backward compat
     return NextResponse.json({
       success: true,
       aiGenerated,

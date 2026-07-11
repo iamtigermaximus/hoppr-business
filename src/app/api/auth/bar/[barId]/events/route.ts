@@ -186,7 +186,9 @@ export async function POST(
     });
 
     // ---- Compliance check ----
-    const compliance = scanCompliance(body.title, body.description);
+    const compliance = scanCompliance(body.title, body.description, {
+      barName: bar.name,
+    });
 
     let finalComplianceStatus = event.complianceStatus;
     if (compliance.status === "FLAGGED_AUTO") {

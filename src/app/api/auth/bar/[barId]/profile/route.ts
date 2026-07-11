@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { scanCompliance } from "@/lib/compliance-engine";
 import { handleApiError } from "@/lib/api-error";
 
 // GET - Fetch bar profile
@@ -85,6 +86,15 @@ export async function PUT(
 
     const body = await request.json();
 
+    // Compliance scan on profile description
+    const compliance = scanCompliance(body.name || "", body.description || "", {
+      barName: body.name,
+    });
+    const complianceData: Record<string, unknown> = {};
+    if (compliance.status === "FLAGGED_AUTO") {
+      complianceData.complianceStatus = "FLAGGED_AUTO";
+    }
+
     const updatedBar = await prisma.bar.update({
       where: { id: barId },
       data: {
@@ -108,6 +118,7 @@ export async function PUT(
         logoUrl: body.logoUrl,
         vipEnabled: body.vipEnabled,
         operatingHours: body.operatingHours,
+        ...complianceData,
       },
     });
 

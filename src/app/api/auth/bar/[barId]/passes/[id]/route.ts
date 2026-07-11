@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
+import { scanCompliance } from "@/lib/compliance-engine";
 import { handleApiError } from "@/lib/api-error";
 
 interface UpdatePassBody {
@@ -171,6 +172,22 @@ export async function PUT(
     }
     if (body.redemptionMode !== undefined) updateData.redemptionMode = body.redemptionMode;
     if (body.maxRedemptions !== undefined) updateData.maxRedemptions = body.maxRedemptions;
+
+    // Compliance scan if name or description changed
+    if (body.name !== undefined || body.description !== undefined) {
+      const nameToScan = body.name ?? existing.name;
+      const descToScan = body.description !== undefined ? body.description : existing.description;
+      const bar = await prisma.bar.findUnique({
+        where: { id: barId },
+        select: { name: true },
+      });
+      const compliance = scanCompliance(nameToScan, descToScan, {
+        barName: bar?.name,
+      });
+      if (compliance.status === "FLAGGED_AUTO") {
+        updateData.complianceStatus = "FLAGGED_AUTO";
+      }
+    }
 
     const pass = await prisma.vIPPassEnhanced.update({
       where: { id },

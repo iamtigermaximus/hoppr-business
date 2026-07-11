@@ -2,10 +2,16 @@
 // Best for: live music events, theme nights, performer announcements.
 import type { TemplateProps } from "./types";
 import { MOOD_COLORS } from "./types";
+import { getTitleFontConfig } from "./fonts";
+import type { TitleFontStyle } from "./fonts";
 
 export function CenteredTemplate(props: TemplateProps) {
-  const { barName, promotionTitle, promotionDescription, callToAction, accentColor, photoUrl, venueLocation, conditions, visual } = props;
+  const { barName, promotionTitle, promotionDescription, callToAction, accentColor, photoUrl, venueLocation, conditions, visual, titleFontStyle } = props;
   const [gradientStart, gradientEnd] = MOOD_COLORS[visual.mood];
+
+  // Dynamically reduce title font size for long titles
+  const titleFont = getTitleFontConfig(titleFontStyle as TitleFontStyle | null | undefined);
+  const titleFontSize = promotionTitle.length > 50 ? 46 : promotionTitle.length > 35 ? 56 : 64;
 
   return (
     <div style={{
@@ -32,21 +38,28 @@ export function CenteredTemplate(props: TemplateProps) {
         {/* Location */}
         <div style={styles.venueLocation}>{venueLocation}</div>
 
-        {/* Title — largest text on the card */}
-        <div style={styles.title}>{promotionTitle}</div>
+        {/* Title — largest text on the card, line-clamped */}
+        <div style={{
+          ...styles.title,
+          fontSize: titleFontSize,
+          fontFamily: titleFont.fontFamily,
+          fontWeight: titleFont.fontWeight,
+          letterSpacing: titleFont.letterSpacing || styles.title.letterSpacing,
+          textTransform: titleFont.textTransform || "none",
+        }}>{promotionTitle}</div>
 
         {/* Divider */}
         <div style={{ ...styles.divider, background: accentColor }} />
 
-        {/* Description */}
+        {/* Description — line-clamped */}
         <div style={styles.description}>{promotionDescription}</div>
 
-        {/* Conditions / dates / details — key for social media marketing posts */}
+        {/* Conditions / dates / details — line-clamped */}
         {conditions && (
           <div style={styles.conditions}>{conditions}</div>
         )}
 
-        {/* CTA pill */}
+        {/* CTA pill — always visible */}
         <div style={{ ...styles.cta, borderColor: accentColor }}>
           <span style={styles.ctaText}>{callToAction}</span>
         </div>
@@ -71,9 +84,11 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     alignItems: "center",
     textAlign: "center",
-    padding: "0 80px",
+    padding: "48px 80px",
     position: "relative",
     zIndex: 1,
+    maxHeight: "100%",
+    overflow: "hidden",
   },
   venueName: {
     color: "rgba(255,255,255,0.5)",
@@ -82,42 +97,57 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "0.12em",
     textTransform: "uppercase",
     marginBottom: 4,
+    flexShrink: 0,
   },
   venueLocation: {
     color: "rgba(255,255,255,0.3)",
     fontSize: 18,
     fontWeight: 400,
     marginBottom: 32,
+    flexShrink: 0,
   },
   title: {
     color: "white",
-    fontSize: 64,
     fontWeight: 700,
     lineHeight: 1.15,
+    letterSpacing: "-0.01em",
     maxWidth: 900,
     marginBottom: 28,
-  },
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  } as React.CSSProperties,
   divider: {
     width: 80,
     height: 3,
     borderRadius: 2,
     marginBottom: 28,
+    flexShrink: 0,
   },
   description: {
     color: "rgba(255,255,255,0.65)",
     fontSize: 22,
     lineHeight: 1.5,
     maxWidth: 700,
-    marginBottom: 16,
-  },
+    marginBottom: 12,
+    display: "-webkit-box",
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  } as React.CSSProperties,
   conditions: {
     color: "rgba(255,255,255,0.4)",
     fontSize: 16,
     fontWeight: 400,
     lineHeight: 1.4,
-    marginBottom: 32,
+    marginBottom: 24,
     maxWidth: 700,
-  },
+    display: "-webkit-box",
+    WebkitLineClamp: 1,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  } as React.CSSProperties,
   cta: {
     display: "flex",
     alignItems: "center",
@@ -125,6 +155,7 @@ const styles: Record<string, React.CSSProperties> = {
     padding: "14px 36px",
     border: "1.5px solid",
     width: "fit-content",
+    flexShrink: 0,
   },
   ctaText: {
     color: "white",

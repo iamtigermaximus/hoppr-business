@@ -1,20 +1,13 @@
 // Visual parameters the AI outputs alongside promotion text.
 // The AI picks the template and colors — the templates handle layout.
+import type { TitleFontStyle } from "./fonts";
+
 export interface VisualParams {
   template: "split" | "centered" | "card" | "banner";
   photoPreference: "use_bar_cover" | "use_bar_logo" | "no_photo" | "gradient_only";
   mood: "warm" | "cool" | "vibrant" | "dark" | "minimal";
   overlayOpacity: number; // 0–1
 }
-
-// Mood → background colors for gradient fallback
-export const MOOD_COLORS: Record<VisualParams["mood"], [string, string]> = {
-  warm: ["#7c3aed", "#1a0533"],
-  cool: ["#2563eb", "#0a0a2e"],
-  vibrant: ["#f59e0b", "#7c2d12"],
-  dark: ["#1a1a2e", "#0a0a0a"],
-  minimal: ["#374151", "#111827"],
-};
 
 // What each template receives
 export interface TemplateProps {
@@ -31,7 +24,18 @@ export interface TemplateProps {
   venueLocation: string;
   format: "wide" | "square" | "banner";
   visual: VisualParams;
+  /** Title font style — AI picks based on bar positioning and creative angle */
+  titleFontStyle?: TitleFontStyle | null;
 }
+
+// Mood → background colors for gradient fallback
+export const MOOD_COLORS: Record<VisualParams["mood"], [string, string]> = {
+  warm: ["#7c3aed", "#1a0533"],
+  cool: ["#2563eb", "#0a0a2e"],
+  vibrant: ["#f59e0b", "#7c2d12"],
+  dark: ["#1a1a2e", "#0a0a0a"],
+  minimal: ["#374151", "#111827"],
+};
 
 // Template IDs the AI can select
 export const TEMPLATES = {

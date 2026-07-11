@@ -122,6 +122,10 @@ const Title = styled.div`
   color: #f9fafb;
   margin-bottom: 0.25rem;
   line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 `;
 
 const Body = styled.div`
@@ -298,6 +302,10 @@ export default function PromotionPreviewCard({
               color: hideInAppUI ? "#6b7280" : "#4b5563",
               marginTop: "0.375rem",
               lineHeight: 1.4,
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
             }}
           >
             {conditions}

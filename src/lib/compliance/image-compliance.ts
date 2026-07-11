@@ -58,6 +58,61 @@ const BLOCKED_PATTERNS: ComplianceRule[] = [
   },
 ];
 
+// Finnish-language blocked patterns — checked alongside English ones.
+// These catch Finnish terms that the English patterns would miss.
+const BLOCKED_PATTERNS_FI: ComplianceRule[] = [
+  {
+    pattern: /(juomapeli|bisseturnaus|shottikisa|juomakilpailu)/i,
+    reason: "Viittauksia juomapeleihin tai juomakilpailuihin (juomapeli, shottikisa)",
+    severity: "block",
+  },
+  {
+    pattern: /(ilmainen|ilmaiset|ilmaisia)\s*(juoma|olut|viini|siideri|alkoholi|drinksu)/i,
+    reason: "Ilmaisten alkoholijuomien mainostaminen (ilmainen juoma)",
+    severity: "block",
+  },
+  {
+    pattern: /(känni|humala|päihty|hiprakka|juovuksissa)/i,
+    reason: "Päihtymyksen positiivinen kuvaaminen (känni, humala, hiprakka)",
+    severity: "block",
+  },
+  {
+    pattern: /(alaikä|alaikäis|alle\s*18)/i,
+    reason: "Alaikäisiin kohdistuva sisältö (alaikäinen, alle 18)",
+    severity: "block",
+  },
+  {
+    pattern: /(opiskelija\s*bileet|opiskelija\s*tarjous|koulu\s*bileet)/i,
+    reason: "Opiskelijoihin/alikäisiin vetoava kieli (opiskelijabileet, koulubileet)",
+    severity: "block",
+  },
+  {
+    pattern: /(auto|ajaa|ajaminen|parkkeeraa).{0,15}(juoma|alkoholi|olut|baari)/i,
+    reason: "Alkoholin yhdistäminen ajoneuvon käyttöön (auto, ajaa, parkkeeraa)",
+    severity: "block",
+  },
+  {
+    pattern: /(saada\s*seuraa|iskeä|pokata|viehättävämpi)/i,
+    reason: "Alkoholin yhdistäminen sosiaaliseen/seksuaaliseen menestykseen (saada seuraa, iskeä)",
+    severity: "block",
+  },
+  {
+    pattern: /(terveellinen|vähäkalorinen|detox|terveyshyöty)\s*(juoma|cocktail|olut|drinksu)/i,
+    reason: "Terveysväitteet alkoholijuomista (terveellinen, detox, vähäkalorinen)",
+    severity: "warn",
+  },
+  {
+    pattern: /(jaa\s*kuvasi|tägää\s*meidät|postaa\s*juomasi)/i,
+    reason: "Kuluttajien tuottaman alkoholisisällön jakamiskehotus (jaa, tägää, postaa)",
+    severity: "warn",
+  },
+  {
+    pattern: /(rajaton|pohjaton|kaikki\s*mitä\s*juot)\s*(juoma|olut|alkoholi)/i,
+    reason: "Rajattoman alkoholinkulutuksen mainostaminen (rajaton juoma, pohjaton)",
+    severity: "block",
+  },
+];
+
 // ---- Compliance-safe framing ----
 
 /** Wraps a user prompt in compliance-safe professional framing.
@@ -153,6 +208,17 @@ export function checkPromptCompliance(
     }
   }
 
+  // Also check Finnish-language blocked patterns
+  for (const rule of BLOCKED_PATTERNS_FI) {
+    if (rule.pattern.test(cleanedPrompt)) {
+      if (rule.severity === "block") {
+        blockedPatterns.push(rule.reason);
+      } else {
+        warnings.push(rule.reason);
+      }
+    }
+  }
+
   const passed = blockedPatterns.length === 0;
 
   // Always wrap in compliance framing — the framing contains safety instructions
@@ -160,6 +226,66 @@ export function checkPromptCompliance(
   const sanitizedPrompt = wrapComplianceFraming(rawPrompt, contentType);
 
   return { passed, blockedPatterns, warnings, sanitizedPrompt };
+}
+
+// ---- Post-generation image validation ----
+
+export interface ImageValidationResult {
+  passed: boolean;
+  blockedReasons: string[];
+  warnings: string[];
+  /** Whether the image visual description needs regeneration */
+  needsRegeneration: boolean;
+}
+
+/**
+ * Validate a generated image's visual description against both English
+ * and Finnish compliance rules. This runs AFTER image generation to catch
+ * risky visual descriptions the model may have produced despite prompt
+ * framing.
+ *
+ * Called from images/generate/route.ts after receiving the generated image
+ * and its visual description from the AI.
+ */
+export function validateGeneratedImage(
+  visualDescription: string,
+): ImageValidationResult {
+  const blockedReasons: string[] = [];
+  const warnings: string[] = [];
+
+  // Strip photography terminology to avoid false positives
+  const cleaned = stripPhotographyTerms(visualDescription);
+
+  // Check English patterns
+  for (const rule of BLOCKED_PATTERNS) {
+    if (rule.pattern.test(cleaned)) {
+      if (rule.severity === "block") {
+        blockedReasons.push(`EN: ${rule.reason}`);
+      } else {
+        warnings.push(`EN: ${rule.reason}`);
+      }
+    }
+  }
+
+  // Check Finnish patterns
+  for (const rule of BLOCKED_PATTERNS_FI) {
+    if (rule.pattern.test(cleaned)) {
+      if (rule.severity === "block") {
+        blockedReasons.push(`FI: ${rule.reason}`);
+      } else {
+        warnings.push(`FI: ${rule.reason}`);
+      }
+    }
+  }
+
+  const passed = blockedReasons.length === 0;
+
+  return {
+    passed,
+    blockedReasons,
+    warnings,
+    needsRegeneration: !passed,
+  };
 }
 
 // ---- Style presets (user-friendly labels → safe visual descriptions) ----

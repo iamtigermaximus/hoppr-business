@@ -17,6 +17,7 @@ import {
   type ComplianceViolation,
 } from "./rules";
 import { getCitationHeader, getCitationsForViolations } from "./valvira-reference";
+import { buildPersonaBlock, type BarPositioning } from "./persona";
 import { getTonePromptBlock, type ContentTone } from "../prompts/tone-voices";
 import { getTemplateVoiceBlock, getBlendInstruction } from "../prompts/template-voices";
 import { getSynergyInstructions } from "../prompts/synergy-rules";
@@ -218,6 +219,20 @@ export function buildComplianceSystemPrompt(language: PromptLanguage = "en"): st
     return `[${severityLabel}] ${r.name} (${r.lawReference}): ${r.suggestion.split(".")[0]}.`;
   }).join("\n");
 
+  // Build compound proximity warnings from all rules
+  const compoundWarnings = COMPLIANCE_RULES
+    .filter((r) => r.compoundTerms && r.compoundTerms.length > 0)
+    .flatMap((r) => r.compoundTerms!.map((c) => ({
+      en: c.messageEn,
+      fi: c.messageFi,
+    })))
+    .filter((v, i, a) => a.findIndex((x) => x.en === v.en) === i)
+    .map((c) => {
+      if (language === "fi") return `- ${c.fi}`;
+      return `- ${c.en}`;
+    })
+    .join("\n");
+
   // Language-specific framing
   if (language === "fi") {
     return `
@@ -252,6 +267,11 @@ ${doList}
 SÄÄNTÖYHTEENVETO — Pikaohje:
 ════════════════════════════════════════════════════════════
 ${ruleSummaries}
+
+════════════════════════════════════════════════════════════
+YHDISTELMÄVAROITUKSET — Nämä yhdistelmät laukaisevat rikkomuksen:
+════════════════════════════════════════════════════════════
+${compoundWarnings}
 
 TÄRKEIMMÄT PERIAATTEET:
 1. Keskity tunnelmaan, elämykseen, musiikkiin, ruokaan ja sosiaaliseen ympäristöön
@@ -300,6 +320,11 @@ RULE SUMMARY — Quick reference:
 ════════════════════════════════════════════════════════════
 ${ruleSummaries}
 
+════════════════════════════════════════════════════════════
+COMPOUND WARNINGS — These word combinations trigger violations:
+════════════════════════════════════════════════════════════
+${compoundWarnings}
+
 KEY PRINCIPLES:
 1. Focus on atmosphere, experience, music, food, and social environment
 2. Never advertise temporary alcohol price reductions or free alcohol
@@ -312,6 +337,25 @@ KEY PRINCIPLES:
 9. Never include games, contests, or prize draws linked to alcohol
 10. Never encourage sharing alcohol content on social media
 ============================================================`;
+}
+
+// ---------------------------------------------------------------------------
+// 1b. Full System Prompt — Persona + Compliance
+//     Combines the Senior Marketing Operations persona with compliance rules.
+//     Use this for ALL generation routes (ai-generate, suggest, suggest-fix).
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the complete system prompt with senior marketing persona AND
+ * compliance rules. This is the primary function for all AI generation routes.
+ */
+export function buildFullSystemPrompt(
+  language: PromptLanguage = "en",
+  bar?: BarPositioning | null,
+): string {
+  const persona = buildPersonaBlock(language, bar);
+  const compliance = buildComplianceSystemPrompt(language);
+  return `${persona}\n\n${compliance}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -486,14 +530,14 @@ export function buildGeneratePrompt(
     : `VISUAL GUIDELINES:\n- 'split': best for food/drink promos when the bar has photos\n- 'centered': best for live music events, theme nights, performer announcements\n- 'card': best for general promos and social media sharing\n- accentColor: match the mood (warm tones for food/cozy, cool tones for music, vibrant for parties)\n- overlayOpacity: 0.3 for bright photos, 0.5 for dark photos, 0.4 default`;
 
   // visualDirection field definition — shared across all output formats
-  const visualDirectionSchemaFi = `"visualDirection": {\n    "description": "TARKKA, KONKREETTINEN visuaalinen kohtaus, joka perustuu STRICTLY käyttäjän pyyntöön ja baarin ainutlaatuiseen identiteettiin. ÄLÄ kirjoita geneeristä baarin sisustusta. Kiinnitä jokainen yksityiskohta käyttäjän sanoihin — jos mainitaan terassi auringonlaskussa, kuvaile juuri HEIDÄN terassiaan siinä valossa. Jokaisen variantin visualDirection on OLTAVA TÄYSIN ERI — vaihtele tunnelmaa, perspektiiviä, vuorokaudenaikaa ja tilan tuntua.",\n    "keyElements": ["3-5 tarkkaa visuaalista elementtiä — jokaisen on oltava jäljitettävissä käyttäjän pyyntöön tai baarin identiteettiin. Ei geneerisiä 'baarituoleja'."],\n    "styleNotes": "valokuvaustyyli, joka sopii juuri tähän kohtaukseen"\n  }`;
-  const visualDirectionSchemaEn = `"visualDirection": {\n    "description": "A SPECIFIC, CONCRETE visual scene built STRICTLY from the user's request and the bar's unique identity. Do NOT write generic bar interiors. Anchor every detail in the user's own words — if they mention a terrace at sunset, describe THEIR terrace in that light. If they mention live music, describe the specific stage and performer. Every variant's visualDirection must be COMPLETELY DIFFERENT — vary the mood, perspective, time of day, and spatial feeling.",\n    "keyElements": ["3-5 specific visual elements — each must be traceable to the user's request or the bar's identity. No generic 'bar stools' or 'bottles'."],\n    "styleNotes": "photographic style that matches this specific scene (e.g. editorial, 35mm, golden hour, wide angle)"\n  }`;
+  const visualDirectionSchemaFi = `"visualDirection": {\n    "description": "TARKKA, KONKREETTINEN visuaalinen kohtaus, joka perustuu STRICTLY käyttäjän pyyntöön ja baarin ainutlaatuiseen identiteettiin. ÄLÄ kirjoita geneeristä baarin sisustusta. Kiinnitä jokainen yksityiskohta käyttäjän sanoihin — jos mainitaan terassi auringonlaskussa, kuvaile juuri HEIDÄN terassiaan siinä valossa. Jokaisen variantin visualDirection on OLTAVA TÄYSIN ERI — vaihtele tunnelmaa, perspektiiviä, vuorokaudenaikaa ja tilan tuntua.",\n    "keyElements": ["3-5 tarkkaa visuaalista elementtiä — jokaisen on oltava jäljitettävissä käyttäjän pyyntöön tai baarin identiteettiin. Ei geneerisiä 'baarituoleja'."],\n    "styleNotes": "valokuvaustyyli, joka sopii juuri tähän kohtaukseen"\n  },\n  "titleFontStyle": "BOLD_SANS | ELEGANT_SERIF | CONDENSED_IMPACT | CLASSIC_SERIF — valitse otsikon fonttityyli baarin tyylin mukaan. BOLD_SANS: moderni, monikäyttöinen (cocktail-baarit, yökerhot, pubit). ELEGANT_SERIF: tyylikäs, premium (viinibaarit, lounget). CONDENSED_IMPACT: rohkea, iskevä (livemusiikki, urheilubaarit). CLASSIC_SERIF: lämmin, perinteinen (pubit, oluthallit).",`;
+  const visualDirectionSchemaEn = `"visualDirection": {\n    "description": "A SPECIFIC, CONCRETE visual scene built STRICTLY from the user's request and the bar's unique identity. Do NOT write generic bar interiors. Anchor every detail in the user's own words — if they mention a terrace at sunset, describe THEIR terrace in that light. If they mention live music, describe the specific stage and performer. Every variant's visualDirection must be COMPLETELY DIFFERENT — vary the mood, perspective, time of day, and spatial feeling.",\n    "keyElements": ["3-5 specific visual elements — each must be traceable to the user's request or the bar's identity. No generic 'bar stools' or 'bottles'."],\n    "styleNotes": "photographic style that matches this specific scene (e.g. editorial, 35mm, golden hour, wide angle)"\n  },\n  "titleFontStyle": "BOLD_SANS | ELEGANT_SERIF | CONDENSED_IMPACT | CLASSIC_SERIF — pick the title font style matching the bar's identity. BOLD_SANS: modern, versatile (cocktail bars, nightclubs, pubs). ELEGANT_SERIF: refined, premium (wine bars, lounges). CONDENSED_IMPACT: bold, high-impact (live music, sports bars). CLASSIC_SERIF: warm, traditional (pubs, beer halls).",`;
 
   // Output format — fully bilingual
   const outputFormat = numVariants > 1
     ? (isFi
-        ? `Palauta VAIN JSON-taulukko (ei muuta tekstiä):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": luku 0-100 tai null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex-väri",\n    "conditions": "${conditionsLabel} (max 150 merkkiä)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n    ${visualDirectionSchemaFi}\n  },\n  ...\n]`
-        : `Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": number 0-100 or null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex color",\n    "conditions": "${conditionsLabel} (max 150 chars)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n    ${visualDirectionSchemaEn}\n  },\n  ...\n]`)
+        ? `Palauta VAIN JSON-taulukko (ei muuta tekstiä):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": luku 0-100 tai null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex-väri",\n    "titleFontStyle": "BOLD_SANS | ELEGANT_SERIF | CONDENSED_IMPACT | CLASSIC_SERIF",\n    "conditions": "${conditionsLabel} (max 150 merkkiä)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n    ${visualDirectionSchemaFi}\n  },\n  ...\n]`
+        : `Return ONLY a JSON array (no other text):\n[\n  {\n    "title": "${titleLabel}",\n    "description": "${descLabel}",\n    "type": "${typeLabel}",\n    "discount": number 0-100 or null,\n    "callToAction": "${ctaLabel}",\n    "accentColor": "hex color",\n    "titleFontStyle": "BOLD_SANS | ELEGANT_SERIF | CONDENSED_IMPACT | CLASSIC_SERIF",\n    "conditions": "${conditionsLabel} (max 150 chars)",\n    "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n    ${visualDirectionSchemaEn}\n  },\n  ...\n]`)
     : (isFi
         ? `Palauta VAIN tämä JSON (ei muuta tekstiä):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": luku 0-100 tai null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex-väri",\n  "conditions": "${conditionsLabel} (max 150 merkkiä)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n  ${visualDirectionSchemaFi}\n}`
         : `Return ONLY this exact JSON (no other text):\n{\n  "title": "${titleLabel}",\n  "description": "${descLabel}",\n  "type": "${typeLabel}",\n  "discount": number 0-100 or null,\n  "callToAction": "${ctaLabel}",\n  "accentColor": "hex color",\n  "conditions": "${conditionsLabel} (max 150 chars)",\n  "visual": { "template": "${templateDesc}", "mood": "${moodDesc}", "overlayOpacity": 0.2-0.7 },\n  ${visualDirectionSchemaEn}\n}`);

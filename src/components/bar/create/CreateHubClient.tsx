@@ -888,7 +888,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
 
   // Compute violations client-side for compliance bar
   const violations: ComplianceViolation[] = formState.title
-    ? scanCompliance(formState.title, formState.description).violations
+    ? scanCompliance(formState.title, formState.description, { barName }).violations
     : [];
 
   const typeLabel = contentType === "campaign"

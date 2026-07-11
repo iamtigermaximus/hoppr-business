@@ -2,10 +2,16 @@
 // Compact, photo-forward when possible, works without photos too.
 import type { TemplateProps } from "./types";
 import { MOOD_COLORS } from "./types";
+import { getTitleFontConfig } from "./fonts";
+import type { TitleFontStyle } from "./fonts";
 
 export function CardTemplate(props: TemplateProps) {
-  const { barName, promotionTitle, promotionDescription, callToAction, accentColor, photoUrl, conditions, visual } = props;
+  const { barName, promotionTitle, promotionDescription, callToAction, accentColor, photoUrl, conditions, visual, titleFontStyle } = props;
   const [gradientStart, gradientEnd] = MOOD_COLORS[visual.mood];
+  const titleFont = getTitleFontConfig(titleFontStyle as TitleFontStyle | null | undefined);
+
+  // Dynamically reduce title font size for long titles
+  const titleFontSize = promotionTitle.length > 50 ? 40 : promotionTitle.length > 35 ? 46 : 52;
 
   return (
     <div style={styles.wrapper}>
@@ -28,22 +34,31 @@ export function CardTemplate(props: TemplateProps) {
           <span style={styles.venueBadgeText}>{barName}</span>
         </div>
 
-        {/* Title on image */}
-        <div style={styles.titleOnImage}>{promotionTitle}</div>
+        {/* Title on image — line-clamped */}
+        <div style={{
+          ...styles.titleOnImage,
+          fontSize: titleFontSize,
+          fontFamily: titleFont.fontFamily,
+          fontWeight: titleFont.fontWeight,
+          letterSpacing: titleFont.letterSpacing || styles.titleOnImage.letterSpacing,
+          textTransform: titleFont.textTransform || "none",
+        }}>{promotionTitle}</div>
       </div>
 
       {/* Lower: text info */}
       <div style={styles.infoArea}>
-        <div style={styles.descriptionRow}>
-          <span style={styles.descriptionText}>{promotionDescription}</span>
-        </div>
-
-        {/* Conditions / dates / details */}
-        {conditions && (
-          <div style={styles.conditionsRow}>
-            <span style={styles.conditionsText}>{conditions}</span>
+        <div style={styles.textBlock}>
+          <div style={styles.descriptionRow}>
+            <span style={styles.descriptionText}>{promotionDescription}</span>
           </div>
-        )}
+
+          {/* Conditions / dates / details */}
+          {conditions && (
+            <div style={styles.conditionsRow}>
+              <span style={styles.conditionsText}>{conditions}</span>
+            </div>
+          )}
+        </div>
 
         <div style={styles.bottomRow}>
           {/* Accent dot */}
@@ -77,6 +92,7 @@ const styles: Record<string, React.CSSProperties> = {
     flexDirection: "column",
     justifyContent: "flex-end",
     padding: "40px 48px",
+    flexShrink: 0,
   },
   imageOverlay: {
     position: "absolute",
@@ -102,19 +118,29 @@ const styles: Record<string, React.CSSProperties> = {
   },
   titleOnImage: {
     color: "white",
-    fontSize: 52,
     fontWeight: 700,
     lineHeight: 1.15,
+    letterSpacing: "-0.01em",
     maxWidth: 900,
     position: "relative",
     zIndex: 1,
-  },
+    display: "-webkit-box",
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  } as React.CSSProperties,
   infoArea: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
     padding: "32px 48px 40px",
+  },
+  textBlock: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
   },
   descriptionRow: {
     display: "flex",
@@ -126,7 +152,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 24,
     lineHeight: 1.4,
     maxWidth: 800,
-  },
+    display: "-webkit-box",
+    WebkitLineClamp: 3,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  } as React.CSSProperties,
   conditionsRow: {
     display: "flex",
     marginBottom: 16,
@@ -137,11 +167,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 400,
     lineHeight: 1.4,
     maxWidth: 800,
-  },
+    display: "-webkit-box",
+    WebkitLineClamp: 1,
+    WebkitBoxOrient: "vertical",
+    overflow: "hidden",
+  } as React.CSSProperties,
   bottomRow: {
     display: "flex",
     alignItems: "center",
     gap: 12,
+    flexShrink: 0,
   },
   accentDot: {
     width: 10,

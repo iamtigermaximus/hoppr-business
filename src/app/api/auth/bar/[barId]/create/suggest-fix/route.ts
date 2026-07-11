@@ -1,12 +1,72 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isBarStaffToken } from "@/lib/auth";
+import { prisma } from "@/lib/database";
 import { scanCompliance } from "@/lib/compliance-engine";
-import { buildFixPrompt } from "@/lib/compliance/prompts";
+import { buildFixPrompt, buildFullSystemPrompt } from "@/lib/compliance/prompts";
+import { type BarPositioning } from "@/lib/compliance/persona";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import { handleApiError } from "@/lib/api-error";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+/** Infer differentiators from bar data for the persona */
+function inferDifferentiators(bar: {
+  type: string;
+  amenities?: string[] | null;
+  description?: string | null;
+  musicTags?: string[] | null;
+}): string[] {
+  const diffs: string[] = [];
+
+  const typeMap: Record<string, string> = {
+    COCKTAIL_BAR: "Hand-crafted cocktails with premium ingredients",
+    NIGHTCLUB: "High-energy nightlife with DJs and late-night dancing",
+    PUB: "Neighborhood gathering spot with welcoming atmosphere",
+    SPORTS_BAR: "Big screens and game-day energy",
+    WINE_BAR: "Curated wine selection in an intimate setting",
+    LOUNGE: "Relaxed, sophisticated space for conversation",
+    KARAOKE: "Stage-ready entertainment with group-friendly vibe",
+    LIVE_MUSIC: "Live performances in an acoustically tuned space",
+    TERRACE_BAR: "Outdoor drinking and dining with city views",
+    BEER_HALL: "Communal tables and craft beer culture",
+  };
+  if (typeMap[bar.type]) diffs.push(typeMap[bar.type]);
+
+  const amenityMap: Record<string, string> = {
+    terrace: "Outdoor terrace — one of the few in the area",
+    "live music": "Regular live performances you won't find elsewhere",
+    dj: "Resident and guest DJs spinning curated sets",
+    "private room": "Bookable private space for groups and events",
+    kitchen: "Full kitchen serving food alongside drinks",
+    "late hours": "One of the last places open in the neighborhood",
+    parking: "Rare on-site parking in the area",
+    waterfront: "Waterfront location with scenic views",
+  };
+  if (bar.amenities) {
+    bar.amenities.forEach((a) => {
+      const lower = a.toLowerCase();
+      const match = Object.entries(amenityMap).find(([key]) => lower.includes(key));
+      if (match) diffs.push(match[1]);
+    });
+  }
+
+  if (bar.musicTags && bar.musicTags.length > 0) {
+    diffs.push(`Music identity: ${bar.musicTags.slice(0, 3).join(", ")}`);
+  }
+
+  return diffs.length > 0 ? diffs : ["Quality drinks and welcoming atmosphere"];
+}
+
+/** Get seasonal context based on current date */
+function getSeasonalContext(): string {
+  const month = new Date().getMonth();
+  if (month >= 5 && month <= 7) return "Summer terrace season — outdoor spaces are premium. Long daylight hours favor evening-to-night transitions.";
+  if (month === 8) return "Late summer — people are back from holidays, craving social connection before autumn.";
+  if (month >= 9 && month <= 10) return "Autumn cozy season — indoor warmth, candles, comfort drinks. Students are back in town.";
+  if (month >= 11 || month <= 1) return "Winter holiday season — Christmas parties, New Year celebrations, cozy indoor gatherings. Dark evenings favor warm, intimate atmospheres.";
+  return "Spring awakening — people emerge from winter hibernation, terraces reopen, energy rises.";
+}
 
 export async function POST(
   request: NextRequest,
@@ -58,7 +118,7 @@ export async function POST(
 
     // 3. Parse request body
     const body = await request.json();
-    const { title, description, violations, contentType } = body;
+    const { title, description, violations, contentType, language = "en" } = body;
 
     if (!title || !violations || !Array.isArray(violations)) {
       return NextResponse.json(
@@ -67,7 +127,11 @@ export async function POST(
       );
     }
 
-    // 3. Check if DeepSeek API key is configured
+    // Validate language
+    const validLanguages = ["en", "fi"];
+    const lang = validLanguages.includes(language) ? language : "en";
+
+    // 4. Check if DeepSeek API key is configured
     if (!DEEPSEEK_API_KEY) {
       console.error("DEEPSEEK_API_KEY is not set");
       return NextResponse.json(
@@ -76,8 +140,44 @@ export async function POST(
       );
     }
 
-    // 4. Build prompt using canonical rules and call DeepSeek
-    const systemPrompt = buildFixPrompt(
+    // 5. Fetch bar context for persona positioning
+    const bar = await prisma.bar.findUnique({
+      where: { id: barId },
+      select: {
+        name: true,
+        type: true,
+        district: true,
+        cityName: true,
+        priceRange: true,
+        amenities: true,
+        description: true,
+        musicTags: true,
+      },
+    });
+
+    if (!bar) {
+      return NextResponse.json({ error: "Bar not found" }, { status: 404 });
+    }
+
+    // Build bar positioning for the senior marketing persona
+    const barPositioning: BarPositioning = {
+      name: bar.name,
+      type: bar.type,
+      district: bar.district ?? undefined,
+      cityName: bar.cityName ?? undefined,
+      priceRange: bar.priceRange ?? undefined,
+      amenities: bar.amenities ?? undefined,
+      description: bar.description ?? undefined,
+      musicTags: (bar.musicTags as string[]) ?? undefined,
+      differentiators: inferDifferentiators(bar),
+      seasonalContext: getSeasonalContext(),
+    };
+
+    // 6. Build system prompt — senior marketing persona + compliance rules
+    const systemPrompt = buildFullSystemPrompt(lang as "en" | "fi", barPositioning);
+
+    // 7. Build fix prompt (user message) using canonical rules and call DeepSeek
+    const userPrompt = buildFixPrompt(
       title,
       description || "",
       violations,
@@ -93,12 +193,8 @@ export async function POST(
       body: JSON.stringify({
         model: "deepseek-chat",
         messages: [
-          {
-            role: "system",
-            content:
-              "You are a Finnish alcohol marketing compliance expert. Return ONLY valid JSON arrays.",
-          },
-          { role: "user", content: systemPrompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
         ],
         temperature: 0.7,
         max_tokens: 1200,
@@ -115,7 +211,7 @@ export async function POST(
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
 
-    // 5. Parse JSON from AI response
+    // 8. Parse JSON from AI response
     let alternatives;
     try {
       const jsonMatch = aiResponse.match(/\[[\s\S]*\]/);
@@ -137,10 +233,10 @@ export async function POST(
       );
     }
 
-    // 6. Re-scan each alternative through compliance before returning
+    // 9. Re-scan each alternative through compliance before returning
     const validatedAlternatives = alternatives
       .map((alt: { title: string; description: string; explanation: string }) => {
-        const result = scanCompliance(alt.title, alt.description);
+        const result = scanCompliance(alt.title, alt.description, { barName: bar.name });
         // Only keep alternatives that are compliant or have only medium/low violations
         const hasHighViolations = result.violations.some(
           (v) => v.severity === "high",

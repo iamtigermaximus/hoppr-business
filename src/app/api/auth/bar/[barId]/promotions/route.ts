@@ -150,7 +150,7 @@ export async function POST(
     // Plan limit check: only OWNER/MANAGER can exceed limits (staff roles are gated by role check anyway)
     const barPlan = await prisma.bar.findUnique({
       where: { id: barId },
-      select: { plan: true, _count: { select: { promotions: true } } },
+      select: { name: true, plan: true, _count: { select: { promotions: true } } },
     });
     if (barPlan) {
       const limitCheck = checkPlanLimit(barPlan.plan, "promotions", barPlan._count.promotions);
@@ -216,7 +216,9 @@ export async function POST(
     });
 
     // ---- Compliance check ----
-    const compliance = scanCompliance(body.title, body.description);
+    const compliance = scanCompliance(body.title, body.description, {
+      barName: barPlan?.name,
+    });
 
     let finalComplianceStatus = promotion.complianceStatus;
     if (compliance.status === "FLAGGED_AUTO") {

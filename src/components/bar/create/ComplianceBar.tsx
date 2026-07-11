@@ -156,6 +156,7 @@ interface ComplianceBarProps {
   description: string;
   expanded: boolean;
   onToggle: () => void;
+  barName?: string;
 }
 
 function getHighestSeverity(violations: ComplianceViolation[]): "high" | "medium" | "low" | "none" {
@@ -177,10 +178,11 @@ export default function ComplianceBar({
   description,
   expanded,
   onToggle,
+  barName,
 }: ComplianceBarProps) {
   const result: ComplianceResult = useMemo(
-    () => scanCompliance(title, description || ""),
-    [title, description],
+    () => scanCompliance(title, description || "", { barName }),
+    [title, description, barName],
   );
 
   const [tipsExpanded, setTipsExpanded] = useState(false);

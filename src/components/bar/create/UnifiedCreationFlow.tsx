@@ -41,6 +41,8 @@ interface EditableVariant {
   discount: number | null;
   callToAction: string;
   accentColor: string;
+  /** Title font style chosen by AI based on bar positioning */
+  titleFontStyle?: string | null;
   conditions: string;
   visualDirection: {
     description: string;
@@ -815,6 +817,7 @@ export default function UnifiedCreationFlow({
             discount: (v.discount as number) ?? null,
             callToAction: (v.callToAction as string) || "",
             accentColor: (v.accentColor as string) || "#7c3aed",
+            titleFontStyle: (v.titleFontStyle as string) || null,
             conditions: (v.conditions as string) || "",
             visualDirection: vd || null,
             fluxPrompt: buildInitialFluxPrompt(vd),

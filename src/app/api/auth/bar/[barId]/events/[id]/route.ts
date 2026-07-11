@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { verifyAuthHeader, isBarStaffToken } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-error";
+import { scanCompliance } from "@/lib/compliance-engine";
 
 interface UpdateEventBody {
   title?: string;
@@ -124,6 +125,24 @@ export async function PUT(
     if (body.isPrivate !== undefined) updateData.isPrivate = body.isPrivate;
     if (body.imageUrl !== undefined) updateData.imageUrl = body.imageUrl;
 
+    // Compliance scan if title or description changed
+    let complianceStatus = existing.complianceStatus;
+    if (body.title !== undefined || body.description !== undefined) {
+      const titleToScan = body.title ?? existing.title;
+      const descToScan = body.description !== undefined ? body.description : existing.description;
+      const bar = await prisma.bar.findUnique({
+        where: { id: barId },
+        select: { name: true },
+      });
+      const compliance = scanCompliance(titleToScan, descToScan, {
+        barName: bar?.name,
+      });
+      if (compliance.status === "FLAGGED_AUTO") {
+        updateData.complianceStatus = "FLAGGED_AUTO";
+        complianceStatus = "FLAGGED_AUTO";
+      }
+    }
+
     const event = await prisma.event.update({
       where: { id },
       data: updateData,
@@ -145,7 +164,7 @@ export async function PUT(
         isPrivate: event.isPrivate,
         imageUrl: event.imageUrl,
         attendeeCount: event._count.participants,
-        complianceStatus: event.complianceStatus,
+        complianceStatus: complianceStatus ?? event.complianceStatus,
       },
     });
   } catch (error) {

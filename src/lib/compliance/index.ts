@@ -36,6 +36,7 @@ export {
 // AI prompt builders
 export {
   buildComplianceSystemPrompt,
+  buildFullSystemPrompt,
   buildUserReminder,
   buildFixPrompt,
   buildGeneratePrompt,

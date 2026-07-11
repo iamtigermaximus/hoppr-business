@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PromotionImage } from "@/lib/og-templates/generate";
 import type { PromotionImageInput } from "@/lib/og-templates/generate";
+import type { TitleFontStyle } from "@/lib/og-templates/fonts";
 import type { InferredChips } from "@/lib/prompts/infer-image-chips";
 
 // ---- Types ----
@@ -14,6 +15,8 @@ export interface PromotionVariant {
   discount: number | null;
   callToAction: string;
   accentColor: string;
+  /** Title font style chosen by AI based on bar positioning */
+  titleFontStyle?: TitleFontStyle | null;
   conditions: string;
   /** AI-inferred image generation chips — used to auto-generate background images */
   imageChips?: InferredChips;
@@ -95,6 +98,7 @@ function mapVariantToImageInput(
     photoUrl: bgImage || null,
     venueLocation: venueLocation || "Helsinki",
     visual: v.visual,
+    titleFontStyle: v.titleFontStyle || null,
   };
 }
 
