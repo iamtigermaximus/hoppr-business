@@ -8,6 +8,7 @@ import {
 } from "@/lib/compliance/prompts";
 import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
 import { logUsage } from "@/lib/credit-tracker";
+import { handleApiError } from "@/lib/api-error";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -331,15 +332,6 @@ ${buildUserReminder("en")}`;
       ...response_,
     });
   } catch (error) {
-    console.error("AI suggest error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate suggestions",
-      },
-      { status: 500 },
-    );
+    return handleApiError(error, "AI suggest");
   }
 }

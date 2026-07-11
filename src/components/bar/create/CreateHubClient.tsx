@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
 import { scanCompliance } from "@/lib/compliance-engine";
@@ -469,6 +469,30 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   const [cardFormat, setCardFormat] = useState<"square" | "wide" | "banner">("wide");
   // Preserve AI visual params across the submit → success state transition
   const savedAiVisual = useRef<Record<string, unknown> | null>(null);
+  const submitAbortRef = useRef<AbortController | null>(null);
+  const timersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  /** setTimeout wrapper that tracks timers for cleanup on unmount */
+  const setSafeTimeout = useCallback(
+    (fn: () => void, ms: number): ReturnType<typeof setTimeout> => {
+      const id = setTimeout(() => {
+        timersRef.current.delete(id);
+        fn();
+      }, ms);
+      timersRef.current.add(id);
+      return id;
+    },
+    [],
+  );
+
+  // Abort in-flight submission + clear timers when component unmounts
+  useEffect(() => {
+    return () => {
+      submitAbortRef.current?.abort();
+      for (const id of timersRef.current) clearTimeout(id);
+      timersRef.current.clear();
+    };
+  }, []);
   const [ogImageDataUrl, setOgImageDataUrl] = useState<string | null>(null);
 
   // Preserve type-specific state when switching tabs
@@ -481,7 +505,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
+    setSafeTimeout(() => setToast(null), 4000);
   };
 
   const [sharingOg, setSharingOg] = useState(false);
@@ -549,7 +573,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
       window.location.href = instagramUrl;
 
       // If Instagram didn't open within 2s, it's not installed — show instructions
-      setTimeout(() => {
+      setSafeTimeout(() => {
         if (document.hidden) return; // app opened successfully
         showToast(
           "Image & caption copied! Open Instagram and paste into a new post or story.",
@@ -751,6 +775,11 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     // Preserve the AI-chosen visual params for the social share card
     savedAiVisual.current = aiVisual;
 
+    // Cancel any in-flight previous submission
+    submitAbortRef.current?.abort();
+    const controller = new AbortController();
+    submitAbortRef.current = controller;
+
     try {
       // Fallback: when no image is uploaded/picked, assign a sensible default
       // so the consumer app always has a visual and never shows a blank card.
@@ -818,6 +847,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify(body),
+          signal: controller.signal,
         },
       );
 
@@ -835,6 +865,8 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         boosted: formState.boostEnabled || contentType === "campaign",
       });
     } catch (err) {
+      // Don't show toast if the request was aborted (user navigated away)
+      if (err instanceof DOMException && err.name === "AbortError") return;
       showToast(
         err instanceof Error ? err.message : "Failed to create",
         "error",

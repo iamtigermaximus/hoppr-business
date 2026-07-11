@@ -261,12 +261,35 @@ export default function AIImageGenerator({
         } else {
           setError(data.error || data.hint || "Generation failed");
         }
+        setGenerating(false);
         return;
       }
 
-      setResults(data.urls || []);
       setPreview(data.preview || "");
       setWarnings(data.warnings || []);
+
+      // Poll for job completion (generation happens asynchronously)
+      const jobId = data.jobIds?.[0];
+      if (jobId) {
+        setResults([]); // clear previous results while polling
+        for (let attempt = 0; attempt < 45; attempt++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          const statusRes = await fetch(
+            `/api/auth/bar/${barId}/images/jobs/${jobId}`,
+            { headers: { Authorization: `Bearer ${token}` } },
+          );
+          if (!statusRes.ok) continue;
+          const statusData = await statusRes.json();
+          if (statusData.status === "completed") {
+            setResults(statusData.urls || []);
+            break;
+          }
+          if (statusData.status === "failed") {
+            setError(statusData.error || "Image generation failed");
+            break;
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {

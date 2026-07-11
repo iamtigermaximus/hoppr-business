@@ -3,6 +3,7 @@ import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { scanCompliance } from "@/lib/compliance-engine";
 import { buildFixPrompt } from "@/lib/compliance/prompts";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
+import { handleApiError } from "@/lib/api-error";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -180,15 +181,6 @@ export async function POST(
       })),
     });
   } catch (error) {
-    console.error("Suggest-fix error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate alternatives",
-      },
-      { status: 500 },
-    );
+    return handleApiError(error, "Suggest-fix");
   }
 }

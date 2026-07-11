@@ -80,8 +80,8 @@ export async function logUsage(input: UsageLogInput): Promise<void> {
       },
     });
 
-    // Check threshold — fire alert if needed
-    await checkAndAlert(input.provider);
+    // Alert check moved to cron job (src/app/api/cron/credit-alerts/route.ts)
+    // — saves 2 DB queries per generation on the hot path
   } catch (err) {
     // Never let credit tracking break the main flow
     console.error("[credit-tracker] Failed to log usage:", err);
@@ -172,9 +172,19 @@ export async function updateCreditPool(
 
 // ---- Internal: threshold alert ----
 
-async function checkAndAlert(provider: string): Promise<void> {
+/** Check credit thresholds and send alerts. Called by cron every 15 min. */
+export async function checkCreditAlerts(providers: string[] = ["deepseek", "bfl_flux"]): Promise<{ alerted: string[] }> {
+  const alerted: string[] = [];
+  for (const provider of providers) {
+    const didAlert = await checkAndAlert(provider);
+    if (didAlert) alerted.push(provider);
+  }
+  return { alerted };
+}
+
+async function checkAndAlert(provider: string): Promise<boolean> {
   const pool = await prisma.creditPool.findUnique({ where: { provider } });
-  if (!pool || !pool.isActive) return;
+  if (!pool || !pool.isActive) return false;
 
   const aggregate = await prisma.apiUsageLog.aggregate({
     where: { provider },
@@ -184,13 +194,13 @@ async function checkAndAlert(provider: string): Promise<void> {
   const used = aggregate._sum.estimatedCost || 0;
   const remaining = pool.totalCredits - used;
 
-  if (remaining > pool.alertThreshold) return;
+  if (remaining > pool.alertThreshold) return false;
 
   // Don't re-alert within 24 hours
   if (pool.lastAlertedAt) {
     const hoursSinceLastAlert =
       (Date.now() - pool.lastAlertedAt.getTime()) / (1000 * 60 * 60);
-    if (hoursSinceLastAlert < 24) return;
+    if (hoursSinceLastAlert < 24) return false;
   }
 
   // Fire alert
@@ -221,4 +231,5 @@ async function checkAndAlert(provider: string): Promise<void> {
   console.warn(
     `[credit-tracker] ALERT: ${providerLabel} credits low — $${remaining.toFixed(2)} remaining (threshold: $${pool.alertThreshold})`,
   );
+  return true;
 }

@@ -8,6 +8,8 @@ import { scanCompliance } from "@/lib/compliance/engine";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import { inferImageChips } from "@/lib/prompts/infer-image-chips";
 import { logUsage } from "@/lib/credit-tracker";
+import { extractJsonObjects } from "@/lib/json-extractor";
+import { handleApiError } from "@/lib/api-error";
 import {
   getFallbackPromotion,
   type PromotionType,
@@ -393,21 +395,19 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
 
             // If array parsing failed or response wasn't an array, try single-object extraction
             if (generatedPromotions.length === 0) {
-              // Try to find all top-level JSON objects in the response
-              const objectMatches = jsonText.match(/\{(?:[^{}]|\{(?:[^{}]|\{[^{}]*\})*\})*\}/g);
-              if (objectMatches && objectMatches.length > 0) {
-                for (const objStr of objectMatches) {
-                  try {
-                    const parsed = JSON.parse(objStr);
-                    generatedPromotions.push(parsed);
-                  } catch {
-                    // Skip malformed objects
-                  }
+              // Safe bracket-counting parser — O(n), no ReDoS risk
+              const objectMatches = extractJsonObjects(jsonText, { maxObjects: 5, maxLength: 50_000 });
+              for (const objStr of objectMatches) {
+                try {
+                  const parsed = JSON.parse(objStr);
+                  generatedPromotions.push(parsed);
+                } catch {
+                  // Skip malformed objects
                 }
-                if (generatedPromotions.length > 0) {
-                  aiGenerated = true;
-                  console.log("[ai-generate] Extracted", generatedPromotions.length, "objects from response");
-                }
+              }
+              if (generatedPromotions.length > 0) {
+                aiGenerated = true;
+                console.log("[ai-generate] Extracted", generatedPromotions.length, "objects from response");
               }
             }
 
@@ -539,15 +539,6 @@ Return ONLY valid JSON.${toneInstruction ? `\n${toneInstruction}` : ""}`;
         : { promotion: variantsWithChips[0] }),
     });
   } catch (error) {
-    console.error("AI generation error:", error);
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to generate promotion",
-      },
-      { status: 500 },
-    );
+    return handleApiError(error, "AI generation");
   }
 }

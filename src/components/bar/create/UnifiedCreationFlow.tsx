@@ -971,24 +971,61 @@ export default function UnifiedCreationFlow({
 
       const data = await res.json();
 
-      if (data.variantUrls && Array.isArray(data.variantUrls)) {
-        const images: (string | null)[] = variantVDs.map(
-          (_, i) => data.variantUrls[i] || null,
-        );
-        setVariantImages(images);
+      if (!res.ok) {
+        if (data.blockedReasons && Array.isArray(data.blockedReasons)) {
+          const variantLabel = data.variantIndex != null
+            ? ` (Option ${data.variantIndex + 1})`
+            : "";
+          const reasons = data.blockedReasons.join("; ");
+          const hint = data.hint ? ` ${data.hint}` : "";
+          setError(`Image blocked${variantLabel}: ${reasons}.${hint}`);
+        } else if (data.error) {
+          throw new Error(data.error);
+        } else {
+          throw new Error(data.hint || "Image generation failed");
+        }
+        setGeneratingImages(false);
+        setVariantImagesLoading(new Array(variants.length).fill(false));
+        return;
+      }
+
+      // Poll each async job for completion
+      const jobIds: string[] = data.jobIds || [];
+      if (jobIds.length > 0) {
+        const variantUrls: (string | null)[] = new Array(variants.length).fill(null);
+
+        for (let pollAttempt = 0; pollAttempt < 45; pollAttempt++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          let allDone = true;
+
+          for (let i = 0; i < jobIds.length; i++) {
+            if (variantUrls[i]) continue; // already got this one
+            try {
+              const statusRes = await fetch(
+                `/api/auth/bar/${barId}/images/jobs/${jobIds[i]}`,
+                { headers: { Authorization: `Bearer ${token}` } },
+              );
+              if (!statusRes.ok) continue;
+              const statusData = await statusRes.json();
+              if (statusData.status === "completed" && statusData.urls?.[0]) {
+                variantUrls[i] = statusData.urls[0];
+              } else if (statusData.status === "failed") {
+                variantUrls[i] = null; // mark as done but failed
+              } else {
+                allDone = false;
+              }
+            } catch {
+              allDone = false;
+            }
+          }
+
+          if (allDone) break;
+        }
+
+        setVariantImages(variantUrls);
         setStep("images");
-      } else if (data.blockedReasons && Array.isArray(data.blockedReasons)) {
-        // Compliance block — show specific reasons so user knows what to fix
-        const variantLabel = data.variantIndex != null
-          ? ` (Option ${data.variantIndex + 1})`
-          : "";
-        const reasons = data.blockedReasons.join("; ");
-        const hint = data.hint ? ` ${data.hint}` : "";
-        setError(`Image blocked${variantLabel}: ${reasons}.${hint}`);
-      } else if (data.error) {
-        throw new Error(data.error);
       } else {
-        throw new Error("Image generation returned unexpected response");
+        throw new Error("Image generation returned no job IDs");
       }
     } catch (err) {
       setError(
@@ -1084,10 +1121,24 @@ export default function UnifiedCreationFlow({
         });
 
         const data = await res.json();
-        if (data.variantUrls?.[0]) {
-          const images = [...variantImages];
-          images[variantIndex] = data.variantUrls[0];
-          setVariantImages(images);
+        if (data.jobIds?.[0]) {
+          // Poll for job completion
+          for (let attempt = 0; attempt < 45; attempt++) {
+            await new Promise((r) => setTimeout(r, 2000));
+            const statusRes = await fetch(
+              `/api/auth/bar/${barId}/images/jobs/${data.jobIds[0]}`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (!statusRes.ok) continue;
+            const statusData = await statusRes.json();
+            if (statusData.status === "completed" && statusData.urls?.[0]) {
+              const images = [...variantImages];
+              images[variantIndex] = statusData.urls[0];
+              setVariantImages(images);
+              break;
+            }
+            if (statusData.status === "failed") break;
+          }
         }
       } catch {
         // Silently fail — keep existing image

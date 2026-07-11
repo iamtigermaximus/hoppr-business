@@ -8,15 +8,13 @@
 //      generation of unique images for each promotion variant.
 
 import { NextRequest, NextResponse } from "next/server";
-import { authService } from "@/services/auth-service";
+import { verifyToken, isAdminToken, isBarStaffToken } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-error";
 import { prisma } from "@/lib/database";
-import { generateImages, isProviderConfigured, isProviderReal } from "@/lib/image-generator";
+import { isProviderConfigured, isProviderReal } from "@/lib/image-generator";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import { buildImagePrompt, buildContextFromForm, type VisualDirection } from "@/lib/prompts/build-image-prompt";
-import { uploadImageFromUrl } from "@/lib/upload-image-from-url";
 import { planHasFeature } from "@/lib/plan-limits";
-import { logUsage } from "@/lib/credit-tracker";
 import { generateImageSuffix } from "@/lib/ai/parameterized-templates";
 
 export async function POST(
@@ -26,18 +24,25 @@ export async function POST(
   try {
     const { barId } = await params;
 
-    // Auth
+    // Auth — inline JWT, zero DB queries (same pattern as ai-generate/suggest)
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const authResult = await authService.validateToken(authHeader.substring(7));
-    if (authResult.type !== "bar_staff" && authResult.type !== "admin") {
+    const payload = verifyToken(authHeader.substring(7));
+    if (!payload) {
+      return NextResponse.json({ error: "Unauthorized: Invalid token" }, { status: 401 });
+    }
+    if (!isBarStaffToken(payload) && !isAdminToken(payload)) {
       return NextResponse.json({ error: "Authentication required" }, { status: 403 });
+    }
+    // Bar staff must belong to this bar
+    if (isBarStaffToken(payload) && payload.barId !== barId) {
+      return NextResponse.json({ error: "Forbidden: You don't have access to this bar" }, { status: 403 });
     }
 
     // Plan gate — only enforced for real (paid) providers in production.
-    if (process.env.REQUIRE_PLAN_FOR_AI === "true" && authResult.type === "bar_staff") {
+    if (process.env.REQUIRE_PLAN_FOR_AI === "true" && isBarStaffToken(payload)) {
       const bar = await prisma.bar.findUnique({
         where: { id: barId },
         select: { plan: true },
@@ -118,29 +123,27 @@ export async function POST(
       );
     }
 
-    // ---- PER-VARIANT CONCURRENT GENERATION ----
-    // When variantVisualDirections is provided, generate a unique image for each
-    // variant concurrently. Each variant gets its own prompt, compliance check,
-    // and image — ensuring visual diversity across the variant cards.
-    //
-    // Image suffixes are generated server-side using generateImageSuffix(),
-    // which injects bar-specific randomness (barId hash as rotation offset)
-    // so two bars of the same type generating at the same time get different
-    // color palettes, lighting, and atmosphere.
+    // ---- Build prompts and create async jobs ----
+    // Image generation (BFL polling) is slow — up to 60s per image.
+    // Instead of blocking this request, we create a job record and return
+    // immediately. A cron worker picks up pending jobs and handles the
+    // generation + Cloudinary upload asynchronously.
+
+    const provider = process.env.AI_IMAGE_PROVIDER || "mock";
+    const count = (body as { count?: number }).count || 2;
+
     if (variantVisualDirections && variantVisualDirections.length > 0) {
-      // Fetch bar type early — needed for image suffix generation
+      // Fetch bar type for image suffix generation
       const bar = await prisma.bar.findUnique({
         where: { id: barId },
         select: { name: true, type: true },
       });
       const barType = bar?.type || "PUB";
-
       const ct = contentType as "promotion" | "event" | "pass" | "campaign";
 
-      // Validate all variants — use sanitized prompts even if warnings exist.
-      // The compliance framing already injects safety instructions into every prompt.
-      const variantPrompts: Array<{ finalPrompt: string; index: number }> = [];
+      const jobIds: string[] = [];
       const allWarnings: Array<{ variantIndex: number; reasons: string[] }> = [];
+
       for (let i = 0; i < variantVisualDirections.length; i++) {
         const vd = variantVisualDirections[i];
         const ctxStr = vd.formContext ? buildContextFromForm(vd.formContext) : "";
@@ -150,70 +153,39 @@ export async function POST(
         );
 
         if (built.compliance.blockedReasons.length > 0) {
-          allWarnings.push({
-            variantIndex: i,
-            reasons: built.compliance.blockedReasons,
-          });
+          allWarnings.push({ variantIndex: i, reasons: built.compliance.blockedReasons });
         }
         if (built.compliance.warnings.length > 0) {
-          allWarnings.push({
-            variantIndex: i,
-            reasons: built.compliance.warnings,
-          });
+          allWarnings.push({ variantIndex: i, reasons: built.compliance.warnings });
         }
 
         const imageSuffix = generateImageSuffix(barType, i, barId);
         const finalPrompt = `${built.finalPrompt}. ${imageSuffix}.`;
-        variantPrompts.push({ finalPrompt, index: i });
-      }
 
-      // Generate all variant images concurrently
-      const count = body.count || 1;
-      const generationResults = await Promise.all(
-        variantPrompts.map((vp) =>
-          generateImages({ prompt: vp.finalPrompt, count }).then((images) => ({
-            index: vp.index,
-            images,
-          }))
-        )
-      );
-
-      // Log credit usage
-      logUsage({
-        provider: "bfl_flux",
-        endpoint: "image-generation",
-        imageCount: count * variantVisualDirections.length,
-        barId,
-        barName: bar?.name,
-        metadata: { styleId, subjectId, contentType, variantCount: variantVisualDirections.length },
-      }).catch(() => {});
-
-      // Upload each variant's first image to Cloudinary
-      const variantUrls: string[] = [];
-      for (const result of generationResults.sort((a, b) => a.index - b.index)) {
-        const img = result.images[0];
-        if (!img) {
-          variantUrls.push("");
-          continue;
-        }
-        try {
-          const uploaded = await uploadImageFromUrl(img.url, barId);
-          variantUrls.push(uploaded.url);
-        } catch {
-          variantUrls.push(img.url);
-        }
+        const job = await prisma.imageJob.create({
+          data: {
+            barId,
+            prompt: finalPrompt,
+            count,
+            provider,
+            styleId,
+            subjectId,
+            compositionId,
+            contentType: ct,
+          },
+        });
+        jobIds.push(job.id);
       }
 
       return NextResponse.json({
-        success: true,
-        urls: variantUrls,
-        variantUrls,
+        jobIds,
+        status: "pending",
         variantCount: variantVisualDirections.length,
         ...(allWarnings.length > 0 ? { complianceNotes: allWarnings } : {}),
       });
     }
 
-    // ---- SINGLE IMAGE GENERATION (backward compatible) ----
+    // ---- Single image generation ----
     const contextStr = formContext
       ? buildContextFromForm(formContext)
       : "";
@@ -222,43 +194,22 @@ export async function POST(
       contentType as "promotion" | "event" | "pass" | "campaign",
     );
 
-    // Generate images — the sanitized prompt already includes compliance framing
-    const count = body.count || 2;
-    const images = await generateImages({
-      prompt: built.finalPrompt,
-      count,
+    const job = await prisma.imageJob.create({
+      data: {
+        barId,
+        prompt: built.finalPrompt,
+        count,
+        provider,
+        styleId,
+        subjectId,
+        compositionId,
+        contentType: contentType as string,
+      },
     });
-
-    // Fetch bar name for credit tracking
-    const bar = await prisma.bar.findUnique({
-      where: { id: barId },
-      select: { name: true },
-    });
-
-    // Log credit usage
-    logUsage({
-      provider: "bfl_flux",
-      endpoint: "image-generation",
-      imageCount: count,
-      barId,
-      barName: bar?.name,
-      metadata: { styleId, subjectId, contentType },
-    }).catch(() => {});
-
-    // Upload to Cloudinary
-    const permanentUrls: string[] = [];
-    for (const img of images) {
-      try {
-        const uploaded = await uploadImageFromUrl(img.url, barId);
-        permanentUrls.push(uploaded.url);
-      } catch {
-        permanentUrls.push(img.url);
-      }
-    }
 
     return NextResponse.json({
-      success: true,
-      urls: permanentUrls,
+      jobIds: [job.id],
+      status: "pending",
       preview: built.preview,
       selections: {
         style: built.selections.style.label,
