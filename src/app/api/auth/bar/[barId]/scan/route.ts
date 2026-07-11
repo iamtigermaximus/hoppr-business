@@ -18,7 +18,7 @@ export async function POST(
     const { barId } = await params;
 
     // Rate limit: 30 scans per minute per bar
-    const rateCheck = checkRateLimit(`scan:${barId}`, RateLimits.SCAN);
+    const rateCheck = await checkRateLimit(`scan:${barId}`, RateLimits.SCAN);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Scan rate limit reached. Retry in ${rateCheck.retryAfter}s.` },

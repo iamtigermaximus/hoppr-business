@@ -98,7 +98,7 @@ export async function POST(
     }
 
     // Rate limit: 10 content creations per minute per bar
-    const rateCheck = checkRateLimit(`create:${barId}`, RateLimits.CREATE);
+    const rateCheck = await checkRateLimit(`create:${barId}`, RateLimits.CREATE);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Content creation rate limit reached. Retry in ${rateCheck.retryAfter}s.` },

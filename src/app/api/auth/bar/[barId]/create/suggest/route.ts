@@ -52,7 +52,7 @@ export async function POST(
     }
 
     // 2. Rate limit: 10 AI calls per minute per bar
-    const rateCheck = checkRateLimit(`ai-suggest:${barId}`, RateLimits.AI);
+    const rateCheck = await checkRateLimit(`ai-suggest:${barId}`, RateLimits.AI);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `AI suggestions rate limit reached. Retry in ${rateCheck.retryAfter}s.` },

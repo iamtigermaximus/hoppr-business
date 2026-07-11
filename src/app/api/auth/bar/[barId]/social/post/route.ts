@@ -37,7 +37,7 @@ export async function POST(
     }
 
     // Rate limit: 10 social posts per minute per bar
-    const rateCheck = checkRateLimit(`social-post:${barId}`, RateLimits.SOCIAL);
+    const rateCheck = await checkRateLimit(`social-post:${barId}`, RateLimits.SOCIAL);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Social posting rate limit reached. Retry in ${rateCheck.retryAfter}s.` },

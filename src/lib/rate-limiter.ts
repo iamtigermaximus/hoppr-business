@@ -1,9 +1,14 @@
 /**
- * Rate limiter — in-memory sliding window.
+ * Rate limiter — Redis-backed with in-memory fallback.
  *
- * Per-instance Map-based implementation. Resets on server restart.
- * For production, consider a Redis-backed limiter that spans instances.
+ * Primary: Upstash Redis (HTTP-based, spans all serverless instances).
+ * Degraded: In-memory Map (per-instance, resets on restart).
+ *
+ * The Redis path uses INCR + EXPIRE for atomic counter operations.
+ * The fallback path uses a sliding-window Map per instance.
  */
+
+import { redis } from "@/lib/redis";
 
 interface RateLimitEntry {
   count: number;
@@ -36,7 +41,7 @@ export interface RateLimitConfig {
   maxRequests: number;
 }
 
-export function checkRateLimit(
+function checkMemory(
   key: string,
   config: RateLimitConfig,
 ): { allowed: true } | { allowed: false; retryAfter: number } {
@@ -61,6 +66,48 @@ export function checkRateLimit(
 
   existing.count++;
   return { allowed: true };
+}
+
+async function checkRedis(
+  key: string,
+  config: RateLimitConfig,
+): Promise<{ allowed: true } | { allowed: false; retryAfter: number }> {
+  if (!redis) throw new Error("Redis not available");
+
+  const redisKey = `rl:${key}`;
+
+  // Atomically increment the counter. Redis creates the key with
+  // value 0 then increments to 1 on first call.
+  const count = await redis.incr(redisKey);
+
+  // Set expiry on first creation only
+  if (count === 1) {
+    await redis.expire(redisKey, config.windowSeconds);
+  }
+
+  if (count > config.maxRequests) {
+    const ttl = await redis.ttl(redisKey);
+    return { allowed: false, retryAfter: ttl > 0 ? ttl : config.windowSeconds };
+  }
+
+  return { allowed: true };
+}
+
+export async function checkRateLimit(
+  key: string,
+  config: RateLimitConfig,
+): Promise<{ allowed: true } | { allowed: false; retryAfter: number }> {
+  // Try Redis first — if configured and reachable, it spans all instances
+  if (redis) {
+    try {
+      return await checkRedis(key, config);
+    } catch (err) {
+      console.warn(`[rate-limiter] Redis unavailable, falling back to in-memory: ${(err as Error)?.message}`);
+    }
+  }
+
+  // Degraded: in-memory per-instance fallback
+  return checkMemory(key, config);
 }
 
 export const RateLimits = {

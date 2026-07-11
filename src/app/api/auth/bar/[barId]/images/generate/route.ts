@@ -63,7 +63,7 @@ export async function POST(
 
     // Rate limits
     if (isProviderReal()) {
-      const perMinute = checkRateLimit(`ai-image:${barId}`, RateLimits.AI_IMAGE_PER_MINUTE);
+      const perMinute = await checkRateLimit(`ai-image:${barId}`, RateLimits.AI_IMAGE_PER_MINUTE);
       if (!perMinute.allowed) {
         return NextResponse.json(
           { error: `Generating too fast. Retry in ${perMinute.retryAfter}s.` },
@@ -71,7 +71,7 @@ export async function POST(
         );
       }
 
-      const perDay = checkRateLimit(`ai-image-daily:${barId}`, RateLimits.AI_IMAGE_PER_DAY);
+      const perDay = await checkRateLimit(`ai-image-daily:${barId}`, RateLimits.AI_IMAGE_PER_DAY);
       if (!perDay.allowed) {
         return NextResponse.json(
           { error: "Daily image generation limit reached (50/day). Try again tomorrow." },

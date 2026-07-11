@@ -48,7 +48,7 @@ export async function POST(
     }
 
     // Rate limit: 20 uploads per minute per bar
-    const rateCheck = checkRateLimit(`upload:${barId}`, RateLimits.UPLOAD);
+    const rateCheck = await checkRateLimit(`upload:${barId}`, RateLimits.UPLOAD);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Upload rate limit reached. Retry in ${rateCheck.retryAfter}s.` },

@@ -165,7 +165,7 @@ export async function POST(
     }
 
     // Rate limit: 10 AI generations per minute per bar
-    const rateCheck = checkRateLimit(`ai-generate:${barId}`, RateLimits.AI);
+    const rateCheck = await checkRateLimit(`ai-generate:${barId}`, RateLimits.AI);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `AI generation rate limit reached. Retry in ${rateCheck.retryAfter}s.` },

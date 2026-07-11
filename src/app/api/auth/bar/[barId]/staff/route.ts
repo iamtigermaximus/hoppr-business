@@ -72,7 +72,7 @@ export async function POST(
     }
 
     // Rate limit: 15 staff operations per minute per bar
-    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    const rateCheck = await checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
@@ -209,7 +209,7 @@ export async function GET(
     }
 
     // Rate limit: 15 staff operations per minute per bar
-    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    const rateCheck = await checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
@@ -315,7 +315,7 @@ export async function PUT(
     }
 
     // Rate limit: 15 staff operations per minute per bar
-    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    const rateCheck = await checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
@@ -409,7 +409,7 @@ export async function DELETE(
     }
 
     // Rate limit: 15 staff operations per minute per bar
-    const rateCheck = checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
+    const rateCheck = await checkRateLimit(`staff:${barId}`, RateLimits.STAFF);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: `Rate limit reached. Retry in ${rateCheck.retryAfter}s.` },
