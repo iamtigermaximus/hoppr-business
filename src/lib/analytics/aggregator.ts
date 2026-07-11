@@ -2,9 +2,7 @@
 // Rolls up raw AnalyticsEvent rows into pre-aggregated BarDailyStats.
 // Called by the cron job at /api/cron/analytics-aggregation.
 
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/database";
 
 interface DailyAggregate {
   barId: string;
