@@ -15,7 +15,6 @@
     {
       "path": "/api/cron/scheduler",
       "schedule": "0 11 * * *"
-    },
-    { "path": "/api/cron/image-jobs", "schedule": "*/30 * * * * *" }
+    }
   ]
 }
