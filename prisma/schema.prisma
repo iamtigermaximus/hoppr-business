@@ -1474,3 +1474,31 @@ model ImageJob {
   @@index([status, createdAt])
   @@map("image_jobs")
 }
+
+// ============================================
+// BAR INCIDENTS — operational error monitoring
+// ============================================
+// Logs errors, warnings, and failures in the content creation pipeline
+// so platform operators can see which bars are having issues and respond
+// proactively. Critical incidents also trigger email alerts.
+
+model BarIncident {
+  id           String   @id @default(cuid())
+  barId        String
+  barName      String?  // denormalized for quick display
+  incidentType String   // AI_GENERATE_FAILED | IMAGE_GENERATE_FAILED | COMPLIANCE_BLOCKED | RATE_LIMITED | PARSE_ERROR | NETWORK_ERROR | TIMEOUT | MISSING_API_KEY | SUBMIT_FAILED | SUGGEST_FAILED
+  severity     String   @default("WARNING") // INFO | WARNING | CRITICAL
+  message      String   // human-readable description
+  detail       String?  // technical detail (error stack, response body snippet)
+  endpoint     String?  // which API route
+  resolved     Boolean  @default(false)
+  resolvedAt   DateTime?
+  resolvedBy   String?  // admin user ID
+  createdAt    DateTime @default(now())
+
+  @@index([barId, createdAt])
+  @@index([severity, resolved, createdAt])
+  @@index([incidentType, createdAt])
+  @@index([createdAt])
+  @@map("bar_incidents")
+}

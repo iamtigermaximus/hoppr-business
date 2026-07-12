@@ -156,3 +156,96 @@ export async function sendCreditAlert(params: {
 
   return data;
 }
+
+/** Internal admin alert — fired when a bar has 3+ content creation errors
+ *  in one hour. Helps operators catch broken bars before they complain. */
+export async function sendIncidentAlert(params: {
+  barId: string;
+  barName: string;
+  incidentCount: number;
+  windowMinutes: number;
+}) {
+  const to = process.env.ADMIN_EMAIL || SUPPORT_EMAIL;
+  const dashboardUrl = `${BASE_URL}/admin/bars/${params.barId}`;
+
+  const { data, error } = await getResend().emails.send({
+    from: FROM,
+    to,
+    subject: `⚠️ ${params.barName} — ${params.incidentCount} content creation errors in ${params.windowMinutes}min`,
+    html: `
+      <div style="max-width:560px;margin:0 auto;font-family:system-ui,sans-serif">
+        <h1 style="color:#7c3aed">Hoppr Admin</h1>
+        <div style="background:#fee2e2;border:1px solid #ef4444;border-radius:8px;padding:16px;margin:16px 0">
+          <h2 style="margin:0 0 8px;color:#991b1b">Content Creation Issues</h2>
+          <p style="margin:0;color:#7f1d1d">
+            <strong>${params.barName}</strong> has had <strong>${params.incidentCount} errors</strong>
+            in the last ${params.windowMinutes} minutes while trying to generate content.
+          </p>
+        </div>
+        <p style="color:#374151;font-size:14px;line-height:1.5">
+          This usually means the AI generation pipeline (DeepSeek or FLUX) is failing for this bar.
+          Possible causes: malformed bar profile data, prompt that triggers compliance filters,
+          API key issues, or an upstream service outage.
+        </p>
+        <a href="${dashboardUrl}" style="display:inline-block;padding:10px 20px;background:#7c3aed;color:white;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">
+          View Bar Dashboard
+        </a>
+        <p style="color:#9ca3af;font-size:12px;margin-top:24px">
+          This is an automated alert from the Hoppr incident monitoring system.
+          You'll receive at most one alert per bar per hour.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error("Failed to send incident alert:", error);
+    // Don't throw — incident alert failure shouldn't cascade
+  }
+
+  return data;
+}
+
+/** Bar-facing email — sent when an admin clicks "Notify Bar" on an incident.
+ *  Reassures the bar that the issue is known and being looked at. */
+export async function notifyBarAboutIncident(params: {
+  to: string;
+  barName: string;
+  issueSummary: string;
+}) {
+  const dashboardUrl = `${BASE_URL}/bar/login`;
+
+  const { data, error } = await getResend().emails.send({
+    from: FROM,
+    to: params.to,
+    subject: `Quick update about your Hoppr content — ${params.barName}`,
+    html: `
+      <div style="max-width:560px;margin:0 auto;font-family:system-ui,sans-serif">
+        <h1 style="color:#7c3aed">Hoppr</h1>
+        <p>Hi from the Hoppr team,</p>
+        <p>We noticed that <strong>${params.barName}</strong> had a small hiccup while generating content:</p>
+        <div style="background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0">
+          <p style="margin:0;color:#374151;font-size:14px">${params.issueSummary}</p>
+        </div>
+        <p style="color:#374151;font-size:14px;line-height:1.5">
+          ${params.issueSummary.includes("back") || params.issueSummary.includes("resolved")
+            ? "The issue has been resolved. You should be able to generate content normally now — give it another try when you have a moment."
+            : "We're looking into it and will follow up if needed. In the meantime, you can still use the template-based options to create promotions — they'll appear the same way to your customers."}
+        </p>
+        <a href="${dashboardUrl}" style="display:inline-block;padding:10px 20px;background:#7c3aed;color:white;border-radius:8px;text-decoration:none;font-weight:600;margin-top:8px">
+          Open Dashboard
+        </a>
+        <p style="color:#9ca3af;font-size:12px;margin-top:24px">
+          This is a one-time update from the Hoppr team. Reply directly to this email if you have questions.
+        </p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error("Failed to send bar notification:", error);
+    throw new Error("Failed to send bar notification");
+  }
+
+  return data;
+}

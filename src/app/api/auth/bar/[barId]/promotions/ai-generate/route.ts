@@ -11,6 +11,7 @@ import { inferImageChips } from "@/lib/prompts/infer-image-chips";
 import { logUsage } from "@/lib/credit-tracker";
 import { extractJsonObjects } from "@/lib/json-extractor";
 import { handleApiError } from "@/lib/api-error";
+import { logIncident } from "@/lib/incident-logger";
 import {
   getFallbackPromotion,
   type PromotionType,
@@ -310,6 +311,13 @@ export async function POST(
       if (preCheckInput.trim()) {
         const preCheck = checkPromptCompliance(preCheckInput, "bar or nightlife promotion");
         if (!preCheck.passed) {
+          logIncident({
+            barId, barName: bar.name,
+            type: "COMPLIANCE_BLOCKED",
+            severity: "INFO",
+            message: `Compliance pre-check blocked prompt: ${preCheck.blockedPatterns?.join(", ") || "unknown pattern"}`,
+            endpoint: "ai-generate",
+          }).catch(() => {});
           return NextResponse.json(
             {
               error: "Prompt blocked by compliance check. Please remove prohibited content.",
@@ -455,6 +463,14 @@ export async function POST(
             }
           } catch (parseErr) {
             console.error("[ai-generate] Parse error:", parseErr);
+            logIncident({
+              barId, barName: bar.name,
+              type: "PARSE_ERROR",
+              severity: "WARNING",
+              message: "DeepSeek response could not be parsed as JSON",
+              detail: (parseErr as Error).message?.slice(0, 500),
+              endpoint: "ai-generate",
+            }).catch(() => {});
             warning = "AI response could not be processed. Using template-based generation instead.";
           }
         } else {
@@ -462,15 +478,38 @@ export async function POST(
           console.error(`[ai-generate] DeepSeek API error — status ${response.status}: ${errorText.slice(0, 500)}`);
           console.error(`[ai-generate] System prompt length: ${systemPrompt.length} chars (~${Math.round(systemPrompt.length / 4)} tokens)`);
           console.error(`[ai-generate] User prompt length: ${userPrompt.length} chars (~${Math.round(userPrompt.length / 4)} tokens)`);
+          logIncident({
+            barId, barName: bar.name,
+            type: "AI_GENERATE_FAILED",
+            severity: response.status >= 500 ? "CRITICAL" : "WARNING",
+            message: `DeepSeek API returned status ${response.status}`,
+            detail: errorText.slice(0, 500),
+            endpoint: "ai-generate",
+          }).catch(() => {});
           warning = `AI service returned error ${response.status}. Using template-based generation instead.`;
         }
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
+        const isTimeout = err instanceof Error && err.name === "TimeoutError";
         console.error(`[ai-generate] DeepSeek fetch/network error: ${errMsg}`);
-        console.error(`[ai-generate] System prompt length: ${systemPrompt.length} chars`, err instanceof Error && err.name === "TimeoutError" ? "(timeout)" : "");
+        console.error(`[ai-generate] System prompt length: ${systemPrompt.length} chars`, isTimeout ? "(timeout)" : "");
+        logIncident({
+          barId, barName: bar.name,
+          type: isTimeout ? "TIMEOUT" : "NETWORK_ERROR",
+          severity: "CRITICAL",
+          message: isTimeout ? "DeepSeek request timed out after 30s" : `DeepSeek network error: ${errMsg.slice(0, 200)}`,
+          endpoint: "ai-generate",
+        }).catch(() => {});
         warning = `AI service unavailable (${errMsg.slice(0, 100)}). Using template-based generation instead.`;
       }
     } else {
+      logIncident({
+        barId, barName: bar.name,
+        type: "MISSING_API_KEY",
+        severity: "CRITICAL",
+        message: "DEEPSEEK_API_KEY is not configured — all bars receive template fallbacks",
+        endpoint: "ai-generate",
+      }).catch(() => {});
       warning = "AI service is not configured. Promotions are generated from templates. Set DEEPSEEK_API_KEY to enable AI generation.";
     }
 

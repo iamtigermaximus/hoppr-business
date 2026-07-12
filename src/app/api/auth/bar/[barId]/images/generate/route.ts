@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, isAdminToken, isBarStaffToken } from "@/lib/auth";
 import { handleApiError } from "@/lib/api-error";
+import { logIncident } from "@/lib/incident-logger";
 import { prisma } from "@/lib/database";
 import { isProviderConfigured, isProviderReal } from "@/lib/image-generator";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
@@ -21,8 +22,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ barId: string }> },
 ) {
+  const { barId } = await params;
   try {
-    const { barId } = await params;
 
     // Auth — inline JWT, zero DB queries (same pattern as ai-generate/suggest)
     const authHeader = request.headers.get("Authorization");
@@ -57,6 +58,13 @@ export async function POST(
 
     // Provider check
     if (!isProviderConfigured()) {
+      logIncident({
+        barId,
+        type: "IMAGE_GENERATE_FAILED",
+        severity: "CRITICAL",
+        message: "AI image provider is not configured — all bars receive no images",
+        endpoint: "images/generate",
+      }).catch(() => {});
       return NextResponse.json(
         {
           error: "AI image generation is not configured",
@@ -219,6 +227,15 @@ export async function POST(
       warnings: built.compliance.warnings,
     });
   } catch (error) {
+    // Extract barId for incident logging (available in outer scope from params)
+    const errMsg = error instanceof Error ? error.message : String(error);
+    logIncident({
+      barId,
+      type: "IMAGE_GENERATE_FAILED",
+      severity: "WARNING",
+      message: `Image generation threw unhandled error: ${errMsg.slice(0, 300)}`,
+      endpoint: "images/generate",
+    }).catch(() => {});
     return handleApiError(error, "Image generation error:");
   }
 }
