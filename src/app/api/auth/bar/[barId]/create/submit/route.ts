@@ -381,7 +381,7 @@ export async function POST(
           startDate: new Date(body.startDate!),
           endDate: new Date(body.endDate!),
           validDays,
-          imageUrl: body.cardImageUrl || body.imageUrl || null,
+          imageUrl: body.imageUrl || null,
           isActive: !isScheduled,
           isApproved: isAutoApproved,
           scheduledPublishAt,
