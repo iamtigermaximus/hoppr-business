@@ -55,19 +55,44 @@ export async function processQueue(): Promise<QueueProcessResult> {
 
   for (const item of due) {
     try {
-      // If it's tied to a promo, verify the promo is still active
+      // Activate scheduled content — flip isActive:true when publish time arrives
       if (item.promoId) {
         const promo = await prisma.barPromotion.findUnique({
           where: { id: item.promoId },
-          select: { isActive: true, endDate: true },
+          select: { isActive: true, endDate: true, scheduledPublishAt: true },
         });
 
-        if (!promo || !promo.isActive || promo.endDate < now) {
+        if (!promo || promo.endDate < now) {
           await prisma.scheduledNotification.update({
             where: { id: item.id },
             data: { status: "CANCELLED" },
           });
           continue;
+        }
+
+        // Activate the promo if it was scheduled
+        if (!promo.isActive && promo.scheduledPublishAt && promo.scheduledPublishAt <= now) {
+          await prisma.barPromotion.update({
+            where: { id: item.promoId },
+            data: { isActive: true },
+          });
+          console.log(`[Scheduler] Activated scheduled promotion: ${item.promoId}`);
+        }
+      }
+
+      if (item.eventId) {
+        // Activate the event if it was scheduled
+        const event = await prisma.event.findUnique({
+          where: { id: item.eventId },
+          select: { isActive: true, scheduledPublishAt: true },
+        });
+
+        if (event && !event.isActive && event.scheduledPublishAt && event.scheduledPublishAt <= now) {
+          await prisma.event.update({
+            where: { id: item.eventId },
+            data: { isActive: true },
+          });
+          console.log(`[Scheduler] Activated scheduled event: ${item.eventId}`);
         }
       }
 

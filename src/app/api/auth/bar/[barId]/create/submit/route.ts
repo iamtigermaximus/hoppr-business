@@ -54,6 +54,15 @@ interface SubmitBody {
   boostMultiplier?: number;
   boostStartDate?: string;
   boostEndDate?: string;
+  // Schedule fields
+  notifyFollowers?: boolean;
+  notifyTiming?: "now" | "optimal" | "custom";
+  notifyCustomTime?: string;
+  remindBeforeEvent?: boolean;
+  remindMinutesBefore?: number;
+  scheduledPublishAt?: string;
+  // Card image (pre-captured composed social card, uploaded to Cloudinary client-side)
+  cardImageUrl?: string;
 }
 
 // ---- Route ----
@@ -243,6 +252,14 @@ export async function POST(
     const resolvedComplianceStatus =
       compliance.status === "FLAGGED_AUTO" ? "FLAGGED_AUTO" : "COMPLIANT";
 
+    // 5a. Determine if content should be published now or scheduled
+    const scheduledPublishAt = body.scheduledPublishAt
+      ? new Date(body.scheduledPublishAt)
+      : null;
+    const isScheduled =
+      scheduledPublishAt !== null &&
+      scheduledPublishAt.getTime() > Date.now();
+
     // 7. Create record and compliance check based on content type
     let record: Record<string, unknown> | null = null;
 
@@ -273,6 +290,8 @@ export async function POST(
           endTime: body.endTime ? new Date(body.endTime) : null,
           maxAttendees: body.maxAttendees || null,
           isPrivate: body.isPrivate || false,
+          isActive: !isScheduled,
+          scheduledPublishAt,
           imageUrl: body.imageUrl || null,
           creatorId: creatorUserId,
           complianceStatus: finalStatus,
@@ -362,9 +381,10 @@ export async function POST(
           startDate: new Date(body.startDate!),
           endDate: new Date(body.endDate!),
           validDays,
-          imageUrl: body.imageUrl || null,
-          isActive: true,
+          imageUrl: body.cardImageUrl || body.imageUrl || null,
+          isActive: !isScheduled,
           isApproved: isAutoApproved,
+          scheduledPublishAt,
           complianceStatus: resolvedComplianceStatus,
           priority: 1,
           views: 0,
@@ -454,8 +474,9 @@ export async function POST(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           redemptionMode: (body.redemptionMode as any) || "SINGLE_USE",
           maxRedemptions: body.maxRedemptions || null,
-          isActive: isAutoApproved,
+          isActive: isScheduled ? false : isAutoApproved,
           isApproved: isAutoApproved,
+          scheduledPublishAt,
           complianceStatus: resolvedComplianceStatus,
           soldCount: 0,
         },
@@ -527,17 +548,143 @@ export async function POST(
       };
     }
 
-    // 8. Fire push notification trigger (fire-and-forget — don't block response)
+    // 8. Handle notification scheduling based on user preferences
     if (record?.id) {
       const recordId = record.id as string;
-      if (body.contentType === "promotion") {
-        triggers.onPromoCreated(barId, recordId).catch((err) =>
-          console.error("[Push] onPromoCreated trigger failed:", err),
+      const notifyFollowers = body.notifyFollowers !== false; // default true
+
+      if (!notifyFollowers) {
+        console.log(`[Push] Skipping notification per user choice for ${body.contentType}:${recordId}`);
+      } else if (isScheduled) {
+        // Content is scheduled for later — tie notification to publish time.
+        // The queue processor will activate the content AND send the notification.
+        const contentTypeEnum =
+          body.contentType === "promotion"
+            ? "PROMO_NEW"
+            : body.contentType === "event"
+              ? "EVENT_REMINDER"
+              : "BAR_NEW_CONTENT";
+
+        await prisma.scheduledNotification.create({
+          data: {
+            barId,
+            promoId: body.contentType === "promotion" ? recordId : null,
+            eventId: body.contentType === "event" ? recordId : null,
+            title: `${body.title.trim()} at ${bar.name}`,
+            body: (body.description || `Check out what's new at ${bar.name}!`).slice(0, 120),
+            imageUrl: body.imageUrl || null,
+            deepLink:
+              body.contentType === "promotion"
+                ? `/promotions/${recordId}`
+                : body.contentType === "event"
+                  ? `/events/${recordId}`
+                  : `/bars/${barId}`,
+            type: contentTypeEnum as import("@prisma/client").NotificationType,
+            scheduledAt: scheduledPublishAt!,
+          },
+        });
+
+        console.log(
+          `[Push] Scheduled notification tied to publish time for ${body.contentType}:${recordId} at ${scheduledPublishAt!.toISOString()}`,
         );
-      } else if (body.contentType === "event") {
-        triggers.onEventCreated(barId, recordId).catch((err) =>
-          console.error("[Push] onEventCreated trigger failed:", err),
+      } else if (body.notifyTiming === "now" || body.notifyTiming === "optimal" || !body.notifyTiming) {
+        // Content publishes now — use existing triggers (which also handle auto-scheduling)
+        if (body.contentType === "promotion") {
+          triggers.onPromoCreated(barId, recordId).catch((err) =>
+            console.error("[Push] onPromoCreated trigger failed:", err),
+          );
+        } else if (body.contentType === "event") {
+          triggers.onEventCreated(barId, recordId).catch((err) =>
+            console.error("[Push] onEventCreated trigger failed:", err),
+          );
+        }
+      } else if (body.notifyTiming === "custom" && body.notifyCustomTime) {
+        // Content publishes now, but user wants notification at a custom later time
+        const customTime = new Date(body.notifyCustomTime);
+        if (customTime.getTime() > Date.now()) {
+          const contentTypeEnum =
+            body.contentType === "promotion"
+              ? "PROMO_NEW"
+              : body.contentType === "event"
+                ? "EVENT_REMINDER"
+                : "BAR_NEW_CONTENT";
+
+          await prisma.scheduledNotification.create({
+            data: {
+              barId,
+              promoId: body.contentType === "promotion" ? recordId : null,
+              eventId: body.contentType === "event" ? recordId : null,
+              title: `${body.title.trim()} at ${bar.name}`,
+              body: (body.description || `Check out what's new at ${bar.name}!`).slice(0, 120),
+              imageUrl: body.imageUrl || null,
+              deepLink:
+                body.contentType === "promotion"
+                  ? `/promotions/${recordId}`
+                  : body.contentType === "event"
+                    ? `/events/${recordId}`
+                    : `/bars/${barId}`,
+              type: contentTypeEnum as import("@prisma/client").NotificationType,
+              scheduledAt: customTime,
+            },
+          });
+
+          console.log(
+            `[Push] Scheduled custom notification for ${body.contentType}:${recordId} at ${customTime.toISOString()}`,
+          );
+        } else {
+          // Custom time is in the past — send immediately as fallback
+          if (body.contentType === "promotion") {
+            triggers.onPromoCreated(barId, recordId).catch((err) =>
+              console.error("[Push] onPromoCreated trigger failed:", err),
+            );
+          } else if (body.contentType === "event") {
+            triggers.onEventCreated(barId, recordId).catch((err) =>
+              console.error("[Push] onEventCreated trigger failed:", err),
+            );
+          }
+        }
+      }
+
+      // Handle event reminder scheduling (separate from publish notification)
+      if (
+        body.contentType === "event" &&
+        body.remindBeforeEvent &&
+        body.remindMinutesBefore &&
+        body.startTime
+      ) {
+        const eventStart = new Date(body.startTime);
+        const remindAt = new Date(
+          eventStart.getTime() - body.remindMinutesBefore * 60 * 1000,
         );
+
+        // Only schedule if the reminder time is in the future
+        if (remindAt.getTime() > Date.now()) {
+          const eventTitle = body.title.trim();
+          const eventDate = eventStart.toLocaleDateString("fi-FI", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          await prisma.scheduledNotification.create({
+            data: {
+              barId,
+              eventId: recordId,
+              title: `⏰ ${eventTitle} — starting in ${body.remindMinutesBefore} min`,
+              body: `At ${bar.name}. ${eventDate}. You RSVP'd!`,
+              imageUrl: body.imageUrl || null,
+              deepLink: `/events/${recordId}`,
+              type: "EVENT_REMINDER" as import("@prisma/client").NotificationType,
+              scheduledAt: remindAt,
+            },
+          });
+
+          console.log(
+            `[Push] Scheduled event reminder for ${recordId} at ${remindAt.toISOString()}`,
+          );
+        }
       }
     }
 
@@ -550,6 +697,20 @@ export async function POST(
         status: compliance.status,
         violations: compliance.violations,
         summary: complianceSummary(compliance),
+      },
+      schedule: {
+        publishedNow: !isScheduled,
+        ...(isScheduled && scheduledPublishAt
+          ? { scheduledPublishAt: scheduledPublishAt.toISOString() }
+          : {}),
+        notified: body.notifyFollowers !== false,
+        timing: body.notifyTiming || "now",
+        ...(body.notifyTiming === "custom" && body.notifyCustomTime
+          ? { notifyAt: body.notifyCustomTime }
+          : {}),
+        ...(body.contentType === "event" && body.remindBeforeEvent
+          ? { eventReminder: `${body.remindMinutesBefore || 120} min before` }
+          : {}),
       },
     });
   } catch (error) {

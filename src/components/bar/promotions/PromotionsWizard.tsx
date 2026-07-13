@@ -671,6 +671,15 @@ const PromotionsGrid = styled.div`
   }
 `;
 
+const CardThumbnail = styled.div`
+  width: 100%;
+  height: 160px;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+  background: #f3f4f6;
+`;
+
 const PromotionCard = styled.div<{ $status: string }>`
   background: white;
   padding: 1.25rem;
@@ -902,6 +911,8 @@ interface ExistingPromotion {
   views: number;
   clicks: number;
   redemptions: number;
+  imageUrl?: string | null;
+  accentColor?: string | null;
 }
 
 interface PromotionsWizardProps {
@@ -1542,6 +1553,15 @@ const PromotionsWizard = ({
               const status = getPromotionStatus(promo);
               return (
                 <PromotionCard key={promo.id} $status={status}>
+                  {promo.imageUrl && (
+                    <CardThumbnail>
+                      <img
+                        src={promo.imageUrl}
+                        alt={promo.title}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    </CardThumbnail>
+                  )}
                   <CardHeader>
                     <PromotionTitle>{promo.title}</PromotionTitle>
                     <StatusBadge $status={status}>
@@ -1556,9 +1576,7 @@ const PromotionsWizard = ({
                   </CardHeader>
 
                   <PromotionDescription>
-                    {promo.description.length > 100
-                      ? `${promo.description.substring(0, 100)}...`
-                      : promo.description}
+                    {promo.description}
                   </PromotionDescription>
 
                   <PromotionMeta>
@@ -1574,6 +1592,15 @@ const PromotionsWizard = ({
                   )}
 
                   <ActionButtons>
+                    {promo.imageUrl && (
+                      <Button
+                        $variant="secondary"
+                        style={{ flex: 1 }}
+                        onClick={() => window.open(promo.imageUrl!, "_blank")}
+                      >
+                        📥 Download card
+                      </Button>
+                    )}
                     {status === "pending" && canApprove && (
                       <Button
                         $variant="secondary"

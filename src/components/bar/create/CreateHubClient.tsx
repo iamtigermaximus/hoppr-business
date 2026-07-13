@@ -495,6 +495,19 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   }, []);
   const [ogImageDataUrl, setOgImageDataUrl] = useState<string | null>(null);
 
+  // Pre-submit card capture: renders PromotionImagePreview offscreen, waits for
+  // html2canvas to capture, then uploads to Cloudinary BEFORE the submit API call.
+  // This ensures the composed social card URL is stored atomically during creation.
+  const [capturingCard, setCapturingCard] = useState(false);
+  const cardCaptureResolver = useRef<((dataUrl: string) => void) | null>(null);
+
+  const handleCardCaptured = useCallback((dataUrl: string) => {
+    if (cardCaptureResolver.current) {
+      cardCaptureResolver.current(dataUrl);
+      cardCaptureResolver.current = null;
+    }
+  }, []);
+
   // Preserve type-specific state when switching tabs
   const perTypeState = useRef<Map<ContentType, Partial<FormState>>>(new Map());
 
@@ -838,6 +851,57 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         body.boostEndDate = formState.boostEndDate || formState.endDate || formState.endTime;
       }
 
+      // Schedule fields
+      body.notifyFollowers = formState.notifyFollowers;
+      body.notifyTiming = formState.notifyTiming;
+      if (formState.notifyTiming === "custom" && formState.notifyCustomTime) {
+        body.notifyCustomTime = formState.notifyCustomTime;
+      }
+      if (contentType === "event") {
+        body.remindBeforeEvent = formState.remindBeforeEvent;
+        body.remindMinutesBefore = formState.remindMinutesBefore;
+      }
+      if (formState.scheduledPublishAt) {
+        body.scheduledPublishAt = formState.scheduledPublishAt;
+      }
+
+      // ── Pre-submit card capture ──
+      // Capture the composed social card via html2canvas BEFORE the API call
+      // so the card URL can be stored atomically during creation.
+      if ((contentType === "promotion" || contentType === "event") && savedAiVisual.current) {
+        try {
+          const dataUrl = await new Promise<string>((resolve) => {
+            cardCaptureResolver.current = resolve;
+            setCapturingCard(true);
+          });
+
+          // Upload the captured card to Cloudinary
+          const blobRes = await fetch(dataUrl);
+          const blob = await blobRes.blob();
+          const fd = new FormData();
+          fd.append("file", blob, `social-card-${Date.now()}.png`);
+          const uploadRes = await fetch(
+            `/api/auth/bar/${barId}/upload`,
+            { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: fd },
+          );
+
+          if (uploadRes.ok) {
+            const { url: cardUrl } = await uploadRes.json();
+            if (cardUrl) {
+              body.cardImageUrl = cardUrl;
+            }
+          }
+
+          setCapturingCard(false);
+          // Store the data URL for the success share UI (avoids a second capture)
+          setOgImageDataUrl(dataUrl);
+        } catch (err) {
+          console.warn("[CardCapture] Pre-submit capture failed:", err);
+          setCapturingCard(false);
+          // Continue with submission — the promotion still works, just without the card image
+        }
+      }
+
       const res = await fetch(
         `/api/auth/bar/${barId}/create/submit`,
         {
@@ -1072,58 +1136,6 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
             </ShareHero>
           )}
 
-          {/* Hidden OG image capturer — generates the social media image matching the chosen variant */}
-          {(createdItem.type === "event" || createdItem.type === "promotion") && savedAiVisual.current && (() => {
-            const template = (savedAiVisual.current.template as "split" | "centered" | "card") || (createdItem.type === "event" ? "centered" : "card");
-            // Match format to template's native aspect ratio:
-            // - card:     1080×1080 square → Instagram feed (1:1), Facebook feed
-            // - split:    1200×630  wide → Instagram feed (1.91:1), Facebook link share
-            // - centered: 1200×630  wide → Instagram feed (1.91:1), Facebook link share
-            const format = template === "card" ? "square" : "wide";
-
-            return (
-            <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
-              <PromotionImagePreview
-                input={{
-                  barName: barName || "Your Bar",
-                  barType: "PUB",
-                  promotionTitle: createdItem.title,
-                  promotionDescription: formState.description || "Special offer — come check it out.",
-                  promotionType: (formState.promotionType || (createdItem.type === "event" ? "LIVE_MUSIC_EVENT" : "DRINK_SPECIAL")) as PromotionImageInput["promotionType"],
-                  callToAction: buildSocialCta(
-                    createdItem.type as "event" | "promotion",
-                    formState.promotionType,
-                    formState.discountValue,
-                    formState.conditions,
-                    formState.startTime,
-                  ),
-                  accentColor: (savedAiVisual.current.accentColor as string) || "#8b5cf6",
-                  discount: formState.discountValue ?? null,
-                  conditions: buildSocialConditions(
-                    createdItem.type,
-                    formState.discountValue,
-                    formState.startDate,
-                    formState.endDate,
-                    formState.startTime,
-                    formState.endTime,
-                    formState.conditions,
-                  ) || "Helsinki",
-                  photoUrl: formState.imageUrl || null,
-                  venueLocation: "Helsinki",
-                  visual: {
-                    template,
-                    mood: (savedAiVisual.current.mood as "warm" | "cool" | "vibrant" | "dark" | "minimal") || "dark",
-                    overlayOpacity: (savedAiVisual.current.overlayOpacity as number) || 0.4,
-                  },
-                }}
-                format={format}
-                captureMode
-                onCapture={(dataUrl) => setOgImageDataUrl(dataUrl)}
-              />
-            </div>
-            );
-          })()}
-
         </div>
       ) : (
         /* ---- Creation Form ---- */
@@ -1177,6 +1189,54 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                 />
               </PreviewPanel>
             </HubLayout>
+
+            {/* Pre-submit card capture — renders offscreen, captures via html2canvas,
+                uploads to Cloudinary, and includes the URL in the submit body. */}
+            {capturingCard && savedAiVisual.current && (() => {
+              const template = (savedAiVisual.current.template as "split" | "centered" | "card") || (contentType === "event" ? "centered" : "card");
+              const format = template === "card" ? "square" : "wide";
+              return (
+                <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+                  <PromotionImagePreview
+                    input={{
+                      barName: barName || "Your Bar",
+                      barType: "PUB",
+                      promotionTitle: formState.title,
+                      promotionDescription: formState.description || "Special offer — come check it out.",
+                      promotionType: (formState.promotionType || (contentType === "event" ? "LIVE_MUSIC_EVENT" : "DRINK_SPECIAL")) as PromotionImageInput["promotionType"],
+                      callToAction: buildSocialCta(
+                        contentType as "event" | "promotion",
+                        formState.promotionType,
+                        formState.discountValue,
+                        formState.conditions,
+                        formState.startTime,
+                      ),
+                      accentColor: (savedAiVisual.current.accentColor as string) || "#8b5cf6",
+                      discount: formState.discountValue ?? null,
+                      conditions: buildSocialConditions(
+                        contentType,
+                        formState.discountValue,
+                        formState.startDate,
+                        formState.endDate,
+                        formState.startTime,
+                        formState.endTime,
+                        formState.conditions,
+                      ) || "Helsinki",
+                      photoUrl: formState.imageUrl || null,
+                      venueLocation: "Helsinki",
+                      visual: {
+                        template,
+                        mood: (savedAiVisual.current.mood as "warm" | "cool" | "vibrant" | "dark" | "minimal") || "dark",
+                        overlayOpacity: (savedAiVisual.current.overlayOpacity as number) || 0.4,
+                      },
+                    }}
+                    format={format}
+                    captureMode
+                    onCapture={handleCardCaptured}
+                  />
+                </div>
+              );
+            })()}
         </>
       )}
 

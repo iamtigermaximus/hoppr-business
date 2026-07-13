@@ -72,6 +72,13 @@ export interface FormState {
   campaignEndDate: string;
   promotedItemId: string;
   targetUrl: string;
+  // Schedule fields
+  notifyFollowers: boolean;
+  notifyTiming: "now" | "optimal" | "custom";
+  notifyCustomTime: string;
+  remindBeforeEvent: boolean;
+  remindMinutesBefore: number;
+  scheduledPublishAt: string;
 }
 
 export const EMPTY_FORM: FormState = {
@@ -119,6 +126,12 @@ export const EMPTY_FORM: FormState = {
   campaignEndDate: "",
   promotedItemId: "",
   targetUrl: "",
+  notifyFollowers: true,
+  notifyTiming: "now",
+  notifyCustomTime: "",
+  remindBeforeEvent: false,
+  remindMinutesBefore: 120,
+  scheduledPublishAt: "",
 };
 
 /** Which content types support boost (creates a linked AdCampaign as side effect) */

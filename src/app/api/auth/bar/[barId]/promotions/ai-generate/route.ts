@@ -391,7 +391,7 @@ export async function POST(
               { role: "user", content: userPrompt },
             ],
             temperature: 0.95,
-            max_tokens: variants > 1 ? 2000 : 800,
+            max_tokens: variants > 1 ? 3000 : 1500,
           }),
           signal: AbortSignal.timeout(30_000),
         });

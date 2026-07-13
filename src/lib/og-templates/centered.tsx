@@ -13,6 +13,11 @@ export function CenteredTemplate(props: TemplateProps) {
   const titleFont = getTitleFontConfig(titleFontStyle as TitleFontStyle | null | undefined);
   const titleFontSize = promotionTitle.length > 50 ? 46 : promotionTitle.length > 35 ? 56 : 64;
 
+  // Dynamically reduce description font size for long text so it fits without clipping
+  const descLen = promotionDescription.length;
+  const descFontSize = descLen > 350 ? 16 : descLen > 250 ? 18 : descLen > 150 ? 19 : 22;
+  const descLineClamp = descLen > 350 ? 5 : descLen > 250 ? 4 : 3;
+
   return (
     <div style={{
       ...styles.wrapper,
@@ -51,8 +56,12 @@ export function CenteredTemplate(props: TemplateProps) {
         {/* Divider */}
         <div style={{ ...styles.divider, background: accentColor }} />
 
-        {/* Description — line-clamped */}
-        <div style={styles.description}>{promotionDescription}</div>
+        {/* Description — line-clamped, dynamic sizing */}
+        <div style={{
+          ...styles.description,
+          fontSize: descFontSize,
+          WebkitLineClamp: descLineClamp,
+        }}>{promotionDescription}</div>
 
         {/* Conditions / dates / details — line-clamped */}
         {conditions && (
@@ -114,7 +123,7 @@ const styles: Record<string, React.CSSProperties> = {
     maxWidth: 900,
     marginBottom: 28,
     display: "-webkit-box",
-    WebkitLineClamp: 2,
+    WebkitLineClamp: 3,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
   } as React.CSSProperties,

@@ -13,6 +13,11 @@ export function SplitTemplate(props: TemplateProps) {
   // Dynamically reduce title font size for very long titles
   const titleFontSize = promotionTitle.length > 50 ? 40 : promotionTitle.length > 35 ? 46 : 50;
 
+  // Dynamically reduce description font size for long text so it fits without clipping
+  const descLen = promotionDescription.length;
+  const descFontSize = descLen > 350 ? 16 : descLen > 250 ? 18 : descLen > 150 ? 19 : 21;
+  const descLineClamp = descLen > 350 ? 5 : descLen > 250 ? 4 : 3;
+
   return (
     <div style={styles.wrapper}>
       {/* Left: photo or gradient fallback */}
@@ -61,8 +66,12 @@ export function SplitTemplate(props: TemplateProps) {
         {/* Accent line */}
         <div style={{ ...styles.accentLine, background: accentColor }} />
 
-        {/* Description — line-clamped */}
-        <div style={styles.description}>{promotionDescription}</div>
+        {/* Description — line-clamped, dynamic sizing */}
+        <div style={{
+          ...styles.description,
+          fontSize: descFontSize,
+          WebkitLineClamp: descLineClamp,
+        }}>{promotionDescription}</div>
 
         {/* Conditions / dates / details — line-clamped */}
         {conditions && (
@@ -151,7 +160,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 24,
     maxWidth: 560,
     display: "-webkit-box",
-    WebkitLineClamp: 2,
+    WebkitLineClamp: 3,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
   } as React.CSSProperties,

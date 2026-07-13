@@ -7,6 +7,7 @@ import { PROMOTION_TYPES } from "./types";
 import type { ContentTone } from "./ToneSelector";
 import { TONE_OPTIONS } from "./ToneSelector";
 import ImageUploader from "./shared/ImageUploader";
+import ScheduleStep from "./ScheduleStep";
 import { deriveImageChips } from "@/lib/prompts/tone-to-image-chips";
 import { TEMPLATE_CHARACTERISTICS } from "@/lib/compliance/prompts";
 import {
@@ -18,7 +19,7 @@ import {
 // ---- Types ----
 
 type Language = "fi" | "en";
-type FlowStep = "type" | "brief" | "refine" | "images" | "publish";
+type FlowStep = "type" | "brief" | "refine" | "images" | "schedule" | "publish";
 
 interface UnifiedCreationFlowProps {
   barId: string;
@@ -210,11 +211,12 @@ const STEP_LABELS: Record<FlowStep, string> = {
   brief: "Describe what's happening",
   refine: "Review & edit",
   images: "Choose your image",
+  schedule: "Set your schedule",
   publish: "Review & publish",
 };
 
 function stepNumber(step: FlowStep): number {
-  return ["type", "brief", "refine", "images", "publish"].indexOf(step) + 1;
+  return ["type", "brief", "refine", "images", "schedule", "publish"].indexOf(step) + 1;
 }
 
 // ---- Progress display labels (short, for the progress bar) ----
@@ -224,6 +226,7 @@ const PROGRESS_LABELS: Record<FlowStep, string> = {
   brief: "Brief",
   refine: "Refine",
   images: "Image",
+  schedule: "Schedule",
   publish: "Publish",
 };
 
@@ -1069,7 +1072,7 @@ export default function UnifiedCreationFlow({
         },
       });
 
-      setStep("publish");
+      setStep("schedule");
     },
     [variants, variantLayouts, variantImages, inferredType, onGenerated],
   );
@@ -1169,7 +1172,8 @@ export default function UnifiedCreationFlow({
     if (step === "brief") setStep("type");
     else if (step === "refine") setStep("brief");
     else if (step === "images") setStep("refine");
-    else if (step === "publish") setStep("images");
+    else if (step === "schedule") setStep("images");
+    else if (step === "publish") setStep("schedule");
   };
 
   // ---- Render helpers ----
@@ -1182,7 +1186,7 @@ export default function UnifiedCreationFlow({
     <Container>
       {/* ---- Progress bar ---- */}
       <ProgressBar>
-        {(["type", "brief", "refine", "images", "publish"] as FlowStep[]).map(
+        {(["type", "brief", "refine", "images", "schedule", "publish"] as FlowStep[]).map(
           (s, i) => {
             const isActive = s === step;
             const isDone = stepNumber(step) > stepNumber(s);
@@ -1203,7 +1207,7 @@ export default function UnifiedCreationFlow({
                     {PROGRESS_LABELS[s]}
                   </ProgressLabel>
                 </ProgressStep>
-                {i < 4 && <ProgressLine $done={isDone} />}
+                {i < 5 && <ProgressLine $done={isDone} />}
               </React.Fragment>
             );
           },
@@ -1909,11 +1913,7 @@ export default function UnifiedCreationFlow({
 
                   {/* Variant text summary */}
                   <ImageCardTitle>{v.title}</ImageCardTitle>
-                  <ImageCardDesc>
-                    {v.description.length > 100
-                      ? v.description.slice(0, 97) + "…"
-                      : v.description}
-                  </ImageCardDesc>
+                  <ImageCardDesc>{v.description}</ImageCardDesc>
 
                   {/* Layout selector */}
                   <LayoutLabel>
@@ -2017,7 +2017,20 @@ export default function UnifiedCreationFlow({
           </div>
         )}
 
-        {/* ===== STEP 5: PUBLISH ===== */}
+        {/* ===== STEP 5: SCHEDULE ===== */}
+        {step === "schedule" && (
+          <ScheduleStep
+            contentType={contentType}
+            formState={formState}
+            barId={barId}
+            barName={barName}
+            onFieldChange={onFieldChange}
+            onBack={goBack}
+            onContinue={() => setStep("publish")}
+          />
+        )}
+
+        {/* ===== STEP 6: PUBLISH ===== */}
         {step === "publish" && (
           <ReviewSection>
             <FieldGroup>
@@ -2224,9 +2237,100 @@ export default function UnifiedCreationFlow({
               </FieldRow>
             )}
 
+            {/* ---- Schedule Summary ---- */}
+            <ScheduleSummaryBox>
+              <SummaryTitle>
+                {language === "fi" ? "Julkaisuaikataulu" : "Publishing schedule"}
+              </SummaryTitle>
+              <SummaryGrid>
+                <SummaryItem>
+                  <SummaryLabel>
+                    {language === "fi" ? "Julkaistaan" : "Goes live"}
+                  </SummaryLabel>
+                  <SummaryValue $highlight>
+                    {formState.scheduledPublishAt
+                      ? new Date(formState.scheduledPublishAt).toLocaleString(
+                          language === "fi" ? "fi-FI" : "en-US",
+                          { dateStyle: "medium", timeStyle: "short" },
+                        )
+                      : language === "fi"
+                        ? "Heti"
+                        : "Immediately"}
+                  </SummaryValue>
+                </SummaryItem>
+                <SummaryItem>
+                  <SummaryLabel>
+                    {language === "fi" ? "Ilmoita seuraajille" : "Notify followers"}
+                  </SummaryLabel>
+                  <SummaryValue>
+                    {formState.notifyFollowers
+                      ? language === "fi"
+                        ? "Kyllä"
+                        : "Yes"
+                      : language === "fi"
+                        ? "Ei"
+                        : "No"}
+                  </SummaryValue>
+                </SummaryItem>
+                {formState.notifyFollowers && !formState.scheduledPublishAt && (
+                  <SummaryItem>
+                    <SummaryLabel>
+                      {language === "fi" ? "Ilmoituksen ajankohta" : "Notification timing"}
+                    </SummaryLabel>
+                    <SummaryValue>
+                      {formState.notifyTiming === "now"
+                        ? language === "fi"
+                          ? "Heti"
+                          : "Now"
+                        : formState.notifyTiming === "optimal"
+                          ? language === "fi"
+                            ? "Optimaalinen aika"
+                            : "Optimal time"
+                          : formState.notifyCustomTime
+                            ? new Date(formState.notifyCustomTime).toLocaleString(
+                                language === "fi" ? "fi-FI" : "en-US",
+                                { dateStyle: "medium", timeStyle: "short" },
+                              )
+                            : "—"}
+                    </SummaryValue>
+                  </SummaryItem>
+                )}
+                {formState.scheduledPublishAt && formState.notifyFollowers && (
+                  <SummaryItem>
+                    <SummaryLabel>
+                      {language === "fi" ? "Ilmoituksen ajankohta" : "Notification timing"}
+                    </SummaryLabel>
+                    <SummaryValue>
+                      {language === "fi"
+                        ? "Julkaisun yhteydessä"
+                        : "At publish time"}
+                    </SummaryValue>
+                  </SummaryItem>
+                )}
+                {contentType === "event" && formState.remindBeforeEvent && (
+                  <SummaryItem>
+                    <SummaryLabel>
+                      {language === "fi" ? "Muistutus ennen tapahtumaa" : "Reminder before event"}
+                    </SummaryLabel>
+                    <SummaryValue>
+                      {formState.remindMinutesBefore >= 1440
+                        ? language === "fi"
+                          ? `${Math.round(formState.remindMinutesBefore / 1440)} päivää ennen`
+                          : `${Math.round(formState.remindMinutesBefore / 1440)} day(s) before`
+                        : formState.remindMinutesBefore >= 60
+                          ? language === "fi"
+                            ? `${Math.round(formState.remindMinutesBefore / 60)} tuntia ennen`
+                            : `${Math.round(formState.remindMinutesBefore / 60)} hour(s) before`
+                          : `${formState.remindMinutesBefore} min before`}
+                    </SummaryValue>
+                  </SummaryItem>
+                )}
+              </SummaryGrid>
+            </ScheduleSummaryBox>
+
             <SubmitRow>
               <BackLink onClick={goBack} style={{ marginBottom: 0 }}>
-                {language === "fi" ? "← Takaisin kuviin" : "← Back to images"}
+                {language === "fi" ? "← Takaisin aikatauluun" : "← Back to schedule"}
               </BackLink>
               <SubmitButton
                 onClick={onSubmit}
@@ -3135,6 +3239,10 @@ const ImageCardDesc = styled.div`
   color: #6b7280;
   line-height: 1.4;
   margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 `;
 
 const LayoutLabel = styled.div`
@@ -3300,6 +3408,56 @@ const SubmitRow = styled.div`
     flex-wrap: wrap;
     gap: 8px;
   }
+`;
+
+// ---- Schedule summary in review step ----
+
+const ScheduleSummaryBox = styled.div`
+  margin-top: 14px;
+  padding: 12px 14px;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  border-radius: 10px;
+`;
+
+const SummaryTitle = styled.div`
+  font-size: 10px;
+  font-weight: 700;
+  color: #6ee7b7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 10px;
+`;
+
+const SummaryGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+`;
+
+const SummaryItem = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+`;
+
+const SummaryLabel = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+`;
+
+const SummaryValue = styled.span<{ $highlight?: boolean }>`
+  font-size: 13px;
+  font-weight: 600;
+  color: ${({ $highlight }) => ($highlight ? "#6ee7b7" : "#d1d5db")};
 `;
 
 // ---- Ingredients summary ----

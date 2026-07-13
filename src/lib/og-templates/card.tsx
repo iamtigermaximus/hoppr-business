@@ -13,6 +13,11 @@ export function CardTemplate(props: TemplateProps) {
   // Dynamically reduce title font size for long titles
   const titleFontSize = promotionTitle.length > 50 ? 40 : promotionTitle.length > 35 ? 46 : 52;
 
+  // Dynamically reduce description font size for long text so it fits without clipping
+  const descLen = promotionDescription.length;
+  const descFontSize = descLen > 350 ? 17 : descLen > 250 ? 19 : descLen > 150 ? 21 : 24;
+  const descLineClamp = descLen > 350 ? 6 : descLen > 250 ? 5 : 4;
+
   return (
     <div style={styles.wrapper}>
       {/* Upper: photo or gradient */}
@@ -49,7 +54,11 @@ export function CardTemplate(props: TemplateProps) {
       <div style={styles.infoArea}>
         <div style={styles.textBlock}>
           <div style={styles.descriptionRow}>
-            <span style={styles.descriptionText}>{promotionDescription}</span>
+            <span style={{
+              ...styles.descriptionText,
+              fontSize: descFontSize,
+              WebkitLineClamp: descLineClamp,
+            }}>{promotionDescription}</span>
           </div>
 
           {/* Conditions / dates / details */}
@@ -125,7 +134,7 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 1,
     display: "-webkit-box",
-    WebkitLineClamp: 2,
+    WebkitLineClamp: 3,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
   } as React.CSSProperties,
