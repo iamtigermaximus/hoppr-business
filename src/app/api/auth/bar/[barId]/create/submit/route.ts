@@ -63,6 +63,8 @@ interface SubmitBody {
   scheduledPublishAt?: string;
   // Card image (pre-captured composed social card, uploaded to Cloudinary client-side)
   cardImageUrl?: string;
+  // Matching content
+  createMatchingEvent?: boolean;
 }
 
 // ---- Route ----
@@ -262,6 +264,7 @@ export async function POST(
 
     // 7. Create record and compliance check based on content type
     let record: Record<string, unknown> | null = null;
+    let matchingEventId: string | null = null;
 
     if (body.contentType === "event") {
       if (!creatorUserId) {
@@ -440,6 +443,85 @@ export async function POST(
         isApproved: promotion.isApproved,
         complianceStatus: resolvedComplianceStatus,
       };
+
+      // Create a matching event if the bar requested it
+      if (body.createMatchingEvent && creatorUserId) {
+        const eventStart = new Date(body.startDate!);
+        eventStart.setHours(20, 0, 0, 0); // default 20:00
+        const eventEnd = new Date(body.endDate!);
+        eventEnd.setHours(23, 59, 0, 0);
+
+        try {
+          const matchingEvent = await prisma.event.create({
+            data: {
+              title: body.title.trim(),
+              description: body.description || null,
+              venueId: barId,
+              venueName: bar.name,
+              venueType: bar.type,
+              startTime: eventStart,
+              endTime: eventEnd,
+              imageUrl: body.imageUrl || null,
+              creatorId: creatorUserId,
+              isActive: !isScheduled,
+              complianceStatus: resolvedComplianceStatus,
+            },
+          });
+
+          matchingEventId = matchingEvent.id;
+
+          await prisma.complianceCheck.create({
+            data: {
+              eventId: matchingEvent.id,
+              status: resolvedComplianceStatus,
+              violations: compliance.violations as unknown as object[],
+              checkedAt: compliance.checkedAt,
+            },
+          });
+
+          // Schedule notification for the matching event (mirrors promotion notification logic)
+          if (body.notifyFollowers !== false) {
+            if (isScheduled) {
+              await prisma.scheduledNotification.create({
+                data: {
+                  barId,
+                  eventId: matchingEvent.id,
+                  title: `${body.title.trim()} at ${bar.name}`,
+                  body: (body.description || `Check out what's new at ${bar.name}!`).slice(0, 120),
+                  imageUrl: body.imageUrl || null,
+                  deepLink: `/events/${matchingEvent.id}`,
+                  type: "EVENT_REMINDER" as import("@prisma/client").NotificationType,
+                  scheduledAt: scheduledPublishAt!,
+                },
+              });
+            } else if (body.notifyTiming === "now" || body.notifyTiming === "optimal" || !body.notifyTiming) {
+              triggers.onEventCreated(barId, matchingEvent.id).catch((err) =>
+                console.error("[Push] onEventCreated trigger failed for matching event:", err),
+              );
+            } else if (body.notifyTiming === "custom" && body.notifyCustomTime) {
+              const customTime = new Date(body.notifyCustomTime);
+              if (customTime.getTime() > Date.now()) {
+                await prisma.scheduledNotification.create({
+                  data: {
+                    barId,
+                    eventId: matchingEvent.id,
+                    title: `${body.title.trim()} at ${bar.name}`,
+                    body: (body.description || `Check out what's new at ${bar.name}!`).slice(0, 120),
+                    imageUrl: body.imageUrl || null,
+                    deepLink: `/events/${matchingEvent.id}`,
+                    type: "EVENT_REMINDER" as import("@prisma/client").NotificationType,
+                    scheduledAt: customTime,
+                  },
+                });
+              }
+            }
+          }
+
+        } catch (err) {
+          console.error("[Submit] Failed to create matching event:", err);
+          // Don't fail the whole request — the promotion was created successfully
+        }
+      }
     } else if (body.contentType === "pass") {
       const priceCents = Math.round(parseFloat(body.priceEuros || "0") * 100);
       const originalPriceCents = body.originalPriceEuros
@@ -693,6 +775,13 @@ export async function POST(
       success: true,
       message: `${body.contentType.charAt(0).toUpperCase() + body.contentType.slice(1)} created successfully`,
       record,
+      ...(matchingEventId ? {
+        matchingEvent: {
+          id: matchingEventId,
+          type: "event",
+          title: body.title?.trim() || "",
+        },
+      } : {}),
       compliance: {
         status: compliance.status,
         violations: compliance.violations,

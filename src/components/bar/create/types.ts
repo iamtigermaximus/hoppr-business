@@ -72,6 +72,9 @@ export interface FormState {
   campaignEndDate: string;
   promotedItemId: string;
   targetUrl: string;
+  // Matching content (promotion → also create an event)
+  createMatchingEvent: boolean;
+
   // Schedule fields
   notifyFollowers: boolean;
   notifyTiming: "now" | "optimal" | "custom";
@@ -132,6 +135,7 @@ export const EMPTY_FORM: FormState = {
   remindBeforeEvent: false,
   remindMinutesBefore: 120,
   scheduledPublishAt: "",
+  createMatchingEvent: false,
 };
 
 /** Which content types support boost (creates a linked AdCampaign as side effect) */

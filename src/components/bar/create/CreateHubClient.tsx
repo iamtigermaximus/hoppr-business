@@ -325,6 +325,11 @@ interface CreatedItem {
   type: string;
   title: string;
   boosted: boolean;
+  matchingEvent?: {
+    id: string;
+    type: string;
+    title: string;
+  };
 }
 
 // ---- CTA builder for social media cards ----
@@ -820,6 +825,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         body.endDate = formState.endDate;
         body.conditions = formState.conditions;
         body.targetAudience = formState.targetAudience;
+        body.createMatchingEvent = formState.createMatchingEvent;
       } else if (contentType === "campaign") {
         body.campaignType = formState.campaignType;
         body.campaignBudget = formState.campaignBudget;
@@ -927,6 +933,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         type: contentType,
         title: formState.title,
         boosted: formState.boostEnabled || contentType === "campaign",
+        ...(data.matchingEvent ? { matchingEvent: data.matchingEvent as CreatedItem["matchingEvent"] } : {}),
       });
     } catch (err) {
       // Don't show toast if the request was aborted (user navigated away)
@@ -990,6 +997,26 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
               )}
               <MetaChip $variant="gray">{typeLabel}</MetaChip>
             </SuccessMeta>
+
+            {createdItem.matchingEvent && (
+              <div style={{
+                marginTop: "0.5rem",
+                padding: "0.625rem 0.75rem",
+                background: "#f0fdf4",
+                border: "1px solid #a7f3d0",
+                borderRadius: "0.5rem",
+                fontSize: "0.8125rem",
+                color: "#065f46",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}>
+                <span>📅</span>
+                <span>
+                  A matching event was also created: <strong>&ldquo;{createdItem.matchingEvent.title}&rdquo;</strong>
+                </span>
+              </div>
+            )}
 
             <ActionRow>
               {!createdItem.boosted && supportsBoost(contentType) && (

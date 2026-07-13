@@ -170,15 +170,29 @@ export default function UnifiedForm({
           )}
 
           {contentType === "promotion" && (
-            <PromotionFields
-              promotionType={formState.promotionType}
-              discountValue={formState.discountValue}
-              startDate={formState.startDate}
-              endDate={formState.endDate}
-              targetAudience={formState.targetAudience}
-              conditions={formState.conditions}
-              onChange={onChange}
-            />
+            <>
+              <PromotionFields
+                promotionType={formState.promotionType}
+                discountValue={formState.discountValue}
+                startDate={formState.startDate}
+                endDate={formState.endDate}
+                targetAudience={formState.targetAudience}
+                conditions={formState.conditions}
+                onChange={onChange}
+              />
+              <FormSection>
+                <CheckboxLabel>
+                  <input
+                    type="checkbox"
+                    checked={formState.createMatchingEvent}
+                    onChange={(e) => onChange("createMatchingEvent", e.target.checked)}
+                  />
+                  <span style={{ fontSize: "0.8rem", color: "#374151" }}>
+                    Also create a matching event
+                  </span>
+                </CheckboxLabel>
+              </FormSection>
+            </>
           )}
 
           {contentType === "campaign" && (

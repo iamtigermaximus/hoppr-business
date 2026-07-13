@@ -189,9 +189,84 @@ const LAYOUT_HINTS = [
   { template: "card" as const, label: "Card", desc: "Square, photo-forward" },
 ];
 
-const PLACEHOLDERS: Record<Language, string> = {
-  fi: 'Kuvaile mitä haluat luoda — esim. "Perjantain after-work, klo 16–19, rento tunnelma ja hyvää musiikkia"',
-  en: 'Describe what you want — e.g. "Friday after-work, 4–7pm, relaxed atmosphere with great music"',
+// ---- Example cards shown when template (+ tone) is selected, replacing the
+//      free-text textarea. Each template has 2 sample outputs so bar owners see
+//      what kind of content the selected ingredients will produce. ----
+
+interface ExampleCard {
+  title: string;
+  description: string;
+}
+
+const EXAMPLE_CARDS: Record<Language, Record<string, ExampleCard[]>> = {
+  en: {
+    "After-Work": [
+      { title: "Unwind After Work — Drinks From 4 PM", description: "The workday is over. Step in, grab a seat, and let the evening begin with handcrafted cocktails and a relaxed vibe." },
+      { title: "Your After-Work Ritual Starts Here", description: "Wind down with colleagues or solo. Great drinks, chill music, and the perfect transition from desk to downtime." },
+    ],
+    "Ladies Night": [
+      { title: "Ladies Night — Bring Your Crew", description: "The ultimate girls' night out. Curated drinks, the best playlist in town, and a space made for unforgettable nights." },
+      { title: "Wednesday Is Ladies Night", description: "Round up your best people. Welcome drinks, a buzzing atmosphere, and a night that always delivers." },
+    ],
+    "Live Music": [
+      { title: "Live at the Bar — This Friday", description: "A night of raw talent and electric energy. Grab a drink, find your spot, and let the music take over." },
+      { title: "Live Music Night — Free Entry", description: "Discover your new favorite artist. Craft cocktails, great sound, and an atmosphere you won't want to leave." },
+    ],
+    "Game Night": [
+      { title: "Game Night — Trivia, Prizes & Drinks", description: "Assemble your team. Competitive, chaotic, and always a good time — with drinks to fuel the action." },
+      { title: "Weekly Game Night — Everyone's Invited", description: "Board games, trivia, and friendly rivalry. Great drinks, bigger laughs, and bragging rights on the line." },
+    ],
+    "Food Special": [
+      { title: "The Kitchen Is Showing Off Tonight", description: "A dish worth planning your evening around. Seasonal ingredients, bold flavors, and the perfect drink pairing." },
+      { title: "Chef's Special — Limited This Week", description: "Something new from the kitchen. Crafted with care, served with pride. Come hungry, leave happy." },
+    ],
+    "VIP Experience": [
+      { title: "Go VIP — A Different Level of Service", description: "Skip the line. Premium seating, dedicated service, and a private atmosphere above the crowd." },
+      { title: "VIP Night — This Is How It's Done", description: "Behind the rope. Bottle service, personal attention, and an experience that feels genuinely elevated." },
+    ],
+    "Signature Evening": [
+      { title: "A Curated Evening — One Night Only", description: "Something unique is happening here. A concept built for this bar, this team, this moment. You'll want to be here." },
+      { title: "The Signature Experience — Tonight", description: "Not just another night out. A crafted atmosphere, exceptional drinks, and a reason to cross town." },
+    ],
+    "Theme Night": [
+      { title: "The Bar Transforms — Theme Night", description: "Step into a different world. Dress the part, play the role, and experience the bar like never before." },
+      { title: "Theme Night — This One's Special", description: "Costumes, cocktails, and a shared reality. One night only — the bar becomes something extraordinary." },
+    ],
+  },
+  fi: {
+    "After-Work": [
+      { title: "After-Work — Juomat klo 16 Alkaen", description: "Työpäivä on ohi. Astu sisään, nappaa paikka ja anna illan alkaa käsityödrinkkien ja rennon tunnelman kera." },
+      { title: "After-Work-rituaalisi Alkaa Täällä", description: "Rentoudu kollegoiden kanssa tai yksin. Hyvät juomat, rento musiikki ja täydellinen siirtymä työpöydältä vapaa-aikaan." },
+    ],
+    "Naistenilta": [
+      { title: "Naistenilta — Kokoa Porukkasi", description: "Täydellinen tyttöjen ilta. Kuratoidut drinkit, kaupungin paras soittolista ja tila tehty unohtumattomia iltoja varten." },
+      { title: "Keskiviikko On Naistenilta", description: "Kerää parhaat tyyppisi. Tervetuliaisdrinkit, sykkivä tunnelma ja ilta joka aina toimittaa." },
+    ],
+    "Elävä musiikki": [
+      { title: "Livenä Baarissa — Tänä Perjantaina", description: "Illallinen raakaa lahjakkuutta ja sähköistä energiaa. Nappaa juoma, löydä paikkasi ja anna musiikin viedä." },
+      { title: "Live-musiikki-ilta — Vapaa Pääsy", description: "Löydä uusi suosikkiartistisi. Käsityödrinkit, loistava soundi ja tunnelma josta et halua lähteä." },
+    ],
+    "Peli-ilta": [
+      { title: "Peli-ilta — Tietovisa, Palkinnot & Juomat", description: "Kokoa tiimisi. Kilpailuhenkistä, kaoottista ja aina hyvää aikaa — juomat vauhdittamassa toimintaa." },
+      { title: "Viikoittainen Peli-ilta — Kaikki Tervetulleita", description: "Lautapelejä, tietovisaa ja ystävällistä kilpailua. Hyvät juomat, isot naurut ja kerskumisoikeus pelissä." },
+    ],
+    "Ruokatarjous": [
+      { title: "Keittiö Näyttää Osaamistaan Tänään", description: "Annos, jonka ympärille kannattaa suunnitella ilta. Kausiraaka-aineita, rohkeita makuja ja täydellinen juomasuositus." },
+      { title: "Kokin Suositus — Rajoitettu Tällä Viikolla", description: "Jotain uutta keittiöstä. Huolella valmistettu, ylpeydellä tarjoiltu. Tule nälkäisenä, lähde onnellisena." },
+    ],
+    "VIP-kokemus": [
+      { title: "VIP — Eri Tasolla Palvelua", description: "Ohita jono. Premium-istumapaikat, oma palvelu ja yksityinen tunnelma väkijoukon yläpuolella." },
+      { title: "VIP-ilta — Näin Se Tehdään", description: "Köyden takana. Pullopalvelu, henkilökohtainen huomio ja kokemus joka tuntuu aidosti kohotetulta." },
+    ],
+    "Talon suositukset": [
+      { title: "Kuratoitu Ilta — Vain Tänään", description: "Jotain ainutlaatuista tapahtuu täällä. Konsepti rakennettu tälle baarille, tälle tiimille, tälle hetkelle. Haluat olla täällä." },
+      { title: "Talon Suositus — Tänä Iltana", description: "Ei vain yksi ilta muiden joukossa. Kuratoitu tunnelma, poikkeukselliset juomat ja syy matkustaa kaupungin halki." },
+    ],
+    "Teemailta": [
+      { title: "Baari Muuntuu — Teemailta", description: "Astu eri maailmaan. Pukeudu osaan, näyttele roolisi ja koe baari kuten et koskaan ennen." },
+      { title: "Teemailta — Tämä On Erityinen", description: "Asusteita, cocktaileja ja jaettu todellisuus. Vain yhden illan — baarista tulee jotain poikkeuksellista." },
+    ],
+  },
 };
 
 const GENERATING_MESSAGES: Record<Language, string> = {
@@ -414,8 +489,8 @@ function buildPreviewPrompt(
     const traits = chars ? (isFi ? chars.fi : chars.en) : null;
     parts.push(
       isFi
-        ? `Kampanjatyyppi: ${template}${traits ? ` — ${traits}` : ""}`
-        : `Template type: ${template}${traits ? ` — ${traits}` : ""}`,
+        ? `Mallipohja: ${template}${traits ? ` — ${traits}` : ""}`
+        : `Template: ${template}${traits ? ` — ${traits}` : ""}`,
     );
   }
 
@@ -435,8 +510,8 @@ function buildPreviewPrompt(
   if (prompt.trim()) {
     parts.push(
       isFi
-        ? `\nKäyttäjän kuvaus:\n${prompt.trim()}`
-        : `\nUser's brief:\n${prompt.trim()}`,
+        ? `\nKuvaus:\n${prompt.trim()}`
+        : `\nBrief:\n${prompt.trim()}`,
     );
   }
 
@@ -518,6 +593,15 @@ export default function UnifiedCreationFlow({
       ? wizardConfig.steps[language]
       : [];
 
+  // Auto-open tone section when entering Step 2 (brief)
+  useEffect(() => {
+    if (step === "brief") {
+      setToneOpen(true);
+      setTemplatesOpen(false);
+      setContextOpen(false);
+    }
+  }, [step]);
+
   // Auto-open preview when any ingredient is selected
   const hasIngredients = !!(
     activeTone ||
@@ -530,15 +614,6 @@ export default function UnifiedCreationFlow({
       setPreviewOpen(true);
     }
   }, [activeTone, activeTemplate, selectedContexts, text, hasIngredients]);
-
-  // Auto-open tone section when entering Step 2 (brief)
-  useEffect(() => {
-    if (step === "brief") {
-      setToneOpen(true);
-      setTemplatesOpen(false);
-      setContextOpen(false);
-    }
-  }, [step]);
 
   // Text generation state
   const [variants, setVariants] = useState<EditableVariant[]>([]);
@@ -1261,26 +1336,49 @@ export default function UnifiedCreationFlow({
               </ControlGroup>
             </ControlsRow>
 
-            {/* Textarea — the core input */}
-            <SectionLabel>Your brief</SectionLabel>
-            <Textarea
-              placeholder={PLACEHOLDERS[language]}
-              value={text}
-              onChange={(e) => {
-                setText(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                  e.preventDefault();
-                  handleGenerateText();
-                }
-              }}
-              disabled={generatingText}
-            />
+            {/* Example cards — appear when a template is selected, showing
+                what kind of content the chosen ingredients will produce */}
+            {activeTemplate && EXAMPLE_CARDS[language]?.[activeTemplate] ? (
+              <>
+                <SectionLabel>
+                  {language === "fi" ? "Esimerkkitulokset" : "Example outputs"}
+                </SectionLabel>
+                <ExampleCardsRow>
+                  {EXAMPLE_CARDS[language][activeTemplate].map((card, i) => (
+                    <ExampleCard key={i} $tone={activeTone}>
+                      <ExampleCardTitle>{card.title}</ExampleCardTitle>
+                      <ExampleCardDesc>{card.description}</ExampleCardDesc>
+                    </ExampleCard>
+                  ))}
+                </ExampleCardsRow>
+              </>
+            ) : (
+              <ExampleCardsRow>
+                <ExampleCard $tone={null}>
+                  <ExampleLabel>
+                    {language === "fi" ? "Valitse malli" : "Pick a template"}
+                  </ExampleLabel>
+                  <ExampleCardDesc>
+                    {language === "fi"
+                      ? "Valitse pikamalli nähdäksesi esimerkkituloksia. Mallit auttavat sinua luomaan sisältöä nopeasti."
+                      : "Choose a quick template above to see example outputs. Templates help you create content fast."}
+                  </ExampleCardDesc>
+                </ExampleCard>
+                <ExampleCard $tone={null}>
+                  <ExampleLabel>
+                    {language === "fi" ? "Lisää äänensävy" : "Add a tone"}
+                  </ExampleLabel>
+                  <ExampleCardDesc>
+                    {language === "fi"
+                      ? "Valitse äänensävy antaaksesi sisällölle persoonallisuutta. Eri sävyt toimivat eri tilanteisiin."
+                      : "Pick a tone to give your content personality. Different tones suit different occasions."}
+                  </ExampleCardDesc>
+                </ExampleCard>
+              </ExampleCardsRow>
+            )}
+
             <BriefActionsRow>
-              {(activeTemplate ||
-                activeTone ||
-                selectedContexts.length > 0) && (
+              {activeTemplate && (
                 <RegenerateBriefButton
                   onClick={handleRegenerateBrief}
                   disabled={generatingText}
@@ -1290,8 +1388,8 @@ export default function UnifiedCreationFlow({
               )}
               <TextareaHint>
                 {language === "fi"
-                  ? "Valitse alta apuvälineitä ja kirjoita vapaasti — tai jätä tyhjäksi ja luo automaattisesti."
-                  : "Choose helpers below and write freely — or leave empty to generate automatically."}
+                  ? "Valitse malli ja äänensävy — tai jätä tyhjäksi ja luo automaattisesti."
+                  : "Pick a template and tone — or leave empty to generate automatically."}
               </TextareaHint>
             </BriefActionsRow>
 
@@ -1558,8 +1656,8 @@ export default function UnifiedCreationFlow({
                 <PreviewBody>
                   <PreviewPlaceholder>
                     {language === "fi"
-                      ? "Valitse tyyppi, äänensävy ja kuvaile promootiosi nähdäksesi esikatselun."
-                      : "Select a template, tone, and describe your promotion to see a preview."}
+                      ? "Valitse malli tai äänensävy nähdäksesi esikatselun."
+                      : "Select a template or tone to see a preview."}
                   </PreviewPlaceholder>
                 </PreviewBody>
               </PreviewSection>
@@ -1767,7 +1865,6 @@ export default function UnifiedCreationFlow({
                     </FluxToggle>
                     <FluxEditor
                       id={`flux-editor-${i}`}
-                      style={{ display: "none" }}
                     >
                       <FluxEditorHint>
                         {language === "fi"
@@ -1779,7 +1876,7 @@ export default function UnifiedCreationFlow({
                         onChange={(e) =>
                           updateVariant(i, "fluxPrompt", e.target.value)
                         }
-                        rows={3}
+                        rows={6}
                         placeholder={
                           language === "fi"
                             ? "Flux-prompt..."
@@ -2115,6 +2212,19 @@ export default function UnifiedCreationFlow({
                     placeholder="e.g. Valid on Fridays 16:00–19:00"
                   />
                 </FieldGroup>
+                <CheckboxRow>
+                  <input
+                    type="checkbox"
+                    checked={formState.createMatchingEvent}
+                    onChange={(e) =>
+                      onFieldChange("createMatchingEvent", e.target.checked)
+                    }
+                    id="createMatchingEvent"
+                  />
+                  <CheckboxLabel htmlFor="createMatchingEvent">
+                    Also create a matching event
+                  </CheckboxLabel>
+                </CheckboxRow>
               </>
             )}
 
@@ -2536,41 +2646,137 @@ const TypeCardDesc = styled.span`
   line-height: 1.4;
 `;
 
-// ---- Step 2: Textarea ----
-
-const Textarea = styled.textarea`
-  width: 100%;
-  padding: 14px 16px;
-  border: 1px solid #2d2d4a;
-  border-radius: 10px;
-  font-size: 14px;
-  min-height: 240px;
-  resize: vertical;
-  box-sizing: border-box;
-  font-family: inherit;
-  line-height: 1.55;
-  background: #0d0d1a;
-  color: #e5e7eb;
-  transition: border-color 0.2s;
-  &:focus {
-    outline: none;
-    border-color: #7c3aed;
-  }
-  &::placeholder {
-    color: #4b5563;
-  }
-
-  @media (max-width: 480px) {
-    min-height: 160px;
-    font-size: 13px;
-    padding: 12px 14px;
-  }
-`;
-
 const TextareaHint = styled.div`
   font-size: 10px;
   color: #6b7280;
   font-style: italic;
+`;
+
+// ---- Example cards (replaces free-text textarea) ----
+
+const ExampleCardsRow = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ExampleCard = styled.div<{ $tone?: string | null }>`
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #2d2d4a;
+  background: ${({ $tone }) => {
+    switch ($tone) {
+      case "BOLD_ENERGETIC": return "rgba(239, 68, 68, 0.06)";
+      case "WARM_INVITING": return "rgba(245, 158, 11, 0.06)";
+      case "EDGY_IRREVERENT": return "rgba(168, 85, 247, 0.06)";
+      case "ELEGANT_PREMIUM": return "rgba(59, 130, 246, 0.06)";
+      case "PLAYFUL_FUN": return "rgba(34, 197, 94, 0.06)";
+      default: return "#0d0d1a";
+    }
+  }};
+  border-color: ${({ $tone }) => {
+    switch ($tone) {
+      case "BOLD_ENERGETIC": return "rgba(239, 68, 68, 0.25)";
+      case "WARM_INVITING": return "rgba(245, 158, 11, 0.25)";
+      case "EDGY_IRREVERENT": return "rgba(168, 85, 247, 0.25)";
+      case "ELEGANT_PREMIUM": return "rgba(59, 130, 246, 0.25)";
+      case "PLAYFUL_FUN": return "rgba(34, 197, 94, 0.25)";
+      default: return "#2d2d4a";
+    }
+  }};
+  transition: all 0.2s;
+`;
+
+const ExampleCardTitle = styled.div`
+  font-size: 13px;
+  font-weight: 700;
+  color: #e5e7eb;
+  margin-bottom: 6px;
+  line-height: 1.3;
+`;
+
+const ExampleCardDesc = styled.div`
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.45;
+`;
+
+const ExampleLabel = styled.div`
+  font-size: 10px;
+  font-weight: 600;
+  color: #7c3aed;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+`;
+
+// ---- Preview prompt ----
+
+const PreviewSection = styled.div`
+  margin-top: 12px;
+  border: 1px solid #2d2d4a;
+  border-radius: 8px;
+  overflow: hidden;
+`;
+
+const PreviewToggle = styled.button`
+  width: 100%;
+  padding: 8px 12px;
+  background: #0d0d1a;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  &:hover {
+    background: #1a1a2e;
+  }
+`;
+
+const PreviewToggleIcon = styled.span<{ $open: boolean }>`
+  font-size: 10px;
+  color: ${({ $open }) => ($open ? "#60a5fa" : "#6b7280")};
+`;
+
+const PreviewToggleLabel = styled.span`
+  font-size: 12px;
+  font-weight: 700;
+  color: #f9fafb;
+`;
+
+const PreviewToggleHint = styled.span`
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+`;
+
+const PreviewBody = styled.div`
+  padding: 12px;
+  background: #060610;
+  border-top: 1px solid #2d2d4a;
+  font-family: "SF Mono", "Fira Code", monospace;
+`;
+
+const PreviewLine = styled.div`
+  font-size: 11px;
+  color: #d1d5db;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+`;
+
+const PreviewPlaceholder = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+  text-align: center;
+  padding: 16px 8px;
+  line-height: 1.5;
 `;
 
 const BriefActionsRow = styled.div`
@@ -3147,6 +3353,8 @@ const FluxToggleHint = styled.span`
 `;
 
 const FluxEditor = styled.div`
+  display: flex;
+  flex-direction: column;
   padding: 8px 10px 10px;
   border-top: 1px solid #2d2d4a;
   background: #060610;
@@ -3370,6 +3578,7 @@ const FieldLabel = styled.label`
 `;
 
 const inputStyles = `
+  width: 100%; box-sizing: border-box;
   padding: 8px 12px; border: 1px solid #2d2d4a; border-radius: 8px;
   background: #0d0d1a; color: #e5e7eb; font-size: 13px; font-family: inherit;
   &:focus { outline: none; border-color: #7c3aed; }
@@ -3394,6 +3603,27 @@ const FieldRow = styled.div`
     flex-direction: column;
     gap: 8px;
   }
+`;
+
+const CheckboxRow = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+
+  input[type="checkbox"] {
+    accent-color: #7c3aed;
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+  }
+`;
+
+const CheckboxLabel = styled.label`
+  font-size: 13px;
+  color: #9ca3af;
+  user-select: none;
+  cursor: pointer;
 `;
 
 const SubmitRow = styled.div`
@@ -3485,69 +3715,6 @@ const IngredientsTags = styled.div`
   flex-wrap: wrap;
 `;
 
-// ---- Preview prompt ----
-
-const PreviewSection = styled.div`
-  margin-top: 12px;
-  border: 1px solid #2d2d4a;
-  border-radius: 8px;
-  overflow: hidden;
-`;
-
-const PreviewToggle = styled.button`
-  width: 100%;
-  padding: 8px 12px;
-  background: #0d0d1a;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  text-align: left;
-  &:hover {
-    background: #1a1a2e;
-  }
-`;
-
-const PreviewToggleIcon = styled.span<{ $open: boolean }>`
-  font-size: 10px;
-  color: ${({ $open }) => ($open ? "#60a5fa" : "#6b7280")};
-`;
-
-const PreviewToggleLabel = styled.span`
-  font-size: 12px;
-  font-weight: 700;
-  color: #f9fafb;
-`;
-
-const PreviewToggleHint = styled.span`
-  font-size: 10px;
-  color: #6b7280;
-  font-style: italic;
-`;
-
-const PreviewBody = styled.div`
-  padding: 12px;
-  background: #060610;
-  border-top: 1px solid #2d2d4a;
-  font-family: "SF Mono", "Fira Code", monospace;
-`;
-
-const PreviewLine = styled.div`
-  font-size: 11px;
-  color: #d1d5db;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  word-break: break-word;
-`;
-
-const PreviewPlaceholder = styled.div`
-  font-size: 12px;
-  color: #6b7280;
-  text-align: center;
-  padding: 16px 8px;
-  line-height: 1.5;
-`;
 
 // ---- Custom context input ----
 
