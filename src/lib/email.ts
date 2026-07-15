@@ -105,6 +105,57 @@ export async function sendWelcomeEmail(params: {
   return data;
 }
 
+export async function sendClaimRejectedEmail(params: {
+  to: string;
+  name: string;
+  barName: string;
+  reason?: string;
+}) {
+  const claimUrl = `${BASE_URL}/claim`;
+  const reasonBlock = params.reason
+    ? `<div style="background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0">
+         <p style="margin:0 0 4px;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:0.05em">Reason</p>
+         <p style="margin:0;color:#374151;font-size:14px">${params.reason}</p>
+       </div>`
+    : "";
+
+  const { data, error } = await getResend().emails.send({
+    from: FROM,
+    to: params.to,
+    subject: `Update on your claim for ${params.barName}`,
+    html: `
+      <div style="max-width:560px;margin:0 auto;font-family:system-ui,sans-serif">
+        <h1 style="color:#7c3aed">Hoppr</h1>
+        <h2>Claim Update</h2>
+        <p>Hi ${params.name},</p>
+        <p>Your claim for <strong>${params.barName}</strong> was not approved this time.</p>
+        ${reasonBlock}
+        <p style="color:#374151;font-size:14px;line-height:1.5">Here's what you can do next:</p>
+        <ul style="color:#374151;font-size:14px;line-height:1.6">
+          <li>Make sure your bar information is complete and accurate</li>
+          <li>Provide documentation that confirms your association with the bar (business license, employment contract, etc.)</li>
+          <li>Reach out to us at <a href="mailto:${SUPPORT_EMAIL}" style="color:#7c3aed">${SUPPORT_EMAIL}</a> if you believe this was a mistake or need guidance</li>
+        </ul>
+        <div style="text-align:center;margin:32px 0">
+          <a href="${claimUrl}" style="background:#7c3aed;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px">
+            Submit a New Claim
+          </a>
+        </div>
+        <p style="color:#6b7280;font-size:14px">You're welcome to re-submit with updated information anytime.</p>
+        <hr style="border:0;border-top:1px solid #e5e7eb;margin:24px 0" />
+        <p style="color:#9ca3af;font-size:12px">Hoppr — Discover. Crawl. Connect.</p>
+      </div>
+    `,
+  });
+
+  if (error) {
+    console.error("Failed to send claim rejection email:", error);
+    throw new Error("Failed to send claim rejection email");
+  }
+
+  return data;
+}
+
 /** Internal admin alert — fired when AI credits drop below threshold.
  *  Only visible to Hoppr admins, never to bar owners. */
 export async function sendCreditAlert(params: {

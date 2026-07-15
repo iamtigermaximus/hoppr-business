@@ -322,6 +322,84 @@ const FcmWarning = styled.div`
   line-height: 1.5;
 `;
 
+// ---- Notification preferences settings ----
+
+const SettingsCard = styled.div`
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.625rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  @media (max-width: 480px) { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+`;
+
+const SettingsInfo = styled.div`
+  flex: 1;
+`;
+
+const SettingsLabel = styled.div`
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.125rem;
+`;
+
+const SettingsDesc = styled.div`
+  font-size: 0.75rem;
+  color: #9ca3af;
+  line-height: 1.4;
+`;
+
+const Toggle = styled.label`
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  span {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #d1d5db;
+    border-radius: 12px;
+    transition: background 0.2s;
+
+    &::after {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      bottom: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+  }
+
+  input:checked + span {
+    background: #7c3aed;
+  }
+
+  input:checked + span::after {
+    transform: translateX(20px);
+  }
+`;
+
 // ---- Component ----
 
 export default function NotificationCenter({ barId }: NotificationCenterProps) {
@@ -333,6 +411,9 @@ export default function NotificationCenter({ barId }: NotificationCenterProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
+  const [claimNotificationsEnabled, setClaimNotificationsEnabled] =
+    useState(true);
+  const [savingPreferences, setSavingPreferences] = useState(false);
 
   const token =
     typeof window !== "undefined"
@@ -354,15 +435,43 @@ export default function NotificationCenter({ barId }: NotificationCenterProps) {
       })
         .then((r) => r.json())
         .catch(() => ({ configured: false, error: null })),
+      fetch(`/api/auth/bar/${barId}/notifications/settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((r) => r.json())
+        .catch(() => ({ claimNotificationsEnabled: true })),
     ])
-      .then(([d, fcm]) => {
+      .then(([d, fcm, settings]) => {
         setData(d);
         setFcmStatus(fcm);
+        setClaimNotificationsEnabled(
+          settings.claimNotificationsEnabled ?? true,
+        );
         setError(null);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [barId, token, days]);
+
+  const handleToggleClaimNotifications = async () => {
+    setSavingPreferences(true);
+    const next = !claimNotificationsEnabled;
+    setClaimNotificationsEnabled(next);
+    try {
+      await fetch(`/api/auth/bar/${barId}/notifications/settings`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ claimNotificationsEnabled: next }),
+      });
+    } catch {
+      setClaimNotificationsEnabled(!next); // revert on failure
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
 
   if (loading) {
     return (

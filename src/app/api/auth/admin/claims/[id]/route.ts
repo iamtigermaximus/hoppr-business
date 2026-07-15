@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database";
 import { authService } from "@/services/auth-service";
-import { sendWelcomeEmail } from "@/lib/email";
+import { sendWelcomeEmail, sendClaimRejectedEmail } from "@/lib/email";
 import { handleApiError } from "@/lib/api-error";
 
 type AuthResult =
@@ -56,7 +56,12 @@ export async function DELETE(
       if (remainingClaims === 0) {
         await prisma.bar.update({
           where: { id: barId },
-          data: { status: "UNCLAIMED" },
+          data: {
+            status: "UNCLAIMED",
+            isVerified: false,
+            claimedAt: null,
+            claimedById: null,
+          },
         });
       }
     }
@@ -93,7 +98,7 @@ export async function PATCH(
       where: { id: claimId },
       include: {
         bar: true,
-        user: { select: { id: true, email: true, name: true } },
+        user: { select: { id: true, email: true, name: true, claimNotificationsEnabled: true } },
       },
     });
 
@@ -188,7 +193,12 @@ export async function PATCH(
         if (remainingClaims === 0) {
           await tx.bar.update({
             where: { id: existingClaim.barId },
-            data: { status: "UNCLAIMED" },
+            data: {
+              status: "UNCLAIMED",
+              isVerified: false,
+              claimedAt: null,
+              claimedById: null,
+            },
           });
         }
       }
@@ -213,17 +223,33 @@ export async function PATCH(
       return updatedClaim;
     });
 
-    // Send welcome email to the bar owner if claim was approved
-    if (status === "VERIFIED" && existingClaim.user?.email) {
-      try {
-        await sendWelcomeEmail({
-          to: existingClaim.user.email,
-          name: existingClaim.user.name || existingClaim.user.email,
-          barName: existingClaim.bar.name,
-          barId: existingClaim.barId,
-        });
-      } catch (emailError) {
-        console.warn("Claim approved but welcome email failed:", emailError);
+    // Send notification email to the claimant (if they haven't opted out)
+    if (
+      existingClaim.user?.email &&
+      existingClaim.user.claimNotificationsEnabled !== false
+    ) {
+      if (status === "VERIFIED") {
+        try {
+          await sendWelcomeEmail({
+            to: existingClaim.user.email,
+            name: existingClaim.user.name || existingClaim.user.email,
+            barName: existingClaim.bar.name,
+            barId: existingClaim.barId,
+          });
+        } catch (emailError) {
+          console.warn("Claim approved but welcome email failed:", emailError);
+        }
+      } else if (status === "REJECTED") {
+        try {
+          await sendClaimRejectedEmail({
+            to: existingClaim.user.email,
+            name: existingClaim.user.name || existingClaim.user.email,
+            barName: existingClaim.bar.name,
+            reason: notes || undefined,
+          });
+        } catch (emailError) {
+          console.warn("Claim rejected but notification email failed:", emailError);
+        }
       }
     }
 
@@ -237,7 +263,7 @@ export async function PATCH(
       message:
         status === "VERIFIED"
           ? "Claim approved. Bar is now verified. Welcome email sent to owner."
-          : "Claim rejected.",
+          : "Claim rejected. Notification email sent to claimant.",
     });
   } catch (error) {
     return handleApiError(error, "Update claim error:");
