@@ -888,6 +888,14 @@ const EventsManager = ({ barId, userRole }: EventsManagerProps) => {
                 </EventMeta>
               </EventInfo>
               <EventActions>
+                <ActionButton
+                  $variant="outline"
+                  as="a"
+                  href={`/bar/${barId}/create?type=event&resurface=${event.id}`}
+                  style={{ textDecoration: "none" }}
+                >
+                  📋 Duplicate
+                </ActionButton>
                 {event.attendeeCount > 0 && (
                   <ActionButton
                     $variant="outline"

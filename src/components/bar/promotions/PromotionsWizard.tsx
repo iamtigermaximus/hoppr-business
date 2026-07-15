@@ -1592,6 +1592,14 @@ const PromotionsWizard = ({
                   )}
 
                   <ActionButtons>
+                    <Button
+                      $variant="outline"
+                      style={{ flex: 1, textDecoration: "none" }}
+                      as="a"
+                      href={`/bar/${barId}/create?type=promotion&resurface=${promo.id}`}
+                    >
+                      📋 Duplicate
+                    </Button>
                     {promo.imageUrl && (
                       <Button
                         $variant="secondary"

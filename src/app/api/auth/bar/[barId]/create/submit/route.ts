@@ -68,6 +68,8 @@ interface SubmitBody {
   // Retargeting
   retargetViewers?: boolean;
   retargetDelayHours?: number; // 24, 48, or 72
+  // Content lineage
+  duplicatedFrom?: string;
 }
 
 // ---- Route ----
@@ -300,6 +302,7 @@ export async function POST(
           scheduledPublishAt,
           imageUrl: body.imageUrl || null,
           creatorId: creatorUserId,
+          duplicatedFrom: body.duplicatedFrom || null,
           complianceStatus: finalStatus,
         },
       });
@@ -391,6 +394,7 @@ export async function POST(
           isActive: !isScheduled,
           isApproved: isAutoApproved,
           scheduledPublishAt,
+          duplicatedFrom: body.duplicatedFrom || null,
           complianceStatus: resolvedComplianceStatus,
           priority: 1,
           views: 0,
@@ -562,6 +566,7 @@ export async function POST(
           isActive: isScheduled ? false : isAutoApproved,
           isApproved: isAutoApproved,
           scheduledPublishAt,
+          duplicatedFrom: body.duplicatedFrom || null,
           complianceStatus: resolvedComplianceStatus,
           soldCount: 0,
         },

@@ -1112,6 +1112,14 @@ const PassManager = ({ barId, userRole }: PassManagerProps) => {
                 <PassActions>
                   <ActionButton
                     $variant="outline"
+                    as="a"
+                    href={`/bar/${barId}/create?type=pass&resurface=${pass.id}`}
+                    style={{ textDecoration: "none" }}
+                  >
+                    📋 Duplicate
+                  </ActionButton>
+                  <ActionButton
+                    $variant="outline"
                     onClick={() => handleViewSales(pass)}
                   >
                     Sales ({pass.soldCount})

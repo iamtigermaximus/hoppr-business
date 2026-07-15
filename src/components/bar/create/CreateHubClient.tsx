@@ -1014,6 +1014,11 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         body.retargetDelayHours = formState.retargetDelayHours || 48;
       }
 
+      // Duplicate lineage — track that this content was created from existing content
+      if (resurfaceId) {
+        body.duplicatedFrom = resurfaceId;
+      }
+
       // ── Pre-submit card capture ──
       // Capture the composed social card via html2canvas BEFORE the API call
       // so the card URL can be stored atomically during creation.
