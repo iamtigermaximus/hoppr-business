@@ -14,6 +14,21 @@ const Container = styled.div`
   }
 `;
 
+const DateFilter = styled.div`
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+`;
+
+const Select = styled.select`
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background: white;
+`;
+
 const StatsGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -212,8 +227,10 @@ interface PromotionStats {
   startDate: string;
   endDate: string;
   totalCardViews: number;
+  totalClicks: number;
   totalRedemptions: number;
   uniqueUsers: number;
+  uniqueEventUsers: number;
   totalUsageCount: number;
   averageUsesPerUser: number;
   conversionRate: number;
@@ -222,6 +239,8 @@ interface PromotionStats {
 
 interface ApiResponse {
   success: boolean;
+  period: string;
+  days: number;
   barStats: BarStats;
   promotions: PromotionStats[];
   totalScans: number;
@@ -236,30 +255,34 @@ const PerformanceDashboard = ({ barId }: PerformanceDashboardProps) => {
   const [barStats, setBarStats] = useState<BarStats | null>(null);
   const [promotions, setPromotions] = useState<PromotionStats[]>([]);
   const [totalScans, setTotalScans] = useState(0);
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d">("30d");
 
   useEffect(() => {
-    fetchData();
-  }, [barId]);
+    let cancelled = false;
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const token = localStorage.getItem("hoppr_token");
+        const response = await fetch(
+          `/api/auth/bar/${barId}/promotions/stats?range=${timeRange}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const data: ApiResponse = await response.json();
 
-  const fetchData = async () => {
-    try {
-      const token = localStorage.getItem("hoppr_token");
-      const response = await fetch(`/api/auth/bar/${barId}/promotions/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data: ApiResponse = await response.json();
-
-      if (data.success) {
-        setBarStats(data.barStats);
-        setPromotions(data.promotions);
-        setTotalScans(data.totalScans);
+        if (!cancelled && data.success) {
+          setBarStats(data.barStats);
+          setPromotions(data.promotions);
+          setTotalScans(data.totalScans);
+        }
+      } catch (error) {
+        console.error("Failed to fetch performance data:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (error) {
-      console.error("Failed to fetch performance data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    fetchData();
+    return () => { cancelled = true; };
+  }, [barId, timeRange]);
 
   const getStatus = (
     promo: PromotionStats,
@@ -321,6 +344,14 @@ const PerformanceDashboard = ({ barId }: PerformanceDashboardProps) => {
 
   return (
     <Container>
+      <DateFilter>
+        <Select value={timeRange} onChange={(e) => setTimeRange(e.target.value as "7d" | "30d" | "90d")}>
+          <option value="7d">Last 7 days</option>
+          <option value="30d">Last 30 days</option>
+          <option value="90d">Last 90 days</option>
+        </Select>
+      </DateFilter>
+
       {/* Overview Stats */}
       <StatsGrid>
         <StatCard>

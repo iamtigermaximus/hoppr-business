@@ -457,8 +457,145 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
       : "promotion";
   }, [searchParams]);
 
+  // Handle ?resurface=contentId query param — fetch content and pre-fill form.
+  // Extract stable string values to avoid infinite re-renders (useSearchParams
+  // returns a new object on every render in Next.js App Router, so we use
+  // the individual param strings as effect dependencies instead).
+  const resurfaceId = searchParams.get("resurface");
+  const typeParam = searchParams.get("type");
+  const validTypes: ContentType[] = ["event", "promotion", "campaign", "pass"];
+  const contentTypeForResurface = validTypes.includes(typeParam as ContentType)
+    ? (typeParam as ContentType)
+    : null;
+
+  // When a resurface param is present, hold off rendering the creation flow
+  // until the resurface API has responded (success or failure). This avoids
+  // flashing step 1 before jumping to the publish step.
+  const [resurfaceReady, setResurfaceReady] = useState(!resurfaceId);
+
+  useEffect(() => {
+    if (!resurfaceId || !contentTypeForResurface || contentTypeForResurface === "campaign") {
+      // No resurface param, or invalid — mark ready immediately
+      setResurfaceReady(true);
+      return;
+    }
+
+    // Reset ready flag if the params change (e.g. user navigates back and
+    // clicks Resurface on a different item)
+    setResurfaceReady(false);
+
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
+    if (!token) {
+      console.warn("[Resurface] No auth token found in localStorage");
+      setResurfaceReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchUrl = `/api/auth/bar/${barId}/create/resurface?contentId=${encodeURIComponent(resurfaceId)}&contentType=${contentTypeForResurface}`;
+
+    (async () => {
+      try {
+        const res = await fetch(fetchUrl, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => "");
+          console.warn(`[Resurface] API returned ${res.status}: ${errBody}`);
+          if (!cancelled) {
+            setResurfaceReady(true);
+            // 404 = content was deleted; 401/403 = auth issue. Surface to the user
+            // so they understand why the form isn't pre-filled.
+            if (res.status === 404) {
+              showToast("This content no longer exists — it may have been deleted.", "error");
+            } else if (res.status === 401 || res.status === 403) {
+              showToast("You don't have permission to resurface this content.", "error");
+            } else {
+              showToast("Couldn't load the original content. You can still create from scratch.", "error");
+            }
+          }
+          return;
+        }
+
+        const data = await res.json();
+        if (cancelled) return;
+
+        if (!data || !data.title) {
+          console.warn("[Resurface] API returned empty data:", data);
+          if (!cancelled) {
+            setResurfaceReady(true);
+            showToast("Couldn't load the original content. You can still create from scratch.", "error");
+          }
+          return;
+        }
+
+        // Store source title for the banner
+        setResurfaceSourceTitle(data.sourceTitle || data.title);
+        // Ensure the content type matches
+        setContentType(contentTypeForResurface);
+
+        // Pre-fill form state with resurfaced content data.
+        // Build a fresh FormState object — only dates are reset, everything
+        // else comes from the original content.
+        const fresh: FormState = {
+          ...EMPTY_FORM,
+          title: data.title || "",
+          description: data.description || "",
+          imageUrl: data.imageUrl || null,
+          conditions: Array.isArray(data.conditions)
+            ? data.conditions.join(", ")
+            : data.conditions || "",
+          promotionType: data.type || "",
+          passType: data.type || "",
+          benefits: Array.isArray(data.conditions) ? data.conditions : [],
+        };
+
+        // Set appropriate dates based on content type
+        if (contentTypeForResurface === "promotion") {
+          fresh.startDate = new Date().toISOString().slice(0, 10);
+          fresh.endDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        } else if (contentTypeForResurface === "event") {
+          fresh.startTime = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+          fresh.endTime = new Date(Date.now() + 24 * 60 * 60 * 1000 + 3 * 60 * 60 * 1000).toISOString().slice(0, 16);
+        } else if (contentTypeForResurface === "pass") {
+          fresh.startDate = new Date().toISOString().slice(0, 10);
+          fresh.endDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+        }
+
+        setFormState(fresh);
+
+        // Seed AI visual params with sensible defaults so the social media
+        // card capture pipeline has what it needs. Without this, resurfaced
+        // content skips card generation entirely and shows "Generating your
+        // social media card..." forever.
+        setAiVisual({
+          template: contentTypeForResurface === "event" ? "centered" : "card",
+          mood: contentTypeForResurface === "event" ? "vibrant" : "dark",
+          overlayOpacity: 0.4,
+          accentColor: "#8b5cf6",
+        });
+
+        setResurfaceReady(true);
+
+        console.log(`[Resurface] Pre-filled form with "${data.title}" (${contentTypeForResurface})`);
+      } catch (err) {
+        if (!cancelled) {
+          console.error("[Resurface] Fetch failed:", err);
+          setResurfaceReady(true);
+          showToast("Network error while loading content. You can still create from scratch.", "error");
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resurfaceId, contentTypeForResurface, barId]);
+
   const [contentType, setContentType] = useState<ContentType>(initialType);
   const [formState, setFormState] = useState<FormState>(EMPTY_FORM);
+  const [resurfaceSourceTitle, setResurfaceSourceTitle] = useState<string | null>(null);
   const [aiInferred, setAiInferred] = useState(false);
   const [aiVisual, setAiVisual] = useState<Record<string, unknown> | null>(null);
   const [complianceExpanded, setComplianceExpanded] = useState(false);
@@ -1164,11 +1301,57 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
           )}
 
         </div>
+      ) : !resurfaceReady ? (
+        /* ---- Resurface Loading State ---- */
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "4rem 2rem",
+          textAlign: "center",
+        }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            border: "3px solid #e5e7eb",
+            borderTopColor: "#7c3aed",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            marginBottom: "1rem",
+          }} />
+          <div style={{ fontSize: "0.9375rem", fontWeight: 600, color: "#374151", marginBottom: "0.25rem" }}>
+            Loading resurfaced content…
+          </div>
+          <div style={{ fontSize: "0.8125rem", color: "#6b7280" }}>
+            Fetching the original promotion details so you can republish with fresh dates.
+          </div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
       ) : (
         /* ---- Creation Form ---- */
         <>
           <HubLayout>
               <FormPanel>
+                {resurfaceSourceTitle && (
+                  <div style={{
+                    padding: "0.625rem 0.875rem",
+                    margin: "0 0 0.75rem 0",
+                    background: "linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%)",
+                    border: "1px solid #fcd34d",
+                    borderRadius: "0.5rem",
+                    fontSize: "0.8125rem",
+                    color: "#92400e",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "0.5rem",
+                  }}>
+                    <span style={{ fontSize: "1rem" }}>♻️</span>
+                    <span>
+                      <strong>Resurfacing:</strong> &ldquo;{resurfaceSourceTitle}&rdquo; — edit anything before publishing.
+                    </span>
+                  </div>
+                )}
                 <UnifiedCreationFlow
                   barId={barId}
                   barName={barName}
@@ -1176,6 +1359,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                   contentType={contentType}
                   formState={formState}
                   contentTone={contentTone}
+                  initialStep={resurfaceSourceTitle ? "publish" : undefined}
                   onGenerated={handleAIGenerated}
                   onFieldChange={handleFieldChange}
                   onTypeChange={handleTypeChange}

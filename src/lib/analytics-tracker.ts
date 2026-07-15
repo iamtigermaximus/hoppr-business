@@ -13,6 +13,12 @@ interface TrackOptions {
   type: AnalyticsEventType;
   userId?: string | null;
   barId?: string | null;
+  /** Content item ID that this event relates to (promotion, event, pass) */
+  contentId?: string | null;
+  /** Type of content: "promotion" | "event" | "pass" | "campaign" */
+  contentType?: string | null;
+  /** Content title for metadata (included in the JSON data field) */
+  contentTitle?: string | null;
   data?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
@@ -51,13 +57,35 @@ const STAT_FIELD_MAP: Partial<Record<AnalyticsEventType, string>> = {
  */
 export async function track(opts: TrackOptions): Promise<void> {
   try {
+    // Build JSON data from explicit content fields + existing data
+    const jsonData: Record<string, unknown> = { ...(opts.data ?? {}) };
+    if (opts.contentId && opts.contentType) {
+      switch (opts.contentType) {
+        case "promotion":
+          jsonData.promoId = opts.contentId;
+          if (opts.contentTitle) jsonData.promoName = opts.contentTitle;
+          break;
+        case "event":
+          jsonData.eventId = opts.contentId;
+          if (opts.contentTitle) jsonData.eventTitle = opts.contentTitle;
+          break;
+        case "pass":
+          jsonData.passId = opts.contentId;
+          break;
+        default:
+          jsonData.contentId = opts.contentId;
+          jsonData.contentType = opts.contentType;
+          if (opts.contentTitle) jsonData.contentTitle = opts.contentTitle;
+      }
+    }
+
     // 1. Write the raw event row
     await prisma.analyticsEvent.create({
       data: {
         type: opts.type,
         userId: opts.userId ?? null,
         barId: opts.barId ?? null,
-        data: (opts.data ?? undefined) as any,
+        data: Object.keys(jsonData).length > 0 ? (jsonData as any) : undefined,
         ipAddress: (opts.ipAddress ?? undefined) as any,
         userAgent: (opts.userAgent ?? undefined) as any,
       },

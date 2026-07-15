@@ -33,6 +33,8 @@ interface UnifiedCreationFlowProps {
   onTypeChange: (type: ContentType) => void;
   onSubmit: () => void;
   submitting?: boolean;
+  /** Start at a specific step instead of the type selection grid. */
+  initialStep?: FlowStep;
 }
 
 interface EditableVariant {
@@ -540,9 +542,10 @@ export default function UnifiedCreationFlow({
   onTypeChange,
   onSubmit,
   submitting,
+  initialStep,
 }: UnifiedCreationFlowProps) {
   // Flow state
-  const [step, setStep] = useState<FlowStep>("type");
+  const [step, setStep] = useState<FlowStep>(initialStep || "type");
   const [error, setError] = useState<string | null>(null);
 
   // Brief state

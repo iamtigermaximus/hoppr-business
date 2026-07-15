@@ -10,6 +10,7 @@ import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 import FollowersAnalytics from "./FollowersAnalytics";
 import PerformanceDashboard from "./PerformanceDashboard";
 import CrowdAnalytics from "./CrowdAnalytics";
+import ContentPerformancePanel from "./ContentPerformancePanel";
 
 // ── Styled Components (kept from original) ──────────────────────
 
@@ -204,7 +205,7 @@ interface AnalyticsData {
   hasData: boolean;
 }
 
-type TabType = "overview" | "engagement" | "promotions" | "events" | "campaigns" | "followers" | "performance" | "crowd";
+type TabType = "overview" | "engagement" | "promotions" | "events" | "campaigns" | "followers" | "performance" | "crowd" | "content";
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -580,7 +581,7 @@ const AnalyticsDashboard = ({ barId }: Props) => {
       </DateFilter>
 
       <Tabs>
-        {(["overview", "engagement", "promotions", "events", "campaigns", "followers", "performance", "crowd"] as TabType[]).map(
+        {(["overview", "engagement", "promotions", "events", "campaigns", "followers", "performance", "crowd", "content"] as TabType[]).map(
           (t) => (
             <Tab key={t} $active={activeTab === t} onClick={() => setActiveTab(t)}>
               {t === "overview" && "Overview"}
@@ -591,6 +592,7 @@ const AnalyticsDashboard = ({ barId }: Props) => {
               {t === "followers" && "Followers"}
               {t === "performance" && "Performance"}
               {t === "crowd" && "Crowd"}
+              {t === "content" && "Content"}
             </Tab>
           ),
         )}
@@ -604,6 +606,7 @@ const AnalyticsDashboard = ({ barId }: Props) => {
       {activeTab === "followers" && <FollowersAnalytics barId={barId} />}
       {activeTab === "performance" && <PerformanceDashboard barId={barId} />}
       {activeTab === "crowd" && <CrowdAnalytics barId={barId} />}
+      {activeTab === "content" && <ContentPerformancePanel barId={barId} />}
     </Container>
   );
 };

@@ -124,7 +124,7 @@ export async function GET(
     const profileScore = Math.round((completedCount / 7) * 100);
 
     // ── Raw events for last 7 and 30 days (same source as dashboard/analytics) ─
-    const [recentEvents, olderEvents] = await Promise.all([
+    const [recentEvents, olderEvents, contentEvents] = await Promise.all([
       prisma.analyticsEvent.findMany({
         where: { barId, createdAt: { gte: sevenDaysAgo } },
         select: { type: true, userId: true, createdAt: true },
@@ -134,7 +134,149 @@ export async function GET(
         where: { barId, createdAt: { gte: thirtyDaysAgo, lt: sevenDaysAgo } },
         select: { type: true, userId: true, createdAt: true },
       }),
+      // Content-level events with data column for per-item aggregation
+      prisma.analyticsEvent.findMany({
+        where: {
+          barId,
+          type: {
+            in: [
+              "PROMO_VIEW", "PROMO_CLICK", "PROMO_REDEMPTION",
+              "EVENT_VIEW", "EVENT_JOIN",
+              "PASS_VIEW", "PASS_PURCHASE",
+            ],
+          },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+        select: { type: true, data: true, userId: true, createdAt: true },
+      }),
     ]);
+
+    // ── Per-content aggregation from contentEvents ─────────────
+    interface ContentPerf {
+      contentId: string;
+      contentType: "promotion" | "event" | "pass";
+      views: number;
+      clicks: number;
+      redemptions: number;
+      uniqueUsers: Set<string>;
+    }
+
+    const contentPerfMap = new Map<string, ContentPerf>();
+
+    function getOrCreatePerf(id: string, cType: "promotion" | "event" | "pass"): ContentPerf {
+      let cp = contentPerfMap.get(id);
+      if (!cp) {
+        cp = { contentId: id, contentType: cType, views: 0, clicks: 0, redemptions: 0, uniqueUsers: new Set() };
+        contentPerfMap.set(id, cp);
+      }
+      return cp;
+    }
+
+    for (const ev of contentEvents) {
+      const data = ev.data as Record<string, unknown> | null;
+      if (!data) continue;
+      const promoId = (data.promoId || data.promotionId || data.contentId) as string | undefined;
+      const eventId = data.eventId as string | undefined;
+      const passId = data.passId as string | undefined;
+
+      if (promoId) {
+        const cp = getOrCreatePerf(promoId, "promotion");
+        if (ev.userId) cp.uniqueUsers.add(ev.userId);
+        switch (ev.type) {
+          case "PROMO_VIEW": cp.views++; break;
+          case "PROMO_CLICK": cp.clicks++; break;
+          case "PROMO_REDEMPTION": cp.redemptions++; break;
+        }
+        continue;
+      }
+      if (eventId) {
+        const cp = getOrCreatePerf(eventId, "event");
+        if (ev.userId) cp.uniqueUsers.add(ev.userId);
+        switch (ev.type) {
+          case "EVENT_VIEW": cp.views++; break;
+          case "EVENT_JOIN": cp.redemptions++; break;
+        }
+        continue;
+      }
+      if (passId) {
+        const cp = getOrCreatePerf(passId, "pass");
+        if (ev.userId) cp.uniqueUsers.add(ev.userId);
+        switch (ev.type) {
+          case "PASS_VIEW": cp.views++; break;
+          case "PASS_PURCHASE": cp.redemptions++; break;
+        }
+      }
+    }
+
+    // ── Fetch content metadata for items that appeared in events ─
+    const promoIds = Array.from(contentPerfMap.values()).filter((c) => c.contentType === "promotion").map((c) => c.contentId);
+    const eventIds = Array.from(contentPerfMap.values()).filter((c) => c.contentType === "event").map((c) => c.contentId);
+    const passIds = Array.from(contentPerfMap.values()).filter((c) => c.contentType === "pass").map((c) => c.contentId);
+
+    const [contentPromos, contentEventsMeta, contentPasses] = await Promise.all([
+      promoIds.length > 0
+        ? prisma.barPromotion.findMany({
+            where: { id: { in: promoIds }, barId },
+            select: { id: true, title: true, isActive: true, endDate: true },
+          })
+        : [],
+      eventIds.length > 0
+        ? prisma.event.findMany({
+            where: { id: { in: eventIds }, venueId: barId },
+            select: { id: true, title: true, isActive: true, endTime: true },
+          })
+        : [],
+      passIds.length > 0
+        ? prisma.vIPPassEnhanced.findMany({
+            where: { id: { in: passIds }, barId },
+            select: { id: true, name: true, isActive: true, validityEnd: true },
+          })
+        : [],
+    ]);
+
+    const contentTitleMap = new Map<string, { title: string; isActive: boolean }>();
+    for (const p of contentPromos) contentTitleMap.set(p.id, { title: p.title, isActive: p.isActive });
+    for (const e of contentEventsMeta) contentTitleMap.set(e.id, { title: e.title, isActive: e.isActive });
+    for (const p of contentPasses) contentTitleMap.set(p.id, { title: p.name, isActive: p.isActive });
+
+    // Best performer by conversion rate
+    let bestPerformer: { title: string; conversionRate: number; contentType: string; contentId: string } | null = null;
+    let worstPerformer: { title: string; views: number; redemptions: number; conversionRate: number; contentType: string } | null = null;
+
+    for (const cp of contentPerfMap.values()) {
+      const meta = contentTitleMap.get(cp.contentId);
+      if (!meta) continue;
+      const rate = cp.views > 0 ? Math.round((cp.redemptions / cp.views) * 1000) / 10 : 0;
+      if (!bestPerformer || rate > bestPerformer.conversionRate) {
+        bestPerformer = { title: meta.title, conversionRate: rate, contentType: cp.contentType, contentId: cp.contentId };
+      }
+      // Underperformer: has meaningful views (>20) but very low conversion (<5%)
+      if (cp.views > 20 && rate < 5 && (!worstPerformer || cp.views > worstPerformer.views)) {
+        worstPerformer = { title: meta.title, views: cp.views, redemptions: cp.redemptions, conversionRate: rate, contentType: cp.contentType };
+      }
+    }
+
+    // Count content with zero engagement (active promos/events with no events at all)
+    const [allActivePromos, allActiveEvents, allActivePasses] = await Promise.all([
+      prisma.barPromotion.findMany({
+        where: { barId, isActive: true },
+        select: { id: true, title: true },
+      }),
+      prisma.event.findMany({
+        where: { venueId: barId, isActive: true },
+        select: { id: true, title: true },
+      }),
+      prisma.vIPPassEnhanced.findMany({
+        where: { barId, isActive: true },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    const engagedIds = new Set(contentPerfMap.keys());
+    const dormantPromos = allActivePromos.filter((p) => !engagedIds.has(p.id));
+    const dormantEvents = allActiveEvents.filter((e) => !engagedIds.has(e.id));
+    const dormantPasses = allActivePasses.filter((p) => !engagedIds.has(p.id));
+    const totalDormant = dormantPromos.length + dormantEvents.length + dormantPasses.length;
 
     // ── Aggregate by type + unique visitors ──────────────────
     function aggregateEvents(events: typeof recentEvents) {
@@ -206,12 +348,8 @@ export async function GET(
       if (count > bestDayCount) { bestDayCount = count; bestDay = DAY_NAMES[dow]; }
     }
 
-    // ── Top promotion by redemptions ────────────────────────
-    const topPromo = await prisma.barPromotion.findFirst({
-      where: { barId, isActive: true },
-      orderBy: { redemptions: "desc" },
-      select: { title: true, redemptions: true, endDate: true },
-    });
+    // ── Top promotion (from events, consistent with analytics) ─
+    const topPromoTitle = bestPerformer?.title || null;
 
     // ── Expiring promos ─────────────────────────────────────
     const threeDaysFromNow = new Date(Date.now() + 3 * 86400000);
@@ -319,6 +457,46 @@ export async function GET(
         id: "g-campaign", icon: "📢", title: "Launch your first ad campaign",
         description: "Boost your best promo or event with a targeted ad campaign to reach more customers.",
         action: `/bar/${barId}/create?type=campaign`, type: "growth",
+      });
+    }
+
+    // ── Content-specific suggestions (from per-item event data) ──
+    if (bestPerformer && bestPerformer.conversionRate >= 10) {
+      const ctLabel = bestPerformer.contentType === "promotion" ? "promotion"
+        : bestPerformer.contentType === "event" ? "event" : "pass";
+      suggestions.push({
+        id: "content-resurface",
+        icon: "♻️",
+        title: `Resurface "${bestPerformer.title}"`,
+        description: `Your best performer with ${bestPerformer.conversionRate}% conversion rate. Duplicate it with fresh dates in one click.`,
+        action: `/bar/${barId}/create?type=${ctLabel}&resurface=${encodeURIComponent(bestPerformer.contentId)}`,
+        type: "growth",
+      });
+    }
+
+    if (worstPerformer) {
+      suggestions.push({
+        id: "content-refresh",
+        icon: "🔍",
+        title: `Refresh "${worstPerformer.title}"`,
+        description: `${worstPerformer.views} views but only ${worstPerformer.redemptions} conversions (${worstPerformer.conversionRate}%). Try updating the copy or image.`,
+        action: `/bar/${barId}/${worstPerformer.contentType === "event" ? "events" : "promotions"}`,
+        type: "optimization",
+      });
+    }
+
+    if (totalDormant > 0) {
+      const parts: string[] = [];
+      if (dormantPromos.length > 0) parts.push(`${dormantPromos.length} promotion${dormantPromos.length > 1 ? "s" : ""}`);
+      if (dormantEvents.length > 0) parts.push(`${dormantEvents.length} event${dormantEvents.length > 1 ? "s" : ""}`);
+      if (dormantPasses.length > 0) parts.push(`${dormantPasses.length} pass${dormantPasses.length > 1 ? "es" : ""}`);
+      suggestions.push({
+        id: "content-dormant",
+        icon: "😴",
+        title: `${parts.join(" and ")} with zero engagement`,
+        description: "Consider refreshing the copy, image, or timing — or deactivate them to keep your page clean.",
+        action: `/bar/${barId}/analytics?tab=content`,
+        type: "optimization",
       });
     }
 
@@ -468,7 +646,9 @@ export async function GET(
     // ── Quick stats ──────────────────────────────────────────
     const quickStats = {
       bestDay: hasTraffic ? bestDay : "Not enough data",
-      topPromotion: topPromo?.title || (profileChecks.hasPromo ? "No redemptions yet" : "Create a promotion"),
+      topPromotion: bestPerformer
+        ? `${bestPerformer.title} (${bestPerformer.conversionRate}% conv.)`
+        : topPromoTitle || (profileChecks.hasPromo ? "No redemptions yet" : "Create a promotion"),
       profileScore: `${profileScore}% (${completedCount}/7)`,
     };
 
