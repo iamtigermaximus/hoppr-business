@@ -6,7 +6,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
+import { Download } from "lucide-react";
 import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
+import { downloadCSV, sheetsToCSV } from "@/lib/csv-export";
 import FollowersAnalytics from "./FollowersAnalytics";
 import PerformanceDashboard from "./PerformanceDashboard";
 import CrowdAnalytics from "./CrowdAnalytics";
@@ -150,6 +152,22 @@ const Spinner = styled.div`
   width: 36px; height: 36px; border: 3px solid #f3f4f6; border-top: 3px solid #3b82f6;
   border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem;
   @keyframes spin { to { transform: rotate(360deg); } }
+`;
+
+const ExportButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: #059669; }
 `;
 
 // ── Types ──────────────────────────────────────────────────────
@@ -302,6 +320,134 @@ const AnalyticsDashboard = ({ barId }: Props) => {
     fetchData();
     return () => { cancelled = true; };
   }, [barId, timeRange]);
+
+  // ── Export handler ─────────────────────────────────────────
+
+  const handleExport = () => {
+    if (!data) return;
+
+    const barName = barId.slice(0, 8);
+    const rangeLabel = timeRange === "7d" ? "7d" : timeRange === "90d" ? "90d" : "30d";
+
+    switch (activeTab) {
+      case "overview":
+        downloadCSV(`hoppr-${barName}-overview-${rangeLabel}`, [
+          {
+            name: "Summary",
+            headers: ["Metric", "Value"],
+            rows: [
+              ["Profile Views", data.profileViews],
+              ["Unique Visitors", data.uniqueVisitors],
+              ["Active Promos", data.activePromos],
+              ["Upcoming Events", data.activeEvents],
+            ],
+          },
+          {
+            name: "Daily Breakdown",
+            headers: ["Date", "Profile Views", "Unique Visitors"],
+            rows: data.dailyBreakdown.map((d) => [d.date, d.profileViews, d.uniqueVisitors]),
+          },
+        ]);
+        break;
+      case "engagement":
+        downloadCSV(`hoppr-${barName}-engagement-${rangeLabel}`, [
+          {
+            name: "Summary",
+            headers: ["Metric", "Value"],
+            rows: [
+              ["Direction Clicks", data.directionClicks],
+              ["Website Visits", data.websiteClicks],
+              ["Phone Calls", data.callClicks],
+              ["Shares", data.shareCount],
+            ],
+          },
+          {
+            name: "Daily Breakdown",
+            headers: ["Date", "Direction Clicks", "Shares"],
+            rows: data.dailyBreakdown.map((d) => [d.date, d.directionClicks, d.shareCount]),
+          },
+        ]);
+        break;
+      case "promotions":
+        downloadCSV(`hoppr-${barName}-promotions-${rangeLabel}`, [
+          {
+            name: "Summary",
+            headers: ["Metric", "Value"],
+            rows: [
+              ["Promo Views", data.promoViews],
+              ["Promo Clicks", data.promoClicks],
+              ["Redemptions", data.promoRedemptions],
+              ["Active Promos", data.activePromos],
+            ],
+          },
+          {
+            name: "Daily Breakdown",
+            headers: ["Date", "Promo Views", "Redemptions"],
+            rows: data.dailyBreakdown.map((d) => [d.date, d.promoViews, d.promoRedemptions]),
+          },
+        ]);
+        break;
+      case "events":
+        downloadCSV(`hoppr-${barName}-events-${rangeLabel}`, [
+          {
+            name: "Summary",
+            headers: ["Metric", "Value"],
+            rows: [
+              ["Event Views", data.eventViews],
+              ["Event Joins", data.eventJoins],
+              ["Upcoming Events", data.activeEvents],
+              [
+                "Join Rate",
+                data.eventViews > 0 ? Math.round((data.eventJoins / data.eventViews) * 100) + "%" : "—",
+              ],
+            ],
+          },
+          {
+            name: "Daily Breakdown",
+            headers: ["Date", "Event Views", "Event Joins"],
+            rows: data.dailyBreakdown.map((d) => [d.date, d.eventViews, d.eventJoins]),
+          },
+        ]);
+        break;
+      case "campaigns":
+        downloadCSV(`hoppr-${barName}-campaigns-${rangeLabel}`, [
+          {
+            name: "Summary",
+            headers: ["Metric", "Value"],
+            rows: [
+              ["Ad Impressions", data.campaignImpressions],
+              ["Ad Clicks", data.campaignClicks],
+              ["CTR", data.campaignImpressions > 0 ? ((data.campaignClicks / data.campaignImpressions) * 100).toFixed(2) + "%" : "—"],
+              ["Budget Spent", data.campaignBudgetCents > 0 ? Math.round((data.campaignSpentCents / data.campaignBudgetCents) * 100) + "%" : "—"],
+            ],
+          },
+          ...(data.campaignsInRange && data.campaignsInRange.length > 0
+            ? [
+                {
+                  name: "Campaigns",
+                  headers: ["Campaign", "Type", "Status", "Impressions", "Clicks", "Budget (€)", "Spent (€)"],
+                  rows: data.campaignsInRange.map((c) => [
+                    c.title,
+                    c.type.replace(/_/g, " "),
+                    c.status,
+                    c.impressions,
+                    c.clicks,
+                    (c.budgetCents / 100).toFixed(0),
+                    (c.spentCents / 100).toFixed(2),
+                  ]),
+                },
+              ]
+            : []),
+        ]);
+        break;
+      default:
+        // Tabs handled by sub-components (followers, performance, crowd, content)
+        // — export is triggered from within those components
+        break;
+    }
+  };
+
+  const exportableTabs: TabType[] = ["overview", "engagement", "promotions", "events", "campaigns"];
 
   // ── Loading / Error / Empty ──────────────────────────────────
 
@@ -578,6 +724,12 @@ const AnalyticsDashboard = ({ barId }: Props) => {
             <option value="90d">Last 90 days</option>
           </Select>
         </label>
+        {exportableTabs.includes(activeTab) && (
+          <ExportButton onClick={handleExport}>
+            <Download size={14} />
+            Export CSV
+          </ExportButton>
+        )}
       </DateFilter>
 
       <Tabs>

@@ -4,6 +4,8 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import { Download } from "lucide-react";
+import { downloadCSV } from "@/lib/csv-export";
 import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 const Container = styled.div`
@@ -202,6 +204,22 @@ const LoadingState = styled.div`
   }
 `;
 
+const ExportButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: #059669; }
+`;
+
 interface BarStats {
   profileViews: number;
   directionClicks: number;
@@ -284,6 +302,51 @@ const PerformanceDashboard = ({ barId }: PerformanceDashboardProps) => {
     return () => { cancelled = true; };
   }, [barId, timeRange]);
 
+  const handleExport = () => {
+    if (promotions.length === 0) return;
+    downloadCSV(`hoppr-performance-${timeRange}`, [
+      {
+        name: "Summary",
+        headers: ["Metric", "Value"],
+        rows: [
+          ["Profile Views", barStats?.profileViews || 0],
+          ["Total VIP Scans", totalScans],
+          ["Total Card Views", totalCardViews],
+          ["Total Redemptions", totalRedemptions],
+          ["Overall Conversion Rate", overallConversion.toFixed(1) + "%"],
+          ["Unique Customers", totalUniqueUsers],
+        ],
+      },
+      {
+        name: "Promotion Performance",
+        headers: ["Promotion", "Status", "Card Views", "Clicks", "Redemptions", "Conversion Rate", "Unique Users", "Avg Uses/User"],
+        rows: promotions.map((p) => [
+          p.title,
+          getStatus(p),
+          p.totalCardViews,
+          p.totalClicks,
+          p.totalRedemptions,
+          p.conversionRate.toFixed(1) + "%",
+          p.uniqueUsers,
+          p.averageUsesPerUser.toFixed(1) + "x",
+        ]),
+      },
+      {
+        name: "Top Customers",
+        headers: ["Customer ID", "Times Used", "First Used", "Last Used", "For Promotion"],
+        rows: promotions.flatMap((p) =>
+          p.topUsers.map((u) => [
+            u.userId,
+            u.usageCount,
+            new Date(u.firstUsedAt).toLocaleDateString("en-GB"),
+            new Date(u.lastUsedAt).toLocaleDateString("en-GB"),
+            p.title,
+          ])
+        ),
+      },
+    ]);
+  };
+
   const getStatus = (
     promo: PromotionStats,
   ): "active" | "pending" | "inactive" => {
@@ -350,6 +413,10 @@ const PerformanceDashboard = ({ barId }: PerformanceDashboardProps) => {
           <option value="30d">Last 30 days</option>
           <option value="90d">Last 90 days</option>
         </Select>
+        <ExportButton onClick={handleExport}>
+          <Download size={13} />
+          Export CSV
+        </ExportButton>
       </DateFilter>
 
       {/* Overview Stats */}

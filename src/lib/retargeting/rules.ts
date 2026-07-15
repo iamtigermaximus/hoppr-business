@@ -54,4 +54,34 @@ export const RULE_DEFINITIONS: Record<RetargetingRule, RuleDefinition> = {
         `You follow ${name} but haven't stopped by in a while. Check out what's happening!`,
     },
   },
+
+  VIEWED_NOT_REDEEMED: {
+    rule: "VIEWED_NOT_REDEEMED",
+    label: "Viewed but didn't redeem",
+    description:
+      "Users who viewed a specific promotion but haven't redeemed it within the configured time window.",
+    lookbackDays: 2,
+    cooldownDays: 7,
+    defaultMaxPerDay: 10,
+    notification: {
+      titleTemplate: (name) => `💡 Don't miss out at ${name}`,
+      bodyTemplate: (name) =>
+        `You checked out a deal at ${name} but haven't used it yet. It might expire soon — grab it while you can!`,
+    },
+  },
+
+  EVENT_NOT_RSVPED: {
+    rule: "EVENT_NOT_RSVPED",
+    label: "Viewed event but didn't RSVP",
+    description:
+      "Users who viewed a specific event but haven't RSVP'd within the configured time window.",
+    lookbackDays: 2,
+    cooldownDays: 7,
+    defaultMaxPerDay: 10,
+    notification: {
+      titleTemplate: (name) => `🎵 Spots filling up at ${name}`,
+      bodyTemplate: (name) =>
+        `You checked out an event at ${name} but haven't reserved a spot yet. Don't wait — it might sell out!`,
+    },
+  },
 };

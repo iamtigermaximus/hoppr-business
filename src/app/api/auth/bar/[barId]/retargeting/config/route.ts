@@ -24,7 +24,7 @@ export async function GET(
 
   const [campaigns, bar] = await Promise.all([
     prisma.retargetingCampaign.findMany({
-      where: { barId },
+      where: { barId, contentId: "" }, // Only bar-level campaigns; content-specific are auto-managed
       orderBy: { rule: "asc" },
     }),
     prisma.bar.findUnique({
@@ -102,10 +102,11 @@ export async function PUT(
       if (!def) continue;
 
       await prisma.retargetingCampaign.upsert({
-        where: { barId_rule: { barId, rule: def.rule } },
+        where: { barId_rule_contentId: { barId, rule: def.rule, contentId: "" } },
         create: {
           barId,
           rule: def.rule,
+          contentId: "",
           enabled: rule.enabled ?? true,
           maxPerDay: rule.maxPerDay ?? def.defaultMaxPerDay,
         },

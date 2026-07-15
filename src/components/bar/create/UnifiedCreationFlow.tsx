@@ -2441,6 +2441,63 @@ export default function UnifiedCreationFlow({
               </SummaryGrid>
             </ScheduleSummaryBox>
 
+            {/* Retargeting section — only for promos and events */}
+            {(contentType === "promotion" || contentType === "event") && (
+              <RetargetingBox>
+                <RetargetingTitle>
+                  {language === "fi" ? "Uudelleenkohdennus" : "Follow-up retargeting"}
+                </RetargetingTitle>
+                <CheckboxRow style={{ marginTop: "0.75rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={formState.retargetViewers}
+                    onChange={(e) =>
+                      onFieldChange("retargetViewers", e.target.checked)
+                    }
+                    id="retargetViewers"
+                  />
+                  <CheckboxLabel htmlFor="retargetViewers">
+                    {contentType === "promotion"
+                      ? language === "fi"
+                        ? "Lähetä muistutus käyttäjille, jotka katsovat mutta eivät lunasta tarjousta"
+                        : "Follow up with people who view but don't redeem this deal"
+                      : language === "fi"
+                        ? "Lähetä muistutus käyttäjille, jotka katsovat mutta eivät ilmoittaudu"
+                        : "Follow up with people who view but don't RSVP"}
+                  </CheckboxLabel>
+                </CheckboxRow>
+                {formState.retargetViewers && (
+                  <div style={{ marginTop: "0.75rem", marginLeft: "1.5rem" }}>
+                    <FieldLabel style={{ marginBottom: "0.35rem" }}>
+                      {language === "fi" ? "Seurantaviive" : "Follow-up delay"}
+                    </FieldLabel>
+                    <SelectField
+                      value={formState.retargetDelayHours}
+                      onChange={(e) =>
+                        onFieldChange("retargetDelayHours", Number(e.target.value))
+                      }
+                      style={{ width: "auto", minWidth: "160px" }}
+                    >
+                      <option value={24}>
+                        {language === "fi" ? "24 tuntia" : "24 hours"}
+                      </option>
+                      <option value={48}>
+                        {language === "fi" ? "48 tuntia" : "48 hours"}
+                      </option>
+                      <option value={72}>
+                        {language === "fi" ? "72 tuntia" : "72 hours"}
+                      </option>
+                    </SelectField>
+                    <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.35rem" }}>
+                      {language === "fi"
+                        ? `Käyttäjät jotka katsoivat mutta eivät toimineet saavat push-ilmoituksen ${formState.retargetDelayHours} tunnin kuluttua.`
+                        : `Users who viewed but didn't act will get a push notification after ${formState.retargetDelayHours} hours.`}
+                    </div>
+                  </div>
+                )}
+              </RetargetingBox>
+            )}
+
             <SubmitRow>
               <BackLink onClick={goBack} style={{ marginBottom: 0 }}>
                 {language === "fi" ? "← Takaisin aikatauluun" : "← Back to schedule"}
@@ -3691,6 +3748,22 @@ const SummaryValue = styled.span<{ $highlight?: boolean }>`
   font-size: 13px;
   font-weight: 600;
   color: ${({ $highlight }) => ($highlight ? "#6ee7b7" : "#d1d5db")};
+`;
+
+const RetargetingBox = styled.div`
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: 10px;
+`;
+
+const RetargetingTitle = styled.div`
+  font-size: 13px;
+  font-weight: 700;
+  color: #6ee7b7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 // ---- Ingredients summary ----

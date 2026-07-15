@@ -4,6 +4,8 @@
 
 import { useState, useEffect } from "react";
 import styled from "styled-components";
+import { Download } from "lucide-react";
+import { downloadCSV } from "@/lib/csv-export";
 import { SkeletonBox, SkeletonCard } from "@/components/ui/Skeleton";
 
 // ── Styled Components ──────────────────────────────────────────
@@ -267,6 +269,22 @@ const RetryButton = styled.button`
   }
 `;
 
+const ExportButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: #059669; }
+`;
+
 // ── Types ───────────────────────────────────────────────────────
 
 interface FollowerRecord {
@@ -355,6 +373,37 @@ export default function FollowersAnalytics({ barId }: FollowersAnalyticsProps) {
     return `${days}d ago`;
   };
 
+  const handleExport = () => {
+    if (!data) return;
+    const rangeLabel = timeRange === "7d" ? "7 Days" : timeRange === "30d" ? "30 Days" : "90 Days";
+    downloadCSV(`hoppr-followers-${timeRange}`, [
+      {
+        name: "Summary",
+        headers: ["Metric", "Value"],
+        rows: [
+          ["Total Followers", data.totalFollowers],
+          ["New Followers", data.newFollowers],
+          ["Retention Rate", data.retentionRate + "%"],
+          ["Time Range", rangeLabel],
+        ],
+      },
+      {
+        name: "Growth Data",
+        headers: ["Date", "New Followers", "Total Followers"],
+        rows: data.growthData.map((g) => [g.date, g.count, g.total]),
+      },
+      {
+        name: "Recent Followers",
+        headers: ["User Name", "User ID", "Followed At"],
+        rows: data.recentFollowers.map((f) => [
+          f.userName,
+          f.userId,
+          new Date(f.followedAt).toLocaleDateString("en-GB"),
+        ]),
+      },
+    ]);
+  };
+
   if (loading) {
     return (
       <Container>
@@ -400,16 +449,22 @@ export default function FollowersAnalytics({ barId }: FollowersAnalyticsProps) {
     <Container>
       <Header>
         <Title>Follower Analytics</Title>
-        <Select
-          value={timeRange}
-          onChange={(e) =>
-            setTimeRange(e.target.value as "7d" | "30d" | "90d")
-          }
-        >
-          <option value="7d">Last 7 days</option>
-          <option value="30d">Last 30 days</option>
-          <option value="90d">Last 90 days</option>
-        </Select>
+        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <Select
+            value={timeRange}
+            onChange={(e) =>
+              setTimeRange(e.target.value as "7d" | "30d" | "90d")
+            }
+          >
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+          </Select>
+          <ExportButton onClick={handleExport}>
+            <Download size={13} />
+            Export CSV
+          </ExportButton>
+        </div>
       </Header>
 
       {/* Stats cards */}

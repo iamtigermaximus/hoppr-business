@@ -263,6 +263,39 @@ export async function GET(
       }
     }
 
+    // ── Retargeting stats per content item ──────────────────────────
+    const retargetingCampaigns = await prisma.retargetingCampaign.findMany({
+      where: {
+        barId,
+        contentId: { not: "" },
+        enabled: true,
+      },
+      select: {
+        id: true,
+        contentId: true,
+        rule: true,
+        actions: {
+          where: { sentAt: { gte: startDate }, status: "sent" },
+          select: { userId: true, sentAt: true },
+        },
+      },
+    });
+
+    // Build per-content retargeting aggregates
+    const retargetingByContent = new Map<string, {
+      sent: number;
+      configured: boolean;
+      rule: string;
+    }>();
+
+    for (const camp of retargetingCampaigns) {
+      retargetingByContent.set(camp.contentId, {
+        sent: camp.actions.length,
+        configured: true,
+        rule: camp.rule,
+      });
+    }
+
     // ── Build final items list ──────────────────────────────────────
     const items = Array.from(aggregateMap.values())
       .map((agg) => {
@@ -273,6 +306,8 @@ export async function GET(
         const engagementRate = agg.views > 0
           ? Math.round((agg.clicks / agg.views) * 1000) / 10
           : 0;
+
+        const retargeting = retargetingByContent.get(agg.contentId);
 
         return {
           contentId: agg.contentId,
@@ -289,6 +324,9 @@ export async function GET(
           conversionRate,
           engagementRate,
           uniqueUsers: agg.uniqueUsers.size,
+          retargetingSent: retargeting?.sent || 0,
+          retargetingConfigured: retargeting?.configured || false,
+          retargetingRule: retargeting?.rule || null,
         };
       })
       // Only include items whose backing DB row still exists

@@ -82,6 +82,9 @@ export interface FormState {
   remindBeforeEvent: boolean;
   remindMinutesBefore: number;
   scheduledPublishAt: string;
+  // Retargeting
+  retargetViewers: boolean;
+  retargetDelayHours: number;
 }
 
 export const EMPTY_FORM: FormState = {
@@ -136,6 +139,8 @@ export const EMPTY_FORM: FormState = {
   remindMinutesBefore: 120,
   scheduledPublishAt: "",
   createMatchingEvent: false,
+  retargetViewers: false,
+  retargetDelayHours: 48,
 };
 
 /** Which content types support boost (creates a linked AdCampaign as side effect) */

@@ -1008,6 +1008,12 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         body.scheduledPublishAt = formState.scheduledPublishAt;
       }
 
+      // Retargeting fields
+      if (formState.retargetViewers && (contentType === "promotion" || contentType === "event")) {
+        body.retargetViewers = true;
+        body.retargetDelayHours = formState.retargetDelayHours || 48;
+      }
+
       // ── Pre-submit card capture ──
       // Capture the composed social card via html2canvas BEFORE the API call
       // so the card URL can be stored atomically during creation.

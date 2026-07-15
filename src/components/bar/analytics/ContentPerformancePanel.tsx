@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import styled from "styled-components";
-import { ArrowUpDown, Eye, MousePointerClick, CheckCircle, ExternalLink, Flame, Trophy } from "lucide-react";
+import { ArrowUpDown, Eye, MousePointerClick, CheckCircle, ExternalLink, Flame, Trophy, Download } from "lucide-react";
+import { downloadCSV } from "@/lib/csv-export";
 
 // ── Styled Components ────────────────────────────────────────────
 
@@ -168,6 +169,22 @@ const SortIcon = styled.span`
   opacity: 0.5;
 `;
 
+const ExportButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover { background: #059669; }
+`;
+
 const EmptyState = styled.div`
   text-align: center;
   padding: 3rem 2rem;
@@ -229,6 +246,9 @@ interface ContentItem {
   conversionRate: number;
   engagementRate: number;
   uniqueUsers: number;
+  retargetingSent?: number;
+  retargetingConfigured?: boolean;
+  retargetingRule?: string | null;
 }
 
 interface ContentData {
@@ -410,6 +430,26 @@ export default function ContentPerformancePanel({ barId }: Props) {
 
   const insights = data?.items ? generateInsights(data.items) : [];
 
+  const handleExport = () => {
+    if (!sortedItems.length) return;
+    downloadCSV(`hoppr-content-performance-${timeRange}`, [
+      {
+        name: "Content Performance",
+        headers: ["Content", "Type", "Views", "Clicks", getRedemptionLabel(contentFilter), "Conv. Rate", "Published", "Status"],
+        rows: sortedItems.map((item) => [
+          item.title,
+          item.contentType,
+          item.views,
+          item.clicks,
+          item.redemptions,
+          item.conversionRate + "%",
+          item.publishedAt ? new Date(item.publishedAt).toLocaleDateString("en-GB") : "—",
+          item.isActive ? "Active" : "Ended",
+        ]),
+      },
+    ]);
+  };
+
   // ── Render ────────────────────────────────────────────────────
 
   if (loading) {
@@ -459,6 +499,10 @@ export default function ContentPerformancePanel({ barId }: Props) {
               <option value="30d">Last 30 days</option>
               <option value="90d">Last 90 days</option>
             </FilterSelect>
+            <ExportButton onClick={handleExport}>
+              <Download size={13} />
+              CSV
+            </ExportButton>
           </FilterRow>
         </PanelHeader>
         <EmptyState>
@@ -511,8 +555,23 @@ export default function ContentPerformancePanel({ barId }: Props) {
               <option value="30d">Last 30 days</option>
               <option value="90d">Last 90 days</option>
             </FilterSelect>
+            <ExportButton onClick={handleExport}>
+              <Download size={13} />
+              CSV
+            </ExportButton>
           </FilterRow>
         </PanelHeader>
+
+        {insights.length > 0 && (
+          <InsightsBox>
+            <div style={{ fontWeight: 700, fontSize: "0.8rem", marginBottom: "0.4rem", color: "#1e40af" }}>
+              What&apos;s working
+            </div>
+            {insights.map((insight, i) => (
+              <InsightLine key={i}>{insight}</InsightLine>
+            ))}
+          </InsightsBox>
+        )}
 
         <TableWrapper>
           <Table>
@@ -525,6 +584,7 @@ export default function ContentPerformancePanel({ barId }: Props) {
                 <SortHeader field="redemptions" label={getRedemptionLabel(contentFilter)} />
                 <SortHeader field="conversionRate" label="Conv. Rate" />
                 <SortHeader field="publishedAt" label="Published" />
+                <Th>Retargeting</Th>
                 <Th>Action</Th>
               </tr>
             </thead>
@@ -581,6 +641,23 @@ export default function ContentPerformancePanel({ barId }: Props) {
                     {formatDate(item.publishedAt)}
                   </Td>
                   <Td>
+                    {item.retargetingConfigured ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.3rem" }}>
+                        <span style={{
+                          display: "inline-block",
+                          width: 8, height: 8,
+                          borderRadius: "50%",
+                          background: (item.retargetingSent ?? 0) > 0 ? "#10b981" : "#f59e0b",
+                        }} />
+                        <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "#374151" }}>
+                          {item.retargetingSent} sent
+                        </span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: "0.75rem", color: "#9ca3af" }}>—</span>
+                    )}
+                  </Td>
+                  <Td>
                     <ResurfaceButton onClick={() => handleResurface(item)}>
                       <ExternalLink size={12} />
                       Resurface
@@ -593,16 +670,6 @@ export default function ContentPerformancePanel({ barId }: Props) {
         </TableWrapper>
       </Panel>
 
-      {insights.length > 0 && (
-        <InsightsBox>
-          <div style={{ fontWeight: 700, fontSize: "0.8rem", marginBottom: "0.4rem", color: "#1e40af" }}>
-            What&apos;s working
-          </div>
-          {insights.map((insight, i) => (
-            <InsightLine key={i}>{insight}</InsightLine>
-          ))}
-        </InsightsBox>
-      )}
     </div>
   );
 }

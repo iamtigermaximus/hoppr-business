@@ -65,6 +65,9 @@ interface SubmitBody {
   cardImageUrl?: string;
   // Matching content
   createMatchingEvent?: boolean;
+  // Retargeting
+  retargetViewers?: boolean;
+  retargetDelayHours?: number; // 24, 48, or 72
 }
 
 // ---- Route ----
@@ -215,7 +218,7 @@ export async function POST(
     // 3. Fetch bar for context-aware compliance scanning
     const bar = await prisma.bar.findUnique({
       where: { id: barId },
-      select: { name: true, type: true },
+      select: { name: true, type: true, retargetingEnabled: true },
     });
     if (!bar) {
       return NextResponse.json({ error: "Bar not found" }, { status: 404 });
@@ -770,6 +773,52 @@ export async function POST(
       }
     }
 
+    // 8a. Handle content-specific retargeting campaigns
+    let retargetingConfigured = false;
+    if (body.retargetViewers && record?.id && (body.contentType === "promotion" || body.contentType === "event")) {
+      const recordId = record.id as string;
+      const retargetRule =
+        body.contentType === "promotion" ? "VIEWED_NOT_REDEEMED" : "EVENT_NOT_RSVPED";
+
+      try {
+        // Ensure retargeting is enabled for the bar
+        if (!bar.retargetingEnabled) {
+          await prisma.bar.update({
+            where: { id: barId },
+            data: { retargetingEnabled: true },
+          });
+        }
+
+        // Upsert content-specific retargeting campaign
+        await prisma.retargetingCampaign.upsert({
+          where: {
+            barId_rule_contentId: {
+              barId,
+              rule: retargetRule as import("@prisma/client").RetargetingRule,
+              contentId: recordId,
+            },
+          },
+          create: {
+            barId,
+            rule: retargetRule as import("@prisma/client").RetargetingRule,
+            contentId: recordId,
+            contentType: body.contentType,
+            enabled: true,
+            maxPerDay: 10,
+          },
+          update: {
+            enabled: true,
+          },
+        });
+
+        retargetingConfigured = true;
+        console.log(`[Retargeting] Created ${retargetRule} campaign for ${body.contentType}:${recordId}`);
+      } catch (err) {
+        console.error("[Retargeting] Failed to create content-specific campaign:", err);
+        // Don't fail the submit — the content was created successfully
+      }
+    }
+
     // 9. Return success response
     return NextResponse.json({
       success: true,
@@ -801,6 +850,12 @@ export async function POST(
           ? { eventReminder: `${body.remindMinutesBefore || 120} min before` }
           : {}),
       },
+      ...(retargetingConfigured ? {
+        retargeting: {
+          configured: true,
+          rule: body.contentType === "promotion" ? "VIEWED_NOT_REDEEMED" : "EVENT_NOT_RSVPED",
+        },
+      } : {}),
     });
   } catch (error) {
     console.error("Submit error:", error);
