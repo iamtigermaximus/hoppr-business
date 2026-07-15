@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import styled, { css } from "styled-components";
 import { SkeletonBox, SkeletonTable, SkeletonTableRow, SkeletonTableCell } from "@/components/ui/Skeleton";
+import { getTemplate, listTemplates, type OutreachTemplate } from "@/lib/outreach-emails";
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -330,6 +331,23 @@ const ScoreText = styled.span<{ $score: number }>`
 `;
 
 // ---- Log button + inline form ----
+
+const SendBtn = styled.button`
+  padding: 0.3125rem 0.625rem;
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+
+  &:hover {
+    background: #047857;
+  }
+`;
 
 const LogBtn = styled.button`
   padding: 0.3125rem 0.625rem;
@@ -737,6 +755,10 @@ interface OutreachBar {
     followUpAt: string | null;
     createdAt: string;
     userName: string | null;
+    emailTemplate?: string | null;
+    emailSubject?: string | null;
+    emailOpenedAt?: string | null;
+    emailClickedAt?: string | null;
   } | null;
 }
 
@@ -882,6 +904,14 @@ const OutreachKanban = () => {
   const [logFollowUp, setLogFollowUp] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Send email modal state
+  const [sendModalBar, setSendModalBar] = useState<OutreachBar | null>(null);
+  const [sendTo, setSendTo] = useState("");
+  const [sendTemplate, setSendTemplate] = useState<OutreachTemplate>("intro");
+  const [sendSubject, setSendSubject] = useState("");
+  const [sendBody, setSendBody] = useState("");
+  const [sending, setSending] = useState(false);
+
   // ---- Data fetching ----
 
   const fetchOutreach = useCallback(async () => {
@@ -1019,6 +1049,79 @@ const OutreachKanban = () => {
       console.error("Log contact network error:", err);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // ---- Send email ----
+
+  const openSendModal = (bar: OutreachBar) => {
+    setSendModalBar(bar);
+    setSendTo("");
+    const tpl = getTemplate("intro");
+    if (tpl) {
+      setSendTemplate("intro");
+      const barCtx = { name: bar.name, type: bar.type, district: bar.district, cityName: bar.cityName };
+      setSendSubject(tpl.subject(barCtx));
+      setSendBody(tpl.body(barCtx));
+    }
+  };
+
+  const handleTemplateChange = (tplName: string) => {
+    const template = tplName as OutreachTemplate;
+    setSendTemplate(template);
+    if (sendModalBar) {
+      const tpl = getTemplate(template);
+      if (tpl) {
+        const barCtx = { name: sendModalBar.name, type: sendModalBar.type, district: sendModalBar.district, cityName: sendModalBar.cityName };
+        setSendSubject(tpl.subject(barCtx));
+        setSendBody(tpl.body(barCtx));
+      }
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!sendModalBar || !sendTo.trim() || !sendTemplate) return;
+    setSending(true);
+
+    try {
+      const token = localStorage.getItem("hoppr_token");
+      if (!token) return;
+
+      const res = await fetch("/api/auth/admin/outreach/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          barId: sendModalBar.id,
+          template: sendTemplate,
+          to: sendTo.trim(),
+          subject: sendSubject,
+          body: sendBody,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+        console.error("Send email failed:", err);
+        alert(err.error || "Failed to send email");
+        return;
+      }
+
+      const result = await res.json();
+
+      // Auto-advance pipeline stage optimistically
+      if (result.outreach?.status) {
+        applyOptimisticStatus(sendModalBar.id, result.outreach.status);
+      }
+
+      setSendModalBar(null);
+    } catch (err) {
+      console.error("Send email network error:", err);
+      alert("Network error. Please try again.");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -1218,6 +1321,7 @@ const OutreachKanban = () => {
                       : openLogForm(bar)
                   }
                   onViewBar={() => router.push(`/admin/bars/${bar.id}`)}
+                  onSendEmail={() => openSendModal(bar)}
                   onQuickStatusChange={handleQuickStatusChange}
                   isQuickSubmitting={quickSubmitting.has(bar.id)}
                   dataVersion={dataVersion}
@@ -1353,6 +1457,7 @@ const OutreachKanban = () => {
                               {bar.performanceTier}
                             </StatusBadge>
                           )}
+                          <SendBtn onClick={(e) => { e.stopPropagation(); openSendModal(bar); }}>✉️ Send</SendBtn>
                           <ViewBtn onClick={(e) => { e.stopPropagation(); router.push(`/admin/bars/${bar.id}`); }}>View</ViewBtn>
                           <LogBtn onClick={(e) => { e.stopPropagation(); openLogForm(bar); }}>+ Log</LogBtn>
                         </KCardFooter>
@@ -1541,6 +1646,24 @@ const OutreachKanban = () => {
           submitting={submitting}
         />
       )}
+
+      {/* Send email modal (both table and kanban views) */}
+      {sendModalBar && (
+        <SendEmailModal
+          bar={sendModalBar}
+          to={sendTo}
+          template={sendTemplate}
+          subject={sendSubject}
+          body={sendBody}
+          onToChange={setSendTo}
+          onTemplateChange={handleTemplateChange}
+          onSubjectChange={setSendSubject}
+          onBodyChange={setSendBody}
+          onSubmit={handleSendEmail}
+          onClose={() => { if (!sending) setSendModalBar(null); }}
+          submitting={sending}
+        />
+      )}
     </Page>
   );
 };
@@ -1554,6 +1677,7 @@ interface TableRowProps {
   isExpanded: boolean;
   onToggleLog: () => void;
   onViewBar: () => void;
+  onSendEmail: () => void;
   onQuickStatusChange: (barId: string, newStatus: string) => void;
   isQuickSubmitting: boolean;
   dataVersion: number;
@@ -1575,6 +1699,7 @@ const TableRow = ({
   isExpanded,
   onToggleLog,
   onViewBar,
+  onSendEmail,
   onQuickStatusChange,
   isQuickSubmitting,
   dataVersion,
@@ -1677,6 +1802,7 @@ const TableRow = ({
         </Td>
         <Td>
           <ActionCell>
+            <SendBtn onClick={onSendEmail}>✉️ Send</SendBtn>
             <LogBtn onClick={onToggleLog}>{isExpanded ? "Cancel" : "+ Log"}</LogBtn>
             <ViewBtn onClick={onViewBar}>View</ViewBtn>
           </ActionCell>
@@ -1918,5 +2044,105 @@ function findBarInData(data: OutreachData | null, barId: string): OutreachBar | 
   }
   return undefined;
 }
+
+// ============================================================================
+// SEND EMAIL MODAL
+// ============================================================================
+
+interface SendEmailModalProps {
+  bar: OutreachBar;
+  to: string;
+  template: OutreachTemplate;
+  subject: string;
+  body: string;
+  onToChange: (v: string) => void;
+  onTemplateChange: (v: string) => void;
+  onSubjectChange: (v: string) => void;
+  onBodyChange: (v: string) => void;
+  onSubmit: () => void;
+  onClose: () => void;
+  submitting: boolean;
+}
+
+const SendEmailModal = ({
+  bar,
+  to,
+  template,
+  subject,
+  body,
+  onToChange,
+  onTemplateChange,
+  onSubjectChange,
+  onBodyChange,
+  onSubmit,
+  onClose,
+  submitting,
+}: SendEmailModalProps) => {
+  const templates = listTemplates();
+
+  return (
+    <ModalOverlay onClick={() => !submitting && onClose()}>
+      <ModalContent style={{ maxWidth: 620 }} onClick={(e) => e.stopPropagation()}>
+        <ModalTitle>Send Email</ModalTitle>
+        <ModalSubtitle>
+          {bar.name} — {bar.cityName || bar.district || "Unknown location"} · {bar.type.replace(/_/g, " ")}
+        </ModalSubtitle>
+
+        <FormGroup>
+          <Label>To</Label>
+          <Input
+            type="email"
+            placeholder="bar@example.com"
+            value={to}
+            onChange={(e) => onToChange(e.target.value)}
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Template</Label>
+          <Select value={template} onChange={(e) => onTemplateChange(e.target.value)}>
+            {templates.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label} → {STATUS_LABELS[t.defaultStage] || t.defaultStage}
+              </option>
+            ))}
+          </Select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Subject</Label>
+          <Input
+            type="text"
+            value={subject}
+            onChange={(e) => onSubjectChange(e.target.value)}
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label>Body</Label>
+          <Textarea
+            value={body}
+            onChange={(e) => onBodyChange(e.target.value)}
+            style={{ minHeight: 200, fontSize: "0.8125rem", fontFamily: "system-ui, -apple-system, sans-serif", lineHeight: 1.5 }}
+          />
+        </FormGroup>
+
+        <ModalButtons>
+          <ModalButton onClick={onClose} disabled={submitting}>
+            Cancel
+          </ModalButton>
+          <ModalButton
+            $primary
+            onClick={onSubmit}
+            disabled={submitting || !to.trim()}
+            style={{ background: "#059669" }}
+          >
+            {submitting ? "Sending..." : "Send Email"}
+          </ModalButton>
+        </ModalButtons>
+      </ModalContent>
+    </ModalOverlay>
+  );
+};
 
 export default OutreachKanban;

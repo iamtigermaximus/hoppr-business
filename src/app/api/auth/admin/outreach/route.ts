@@ -36,6 +36,10 @@ interface OutreachBar {
     followUpAt: string | null;
     createdAt: string;
     userName: string | null;
+    emailTemplate?: string | null;
+    emailSubject?: string | null;
+    emailOpenedAt?: string | null;
+    emailClickedAt?: string | null;
   } | null;
 }
 
@@ -100,7 +104,7 @@ export async function GET(request: NextRequest) {
     // ---- Build where clause using AND composition ----
 
     const conditions: Prisma.BarWhereInput[] = [
-      { status: { in: ["UNCLAIMED", "CLAIMED"] } },
+      { status: { in: ["UNCLAIMED", "CLAIMED", "VERIFIED"] } },
     ];
 
     // Text search
@@ -197,6 +201,10 @@ export async function GET(request: NextRequest) {
           notes: true,
           followUpAt: true,
           createdAt: true,
+          emailTemplate: true,
+          emailSubject: true,
+          emailOpenedAt: true,
+          emailClickedAt: true,
           user: { select: { name: true } },
         },
       },
@@ -206,13 +214,13 @@ export async function GET(request: NextRequest) {
 
     const [cities, types] = await Promise.all([
       prisma.bar.findMany({
-        where: { status: { in: ["UNCLAIMED", "CLAIMED"] } },
+        where: { status: { in: ["UNCLAIMED", "CLAIMED", "VERIFIED"] } },
         select: { cityName: true },
         distinct: ["cityName"],
         orderBy: { cityName: "asc" },
       }),
       prisma.bar.findMany({
-        where: { status: { in: ["UNCLAIMED", "CLAIMED"] } },
+        where: { status: { in: ["UNCLAIMED", "CLAIMED", "VERIFIED"] } },
         select: { type: true },
         distinct: ["type"],
         orderBy: { type: "asc" },
@@ -246,6 +254,10 @@ export async function GET(request: NextRequest) {
               followUpAt: latestLog.followUpAt?.toISOString() ?? null,
               createdAt: latestLog.createdAt.toISOString(),
               userName: latestLog.user?.name ?? null,
+              emailTemplate: latestLog.emailTemplate ?? null,
+              emailSubject: latestLog.emailSubject ?? null,
+              emailOpenedAt: latestLog.emailOpenedAt?.toISOString() ?? null,
+              emailClickedAt: latestLog.emailClickedAt?.toISOString() ?? null,
             }
           : null,
       };

@@ -49,7 +49,7 @@ export const SkeletonText = styled.div<{ $lines?: number; $lastShort?: boolean }
   ${({ $lines = 3, $lastShort }) =>
     Array.from({ length: $lines }).map((_, i) => {
       const isLast = i === $lines - 1;
-      return `
+      return css`
         &:nth-child(${i + 1}) {
           ${skeletonBase}
           height: 0.75rem;
@@ -57,7 +57,7 @@ export const SkeletonText = styled.div<{ $lines?: number; $lastShort?: boolean }
           border-radius: 0.25rem;
         }
       `;
-    }).join("")}
+    })}
 `;
 
 // ---- Composed patterns ----

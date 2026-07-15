@@ -31,6 +31,21 @@ interface CronJobHealth {
   expectedInterval: string;
 }
 
+interface ExternalServiceHealth {
+  service: string;
+  label: string;
+  status: HealthStatus;
+  latencyMs: number;
+  message: string;
+  checkedAt: string | null;
+}
+
+interface TrendPoint {
+  timestamp: string;
+  latencyMs: number;
+  status: string;
+}
+
 interface SystemHealth {
   overall: HealthStatus;
   components: ComponentHealth[];
@@ -47,7 +62,11 @@ interface SystemHealth {
   thresholds: {
     dbLatencyMs: number;
     errorRate: number;
+    externalLatencyHealthyMs: number;
+    externalLatencyDegradedMs: number;
   };
+  externalServices: ExternalServiceHealth[];
+  serviceTrends: Record<string, TrendPoint[]>;
 }
 
 // ---- Helpers ----
@@ -90,7 +109,94 @@ export async function GET(request: NextRequest) {
     const thresholds = {
       dbLatencyMs: 100,
       errorRate: 5, // per hour
+      externalLatencyHealthyMs: 1000,
+      externalLatencyDegradedMs: 3000,
     };
+
+    // ---- External service health ----
+
+    const externalServiceLabels: Record<string, string> = {
+      deepseek: "DeepSeek AI",
+      bfl_flux: "BFL Flux",
+      cloudinary: "Cloudinary",
+      resend: "Resend Email",
+    };
+
+    const externalServices: ExternalServiceHealth[] = [];
+    const serviceTrends: Record<string, TrendPoint[]> = {};
+
+    try {
+      // Fetch the latest check for each external service
+      const latestChecks = await prisma.$queryRawUnsafe<
+        Array<{ service: string; status: string; latency_ms: number; message: string; checked_at: string }>
+      >(`
+        SELECT DISTINCT ON (service) service, status, "latencyMs" as latency_ms, message, "checkedAt" as checked_at
+        FROM health_check_results
+        WHERE service IN ('deepseek', 'bfl_flux', 'cloudinary', 'resend')
+        ORDER BY service, "checkedAt" DESC
+      `);
+
+      for (const check of latestChecks) {
+        externalServices.push({
+          service: check.service,
+          label: externalServiceLabels[check.service] || check.service,
+          status: check.status.toUpperCase() as HealthStatus,
+          latencyMs: check.latency_ms,
+          message: check.message || "",
+          checkedAt: check.checked_at,
+        });
+      }
+
+      // For any service without data yet, return "unknown" placeholder
+      for (const [svc, label] of Object.entries(externalServiceLabels)) {
+        if (!externalServices.find((s) => s.service === svc)) {
+          externalServices.push({
+            service: svc,
+            label,
+            status: "DEGRADED",
+            latencyMs: 0,
+            message: "No health check data yet — first check will run within 5 minutes.",
+            checkedAt: null,
+          });
+        }
+      }
+
+      // Fetch 24-hour trends for each service (for sparklines) — includes internal metrics
+      const trendStart = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const allServices = ["deepseek", "bfl_flux", "cloudinary", "resend", "internal_db", "internal_api", "internal_pool"];
+      const allTrends = await prisma.healthCheckResult.findMany({
+        where: {
+          service: { in: allServices },
+          checkedAt: { gte: trendStart },
+        },
+        orderBy: { checkedAt: "asc" },
+        select: { service: true, latencyMs: true, status: true, checkedAt: true },
+      });
+
+      for (const point of allTrends) {
+        if (!serviceTrends[point.service]) serviceTrends[point.service] = [];
+        serviceTrends[point.service].push({
+          timestamp: point.checkedAt.toISOString(),
+          latencyMs: point.latencyMs,
+          status: point.status,
+        });
+      }
+    } catch (err) {
+      console.warn("[Health] Could not query health_check_results:", err);
+      // Table might not exist yet — return empty placeholders
+      for (const [svc, label] of Object.entries(externalServiceLabels)) {
+        if (!externalServices.find((s) => s.service === svc)) {
+          externalServices.push({
+            service: svc,
+            label,
+            status: "DEGRADED",
+            latencyMs: 0,
+            message: "Health check table not yet created — run prisma db push.",
+            checkedAt: null,
+          });
+        }
+      }
+    }
 
     const components: ComponentHealth[] = [];
 
@@ -201,6 +307,7 @@ export async function GET(request: NextRequest) {
       "insights": { label: "Insight generation (3hr)", maxIntervalMs: 4 * 60 * 60 * 1000 },
       "retargeting": { label: "Retargeting push (2hr)", maxIntervalMs: 3 * 60 * 60 * 1000 },
       "scheduler": { label: "Notification scheduler (15min)", maxIntervalMs: 30 * 60 * 1000 },
+      "health-checks": { label: "Health checks (5min)", maxIntervalMs: 10 * 60 * 1000 },
     };
 
     try {
@@ -277,7 +384,18 @@ export async function GET(request: NextRequest) {
 
     const avgDbQueryMs = dbLatencyMs;
 
-    const overall = determineOverall(components);
+    // Factor external services into overall status
+    const allComponents = [
+      ...components,
+      ...externalServices.map((s) => ({
+        name: s.label,
+        status: s.status as HealthStatus,
+        latencyMs: s.latencyMs,
+        message: s.message,
+        checkedAt: s.checkedAt || now.toISOString(),
+      })),
+    ];
+    const overall = determineOverall(allComponents);
 
     const health: SystemHealth = {
       overall,
@@ -293,6 +411,8 @@ export async function GET(request: NextRequest) {
       errorsByHour,
       cronJobs,
       thresholds,
+      externalServices,
+      serviceTrends,
     };
 
     return NextResponse.json({ success: true, health });

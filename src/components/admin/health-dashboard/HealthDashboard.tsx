@@ -400,6 +400,111 @@ const CronJobStaleBadge = styled.span`
   margin-left: 0.5rem;
 `;
 
+// External services
+const ExternalServicesGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+`;
+
+const ExternalServiceCard = styled.div<{ $status: string }>`
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid ${({ $status }) => {
+    switch ($status) {
+      case "HEALTHY": return "#16a34a";
+      case "DEGRADED": return "#f59e0b";
+      case "DOWN": return "#dc2626";
+      default: return "#9ca3af";
+    }
+  }};
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+`;
+
+const ExternalServiceHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+`;
+
+const ExternalServiceName = styled.div`
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1f2937;
+`;
+
+const ExternalServiceMessage = styled.div`
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+`;
+
+const ExternalServiceFooter = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  color: #9ca3af;
+`;
+
+// Sparkline
+const SparklineContainer = styled.div`
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 32px;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f3f4f6;
+`;
+
+const SparklineBar = styled.div<{ $height: number; $status: string }>`
+  flex: 1;
+  min-width: 2px;
+  height: ${({ $height }) => Math.max($height * 32, 2)}px;
+  background: ${({ $status }) => {
+    switch ($status) {
+      case "healthy": return "#16a34a";
+      case "degraded": return "#f59e0b";
+      case "down": return "#dc2626";
+      default: return "#e5e7eb";
+    }
+  }};
+  border-radius: 1px 1px 0 0;
+  opacity: 0.85;
+`;
+
+const NoDataHint = styled.div`
+  font-size: 0.6875rem;
+  color: #d1d5db;
+  text-align: center;
+  padding: 0.5rem 0;
+`;
+
+const ExternalServiceLatency = styled.span<{ $latency: number; $status: string }>`
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: ${({ $latency, $status }) => {
+    if ($status === "DOWN" || $status === "DEGRADED" && $latency === 0) return "#fef2f2";
+    if ($latency <= 1000) return "#dcfce7";
+    if ($latency <= 3000) return "#fef3c7";
+    return "#fef2f2";
+  }};
+  color: ${({ $latency, $status }) => {
+    if ($status === "DOWN" || $status === "DEGRADED" && $latency === 0) return "#dc2626";
+    if ($latency <= 1000) return "#166534";
+    if ($latency <= 3000) return "#92400e";
+    return "#dc2626";
+  }};
+`;
+
 // Loading/Error states
 const ErrorBox = styled.div`
   background: #fef2f2;
@@ -436,6 +541,21 @@ interface CronJobHealth {
   expectedInterval: string;
 }
 
+interface ExternalServiceHealth {
+  service: string;
+  label: string;
+  status: HealthStatus;
+  latencyMs: number;
+  message: string;
+  checkedAt: string | null;
+}
+
+interface TrendPoint {
+  timestamp: string;
+  latencyMs: number;
+  status: string;
+}
+
 interface SystemHealth {
   overall: HealthStatus;
   components: ComponentHealth[];
@@ -452,7 +572,11 @@ interface SystemHealth {
   thresholds: {
     dbLatencyMs: number;
     errorRate: number;
+    externalLatencyHealthyMs: number;
+    externalLatencyDegradedMs: number;
   };
+  externalServices: ExternalServiceHealth[];
+  serviceTrends: Record<string, TrendPoint[]>;
 }
 
 interface HealthResponse {
@@ -695,6 +819,57 @@ const HealthDashboard = () => {
         </>
       )}
 
+      {/* External Services */}
+      {health.externalServices && health.externalServices.length > 0 && (
+        <>
+          <SectionTitle>External Services</SectionTitle>
+          <ExternalServicesGrid>
+            {health.externalServices.map((svc) => {
+              const trends = health.serviceTrends?.[svc.service] || [];
+              const maxLatency = trends.length > 0
+                ? Math.max(...trends.map((t) => t.latencyMs), 1)
+                : 1;
+
+              return (
+                <ExternalServiceCard key={svc.service} $status={svc.status}>
+                  <ExternalServiceHeader>
+                    <ExternalServiceName>{svc.label}</ExternalServiceName>
+                    <StatusDot $status={svc.status} title={svc.status} />
+                  </ExternalServiceHeader>
+                  <ExternalServiceMessage>{svc.message}</ExternalServiceMessage>
+                  <ExternalServiceFooter>
+                    <ExternalServiceLatency $latency={svc.latencyMs} $status={svc.status}>
+                      {svc.latencyMs > 0 ? `${svc.latencyMs}ms` : svc.status === "DEGRADED" && svc.latencyMs === 0 ? "N/A" : `${svc.latencyMs}ms`}
+                    </ExternalServiceLatency>
+                    <span>
+                      {svc.checkedAt
+                        ? `Last check: ${new Date(svc.checkedAt).toLocaleTimeString()}`
+                        : "No data yet"}
+                    </span>
+                  </ExternalServiceFooter>
+                  {trends.length > 0 ? (
+                    <SparklineContainer>
+                      {trends.map((point, i) => (
+                        <SparklineBar
+                          key={i}
+                          $height={maxLatency > 0 ? point.latencyMs / maxLatency : 0}
+                          $status={point.status}
+                          title={`${new Date(point.timestamp).toLocaleTimeString()}: ${point.latencyMs}ms (${point.status})`}
+                        />
+                      ))}
+                    </SparklineContainer>
+                  ) : (
+                    <SparklineContainer>
+                      <NoDataHint>No 24h trend data yet</NoDataHint>
+                    </SparklineContainer>
+                  )}
+                </ExternalServiceCard>
+              );
+            })}
+          </ExternalServicesGrid>
+        </>
+      )}
+
       {/* Alert Thresholds */}
       <SectionTitle>Alert Thresholds</SectionTitle>
       <ThresholdsCard>
@@ -709,6 +884,14 @@ const HealthDashboard = () => {
         <ThresholdRow>
           <ThresholdLabel>Connection pool warning</ThresholdLabel>
           <ThresholdValue>50 connections</ThresholdValue>
+        </ThresholdRow>
+        <ThresholdRow>
+          <ThresholdLabel>External API healthy threshold</ThresholdLabel>
+          <ThresholdValue>{health.thresholds.externalLatencyHealthyMs}ms</ThresholdValue>
+        </ThresholdRow>
+        <ThresholdRow>
+          <ThresholdLabel>External API degraded threshold</ThresholdLabel>
+          <ThresholdValue>{health.thresholds.externalLatencyDegradedMs}ms</ThresholdValue>
         </ThresholdRow>
         <ThresholdRow>
           <ThresholdLabel>Auto-refresh interval</ThresholdLabel>
