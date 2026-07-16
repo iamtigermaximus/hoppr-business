@@ -151,6 +151,18 @@ const AMENITY_HOOKS: Record<string, { en: string; fi: string }> = {
     en: "This bar has PRIVATE ROOMS — mention: your own space, closed door, dedicated service. For when the occasion calls for something more.",
     fi: "Tällä baarilla on YKSITYISHUONEITA — mainitse: oma tila, suljettu ovi, oma palvelu. Kun tilaisuus vaatii jotain enemmän.",
   },
+  "sound system": {
+    en: "This bar has a premium SOUND SYSTEM — mention: the acoustics, the clarity, how the music fills the room. The sound is part of the experience, not an afterthought.",
+    fi: "Tällä baarilla on laadukas ÄÄNENTOISTO — mainitse: akustiikka, selkeys, miten musiikki täyttää tilan. Ääni on osa kokemusta, ei jälkiajatus.",
+  },
+  reservations: {
+    en: "This bar takes RESERVATIONS — mention: book ahead, secure your spot, table service. Planning ahead is rewarded. Spontaneous is welcome but prepared is guaranteed.",
+    fi: "Tämä baari ottaa vastaan VARAUKSIA — mainitse: varaa etukäteen, varmista paikkasi, pöytäpalvelu. Suunnittelu palkitaan. Spontaanius on tervetullutta mutta varautuminen on taattu.",
+  },
+  "large capacity": {
+    en: "This bar has LARGE CAPACITY — mention: the scale, the crowd energy, room for big groups. A full house here feels like an event in itself. Walk-ins welcome even when other places are packed.",
+    fi: "Tällä baarilla on ISO KAPASITEETTI — mainitse: mittakaava, yleisön energia, tilaa isoille ryhmille. Täysi talo täällä tuntuu itsessään tapahtumalta. Walk-in vieraita mahtuu silloinkin kun muut paikat ovat täynnä.",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -218,7 +230,7 @@ export function generateBarHooks(
 
   // 3. Amenity hooks (up to 2, most important first)
   if (bar.amenities && bar.amenities.length > 0) {
-    const amenityPriority = ["terrace", "live music", "dance floor", "dj booth", "private rooms"];
+    const amenityPriority = ["terrace", "live music", "dance floor", "dj booth", "sound system", "reservations", "large capacity", "private rooms"];
     let added = 0;
     for (const key of amenityPriority) {
       if (bar.amenities.includes(key) && added < 2) {

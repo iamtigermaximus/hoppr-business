@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import styled from "styled-components";
 import type { ContentType, FormState } from "./types";
 import { PROMOTION_TYPES } from "./types";
@@ -173,6 +173,160 @@ const TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
       label: "Teemailta",
       prompt:
         "Baari muuntuu. Konsepti, pukukoodi, jaettu todellisuus. Kuvaile immersio — miltä näyttää, kuulostaa, tuntuu astua eri maailmaan yhden illan ajaksi.",
+    },
+  ],
+};
+
+const EVENT_TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
+  en: [
+    {
+      label: "Live Music",
+      prompt:
+        "A night of live music. Describe the performer, the sound filling the room, the crowd's energy as the first notes hit. Focus on the shared experience — the moment when the music takes over and everything else fades.",
+    },
+    {
+      label: "DJ Night",
+      prompt:
+        "The DJ takes control of the room. Describe the beats, the dance floor, the late-night energy. The music builds, the crowd moves, the night peaks. Focus on the rhythm and the atmosphere.",
+    },
+    {
+      label: "Quiz Night",
+      prompt:
+        "Teams compete, brains are tested. Describe the friendly rivalry, the surprise answers, the prizes at stake. A weekly ritual where strangers become teammates over trivia and drinks.",
+    },
+    {
+      label: "Sports Screening",
+      prompt:
+        "The big game on the big screen. Describe the collective tension, the cheers, the groans — an entire room experiencing the same moment together. Game-day energy with drinks in hand.",
+    },
+    {
+      label: "Tasting Event",
+      prompt:
+        "A guided tasting experience. Describe the craftsmanship, the expert leading the session, the flavors unfolding. Limited spots, premium experience — a journey for the senses.",
+    },
+    {
+      label: "Karaoke Night",
+      prompt:
+        "The microphone is open and the stage belongs to everyone. Describe the courage, the surprise talent, the shared joy of singing together. A night where the audience becomes the entertainment.",
+    },
+    {
+      label: "Comedy Night",
+      prompt:
+        "Laughter fills the room. Describe the comedians, the jokes landing, the shared experience of a room laughing together. Stand-up that turns a regular night into something memorable.",
+    },
+    {
+      label: "Open Mic",
+      prompt:
+        "The stage is open for anyone with something to share. Describe the raw talent, the unexpected moments, the supportive crowd. A platform for new voices — musicians, poets, comedians.",
+    },
+  ],
+  fi: [
+    {
+      label: "Elävä musiikki",
+      prompt:
+        "Illallinen elävää musiikkia. Kuvaile esiintyjää, äänen täyttämää tilaa, yleisön energiaa ensimmäisten sointujen osuessa. Keskity jaettuun kokemukseen — hetkeen jolloin musiikki vie mukanaan.",
+    },
+    {
+      label: "DJ-ilta",
+      prompt:
+        "DJ ottaa tilan haltuun. Kuvaile bittejä, tanssilattiaa, myöhäisillan energiaa. Musiikki rakentuu, väkijoukko liikkuu, ilta huipentuu. Keskity rytmiin ja tunnelmaan.",
+    },
+    {
+      label: "Tietovisa",
+      prompt:
+        "Joukkueet kilpailevat, aivot koetuksella. Kuvaile ystävällistä kilpailua, yllättäviä vastauksia, palkintoja pelissä. Viikoittainen rituaali jossa tuntemattomista tulee joukkuetovereita.",
+    },
+    {
+      label: "Urheilulähetys",
+      prompt:
+        "Iso peli isolla ruudulla. Kuvaile kollektiivista jännitystä, hurrauksia, huokauksia — koko huone kokee saman hetken yhdessä. Pelipäivän energiaa juomat kädessä.",
+    },
+    {
+      label: "Maistelutapahtuma",
+      prompt:
+        "Opastettu maistelukokemus. Kuvaile käsityötaitoa, asiantuntijan johtamaa sessiota, makujen avautumista. Rajoitetut paikat, premium-kokemus — matka aisteille.",
+    },
+    {
+      label: "Karaoke-ilta",
+      prompt:
+        "Mikki on auki ja lava kuuluu kaikille. Kuvaile rohkeutta, yllättävää lahjakkuutta, yhteistä laulamisen iloa. Ilta jossa yleisöstä tulee viihde.",
+    },
+    {
+      label: "Komediailta",
+      prompt:
+        "Nauru täyttää huoneen. Kuvaile koomikoita, osuvia vitsejä, yhdessä nauravan huoneen jaettua kokemusta. Stand-up joka tekee tavallisesta illasta mieleenpainuvan.",
+    },
+    {
+      label: "Avoin mikki",
+      prompt:
+        "Lava on avoin kaikille joilla on jotain jaettavaa. Kuvaile raakaa lahjakkuutta, odottamattomia hetkiä, kannustavaa yleisöä. Alusta uusille äänille — muusikoille, runoilijoille, koomikoille.",
+    },
+  ],
+};
+
+const PASS_TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
+  en: [
+    {
+      label: "Skip the Line",
+      prompt:
+        "Priority entry pass — no waiting, straight in. Describe the feeling of walking past the queue, the VIP treatment from the door. Focus on the convenience and status of skipping the line on busy nights.",
+    },
+    {
+      label: "Bottle Service",
+      prompt:
+        "Premium bottle service with reserved table. Describe the elevated experience — your own space, dedicated service, a premium bottle with mixers. The night done right.",
+    },
+    {
+      label: "Drink Package",
+      prompt:
+        "Pre-paid drink package for the night. Describe the value, the convenience, the freedom of having your drinks sorted before you arrive. No wallet needed — just show up and enjoy.",
+    },
+    {
+      label: "Table Reservation",
+      prompt:
+        "Reserved table for your group. Describe the peace of mind — your spot is guaranteed, no searching for seats on a busy night. Your group's home base for the evening.",
+    },
+    {
+      label: "Group Package",
+      prompt:
+        "Everything your group needs in one pass. Describe the all-inclusive experience — entry, drinks, a reserved area. The easiest way to organize a group night out.",
+    },
+    {
+      label: "Cover Included",
+      prompt:
+        "Entry cover included in the pass. Describe the simplicity — one upfront payment, everything handled. No fumbling for cash at the door, just walk in and start your night.",
+    },
+  ],
+  fi: [
+    {
+      label: "Ohita jono",
+      prompt:
+        "Prioriteettisisäänpääsy — ei odottelua, suoraan sisään. Kuvaile tunnetta jonon ohi kävelemisestä, VIP-kohtelua ovelta alkaen. Keskity mukavuuteen ja statukseen kiireisinä iltoina.",
+    },
+    {
+      label: "Pullopalvelu",
+      prompt:
+        "Premium-pullopalvelu varatulla pöydällä. Kuvaile kohotettua kokemusta — oma tila, oma palvelu, premium-pullo lisukkeineen. Ilta tehtynä oikein.",
+    },
+    {
+      label: "Juomapaketti",
+      prompt:
+        "Ennakkoon maksettu juomapaketti illalle. Kuvaile arvoa, mukavuutta, vapautta siitä että juomat on hoidettu ennen saapumista. Ei lompakkoa tarvita — saavu ja nauti.",
+    },
+    {
+      label: "Pöytävaraus",
+      prompt:
+        "Varattu pöytä ryhmällesi. Kuvaile mielenrauhaa — paikkasi on taattu, ei paikkojen etsimistä kiireisenä iltana. Ryhmäsi kotipesä illaksi.",
+    },
+    {
+      label: "Ryhmäpaketti",
+      prompt:
+        "Kaikki mitä ryhmäsi tarvitsee yhdessä passissa. Kuvaile all-inclusive-kokemusta — sisäänpääsy, juomat, varattu alue. Helpoin tapa järjestää ryhmän ilta.",
+    },
+    {
+      label: "Sisäänpääsy sisältyy",
+      prompt:
+        "Sisäänpääsymaksu sisältyy passiin. Kuvaile yksinkertaisuutta — yksi ennakkomaksu, kaikki hoidettu. Ei käteisen kaivelua ovella, kävele sisään ja aloita iltasi.",
     },
   ],
 };
@@ -575,6 +729,16 @@ export default function UnifiedCreationFlow({
   >([]);
   const [usingFallback, setUsingFallback] = useState(false);
   const [inferredType, setInferredType] = useState<string>("promotion");
+  // Store the suggest response for events/passes so handleSelectVariant can
+  // access type-specific fields (startTime, priceEuros, benefits, etc.)
+  const suggestDataRef = useRef<Record<string, unknown> | null>(null);
+
+  // Derive templates based on content type
+  const activeTemplates = useMemo(() => {
+    if (contentType === "event") return EVENT_TEMPLATES[language];
+    if (contentType === "pass") return PASS_TEMPLATES[language];
+    return TEMPLATES[language];
+  }, [contentType, language]);
 
   // Helper collapse state
   const [toneOpen, setToneOpen] = useState(false);
@@ -775,7 +939,7 @@ export default function UnifiedCreationFlow({
     setVariants([]);
 
     try {
-      // Type inference
+      // Call suggest — passes contentType so the API routes to the right prompt builder
       const suggestRes = await fetch(`/api/auth/bar/${barId}/create/suggest`, {
         method: "POST",
         headers: {
@@ -786,6 +950,7 @@ export default function UnifiedCreationFlow({
           text: input,
           language,
           contentTone: activeTone,
+          contentType,
         }),
       });
 
@@ -795,10 +960,39 @@ export default function UnifiedCreationFlow({
       }
 
       const suggestData = await suggestRes.json();
-      const type = (suggestData.inferredType as string) || "promotion";
+      const type = (suggestData.inferredType as string) || contentType || "promotion";
       setInferredType(type);
 
-      // Text generation — sends structured ingredients, not hardcoded text
+      // ---- Events & Passes: the suggest endpoint already returns full content ----
+      // No separate ai-generate call needed — build a single variant directly.
+      if (contentType === "event" || contentType === "pass") {
+        suggestDataRef.current = suggestData; // save for handleSelectVariant
+        const singleVariant: EditableVariant = {
+          title: (suggestData.title as string) || input.slice(0, 60),
+          description: (suggestData.description as string) || "",
+          type: contentType === "event"
+            ? (suggestData.eventCategory as string) || "OTHER"
+            : (suggestData.passType as string) || "SKIP_LINE",
+          discount: null,
+          callToAction: contentType === "event" ? "Get Tickets" : "Buy Pass",
+          accentColor: "#7c3aed",
+          titleFontStyle: null,
+          conditions: contentType === "pass"
+            ? (suggestData.priceEuros as string) || (suggestData.validityPeriod as string) || ""
+            : (suggestData.entryFee as string) || "",
+          visualDirection: null,
+          fluxPrompt: (suggestData.imageSuggestion as string) || "",
+        };
+
+        setVariants([singleVariant]);
+        setVariantLayouts(["centered"]);
+        setVariantImages([null]);
+        setStep("refine");
+        setGeneratingText(false);
+        return;
+      }
+
+      // ---- Promotions: existing two-step flow (suggest → ai-generate) ----
       const genRes = await fetch(
         `/api/auth/bar/${barId}/promotions/ai-generate`,
         {
@@ -936,6 +1130,7 @@ export default function UnifiedCreationFlow({
     activeTone,
     activeTemplate,
     selectedContexts,
+    contentType,
   ]);
 
   // ---- Edit a variant field ----
@@ -981,7 +1176,7 @@ export default function UnifiedCreationFlow({
           title: v.title,
           description: v.description,
           violations: variantViolations[index],
-          contentType: "promotion",
+          contentType,
         }),
       });
 
@@ -1045,7 +1240,7 @@ export default function UnifiedCreationFlow({
         },
         body: JSON.stringify({
           variantVisualDirections: variantVDs,
-          contentType: "promotion",
+          contentType,
           styleId: chips.styleId,
           subjectId: chips.subjectId,
           compositionId: chips.compositionId,
@@ -1121,7 +1316,7 @@ export default function UnifiedCreationFlow({
       setGeneratingImages(false);
       setVariantImagesLoading(new Array(variants.length).fill(false));
     }
-  }, [token, variants, barId, barName, activeTone, activeTemplate]);
+  }, [token, variants, barId, barName, activeTone, activeTemplate, contentType]);
 
   // ---- Step 4 → 5: Select variant ----
 
@@ -1129,16 +1324,14 @@ export default function UnifiedCreationFlow({
     (variantIndex: number) => {
       const v = variants[variantIndex];
       const layout = variantLayouts[variantIndex] || "split";
+      const sd = suggestDataRef.current;
 
-      onGenerated({
+      const baseData: Record<string, unknown> = {
         inferredType,
         aiGenerated: true,
         confidence: 0.85,
         title: v.title,
         description: v.description,
-        promotionType: v.type,
-        discountValue: v.discount,
-        conditions: v.conditions,
         callToAction: v.callToAction,
         imageUrl: variantImages[variantIndex] || null,
         cardFormat: "wide",
@@ -1148,11 +1341,34 @@ export default function UnifiedCreationFlow({
           overlayOpacity: 0.4,
           accentColor: v.accentColor,
         },
-      });
+      };
+
+      // Attach type-specific fields from the suggest response
+      if (contentType === "event") {
+        baseData.startTime = sd?.startTime || null;
+        baseData.endTime = sd?.endTime || null;
+        baseData.maxAttendees = sd?.maxAttendees || null;
+        baseData.isPrivate = sd?.isPrivate || false;
+        baseData.eventCategory = sd?.eventCategory || v.type;
+      } else if (contentType === "pass") {
+        baseData.passType = sd?.passType || v.type;
+        baseData.priceEuros = sd?.priceEuros || (v.conditions || null);
+        baseData.originalPriceEuros = sd?.originalPriceEuros || null;
+        baseData.benefits = sd?.benefits || [];
+        baseData.totalQuantity = sd?.totalQuantity || null;
+        baseData.validityPeriod = sd?.validityPeriod || null;
+      } else {
+        // Promotions
+        baseData.promotionType = v.type;
+        baseData.discountValue = v.discount;
+        baseData.conditions = v.conditions;
+      }
+
+      onGenerated(baseData);
 
       setStep("schedule");
     },
-    [variants, variantLayouts, variantImages, inferredType, onGenerated],
+    [variants, variantLayouts, variantImages, inferredType, contentType, onGenerated],
   );
 
   // ---- Regenerate single image ----
@@ -1196,7 +1412,7 @@ export default function UnifiedCreationFlow({
                 },
               },
             ],
-            contentType: "promotion",
+            contentType,
             styleId: chips.styleId,
             subjectId: chips.subjectId,
             compositionId: chips.compositionId,
@@ -1467,7 +1683,7 @@ export default function UnifiedCreationFlow({
                       : "Click a template to fill your brief. Templates with a wizard guide you step by step."}
                   </HelperDesc>
                   <TemplateGrid>
-                    {TEMPLATES[language].map((tpl) => {
+                    {activeTemplates.map((tpl) => {
                       const hasWizard = !!getWizardForTemplate(tpl.label);
                       return (
                         <TemplateCard
@@ -1727,9 +1943,13 @@ export default function UnifiedCreationFlow({
             {/* Generate button */}
             <GenerateRow>
               <FormatNote>
-                {language === "fi"
-                  ? "Luo 3 tekstivarianttia valinnoistasi. Kuvat generoidaan erikseen."
-                  : "Generates 3 text variants from your selections. Images are separate."}
+                {contentType === "event" || contentType === "pass"
+                  ? (language === "fi"
+                      ? "Luo sisältöä valinnoistasi. Voit muokata tulosta ennen julkaisua."
+                      : "Generates content from your selections. You can edit the result before publishing.")
+                  : (language === "fi"
+                      ? "Luo 3 tekstivarianttia valinnoistasi. Kuvat generoidaan erikseen."
+                      : "Generates 3 text variants from your selections. Images are separate.")}
               </FormatNote>
               <GenerateButton
                 onClick={handleGenerateText}
@@ -1741,6 +1961,8 @@ export default function UnifiedCreationFlow({
                   >
                     <Spinner /> {GENERATING_MESSAGES[language]}
                   </span>
+                ) : contentType === "event" || contentType === "pass" ? (
+                  language === "fi" ? "Luo sisältö" : "Generate content"
                 ) : (
                   "Generate 3 options"
                 )}
@@ -1801,9 +2023,11 @@ export default function UnifiedCreationFlow({
                         updateVariant(i, "title", e.target.value)
                       }
                       placeholder={
-                        language === "fi"
-                          ? "Tarjouksen otsikko"
-                          : "Promotion title"
+                        contentType === "event"
+                          ? (language === "fi" ? "Tapahtuman nimi" : "Event title")
+                          : contentType === "pass"
+                            ? (language === "fi" ? "Passin nimi" : "Pass title")
+                            : (language === "fi" ? "Tarjouksen otsikko" : "Promotion title")
                       }
                     />
                   </FieldGroup>
@@ -1830,7 +2054,13 @@ export default function UnifiedCreationFlow({
                         onChange={(e) =>
                           updateVariant(i, "callToAction", e.target.value)
                         }
-                        placeholder="View Offer"
+                        placeholder={
+                          contentType === "event"
+                            ? "Get Tickets"
+                            : contentType === "pass"
+                              ? "Buy Pass"
+                              : "View Offer"
+                        }
                       />
                     </FieldGroup>
                     <FieldGroup style={{ flex: 1 }}>

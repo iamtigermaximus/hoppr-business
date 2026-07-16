@@ -21,6 +21,13 @@ interface AIIntentBoxProps {
 type Language = "fi" | "en";
 type Step = "brief" | "generating" | "variants";
 type CardFormat = "square" | "wide" | "banner";
+type ContentType = "promotion" | "event" | "pass";
+
+const CONTENT_TYPES: { value: ContentType; label: string; emoji: string }[] = [
+  { value: "promotion", label: "Promotion", emoji: "🍻" },
+  { value: "event", label: "Event", emoji: "🎵" },
+  { value: "pass", label: "VIP Pass", emoji: "✨" },
+];
 
 const FORMAT_OPTIONS: { value: CardFormat; label: string; dims: string; hint: string }[] = [
   { value: "square", label: "Instagram Post", dims: "1:1", hint: "Feed post — square cards, stories, carousels" },
@@ -53,9 +60,65 @@ const TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
   ],
 };
 
-const PLACEHOLDERS: Record<Language, string> = {
-  fi: "Kuvaile mitä haluat luoda — esim. \"Perjantain after-work, klo 16–19, rento tunnelma ja hyvää musiikkia\"",
-  en: "Describe what you want — e.g. \"Friday after-work, 16:00–19:00, relaxed atmosphere with great music\"",
+// ---- Event templates (shown when contentType is "event") ----
+
+const EVENT_TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
+  en: [
+    { label: "Live Music", prompt: "Live music performance — band or solo act. Describe the artist, genre, date, time. Is there a cover charge? What's the atmosphere like?" },
+    { label: "DJ Night", prompt: "DJ set — describe the DJ, music style (house, techno, hip-hop, disco), when the music starts, and the energy. Mention drink specials or door policy if relevant." },
+    { label: "Quiz Night", prompt: "Pub quiz or trivia night — what topics? Team size? Prizes? When does it start? Describe the competitive-but-fun atmosphere." },
+    { label: "Sports Screening", prompt: "Big game on the screens — what sport? Which teams? Kickoff time? Any food or drink specials during the game?" },
+    { label: "Tasting Event", prompt: "Tasting event — whiskey, wine, craft beer, or cocktail masterclass. Who's hosting? What's included? How many spots? What will people learn?" },
+    { label: "Theme Night", prompt: "Theme night — 80s retro, tropical luau, masquerade. Describe the theme, dress code, decorations, and themed drinks." },
+    { label: "Comedy Night", prompt: "Stand-up comedy — who's performing? Format (showcase, open mic)? When does it start? Entry fee?" },
+    { label: "Karaoke Night", prompt: "Karaoke night — song selection, host/MC, drink specials for performers. Everyone is a star tonight." },
+  ],
+  fi: [
+    { label: "Elävä musiikki", prompt: "Live-esiintyminen — bändi tai sooloartisti. Kuvaile esiintyjä, genre, päivämäärä, kellonaika. Onko sisäänpääsymaksua? Millainen tunnelma?" },
+    { label: "DJ-ilta", prompt: "DJ-setti — kuvaile DJ, musiikkityyli (house, techno, hip-hop, disco), milloin musiikki alkaa, energiataso. Mainitse juomatarjoukset tai ovikäytäntö." },
+    { label: "Tietovisa", prompt: "Pubivisa tai tietovisa — mitä aiheita? Joukkueen koko? Palkinnot? Mihin aikaan alkaa? Kuvaile kilpailuhenkinen mutta hauska tunnelma." },
+    { label: "Urheilulähetys", prompt: "Iso peli ruuduilla — mitä lajia? Mitkä joukkueet? Aloitusaika? Onko ruoka- tai juomatarjouksia pelin aikana?" },
+    { label: "Maistelutapahtuma", prompt: "Maistelutapahtuma — viski, viini, käsityöolut tai cocktail-mestarikurssi. Kuka isännöi? Mitä sisältyy? Kuinka monta paikkaa? Mitä osallistujat oppivat?" },
+    { label: "Teemailta", prompt: "Teemailta — 80-luvun retro, trooppinen luau, naamiaiset. Kuvaile teema, pukukoodi, koristelut ja teemajuomat." },
+    { label: "Komediailta", prompt: "Stand-up komediaa — kuka esiintyy? Formaatti (showcase, avoin mikki)? Mihin aikaan alkaa? Sisäänpääsymaksu?" },
+    { label: "Karaokeilta", prompt: "Karaokeilta — lauluvalikoima, juontaja, esiintyjien juomatarjoukset. Kaikki ovat tähtiä tänään." },
+  ],
+};
+
+// ---- Pass templates (shown when contentType is "pass") ----
+
+const PASS_TEMPLATES: Record<Language, { label: string; prompt: string }[]> = {
+  en: [
+    { label: "Skip the Line", prompt: "Skip-the-line pass — priority entry on busy nights. Walk past the queue, straight to the door. What nights is it valid? Price per person?" },
+    { label: "Drink Package", prompt: "Drink package — X number of drinks included for a fixed price. What's the deal? What drinks are included? Valid per night or per person?" },
+    { label: "Table Reservation", prompt: "Table reservation — reserved table for your group. How many people? Where in the venue? Dedicated service? What nights?" },
+    { label: "Bottle Service", prompt: "Bottle service — premium bottle, mixers, reserved table. What's the bottle selection? Price? How many people does it cover?" },
+    { label: "Cover + Perk", prompt: "Cover charge included + extra perk (welcome drink, cloakroom, first round). Entry sorted and something extra. What's the total value?" },
+    { label: "Group Package", prompt: "Group package — all-in-one for a group night out. Entry, drinks, table all sorted. What's included per person? Group size? Price?" },
+  ],
+  fi: [
+    { label: "Jononohitus", prompt: "Jononohituspassi — etuoikeutettu sisäänpääsy kiireisinä iltoina. Kävele jonon ohi, suoraan ovelle. Minä iltoina voimassa? Hinta per henkilö?" },
+    { label: "Juomapaketti", prompt: "Juomapaketti — X juomaa kiinteään hintaan. Mikä on diili? Mitä juomia sisältyy? Voimassa per ilta vai per henkilö?" },
+    { label: "Pöytävaraus", prompt: "Pöytävaraus — varattu pöytä ryhmällesi. Kuinka monelle? Missä kohtaa? Oma palvelu? Minä iltoina?" },
+    { label: "Pullopalvelu", prompt: "Pullopalvelu — premium-pullo, mikserit, varattu pöytä. Mikä on pullovalikoima? Hinta? Kuinka monelle?" },
+    { label: "Sisäänpääsy + etu", prompt: "Sisäänpääsymaksu sisältyy + lisäetu (tervetuliaismalja, narikka, ensimmäinen kierros). Sisäänpääsy hoidettu ja jotain extraa. Mikä on kokonaisarvo?" },
+    { label: "Ryhmäpaketti", prompt: "Ryhmäpaketti — all-in-one illanviettoon. Sisäänpääsy, juomat, pöytä kaikki hoidettu. Mitä sisältyy per henkilö? Ryhmän koko? Hinta?" },
+  ],
+};
+
+const PLACEHOLDERS: Record<ContentType, Record<Language, string>> = {
+  promotion: {
+    fi: "Kuvaile mitä haluat luoda — esim. \"Perjantain after-work, klo 16–19, rento tunnelma ja hyvää musiikkia\"",
+    en: "Describe what you want — e.g. \"Friday after-work, 16:00–19:00, relaxed atmosphere with great music\"",
+  },
+  event: {
+    fi: "Kuvaile tapahtuma — esim. \"Live jazz trio lauantaina, klo 20, ilmainen sisäänpääsy, cocktail-tarjouksia\"",
+    en: "Describe your event — e.g. \"Live jazz trio this Saturday, 8pm, free entry, cocktail specials\"",
+  },
+  pass: {
+    fi: "Kuvaile VIP-passi — esim. \"Jononohitus lauantaisin, 10 € per henkilö, sisältää etuoikeutetun sisäänpääsyn\"",
+    en: "Describe your VIP pass — e.g. \"Skip-the-line on Saturdays, €10 per person, priority entry included\"",
+  },
 };
 
 const GENERATING_MESSAGES: Record<Language, string> = {
@@ -83,6 +146,7 @@ export default function AIIntentBox({
   // Controls
   const [language, setLanguage] = useState<Language>("en");
   const [cardFormat, setCardFormat] = useState<CardFormat>("wide");
+  const [contentType, setContentType] = useState<ContentType>("promotion");
   const [activeTemplate, setActiveTemplate] = useState<string | null>(null);
 
   // Tone state — starts from bar profile default, overridable per creation
@@ -91,6 +155,14 @@ export default function AIIntentBox({
   // Variant state
   const [variants, setVariants] = useState<PromotionVariant[]>([]);
   const [inferredType, setInferredType] = useState<string>("promotion");
+
+  // Active templates based on contentType
+  const activeTemplates =
+    contentType === "event"
+      ? EVENT_TEMPLATES[language]
+      : contentType === "pass"
+        ? PASS_TEMPLATES[language]
+        : TEMPLATES[language];
 
   const token = typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
 
@@ -121,7 +193,7 @@ export default function AIIntentBox({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ text: input, language, contentTone: activeTone }),
+          body: JSON.stringify({ text: input, language, contentType, contentTone: activeTone }),
         });
 
         if (!suggestRes.ok) {
@@ -133,10 +205,10 @@ export default function AIIntentBox({
         const type = (suggestData.inferredType as string) || "promotion";
         setInferredType(type);
 
-        // Step 2: Always call ai-generate for promotions to get visual params
-        // (template, mood, accentColor) that differentiate cards in the app.
-        // Also run when user explicitly requested multiple variants regardless of type.
-        if (type === "promotion" || variantCount > 1) {
+        // Step 2: For promotions, call ai-generate to get visual params
+        // (template, mood, accentColor) and multiple variants.
+        // Events and passes get their content directly from the suggest step.
+        if (type === "promotion") {
           const requestCount = Math.max(variantCount, 1);
           const genRes = await fetch(`/api/auth/bar/${barId}/promotions/ai-generate`, {
             method: "POST",
@@ -214,7 +286,7 @@ export default function AIIntentBox({
         setStep("brief");
       }
     },
-    [text, token, barId, language, cardFormat, activeTone, onGenerated],
+    [text, token, barId, language, cardFormat, contentType, activeTone, onGenerated],
   );
 
   // ---- Variant selection ----
@@ -243,7 +315,7 @@ export default function AIIntentBox({
       setVariants([]);
       onGenerated(data);
     },
-    [inferredType, variants.length, cardFormat, onGenerated],
+    [inferredType, contentType, variants.length, cardFormat, onGenerated],
   );
 
   const handleRegenerate = useCallback(() => {
@@ -281,6 +353,34 @@ export default function AIIntentBox({
         </div>
         <span style={styles.headerBadge}>AI-powered</span>
       </div>
+
+      {/* Content type selector — what are we creating? */}
+      {(step === "brief" || step === "generating") && (
+        <div style={styles.contentTypeRow}>
+          {CONTENT_TYPES.map((ct) => {
+            const isActive = contentType === ct.value;
+            return (
+              <button
+                key={ct.value}
+                type="button"
+                style={{
+                  ...styles.contentTypePill,
+                  ...(isActive ? styles.contentTypePillActive : {}),
+                }}
+                onClick={() => {
+                  setContentType(ct.value);
+                  setActiveTemplate(null);
+                  setText("");
+                }}
+                disabled={isBusy}
+              >
+                <span style={styles.contentTypeEmoji}>{ct.emoji}</span>
+                {ct.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Brief: textarea + controls + templates (shown during 'brief' step) */}
       {(step === "brief" || step === "generating") && (
@@ -357,7 +457,7 @@ export default function AIIntentBox({
           {/* ---- Step 2: Pick a starting point ---- */}
           <div style={styles.stepLabel}>2. Pick a starting point</div>
           <div style={styles.templateGrid}>
-            {TEMPLATES[language].map((t) => (
+            {activeTemplates.map((t) => (
               <button
                 key={t.label}
                 style={{
@@ -384,7 +484,7 @@ export default function AIIntentBox({
               ...styles.textarea,
               ...(isBusy ? styles.textareaDisabled : {}),
             }}
-            placeholder={PLACEHOLDERS[language]}
+            placeholder={PLACEHOLDERS[contentType][language]}
             value={text}
             onChange={(e) => {
               setText(e.target.value);
@@ -561,6 +661,41 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
     letterSpacing: "0.03em",
   },
+  // ---- Content type selector ----
+  contentTypeRow: {
+    display: "flex",
+    gap: 4,
+    marginBottom: 14,
+    background: "#0d0d1a",
+    borderRadius: 10,
+    padding: 3,
+    border: "1px solid #2d2d4a",
+  },
+  contentTypePill: {
+    flex: 1,
+    padding: "7px 12px",
+    border: "none",
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: "pointer",
+    background: "transparent",
+    color: "#6b7280",
+    transition: "all 0.15s",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  contentTypePillActive: {
+    background: "#7c3aed",
+    color: "white",
+  },
+  contentTypeEmoji: {
+    fontSize: 14,
+    lineHeight: 1,
+  },
+
   // ---- Step labels ----
   stepLabel: {
     fontSize: 11,

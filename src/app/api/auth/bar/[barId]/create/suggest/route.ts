@@ -10,6 +10,16 @@ import { type BarPositioning } from "@/lib/compliance/persona";
 import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
 import { logUsage } from "@/lib/credit-tracker";
 import { handleApiError } from "@/lib/api-error";
+import {
+  buildEventPrompt,
+  inferEventCategory,
+  type EventPromptOutput,
+} from "@/lib/prompts/build-event-prompt";
+import {
+  buildPassPrompt,
+  inferPassCategory,
+  type PassPromptOutput,
+} from "@/lib/prompts/build-pass-prompt";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -122,7 +132,11 @@ export async function POST(
 
     // 3. Parse request body
     const body = await request.json();
-    const { text, language = "en" } = body as { text: string; language?: string };
+    const {
+      text,
+      language = "en",
+      contentType,
+    } = body as { text: string; language?: string; contentType?: string };
 
     if (!text || typeof text !== "string" || text.trim().length === 0) {
       return NextResponse.json(
@@ -134,6 +148,12 @@ export async function POST(
     // Validate language
     const validLanguages = ["en", "fi"];
     const lang = validLanguages.includes(language) ? language : "en";
+
+    // Validate contentType
+    const validContentTypes = ["auto", "event", "promotion", "pass"];
+    const ct = validContentTypes.includes(contentType || "")
+      ? contentType!
+      : "auto";
 
     // 4. Fetch bar context — include musicTags for positioning
     const bar = await prisma.bar.findUnique({
@@ -172,10 +192,58 @@ export async function POST(
     // 6. Check if DeepSeek API key is configured — use fallback templates if not
     const useAI = !!DEEPSEEK_API_KEY;
 
+    // 6a. Build type-specific prompts when contentType is specified
+    // When "auto", fall through to the generic prompt builder below
+    let eventPromptResult: EventPromptOutput | null = null;
+    let passPromptResult: PassPromptOutput | null = null;
+
+    if (ct === "event") {
+      const inferredCategory = inferEventCategory(text);
+      eventPromptResult = buildEventPrompt({
+        barName: bar.name,
+        barType: bar.type,
+        district: bar.district ?? undefined,
+        cityName: bar.cityName ?? undefined,
+        amenities: bar.amenities ?? undefined,
+        priceRange: bar.priceRange ?? undefined,
+        description: bar.description ?? undefined,
+        musicTags: (bar.musicTags as string[]) ?? undefined,
+        vipEnabled: bar.vipEnabled,
+        userBrief: text,
+        language: lang as "en" | "fi",
+        eventCategory: inferredCategory,
+      });
+    } else if (ct === "pass") {
+      const inferredCategory = inferPassCategory(text);
+      passPromptResult = buildPassPrompt({
+        barName: bar.name,
+        barType: bar.type,
+        district: bar.district ?? undefined,
+        cityName: bar.cityName ?? undefined,
+        amenities: bar.amenities ?? undefined,
+        priceRange: bar.priceRange ?? undefined,
+        description: bar.description ?? undefined,
+        vipEnabled: bar.vipEnabled,
+        userBrief: text,
+        language: lang as "en" | "fi",
+        passCategory: inferredCategory,
+      });
+    }
+
     // 7. Build system prompt — senior marketing persona + compliance rules
+    // When contentType is specified, use the type-specific prompts instead
+    let systemPrompt: string;
+    let userPrompt: string;
     const isFi = lang === "fi";
 
-    const routeInstructions = isFi
+    if (eventPromptResult) {
+      systemPrompt = eventPromptResult.systemPrompt;
+      userPrompt = eventPromptResult.userPrompt;
+    } else if (passPromptResult) {
+      systemPrompt = passPromptResult.systemPrompt;
+      userPrompt = passPromptResult.userPrompt;
+    } else {
+      const routeInstructions = isFi
       ? `\n\nMääritä, haluaako käyttäjä luoda TAPAHTUMAN, TARJOUKSEN, VIP-PASSIN vai MAINOSKAMPANJAN. Poimi kaikki olennaiset kentät ja tuota sisältö SUOMEKSI.
 
 Tarjouksissa: suosi FOOD_SPECIAL- tai ruokapainotteisia tyyppejä, kun mahdollista. Ruokatarjouksilla ei ole mainosrajoituksia.
@@ -236,9 +304,9 @@ Return ONLY valid JSON with this structure — no other text:
   "imageSuggestion": "Which default image category fits best: cocktails | live-music | party | beer | vip | wine | special-offer | karaoke | sports | outdoor-terrace | dj-night | bar-ambiance"
 }`;
 
-    const systemPrompt = `${buildFullSystemPrompt(lang as "en" | "fi", barPositioning)}${routeInstructions}`;
+      systemPrompt = `${buildFullSystemPrompt(lang as "en" | "fi", barPositioning)}${routeInstructions}`;
 
-    const userPrompt = isFi
+      userPrompt = isFi
       ? `Ravintolan "${bar.name}" (${bar.type}-baari, ${bar.district}, ${bar.cityName}) henkilökunta kuvaili mitä he haluavat luoda:
 
 "${text}"
@@ -273,6 +341,7 @@ Bar context:
 Analyze the text: event, promotion, or VIP pass? Extract all relevant fields. Generate ALL content in English.
 
 ${buildUserReminder("en")}`;
+    }
 
     // 8. Try DeepSeek API; fall back to templates on any failure
     let result: Record<string, unknown> | null = null;
@@ -362,10 +431,16 @@ ${buildUserReminder("en")}`;
     }
 
     // 10. Validate and normalize inferred type
-    const validTypes = ["event", "promotion", "pass", "campaign"];
-    const inferredType = validTypes.includes(result.inferredType as string)
-      ? (result.inferredType as string)
-      : "promotion";
+    // When contentType is explicitly specified, use it instead of AI inference
+    let inferredType: string;
+    if (ct !== "auto") {
+      inferredType = ct;
+    } else {
+      const validTypes = ["event", "promotion", "pass", "campaign"];
+      inferredType = validTypes.includes(result.inferredType as string)
+        ? (result.inferredType as string)
+        : "promotion";
+    }
 
     // 11. Build response with type-specific fields
     const response_: Record<string, unknown> = {
@@ -373,7 +448,7 @@ ${buildUserReminder("en")}`;
       aiGenerated,
       ...(warning && { warning }),
       confidence: typeof result.confidence === "number" ? result.confidence : 0.8,
-      title: result.title || text.slice(0, 60),
+      title: result.title || result.name || text.slice(0, 60),
       description: result.description || "",
       reasoning: result.reasoning || `Based on your description, this appears to be a ${inferredType}.`,
       imageSuggestion: result.imageSuggestion || "bar-ambiance",
@@ -385,6 +460,8 @@ ${buildUserReminder("en")}`;
       response_.endTime = result.endTime || null;
       response_.maxAttendees = result.maxAttendees || null;
       response_.isPrivate = result.isPrivate || false;
+      response_.entryFee = result.entryFee || null;
+      response_.eventCategory = result.eventCategory || null;
     } else if (inferredType === "promotion") {
       response_.promotionType = result.promotionType || "DRINK_SPECIAL";
       response_.discountValue = result.discountValue || null;
@@ -398,11 +475,12 @@ ${buildUserReminder("en")}`;
       response_.campaignStartDate = result.campaignStartDate || null;
       response_.campaignEndDate = result.campaignEndDate || null;
     } else if (inferredType === "pass") {
-      response_.passType = result.passType || "SKIP_LINE";
-      response_.priceEuros = result.priceEuros || null;
+      response_.passType = result.passCategory || result.passType || "SKIP_LINE";
+      response_.priceEuros = result.priceEuros || (typeof result.price === "number" ? String(result.price) : null);
       response_.originalPriceEuros = result.originalPriceEuros || null;
       response_.benefits = result.benefits || [];
-      response_.totalQuantity = result.totalQuantity || null;
+      response_.totalQuantity = result.maxQuantity || result.totalQuantity || null;
+      response_.validityPeriod = result.validityPeriod || null;
     }
 
     return NextResponse.json({
