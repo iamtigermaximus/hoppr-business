@@ -4,6 +4,10 @@
 // UnifiedCreationFlow for deriving visual presets from voice choices.
 
 import type { ContentTone } from "@/components/bar/create/ToneSelector";
+import {
+  subjectsForImageWorld,
+  IMAGE_WORLD_CHIP_TO_COMPLIANCE,
+} from "@/lib/compliance/image-compliance";
 
 interface ImageChips {
   styleId: string;
@@ -35,11 +39,14 @@ const TEMPLATE_COMPOSITION_HINTS: Record<string, string[]> = {
 /**
  * Derive image chips from the user's voice + template choices.
  * Each variant index gets slightly different composition for visual variety.
+ * When `imageWorld` is provided (brand mode), subjects are derived from
+ * the image world rather than always defaulting to "interior".
  */
 export function deriveImageChips(
   tone: ContentTone | null | undefined,
   templateLabel: string | null | undefined,
   variantIndex: number = 0,
+  imageWorld?: string | null,
 ): ImageChips {
   const styleId = tone ? (TONE_STYLE_MAP[tone] || "warm_cozy") : "warm_cozy";
 
@@ -60,8 +67,19 @@ export function deriveImageChips(
     compositionId = all[variantIndex % all.length];
   }
 
-  // Subject is always "interior" since we're generating bar atmosphere images
-  const subjectId = "interior";
+  // Subject: use image world mapping when available (brand mode),
+  // otherwise default to "interior" (promotional mode)
+  let subjectId = "interior";
+  if (imageWorld) {
+    const complianceWorld = IMAGE_WORLD_CHIP_TO_COMPLIANCE[imageWorld];
+    if (complianceWorld) {
+      const subjects = subjectsForImageWorld(complianceWorld);
+      if (subjects.length > 0) {
+        // Rotate subjects across variants for variety
+        subjectId = subjects[variantIndex % subjects.length];
+      }
+    }
+  }
 
   return { styleId, subjectId, compositionId };
 }

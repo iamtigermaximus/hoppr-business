@@ -270,3 +270,75 @@ export function getSynergyInstructions(
 
   return instructions;
 }
+
+// ---------------------------------------------------------------------------
+// Template → Tone recommendations
+// When a template is selected, certain tones are naturally synergistic
+// ("recommended") while others create tonal mismatch ("cautionary").
+// Used by the UI to highlight / dim tone chips based on template context.
+// ---------------------------------------------------------------------------
+
+/** Canonicalize template display labels to recommendation keys */
+function templateToRecommendationKey(template: string): string {
+  const normalized = template.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const MAP: Record<string, string> = {
+    afterwork: "after-work",
+    ladiesnight: "ladies-night",
+    livemusic: "live-music",
+    livenight: "live-music",
+    gamenight: "game-night",
+    foodspecial: "food-special",
+    vipexperience: "vip-experience",
+    signatureevening: "signature-evening",
+    themenight: "theme-night",
+  };
+  return MAP[normalized] || normalized;
+}
+
+interface ToneRecommendation {
+  recommended: string[];
+  cautionary: string[];
+}
+
+const TEMPLATE_TONE_RECOMMENDATIONS: Record<string, ToneRecommendation> = {
+  "after-work": {
+    recommended: ["WARM_INVITING", "PLAYFUL_FUN"],
+    cautionary: ["EDGY_IRREVERENT"],
+  },
+  "ladies-night": {
+    recommended: ["PLAYFUL_FUN", "BOLD_ENERGETIC"],
+    cautionary: ["EDGY_IRREVERENT", "ELEGANT_PREMIUM"],
+  },
+  "live-music": {
+    recommended: ["BOLD_ENERGETIC", "EDGY_IRREVERENT"],
+    cautionary: ["ELEGANT_PREMIUM"],
+  },
+  "game-night": {
+    recommended: ["PLAYFUL_FUN", "BOLD_ENERGETIC"],
+    cautionary: ["ELEGANT_PREMIUM"],
+  },
+  "food-special": {
+    recommended: ["WARM_INVITING", "ELEGANT_PREMIUM"],
+    cautionary: ["EDGY_IRREVERENT"],
+  },
+  "vip-experience": {
+    recommended: ["ELEGANT_PREMIUM", "WARM_INVITING"],
+    cautionary: ["EDGY_IRREVERENT", "PLAYFUL_FUN"],
+  },
+  "signature-evening": {
+    recommended: ["ELEGANT_PREMIUM", "WARM_INVITING"],
+    cautionary: ["BOLD_ENERGETIC", "EDGY_IRREVERENT"],
+  },
+  "theme-night": {
+    recommended: ["PLAYFUL_FUN", "EDGY_IRREVERENT"],
+    cautionary: ["ELEGANT_PREMIUM"],
+  },
+};
+
+export function getTemplateToneRecommendations(
+  template: string | undefined | null,
+): ToneRecommendation | null {
+  if (!template) return null;
+  const key = templateToRecommendationKey(template);
+  return TEMPLATE_TONE_RECOMMENDATIONS[key] || null;
+}

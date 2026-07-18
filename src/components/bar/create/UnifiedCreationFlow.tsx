@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  useEffect,
+} from "react";
 import styled from "styled-components";
 import type { ContentType, FormState } from "./types";
 import { PROMOTION_TYPES } from "./types";
@@ -15,6 +21,26 @@ import {
   assembleWizardPrompt,
   type WizardStep,
 } from "@/lib/prompts/template-wizards";
+import {
+  AUDIENCE_LABELS,
+  CORE_MESSAGE_LABELS,
+  ATMOSPHERE_LABELS,
+  IMAGE_WORLD_LABELS as CREATIVE_IMAGE_WORLD_LABELS,
+  COPY_STRUCTURE_LABELS,
+} from "@/lib/prompts/creative-director";
+import type {
+  AudienceChip,
+  CoreMessageChip,
+  AtmosphereChip,
+  ImageWorldChip,
+  CopyStructureChip,
+} from "@/lib/prompts/creative-director";
+import {
+  subjectsForImageWorld,
+  IMAGE_WORLD_CHIP_TO_COMPLIANCE,
+  SUBJECT_PRESETS,
+} from "@/lib/compliance/image-compliance";
+import { getTemplateToneRecommendations } from "@/lib/prompts/synergy-rules";
 
 // ---- Types ----
 
@@ -26,6 +52,8 @@ interface UnifiedCreationFlowProps {
   barName?: string;
   barCoverImage?: string | null;
   contentType: ContentType;
+  creationMode?: "brand" | "promotional";
+  onModeChange?: (mode: "brand" | "promotional") => void;
   formState: FormState;
   contentTone?: ContentTone | null;
   onGenerated: (data: Record<string, unknown>) => void;
@@ -35,6 +63,19 @@ interface UnifiedCreationFlowProps {
   submitting?: boolean;
   /** Start at a specific step instead of the type selection grid. */
   initialStep?: FlowStep;
+  // Brand ingredient props
+  brandAudience?: string[];
+  onBrandAudienceChange?: (chips: string[]) => void;
+  brandCoreMessage?: string | null;
+  onBrandCoreMessageChange?: (chip: string | null) => void;
+  brandAtmosphere?: string[];
+  onBrandAtmosphereChange?: (chips: string[]) => void;
+  brandImageWorld?: string;
+  onBrandImageWorldChange?: (chip: string) => void;
+  brandCopyStructure?: string;
+  onBrandCopyStructureChange?: (chip: string) => void;
+  brandTemplateName?: string;
+  onBrandTemplateNameChange?: (name: string) => void;
 }
 
 interface EditableVariant {
@@ -357,70 +398,198 @@ interface ExampleCard {
 const EXAMPLE_CARDS: Record<Language, Record<string, ExampleCard[]>> = {
   en: {
     "After-Work": [
-      { title: "Unwind After Work — Drinks From 4 PM", description: "The workday is over. Step in, grab a seat, and let the evening begin with handcrafted cocktails and a relaxed vibe." },
-      { title: "Your After-Work Ritual Starts Here", description: "Wind down with colleagues or solo. Great drinks, chill music, and the perfect transition from desk to downtime." },
+      {
+        title: "Unwind After Work — Drinks From 4 PM",
+        description:
+          "The workday is over. Step in, grab a seat, and let the evening begin with handcrafted cocktails and a relaxed vibe.",
+      },
+      {
+        title: "Your After-Work Ritual Starts Here",
+        description:
+          "Wind down with colleagues or solo. Great drinks, chill music, and the perfect transition from desk to downtime.",
+      },
     ],
     "Ladies Night": [
-      { title: "Ladies Night — Bring Your Crew", description: "The ultimate girls' night out. Curated drinks, the best playlist in town, and a space made for unforgettable nights." },
-      { title: "Wednesday Is Ladies Night", description: "Round up your best people. Welcome drinks, a buzzing atmosphere, and a night that always delivers." },
+      {
+        title: "Ladies Night — Bring Your Crew",
+        description:
+          "The ultimate girls' night out. Curated drinks, the best playlist in town, and a space made for unforgettable nights.",
+      },
+      {
+        title: "Wednesday Is Ladies Night",
+        description:
+          "Round up your best people. Welcome drinks, a buzzing atmosphere, and a night that always delivers.",
+      },
     ],
     "Live Music": [
-      { title: "Live at the Bar — This Friday", description: "A night of raw talent and electric energy. Grab a drink, find your spot, and let the music take over." },
-      { title: "Live Music Night — Free Entry", description: "Discover your new favorite artist. Craft cocktails, great sound, and an atmosphere you won't want to leave." },
+      {
+        title: "Live at the Bar — This Friday",
+        description:
+          "A night of raw talent and electric energy. Grab a drink, find your spot, and let the music take over.",
+      },
+      {
+        title: "Live Music Night — Free Entry",
+        description:
+          "Discover your new favorite artist. Craft cocktails, great sound, and an atmosphere you won't want to leave.",
+      },
     ],
     "Game Night": [
-      { title: "Game Night — Trivia, Prizes & Drinks", description: "Assemble your team. Competitive, chaotic, and always a good time — with drinks to fuel the action." },
-      { title: "Weekly Game Night — Everyone's Invited", description: "Board games, trivia, and friendly rivalry. Great drinks, bigger laughs, and bragging rights on the line." },
+      {
+        title: "Game Night — Trivia, Prizes & Drinks",
+        description:
+          "Assemble your team. Competitive, chaotic, and always a good time — with drinks to fuel the action.",
+      },
+      {
+        title: "Weekly Game Night — Everyone's Invited",
+        description:
+          "Board games, trivia, and friendly rivalry. Great drinks, bigger laughs, and bragging rights on the line.",
+      },
     ],
     "Food Special": [
-      { title: "The Kitchen Is Showing Off Tonight", description: "A dish worth planning your evening around. Seasonal ingredients, bold flavors, and the perfect drink pairing." },
-      { title: "Chef's Special — Limited This Week", description: "Something new from the kitchen. Crafted with care, served with pride. Come hungry, leave happy." },
+      {
+        title: "The Kitchen Is Showing Off Tonight",
+        description:
+          "A dish worth planning your evening around. Seasonal ingredients, bold flavors, and the perfect drink pairing.",
+      },
+      {
+        title: "Chef's Special — Limited This Week",
+        description:
+          "Something new from the kitchen. Crafted with care, served with pride. Come hungry, leave happy.",
+      },
     ],
     "VIP Experience": [
-      { title: "Go VIP — A Different Level of Service", description: "Skip the line. Premium seating, dedicated service, and a private atmosphere above the crowd." },
-      { title: "VIP Night — This Is How It's Done", description: "Behind the rope. Bottle service, personal attention, and an experience that feels genuinely elevated." },
+      {
+        title: "Go VIP — A Different Level of Service",
+        description:
+          "Skip the line. Premium seating, dedicated service, and a private atmosphere above the crowd.",
+      },
+      {
+        title: "VIP Night — This Is How It's Done",
+        description:
+          "Behind the rope. Bottle service, personal attention, and an experience that feels genuinely elevated.",
+      },
     ],
     "Signature Evening": [
-      { title: "A Curated Evening — One Night Only", description: "Something unique is happening here. A concept built for this bar, this team, this moment. You'll want to be here." },
-      { title: "The Signature Experience — Tonight", description: "Not just another night out. A crafted atmosphere, exceptional drinks, and a reason to cross town." },
+      {
+        title: "A Curated Evening — One Night Only",
+        description:
+          "Something unique is happening here. A concept built for this bar, this team, this moment. You'll want to be here.",
+      },
+      {
+        title: "The Signature Experience — Tonight",
+        description:
+          "Not just another night out. A crafted atmosphere, exceptional drinks, and a reason to cross town.",
+      },
     ],
     "Theme Night": [
-      { title: "The Bar Transforms — Theme Night", description: "Step into a different world. Dress the part, play the role, and experience the bar like never before." },
-      { title: "Theme Night — This One's Special", description: "Costumes, cocktails, and a shared reality. One night only — the bar becomes something extraordinary." },
+      {
+        title: "The Bar Transforms — Theme Night",
+        description:
+          "Step into a different world. Dress the part, play the role, and experience the bar like never before.",
+      },
+      {
+        title: "Theme Night — This One's Special",
+        description:
+          "Costumes, cocktails, and a shared reality. One night only — the bar becomes something extraordinary.",
+      },
     ],
   },
   fi: {
     "After-Work": [
-      { title: "After-Work — Juomat klo 16 Alkaen", description: "Työpäivä on ohi. Astu sisään, nappaa paikka ja anna illan alkaa käsityödrinkkien ja rennon tunnelman kera." },
-      { title: "After-Work-rituaalisi Alkaa Täällä", description: "Rentoudu kollegoiden kanssa tai yksin. Hyvät juomat, rento musiikki ja täydellinen siirtymä työpöydältä vapaa-aikaan." },
+      {
+        title: "After-Work — Juomat klo 16 Alkaen",
+        description:
+          "Työpäivä on ohi. Astu sisään, nappaa paikka ja anna illan alkaa käsityödrinkkien ja rennon tunnelman kera.",
+      },
+      {
+        title: "After-Work-rituaalisi Alkaa Täällä",
+        description:
+          "Rentoudu kollegoiden kanssa tai yksin. Hyvät juomat, rento musiikki ja täydellinen siirtymä työpöydältä vapaa-aikaan.",
+      },
     ],
-    "Naistenilta": [
-      { title: "Naistenilta — Kokoa Porukkasi", description: "Täydellinen tyttöjen ilta. Kuratoidut drinkit, kaupungin paras soittolista ja tila tehty unohtumattomia iltoja varten." },
-      { title: "Keskiviikko On Naistenilta", description: "Kerää parhaat tyyppisi. Tervetuliaisdrinkit, sykkivä tunnelma ja ilta joka aina toimittaa." },
+    Naistenilta: [
+      {
+        title: "Naistenilta — Kokoa Porukkasi",
+        description:
+          "Täydellinen tyttöjen ilta. Kuratoidut drinkit, kaupungin paras soittolista ja tila tehty unohtumattomia iltoja varten.",
+      },
+      {
+        title: "Keskiviikko On Naistenilta",
+        description:
+          "Kerää parhaat tyyppisi. Tervetuliaisdrinkit, sykkivä tunnelma ja ilta joka aina toimittaa.",
+      },
     ],
     "Elävä musiikki": [
-      { title: "Livenä Baarissa — Tänä Perjantaina", description: "Illallinen raakaa lahjakkuutta ja sähköistä energiaa. Nappaa juoma, löydä paikkasi ja anna musiikin viedä." },
-      { title: "Live-musiikki-ilta — Vapaa Pääsy", description: "Löydä uusi suosikkiartistisi. Käsityödrinkit, loistava soundi ja tunnelma josta et halua lähteä." },
+      {
+        title: "Livenä Baarissa — Tänä Perjantaina",
+        description:
+          "Illallinen raakaa lahjakkuutta ja sähköistä energiaa. Nappaa juoma, löydä paikkasi ja anna musiikin viedä.",
+      },
+      {
+        title: "Live-musiikki-ilta — Vapaa Pääsy",
+        description:
+          "Löydä uusi suosikkiartistisi. Käsityödrinkit, loistava soundi ja tunnelma josta et halua lähteä.",
+      },
     ],
     "Peli-ilta": [
-      { title: "Peli-ilta — Tietovisa, Palkinnot & Juomat", description: "Kokoa tiimisi. Kilpailuhenkistä, kaoottista ja aina hyvää aikaa — juomat vauhdittamassa toimintaa." },
-      { title: "Viikoittainen Peli-ilta — Kaikki Tervetulleita", description: "Lautapelejä, tietovisaa ja ystävällistä kilpailua. Hyvät juomat, isot naurut ja kerskumisoikeus pelissä." },
+      {
+        title: "Peli-ilta — Tietovisa, Palkinnot & Juomat",
+        description:
+          "Kokoa tiimisi. Kilpailuhenkistä, kaoottista ja aina hyvää aikaa — juomat vauhdittamassa toimintaa.",
+      },
+      {
+        title: "Viikoittainen Peli-ilta — Kaikki Tervetulleita",
+        description:
+          "Lautapelejä, tietovisaa ja ystävällistä kilpailua. Hyvät juomat, isot naurut ja kerskumisoikeus pelissä.",
+      },
     ],
-    "Ruokatarjous": [
-      { title: "Keittiö Näyttää Osaamistaan Tänään", description: "Annos, jonka ympärille kannattaa suunnitella ilta. Kausiraaka-aineita, rohkeita makuja ja täydellinen juomasuositus." },
-      { title: "Kokin Suositus — Rajoitettu Tällä Viikolla", description: "Jotain uutta keittiöstä. Huolella valmistettu, ylpeydellä tarjoiltu. Tule nälkäisenä, lähde onnellisena." },
+    Ruokatarjous: [
+      {
+        title: "Keittiö Näyttää Osaamistaan Tänään",
+        description:
+          "Annos, jonka ympärille kannattaa suunnitella ilta. Kausiraaka-aineita, rohkeita makuja ja täydellinen juomasuositus.",
+      },
+      {
+        title: "Kokin Suositus — Rajoitettu Tällä Viikolla",
+        description:
+          "Jotain uutta keittiöstä. Huolella valmistettu, ylpeydellä tarjoiltu. Tule nälkäisenä, lähde onnellisena.",
+      },
     ],
     "VIP-kokemus": [
-      { title: "VIP — Eri Tasolla Palvelua", description: "Ohita jono. Premium-istumapaikat, oma palvelu ja yksityinen tunnelma väkijoukon yläpuolella." },
-      { title: "VIP-ilta — Näin Se Tehdään", description: "Köyden takana. Pullopalvelu, henkilökohtainen huomio ja kokemus joka tuntuu aidosti kohotetulta." },
+      {
+        title: "VIP — Eri Tasolla Palvelua",
+        description:
+          "Ohita jono. Premium-istumapaikat, oma palvelu ja yksityinen tunnelma väkijoukon yläpuolella.",
+      },
+      {
+        title: "VIP-ilta — Näin Se Tehdään",
+        description:
+          "Köyden takana. Pullopalvelu, henkilökohtainen huomio ja kokemus joka tuntuu aidosti kohotetulta.",
+      },
     ],
     "Talon suositukset": [
-      { title: "Kuratoitu Ilta — Vain Tänään", description: "Jotain ainutlaatuista tapahtuu täällä. Konsepti rakennettu tälle baarille, tälle tiimille, tälle hetkelle. Haluat olla täällä." },
-      { title: "Talon Suositus — Tänä Iltana", description: "Ei vain yksi ilta muiden joukossa. Kuratoitu tunnelma, poikkeukselliset juomat ja syy matkustaa kaupungin halki." },
+      {
+        title: "Kuratoitu Ilta — Vain Tänään",
+        description:
+          "Jotain ainutlaatuista tapahtuu täällä. Konsepti rakennettu tälle baarille, tälle tiimille, tälle hetkelle. Haluat olla täällä.",
+      },
+      {
+        title: "Talon Suositus — Tänä Iltana",
+        description:
+          "Ei vain yksi ilta muiden joukossa. Kuratoitu tunnelma, poikkeukselliset juomat ja syy matkustaa kaupungin halki.",
+      },
     ],
-    "Teemailta": [
-      { title: "Baari Muuntuu — Teemailta", description: "Astu eri maailmaan. Pukeudu osaan, näyttele roolisi ja koe baari kuten et koskaan ennen." },
-      { title: "Teemailta — Tämä On Erityinen", description: "Asusteita, cocktaileja ja jaettu todellisuus. Vain yhden illan — baarista tulee jotain poikkeuksellista." },
+    Teemailta: [
+      {
+        title: "Baari Muuntuu — Teemailta",
+        description:
+          "Astu eri maailmaan. Pukeudu osaan, näyttele roolisi ja koe baari kuten et koskaan ennen.",
+      },
+      {
+        title: "Teemailta — Tämä On Erityinen",
+        description:
+          "Asusteita, cocktaileja ja jaettu todellisuus. Vain yhden illan — baarista tulee jotain poikkeuksellista.",
+      },
     ],
   },
 };
@@ -447,7 +616,10 @@ const STEP_LABELS: Record<FlowStep, string> = {
 };
 
 function stepNumber(step: FlowStep): number {
-  return ["type", "brief", "refine", "images", "schedule", "publish"].indexOf(step) + 1;
+  return (
+    ["type", "brief", "refine", "images", "schedule", "publish"].indexOf(step) +
+    1
+  );
 }
 
 // ---- Progress display labels (short, for the progress bar) ----
@@ -665,9 +837,7 @@ function buildPreviewPrompt(
 
   if (prompt.trim()) {
     parts.push(
-      isFi
-        ? `\nKuvaus:\n${prompt.trim()}`
-        : `\nBrief:\n${prompt.trim()}`,
+      isFi ? `\nKuvaus:\n${prompt.trim()}` : `\nBrief:\n${prompt.trim()}`,
     );
   }
 
@@ -689,6 +859,8 @@ export default function UnifiedCreationFlow({
   barName = "Your Bar",
   barCoverImage,
   contentType,
+  creationMode = "promotional",
+  onModeChange,
   formState,
   contentTone,
   onGenerated,
@@ -697,6 +869,18 @@ export default function UnifiedCreationFlow({
   onSubmit,
   submitting,
   initialStep,
+  brandAudience = [],
+  onBrandAudienceChange,
+  brandCoreMessage = null,
+  onBrandCoreMessageChange,
+  brandAtmosphere = [],
+  onBrandAtmosphereChange,
+  brandImageWorld = "venue",
+  onBrandImageWorldChange,
+  brandCopyStructure = "direct",
+  onBrandCopyStructureChange,
+  brandTemplateName = "",
+  onBrandTemplateNameChange,
 }: UnifiedCreationFlowProps) {
   // Flow state
   const [step, setStep] = useState<FlowStep>(initialStep || "type");
@@ -745,6 +929,12 @@ export default function UnifiedCreationFlow({
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  // Brand ingredient helper toggles
+  const [brandAudienceOpen, setBrandAudienceOpen] = useState(false);
+  const [brandCoreMsgOpen, setBrandCoreMsgOpen] = useState(false);
+  const [brandAtmosphereOpen, setBrandAtmosphereOpen] = useState(false);
+  const [brandImageWorldOpen, setBrandImageWorldOpen] = useState(false);
+  const [brandCopyStructOpen, setBrandCopyStructOpen] = useState(false);
 
   // Wizard state
   const [wizardActive, setWizardActive] = useState(false);
@@ -795,6 +985,30 @@ export default function UnifiedCreationFlow({
   const [variantLayouts, setVariantLayouts] = useState<
     Array<"split" | "centered" | "card">
   >([]);
+  const [variantSubjects, setVariantSubjects] = useState<string[]>([]);
+
+  // Subject label lookup (subject ID → English label)
+  const subjectLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const preset of SUBJECT_PRESETS) {
+      map[preset.id] = preset.label;
+    }
+    return map;
+  }, []);
+
+  // Available subjects for the current brand image world
+  const availableBrandSubjects = useMemo(() => {
+    if (creationMode !== "brand") return [];
+    const complianceWorld =
+      IMAGE_WORLD_CHIP_TO_COMPLIANCE[brandImageWorld || "venue"];
+    return complianceWorld ? subjectsForImageWorld(complianceWorld) : [];
+  }, [creationMode, brandImageWorld]);
+
+  // Template → Tone recommendations for the tone selector UI
+  const toneRecommendations = useMemo(
+    () => getTemplateToneRecommendations(activeTemplate),
+    [activeTemplate],
+  );
 
   const token =
     typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
@@ -806,19 +1020,24 @@ export default function UnifiedCreationFlow({
     setActiveTone(newTone);
 
     if (newTone) {
-      const instruction = toneInstructionText(newTone, language);
-      setText((prev) => {
-        const trimmed = prev.trim();
-        const lines = trimmed.split("\n");
-        const toneIdx = lines.findIndex(
-          (l) => l.startsWith("Tone:") || l.startsWith("Äänensävy:"),
-        );
-        if (toneIdx >= 0) {
-          lines[toneIdx] = instruction;
-          return lines.join("\n");
-        }
-        return trimmed ? `${trimmed}\n\n${instruction}` : instruction;
-      });
+      // In brand mode, tone is a structured ingredient — don't inject
+      // instruction text into the brief textarea. The tone voice profile
+      // is applied via the brand prompt builder on the server.
+      if (creationMode !== "brand") {
+        const instruction = toneInstructionText(newTone, language);
+        setText((prev) => {
+          const trimmed = prev.trim();
+          const lines = trimmed.split("\n");
+          const toneIdx = lines.findIndex(
+            (l) => l.startsWith("Tone:") || l.startsWith("Äänensävy:"),
+          );
+          if (toneIdx >= 0) {
+            lines[toneIdx] = instruction;
+            return lines.join("\n");
+          }
+          return trimmed ? `${trimmed}\n\n${instruction}` : instruction;
+        });
+      }
       // Auto-advance: close tone, open templates
       setToneOpen(false);
       setTemplatesOpen(true);
@@ -937,21 +1156,34 @@ export default function UnifiedCreationFlow({
     setVariantViolations([]);
     setUsingFallback(false);
     setVariants([]);
+    setVariantSubjects([]);
 
     try {
       // Call suggest — passes contentType so the API routes to the right prompt builder
+      // When mode is "brand", also pass ingredient selections for the brand prompt builder
+      const suggestBody: Record<string, unknown> = {
+        text: input,
+        language,
+        contentTone: activeTone,
+        contentType,
+      };
+      if (creationMode === "brand") {
+        suggestBody.mode = "brand";
+        if (brandAudience.length > 0) suggestBody.audience = brandAudience;
+        if (brandCoreMessage) suggestBody.coreMessage = brandCoreMessage;
+        if (brandAtmosphere.length > 0)
+          suggestBody.atmosphere = brandAtmosphere;
+        if (brandImageWorld) suggestBody.imageWorld = brandImageWorld;
+        if (brandCopyStructure) suggestBody.copyStructure = brandCopyStructure;
+        if (brandTemplateName) suggestBody.templateName = brandTemplateName;
+      }
       const suggestRes = await fetch(`/api/auth/bar/${barId}/create/suggest`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          text: input,
-          language,
-          contentTone: activeTone,
-          contentType,
-        }),
+        body: JSON.stringify(suggestBody),
       });
 
       if (!suggestRes.ok) {
@@ -960,8 +1192,116 @@ export default function UnifiedCreationFlow({
       }
 
       const suggestData = await suggestRes.json();
-      const type = (suggestData.inferredType as string) || contentType || "promotion";
+      const type =
+        (suggestData.inferredType as string) || contentType || "promotion";
       setInferredType(type);
+
+      // ---- Brand mode: suggest endpoint returns 3 variants with headline/body/cta/imagePrompt ----
+      // Must run BEFORE the event/pass handler — when creationMode is "brand",
+      // the server used the brand prompt builder, not the event/pass builder.
+      if (creationMode === "brand") {
+        suggestDataRef.current = suggestData;
+
+        // Show fallback warning when AI produced generic/incomplete response
+        if (suggestData.warning) {
+          setError(suggestData.warning as string);
+          setUsingFallback(true);
+        } else {
+          setUsingFallback(false);
+        }
+
+        const rawVariants: Array<Record<string, unknown>> =
+          Array.isArray(suggestData.variants) && suggestData.variants.length > 0
+            ? (suggestData.variants as Array<Record<string, unknown>>)
+            : [
+                {
+                  headline:
+                    (suggestData.headline as string) ||
+                    (suggestData.title as string) ||
+                    input.slice(0, 60),
+                  body:
+                    (suggestData.body as string) ||
+                    (suggestData.description as string) ||
+                    "",
+                  cta: (suggestData.cta as string) || "Learn More",
+                  imagePrompt: (suggestData.imageSuggestion as string) || "",
+                },
+              ];
+
+        const editableVariants: EditableVariant[] = rawVariants.map(
+          (bv, idx) => ({
+            title: (bv.headline as string) || `Option ${idx + 1}`,
+            description: (bv.body as string) || "",
+            type: "brand",
+            discount: null,
+            callToAction: (bv.cta as string) || "Learn More",
+            accentColor: "#7c3aed",
+            titleFontStyle: null,
+            conditions: "",
+            visualDirection: null,
+            fluxPrompt: (bv.imagePrompt as string) || "",
+          }),
+        );
+
+        console.log(
+          "[brand] Setting",
+          editableVariants.length,
+          "variants for refine step",
+        );
+        setVariants(editableVariants);
+        setVariantLayouts(new Array(editableVariants.length).fill("centered"));
+        setVariantImages(new Array(editableVariants.length).fill(null));
+        // Initialize subjects from current image world
+        const complianceWorld =
+          IMAGE_WORLD_CHIP_TO_COMPLIANCE[brandImageWorld || "venue"];
+        const subjects = complianceWorld
+          ? subjectsForImageWorld(complianceWorld)
+          : ["interior"];
+        setVariantSubjects(
+          editableVariants.map(
+            (_, idx) => subjects[idx % subjects.length] || "interior",
+          ),
+        );
+
+        // Per-variant compliance violations — same pattern as promotions ai-generate
+        if (
+          suggestData.complianceResults &&
+          Array.isArray(suggestData.complianceResults)
+        ) {
+          const violationsByVariant: Array<
+            Array<{
+              rule: string;
+              keyword: string;
+              severity: string;
+              message: string;
+              suggestion: string;
+            }>
+          > = new Array(editableVariants.length).fill(null).map(() => []);
+          for (const cr of suggestData.complianceResults as Array<{
+            variantIndex: number;
+            violations: Array<{
+              rule: string;
+              keyword: string;
+              severity: string;
+              message: string;
+              suggestion: string;
+            }>;
+          }>) {
+            if (cr.variantIndex < violationsByVariant.length) {
+              violationsByVariant[cr.variantIndex] = cr.violations;
+            }
+          }
+          setVariantViolations(violationsByVariant);
+          setComplianceWarnings(null);
+        } else {
+          setVariantViolations([]);
+          setComplianceWarnings(null);
+        }
+
+        setStep("refine");
+        setGeneratingText(false);
+        return;
+      }
 
       // ---- Events & Passes: the suggest endpoint already returns full content ----
       // No separate ai-generate call needed — build a single variant directly.
@@ -970,16 +1310,20 @@ export default function UnifiedCreationFlow({
         const singleVariant: EditableVariant = {
           title: (suggestData.title as string) || input.slice(0, 60),
           description: (suggestData.description as string) || "",
-          type: contentType === "event"
-            ? (suggestData.eventCategory as string) || "OTHER"
-            : (suggestData.passType as string) || "SKIP_LINE",
+          type:
+            contentType === "event"
+              ? (suggestData.eventCategory as string) || "OTHER"
+              : (suggestData.passType as string) || "SKIP_LINE",
           discount: null,
           callToAction: contentType === "event" ? "Get Tickets" : "Buy Pass",
           accentColor: "#7c3aed",
           titleFontStyle: null,
-          conditions: contentType === "pass"
-            ? (suggestData.priceEuros as string) || (suggestData.validityPeriod as string) || ""
-            : (suggestData.entryFee as string) || "",
+          conditions:
+            contentType === "pass"
+              ? (suggestData.priceEuros as string) ||
+                (suggestData.validityPeriod as string) ||
+                ""
+              : (suggestData.entryFee as string) || "",
           visualDirection: null,
           fluxPrompt: (suggestData.imageSuggestion as string) || "",
         };
@@ -987,6 +1331,7 @@ export default function UnifiedCreationFlow({
         setVariants([singleVariant]);
         setVariantLayouts(["centered"]);
         setVariantImages([null]);
+        setVariantSubjects([]);
         setStep("refine");
         setGeneratingText(false);
         return;
@@ -1009,8 +1354,7 @@ export default function UnifiedCreationFlow({
             context:
               selectedContexts.length > 0
                 ? selectedContexts.map(
-                    (label) =>
-                      getContextValueMap(language).get(label) || label,
+                    (label) => getContextValueMap(language).get(label) || label,
                   )
                 : undefined,
             language,
@@ -1111,6 +1455,7 @@ export default function UnifiedCreationFlow({
           }),
         );
         setVariantImages(new Array(editableVariants.length).fill(null));
+        setVariantSubjects([]);
         setStep("refine");
       } else {
         throw new Error("No variants returned");
@@ -1216,7 +1561,12 @@ export default function UnifiedCreationFlow({
     setVariantImagesLoading(new Array(variants.length).fill(true));
 
     try {
-      const chips = deriveImageChips(activeTone, activeTemplate, 0);
+      const chips = deriveImageChips(
+        activeTone,
+        activeTemplate,
+        0,
+        creationMode === "brand" ? brandImageWorld : undefined,
+      );
 
       const variantVDs = variants.map((v, i) => ({
         visualDirection: {
@@ -1252,9 +1602,10 @@ export default function UnifiedCreationFlow({
 
       if (!res.ok) {
         if (data.blockedReasons && Array.isArray(data.blockedReasons)) {
-          const variantLabel = data.variantIndex != null
-            ? ` (Option ${data.variantIndex + 1})`
-            : "";
+          const variantLabel =
+            data.variantIndex != null
+              ? ` (Option ${data.variantIndex + 1})`
+              : "";
           const reasons = data.blockedReasons.join("; ");
           const hint = data.hint ? ` ${data.hint}` : "";
           setError(`Image blocked${variantLabel}: ${reasons}.${hint}`);
@@ -1271,7 +1622,9 @@ export default function UnifiedCreationFlow({
       // Poll each async job for completion
       const jobIds: string[] = data.jobIds || [];
       if (jobIds.length > 0) {
-        const variantUrls: (string | null)[] = new Array(variants.length).fill(null);
+        const variantUrls: (string | null)[] = new Array(variants.length).fill(
+          null,
+        );
 
         for (let pollAttempt = 0; pollAttempt < 45; pollAttempt++) {
           await new Promise((r) => setTimeout(r, 2000));
@@ -1316,7 +1669,15 @@ export default function UnifiedCreationFlow({
       setGeneratingImages(false);
       setVariantImagesLoading(new Array(variants.length).fill(false));
     }
-  }, [token, variants, barId, barName, activeTone, activeTemplate, contentType]);
+  }, [
+    token,
+    variants,
+    barId,
+    barName,
+    activeTone,
+    activeTemplate,
+    contentType,
+  ]);
 
   // ---- Step 4 → 5: Select variant ----
 
@@ -1330,6 +1691,7 @@ export default function UnifiedCreationFlow({
         inferredType,
         aiGenerated: true,
         confidence: 0.85,
+        mode: creationMode,
         title: v.title,
         description: v.description,
         callToAction: v.callToAction,
@@ -1352,7 +1714,7 @@ export default function UnifiedCreationFlow({
         baseData.eventCategory = sd?.eventCategory || v.type;
       } else if (contentType === "pass") {
         baseData.passType = sd?.passType || v.type;
-        baseData.priceEuros = sd?.priceEuros || (v.conditions || null);
+        baseData.priceEuros = sd?.priceEuros || v.conditions || null;
         baseData.originalPriceEuros = sd?.originalPriceEuros || null;
         baseData.benefits = sd?.benefits || [];
         baseData.totalQuantity = sd?.totalQuantity || null;
@@ -1368,13 +1730,20 @@ export default function UnifiedCreationFlow({
 
       setStep("schedule");
     },
-    [variants, variantLayouts, variantImages, inferredType, contentType, onGenerated],
+    [
+      variants,
+      variantLayouts,
+      variantImages,
+      inferredType,
+      contentType,
+      onGenerated,
+    ],
   );
 
   // ---- Regenerate single image ----
 
   const handleRegenerateImage = useCallback(
-    async (variantIndex: number) => {
+    async (variantIndex: number, subjectOverride?: string) => {
       const v = variants[variantIndex];
       if (!v || !token) return;
 
@@ -1387,7 +1756,14 @@ export default function UnifiedCreationFlow({
           activeTone,
           activeTemplate,
           variantIndex,
+          creationMode === "brand" ? brandImageWorld : undefined,
         );
+        // Override subject: explicit override > per-variant state > derived default
+        if (subjectOverride) {
+          chips.subjectId = subjectOverride;
+        } else if (variantSubjects[variantIndex]) {
+          chips.subjectId = variantSubjects[variantIndex];
+        }
 
         const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
           method: "POST",
@@ -1480,32 +1856,39 @@ export default function UnifiedCreationFlow({
     <Container>
       {/* ---- Progress bar ---- */}
       <ProgressBar>
-        {(["type", "brief", "refine", "images", "schedule", "publish"] as FlowStep[]).map(
-          (s, i) => {
-            const isActive = s === step;
-            const isDone = stepNumber(step) > stepNumber(s);
-            const isClickable = isDone && s !== "refine" && s !== "images";
+        {(
+          [
+            "type",
+            "brief",
+            "refine",
+            "images",
+            "schedule",
+            "publish",
+          ] as FlowStep[]
+        ).map((s, i) => {
+          const isActive = s === step;
+          const isDone = stepNumber(step) > stepNumber(s);
+          const isClickable = isDone && s !== "refine" && s !== "images";
 
-            return (
-              <React.Fragment key={s}>
-                <ProgressStep>
-                  <ProgressDot
-                    $active={isActive}
-                    $done={isDone}
-                    onClick={isClickable ? () => setStep(s) : undefined}
-                    style={{ cursor: isClickable ? "pointer" : "default" }}
-                  >
-                    {isDone ? "✓" : i + 1}
-                  </ProgressDot>
-                  <ProgressLabel $active={isActive} $done={isDone}>
-                    {PROGRESS_LABELS[s]}
-                  </ProgressLabel>
-                </ProgressStep>
-                {i < 5 && <ProgressLine $done={isDone} />}
-              </React.Fragment>
-            );
-          },
-        )}
+          return (
+            <React.Fragment key={s}>
+              <ProgressStep>
+                <ProgressDot
+                  $active={isActive}
+                  $done={isDone}
+                  onClick={isClickable ? () => setStep(s) : undefined}
+                  style={{ cursor: isClickable ? "pointer" : "default" }}
+                >
+                  {isDone ? "✓" : i + 1}
+                </ProgressDot>
+                <ProgressLabel $active={isActive} $done={isDone}>
+                  {PROGRESS_LABELS[s]}
+                </ProgressLabel>
+              </ProgressStep>
+              {i < 5 && <ProgressLine $done={isDone} />}
+            </React.Fragment>
+          );
+        })}
       </ProgressBar>
 
       <StepBody>
@@ -1515,22 +1898,64 @@ export default function UnifiedCreationFlow({
 
         {/* ===== STEP 1: TYPE ===== */}
         {step === "type" && (
-          <TypeGrid>
-            {TYPE_OPTIONS.map((opt) => (
-              <TypeCard
-                key={opt.value}
-                $selected={contentType === opt.value}
-                onClick={() => {
-                  onTypeChange(opt.value);
-                  setStep("brief");
-                }}
+          <>
+            {/* Mode selector — brand building vs promotional offers */}
+            <ModeGrid>
+              <ModeCard
+                $active={creationMode === "brand"}
+                onClick={() => onModeChange?.("brand")}
               >
-                <TypeCardEmoji>{opt.emoji}</TypeCardEmoji>
-                <TypeCardLabel>{opt.label}</TypeCardLabel>
-                <TypeCardDesc>{opt.desc}</TypeCardDesc>
-              </TypeCard>
-            ))}
-          </TypeGrid>
+                <ModeCardLabel>
+                  {language === "fi" ? "Sisältöä brändille" : "Brand Content"}
+                </ModeCardLabel>
+                <ModeCardDesc>
+                  {language === "fi"
+                    ? "Rakenna tunnelmaa, kerro tarinoita, luo mielikuvia. Ei hintoja, ei tarjouksia — tunnetta ja muistijälkeä."
+                    : "Build atmosphere, tell stories, create associations. No prices, no offers — feeling and memory."}
+                </ModeCardDesc>
+              </ModeCard>
+              <ModeCard
+                $active={creationMode === "promotional"}
+                onClick={() => onModeChange?.("promotional")}
+              >
+                <ModeCardLabel>
+                  {language === "fi" ? "Tarjouskampanja" : "Promotional Offer"}
+                </ModeCardLabel>
+                <ModeCardDesc>
+                  {language === "fi"
+                    ? "Aikarajoitettu etu. Hinta, ehdot, toimintakehote. Alkoholilain rajoitukset huomioidaan."
+                    : "Time-limited benefit. Price, conditions, call to action. Alcohol law restrictions apply."}
+                </ModeCardDesc>
+              </ModeCard>
+            </ModeGrid>
+
+            <SectionLabel style={{ marginTop: 20 }}>
+              {language === "fi"
+                ? "Valitse sisältötyyppi"
+                : "Choose content type"}
+            </SectionLabel>
+            <TypeGrid>
+              {TYPE_OPTIONS.filter((opt) => {
+                // Brand mode: hide Promotion (brand content has no prices/deals)
+                if (creationMode === "brand" && opt.value === "promotion")
+                  return false;
+                return true;
+              }).map((opt) => (
+                <TypeCard
+                  key={opt.value}
+                  $selected={contentType === opt.value}
+                  onClick={() => {
+                    onTypeChange(opt.value);
+                    setStep("brief");
+                  }}
+                >
+                  <TypeCardEmoji>{opt.emoji}</TypeCardEmoji>
+                  <TypeCardLabel>{opt.label}</TypeCardLabel>
+                  <TypeCardDesc>{opt.desc}</TypeCardDesc>
+                </TypeCard>
+              ))}
+            </TypeGrid>
+          </>
         )}
 
         {/* ===== STEP 2: BRIEF ===== */}
@@ -1641,17 +2066,37 @@ export default function UnifiedCreationFlow({
                       ? "Valitse äänensävy — se lisätään briefiin ohjeeksi."
                       : "Pick a tone — it'll be included in your brief as guidance."}
                   </HelperDesc>
+                  {toneRecommendations && (
+                    <HelperHint style={{ marginBottom: 6 }}>
+                      {language === "fi"
+                        ? `"${activeTemplate}"-malli toimii parhaiten tiettyjen sävyjen kanssa. Suositellut on merkitty vihreällä.`
+                        : `The "${activeTemplate}" template works best with certain tones. Recommended ones are highlighted in green.`}
+                    </HelperHint>
+                  )}
                   <ToneRow>
-                    {TONE_OPTIONS.map((opt) => (
-                      <ToneChip
-                        key={opt.value}
-                        $active={activeTone === opt.value}
-                        onClick={() => handleToneSelect(opt.value)}
-                        disabled={generatingText}
-                      >
-                        <span>{opt.emoji}</span> {opt.label}
-                      </ToneChip>
-                    ))}
+                    {TONE_OPTIONS.map((opt) => {
+                      const isRecommended =
+                        toneRecommendations?.recommended.includes(opt.value);
+                      const isCautionary =
+                        toneRecommendations?.cautionary.includes(opt.value);
+                      return (
+                        <ToneChip
+                          key={opt.value}
+                          $active={activeTone === opt.value}
+                          $recommended={isRecommended}
+                          $cautionary={isCautionary}
+                          onClick={() => handleToneSelect(opt.value)}
+                          disabled={generatingText}
+                        >
+                          <span>{opt.emoji}</span> {opt.label}
+                          {isRecommended && (
+                            <ToneRecommendTag>
+                              {language === "fi" ? "suositus" : "recommended"}
+                            </ToneRecommendTag>
+                          )}
+                        </ToneChip>
+                      );
+                    })}
                   </ToneRow>
                 </HelperBody>
               )}
@@ -1789,7 +2234,9 @@ export default function UnifiedCreationFlow({
                   </HelperDesc>
                   <SuggestionRow>
                     {getContextualSuggestions(language).map((suggestion, i) => {
-                      const isSelected = selectedContexts.includes(suggestion.label);
+                      const isSelected = selectedContexts.includes(
+                        suggestion.label,
+                      );
                       return (
                         <SuggestionChip
                           key={i}
@@ -1833,8 +2280,278 @@ export default function UnifiedCreationFlow({
               )}
             </HelperSection>
 
+            {/* ===== Brand ingredient helpers — only visible in brand mode ===== */}
+            {creationMode === "brand" && (
+              <>
+                <Divider style={{ margin: "12px 0" }} />
+                <SectionLabel>
+                  {language === "fi" ? "Brändiainekset" : "Brand Ingredients"}
+                </SectionLabel>
+
+                {/* Audience (Yleisö) */}
+                <HelperSection>
+                  <HelperToggle
+                    onClick={() => setBrandAudienceOpen(!brandAudienceOpen)}
+                  >
+                    <HelperToggleIcon $open={brandAudienceOpen}>
+                      {brandAudienceOpen ? "▼" : "▶"}
+                    </HelperToggleIcon>
+                    <HelperToggleLabel>
+                      {language === "fi" ? "Yleisö" : "Audience"}
+                      {brandAudience.length > 0 && (
+                        <HelperActiveTag>
+                          {brandAudience.length}{" "}
+                          {language === "fi" ? "valittu" : "selected"}
+                        </HelperActiveTag>
+                      )}
+                    </HelperToggleLabel>
+                  </HelperToggle>
+                  {brandAudienceOpen && (
+                    <HelperBody>
+                      <HelperDesc>
+                        {language === "fi"
+                          ? "Kenelle sisältö on suunnattu? Valitse yksi tai useampi."
+                          : "Who is this content for? Select one or more."}
+                      </HelperDesc>
+                      <ToneRow>
+                        {(Object.keys(AUDIENCE_LABELS) as AudienceChip[]).map(
+                          (key) => {
+                            const label = AUDIENCE_LABELS[key];
+                            const isSelected = brandAudience.includes(key);
+                            return (
+                              <ToneChip
+                                key={key}
+                                $active={isSelected}
+                                onClick={() => {
+                                  const next = isSelected
+                                    ? brandAudience.filter((a) => a !== key)
+                                    : [...brandAudience, key];
+                                  onBrandAudienceChange?.(next);
+                                }}
+                                disabled={generatingText}
+                              >
+                                {language === "fi" ? label.fi : label.en}
+                              </ToneChip>
+                            );
+                          },
+                        )}
+                      </ToneRow>
+                    </HelperBody>
+                  )}
+                </HelperSection>
+
+                {/* Core Message (Viestin ydin) */}
+                <HelperSection>
+                  <HelperToggle
+                    onClick={() => setBrandCoreMsgOpen(!brandCoreMsgOpen)}
+                  >
+                    <HelperToggleIcon $open={brandCoreMsgOpen}>
+                      {brandCoreMsgOpen ? "▼" : "▶"}
+                    </HelperToggleIcon>
+                    <HelperToggleLabel>
+                      {language === "fi" ? "Viestin ydin" : "Core Message"}
+                      {brandCoreMessage && (
+                        <HelperActiveTag>
+                          {CORE_MESSAGE_LABELS[
+                            brandCoreMessage as CoreMessageChip
+                          ]?.[language] ?? brandCoreMessage}
+                        </HelperActiveTag>
+                      )}
+                    </HelperToggleLabel>
+                  </HelperToggle>
+                  {brandCoreMsgOpen && (
+                    <HelperBody>
+                      <HelperDesc>
+                        {language === "fi"
+                          ? "Jos joku näkee tämän 0,8 sekunnissa — mitä hän muistaa?"
+                          : "If someone sees this for 0.8 seconds — what do they remember?"}
+                      </HelperDesc>
+                      <ToneRow>
+                        {(
+                          Object.keys(CORE_MESSAGE_LABELS) as CoreMessageChip[]
+                        ).map((key) => {
+                          const label = CORE_MESSAGE_LABELS[key];
+                          return (
+                            <ToneChip
+                              key={key}
+                              $active={brandCoreMessage === key}
+                              onClick={() =>
+                                onBrandCoreMessageChange?.(
+                                  brandCoreMessage === key ? null : key,
+                                )
+                              }
+                              disabled={generatingText}
+                            >
+                              {language === "fi" ? label.fi : label.en}
+                            </ToneChip>
+                          );
+                        })}
+                      </ToneRow>
+                    </HelperBody>
+                  )}
+                </HelperSection>
+
+                {/* Atmosphere (Tunnelma) */}
+                <HelperSection>
+                  <HelperToggle
+                    onClick={() => setBrandAtmosphereOpen(!brandAtmosphereOpen)}
+                  >
+                    <HelperToggleIcon $open={brandAtmosphereOpen}>
+                      {brandAtmosphereOpen ? "▼" : "▶"}
+                    </HelperToggleIcon>
+                    <HelperToggleLabel>
+                      {language === "fi" ? "Tunnelma" : "Atmosphere"}
+                      {brandAtmosphere.length > 0 && (
+                        <HelperActiveTag>
+                          {brandAtmosphere.length}{" "}
+                          {language === "fi" ? "valittu" : "selected"}
+                        </HelperActiveTag>
+                      )}
+                    </HelperToggleLabel>
+                  </HelperToggle>
+                  {brandAtmosphereOpen && (
+                    <HelperBody>
+                      <HelperDesc>
+                        {language === "fi"
+                          ? "Mitä lukijan pitäisi tuntea? Valitse yksi tai useampi tunnelma."
+                          : "What should the reader feel? Select one or more atmospheres."}
+                      </HelperDesc>
+                      <ToneRow>
+                        {(
+                          Object.keys(ATMOSPHERE_LABELS) as AtmosphereChip[]
+                        ).map((key) => {
+                          const label = ATMOSPHERE_LABELS[key];
+                          const isSelected = brandAtmosphere.includes(key);
+                          return (
+                            <ToneChip
+                              key={key}
+                              $active={isSelected}
+                              onClick={() => {
+                                const next = isSelected
+                                  ? brandAtmosphere.filter((a) => a !== key)
+                                  : [...brandAtmosphere, key];
+                                onBrandAtmosphereChange?.(next);
+                              }}
+                              disabled={generatingText}
+                            >
+                              {language === "fi" ? label.fi : label.en}
+                            </ToneChip>
+                          );
+                        })}
+                      </ToneRow>
+                    </HelperBody>
+                  )}
+                </HelperSection>
+
+                {/* Image World (Kuvamaailma) */}
+                <HelperSection>
+                  <HelperToggle
+                    onClick={() => setBrandImageWorldOpen(!brandImageWorldOpen)}
+                  >
+                    <HelperToggleIcon $open={brandImageWorldOpen}>
+                      {brandImageWorldOpen ? "▼" : "▶"}
+                    </HelperToggleIcon>
+                    <HelperToggleLabel>
+                      {language === "fi" ? "Kuvamaailma" : "Image World"}
+                      {brandImageWorld && brandImageWorld !== "venue" && (
+                        <HelperActiveTag>
+                          {CREATIVE_IMAGE_WORLD_LABELS[
+                            brandImageWorld as ImageWorldChip
+                          ]?.[language] ?? brandImageWorld}
+                        </HelperActiveTag>
+                      )}
+                    </HelperToggleLabel>
+                  </HelperToggle>
+                  {brandImageWorldOpen && (
+                    <HelperBody>
+                      <HelperDesc>
+                        {language === "fi"
+                          ? "Mitä kuva esittää? Baari, tunnelma, luonto vai jotain muuta?"
+                          : "What does the image show? The bar, a mood, nature, or something else?"}
+                      </HelperDesc>
+                      <ToneRow>
+                        {(
+                          Object.keys(
+                            CREATIVE_IMAGE_WORLD_LABELS,
+                          ) as ImageWorldChip[]
+                        ).map((key) => {
+                          const label = CREATIVE_IMAGE_WORLD_LABELS[key];
+                          return (
+                            <ToneChip
+                              key={key}
+                              $active={brandImageWorld === key}
+                              onClick={() => onBrandImageWorldChange?.(key)}
+                              disabled={generatingText}
+                            >
+                              {language === "fi" ? label.fi : label.en}
+                            </ToneChip>
+                          );
+                        })}
+                      </ToneRow>
+                    </HelperBody>
+                  )}
+                </HelperSection>
+
+                {/* Copy Structure (Rakenne) */}
+                <HelperSection>
+                  <HelperToggle
+                    onClick={() => setBrandCopyStructOpen(!brandCopyStructOpen)}
+                  >
+                    <HelperToggleIcon $open={brandCopyStructOpen}>
+                      {brandCopyStructOpen ? "▼" : "▶"}
+                    </HelperToggleIcon>
+                    <HelperToggleLabel>
+                      {language === "fi" ? "Rakenne" : "Structure"}
+                      {brandCopyStructure && (
+                        <HelperActiveTag>
+                          {COPY_STRUCTURE_LABELS[
+                            brandCopyStructure as CopyStructureChip
+                          ]?.[language]?.split(" ")[0] ?? brandCopyStructure}
+                        </HelperActiveTag>
+                      )}
+                    </HelperToggleLabel>
+                  </HelperToggle>
+                  {brandCopyStructOpen && (
+                    <HelperBody>
+                      <HelperDesc>
+                        {language === "fi"
+                          ? "Miten teksti rakentuu? Suora on usein paras suomalaiselle yleisölle."
+                          : "How should the text be structured? Direct is often best for Finnish audiences."}
+                      </HelperDesc>
+                      <ToneRow>
+                        {(
+                          Object.keys(
+                            COPY_STRUCTURE_LABELS,
+                          ) as CopyStructureChip[]
+                        ).map((key) => {
+                          const label = COPY_STRUCTURE_LABELS[key];
+                          return (
+                            <ToneChip
+                              key={key}
+                              $active={brandCopyStructure === key}
+                              onClick={() => onBrandCopyStructureChange?.(key)}
+                              disabled={generatingText}
+                            >
+                              {language === "fi" ? label.fi : label.en}
+                            </ToneChip>
+                          );
+                        })}
+                      </ToneRow>
+                    </HelperBody>
+                  )}
+                </HelperSection>
+              </>
+            )}
+
             {/* Active selections summary */}
-            {(activeTone || activeTemplate || selectedContexts.length > 0) && (
+            {(activeTone ||
+              activeTemplate ||
+              selectedContexts.length > 0 ||
+              brandAudience.length > 0 ||
+              brandCoreMessage ||
+              brandAtmosphere.length > 0 ||
+              (brandImageWorld && brandImageWorld !== "venue") ||
+              (brandCopyStructure && brandCopyStructure !== "direct")) && (
               <IngredientsSummary>
                 <IngredientsLabel>
                   {language === "fi"
@@ -1858,13 +2575,90 @@ export default function UnifiedCreationFlow({
                       $kind="context"
                       onClick={() => handleRemoveContext(ctx)}
                       style={{ cursor: "pointer" }}
-                      title={
-                        getContextValueMap(language).get(ctx) || ctx
-                      }
+                      title={getContextValueMap(language).get(ctx) || ctx}
                     >
                       {ctx} ✕
                     </IngredientTag>
                   ))}
+                  {/* Brand ingredients */}
+                  {brandAudience.map((a) => (
+                    <IngredientTag
+                      key={`aud-${a}`}
+                      $kind="brand"
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        onBrandAudienceChange?.(
+                          brandAudience.filter((x) => x !== a),
+                        )
+                      }
+                    >
+                      {language === "fi"
+                        ? AUDIENCE_LABELS[a as AudienceChip]?.fi
+                        : AUDIENCE_LABELS[a as AudienceChip]?.en}{" "}
+                      ✕
+                    </IngredientTag>
+                  ))}
+                  {brandCoreMessage && (
+                    <IngredientTag
+                      $kind="brand"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => onBrandCoreMessageChange?.(null)}
+                    >
+                      {language === "fi"
+                        ? CORE_MESSAGE_LABELS[
+                            brandCoreMessage as CoreMessageChip
+                          ]?.fi
+                        : CORE_MESSAGE_LABELS[
+                            brandCoreMessage as CoreMessageChip
+                          ]?.en}{" "}
+                      ✕
+                    </IngredientTag>
+                  )}
+                  {brandAtmosphere.map((a) => (
+                    <IngredientTag
+                      key={`atm-${a}`}
+                      $kind="brand"
+                      style={{ cursor: "pointer" }}
+                      onClick={() =>
+                        onBrandAtmosphereChange?.(
+                          brandAtmosphere.filter((x) => x !== a),
+                        )
+                      }
+                    >
+                      {language === "fi"
+                        ? ATMOSPHERE_LABELS[a as AtmosphereChip]?.fi
+                        : ATMOSPHERE_LABELS[a as AtmosphereChip]?.en}{" "}
+                      ✕
+                    </IngredientTag>
+                  ))}
+                  {brandImageWorld && brandImageWorld !== "venue" && (
+                    <IngredientTag
+                      $kind="brand"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => onBrandImageWorldChange?.("venue")}
+                    >
+                      {language === "fi"
+                        ? CREATIVE_IMAGE_WORLD_LABELS[
+                            brandImageWorld as ImageWorldChip
+                          ]?.fi
+                        : CREATIVE_IMAGE_WORLD_LABELS[
+                            brandImageWorld as ImageWorldChip
+                          ]?.en}{" "}
+                      ✕
+                    </IngredientTag>
+                  )}
+                  {brandCopyStructure && brandCopyStructure !== "direct" && (
+                    <IngredientTag
+                      $kind="brand"
+                      style={{ cursor: "pointer" }}
+                      onClick={() => onBrandCopyStructureChange?.("direct")}
+                    >
+                      {COPY_STRUCTURE_LABELS[
+                        brandCopyStructure as CopyStructureChip
+                      ]?.[language]?.split(" ")[0] ?? brandCopyStructure}{" "}
+                      ✕
+                    </IngredientTag>
+                  )}
                 </IngredientsTags>
               </IngredientsSummary>
             )}
@@ -1943,13 +2737,17 @@ export default function UnifiedCreationFlow({
             {/* Generate button */}
             <GenerateRow>
               <FormatNote>
-                {contentType === "event" || contentType === "pass"
-                  ? (language === "fi"
+                {creationMode === "brand"
+                  ? language === "fi"
+                    ? "Luo brändisisältöä valinnoistasi — otsikko, leipäteksti ja toimintakehote. Ei hintoja."
+                    : "Generates brand content from your selections — headline, body, and CTA. No prices."
+                  : contentType === "event" || contentType === "pass"
+                    ? language === "fi"
                       ? "Luo sisältöä valinnoistasi. Voit muokata tulosta ennen julkaisua."
-                      : "Generates content from your selections. You can edit the result before publishing.")
-                  : (language === "fi"
+                      : "Generates content from your selections. You can edit the result before publishing."
+                    : language === "fi"
                       ? "Luo 3 tekstivarianttia valinnoistasi. Kuvat generoidaan erikseen."
-                      : "Generates 3 text variants from your selections. Images are separate.")}
+                      : "Generates 3 text variants from your selections. Images are separate."}
               </FormatNote>
               <GenerateButton
                 onClick={handleGenerateText}
@@ -1961,8 +2759,18 @@ export default function UnifiedCreationFlow({
                   >
                     <Spinner /> {GENERATING_MESSAGES[language]}
                   </span>
+                ) : creationMode === "brand" ? (
+                  language === "fi" ? (
+                    "Luo brändisisältö"
+                  ) : (
+                    "Generate brand content"
+                  )
                 ) : contentType === "event" || contentType === "pass" ? (
-                  language === "fi" ? "Luo sisältö" : "Generate content"
+                  language === "fi" ? (
+                    "Luo sisältö"
+                  ) : (
+                    "Generate content"
+                  )
                 ) : (
                   "Generate 3 options"
                 )}
@@ -1990,6 +2798,24 @@ export default function UnifiedCreationFlow({
             <BriefRecap>
               <BriefLabel>{language === "fi" ? "Brief:" : "Brief:"}</BriefLabel>{" "}
               {text.length > 120 ? text.slice(0, 117) + "…" : text}
+              {creationMode === "brand" && brandImageWorld && (
+                <>
+                  {" · "}
+                  <BriefLabel>
+                    {CREATIVE_IMAGE_WORLD_LABELS[
+                      brandImageWorld as ImageWorldChip
+                    ]?.[language] ?? brandImageWorld}
+                  </BriefLabel>
+                  {brandCoreMessage && (
+                    <>
+                      {" · "}
+                      {CORE_MESSAGE_LABELS[
+                        brandCoreMessage as CoreMessageChip
+                      ]?.[language] ?? brandCoreMessage}
+                    </>
+                  )}
+                </>
+              )}
             </BriefRecap>
 
             <RefineGrid>
@@ -2015,7 +2841,13 @@ export default function UnifiedCreationFlow({
 
                   <FieldGroup>
                     <FieldLabel>
-                      {language === "fi" ? "Otsikko" : "Title"}
+                      {creationMode === "brand"
+                        ? language === "fi"
+                          ? "Otsikko"
+                          : "Headline"
+                        : language === "fi"
+                          ? "Otsikko"
+                          : "Title"}
                     </FieldLabel>
                     <FieldInput
                       value={v.title}
@@ -2023,25 +2855,49 @@ export default function UnifiedCreationFlow({
                         updateVariant(i, "title", e.target.value)
                       }
                       placeholder={
-                        contentType === "event"
-                          ? (language === "fi" ? "Tapahtuman nimi" : "Event title")
-                          : contentType === "pass"
-                            ? (language === "fi" ? "Passin nimi" : "Pass title")
-                            : (language === "fi" ? "Tarjouksen otsikko" : "Promotion title")
+                        creationMode === "brand"
+                          ? language === "fi"
+                            ? "Brändiotsikko"
+                            : "Brand headline"
+                          : contentType === "event"
+                            ? language === "fi"
+                              ? "Tapahtuman nimi"
+                              : "Event title"
+                            : contentType === "pass"
+                              ? language === "fi"
+                                ? "Passin nimi"
+                                : "Pass title"
+                              : language === "fi"
+                                ? "Tarjouksen otsikko"
+                                : "Promotion title"
                       }
                     />
                   </FieldGroup>
 
                   <FieldGroup>
                     <FieldLabel>
-                      {language === "fi" ? "Kuvaus" : "Description"}
+                      {creationMode === "brand"
+                        ? language === "fi"
+                          ? "Leipäteksti"
+                          : "Body"
+                        : language === "fi"
+                          ? "Kuvaus"
+                          : "Description"}
                     </FieldLabel>
                     <FieldTextarea
                       value={v.description}
                       onChange={(e) =>
                         updateVariant(i, "description", e.target.value)
                       }
-                      placeholder={language === "fi" ? "Kuvaus" : "Description"}
+                      placeholder={
+                        creationMode === "brand"
+                          ? language === "fi"
+                            ? "Leipäteksti"
+                            : "Body copy"
+                          : language === "fi"
+                            ? "Kuvaus"
+                            : "Description"
+                      }
                       rows={2}
                     />
                   </FieldGroup>
@@ -2055,26 +2911,35 @@ export default function UnifiedCreationFlow({
                           updateVariant(i, "callToAction", e.target.value)
                         }
                         placeholder={
-                          contentType === "event"
-                            ? "Get Tickets"
-                            : contentType === "pass"
-                              ? "Buy Pass"
-                              : "View Offer"
+                          creationMode === "brand"
+                            ? language === "fi"
+                              ? "Toimintakehote"
+                              : "Call to action"
+                            : contentType === "event"
+                              ? "Get Tickets"
+                              : contentType === "pass"
+                                ? "Buy Pass"
+                                : "View Offer"
                         }
                       />
                     </FieldGroup>
-                    <FieldGroup style={{ flex: 1 }}>
-                      <FieldLabel>
-                        {language === "fi" ? "Ehdot" : "Conditions"}
-                      </FieldLabel>
-                      <FieldInput
-                        value={v.conditions}
-                        onChange={(e) =>
-                          updateVariant(i, "conditions", e.target.value)
-                        }
-                        placeholder={language === "fi" ? "Ehdot" : "Conditions"}
-                      />
-                    </FieldGroup>
+                    {/* Conditions field — hidden in brand mode (no pricing/terms) */}
+                    {creationMode !== "brand" && (
+                      <FieldGroup style={{ flex: 1 }}>
+                        <FieldLabel>
+                          {language === "fi" ? "Ehdot" : "Conditions"}
+                        </FieldLabel>
+                        <FieldInput
+                          value={v.conditions}
+                          onChange={(e) =>
+                            updateVariant(i, "conditions", e.target.value)
+                          }
+                          placeholder={
+                            language === "fi" ? "Ehdot" : "Conditions"
+                          }
+                        />
+                      </FieldGroup>
+                    )}
                   </FieldRow>
 
                   {/* Flux prompt editor — collapsible */}
@@ -2096,9 +2961,7 @@ export default function UnifiedCreationFlow({
                         {language === "fi" ? "(Flux)" : "(Flux)"}
                       </FluxToggleHint>
                     </FluxToggle>
-                    <FluxEditor
-                      id={`flux-editor-${i}`}
-                    >
+                    <FluxEditor id={`flux-editor-${i}`}>
                       <FluxEditorHint>
                         {language === "fi"
                           ? "Tämä prompt lähetetään Flux-kuvageneraattorille. Muokkaa sitä suoraan — kuvaile mitä kuvassa pitäisi näkyä."
@@ -2266,6 +3129,36 @@ export default function UnifiedCreationFlow({
                       </LayoutChip>
                     ))}
                   </LayoutRow>
+
+                  {/* Subject selector (brand mode — changes based on image world) */}
+                  {creationMode === "brand" &&
+                    availableBrandSubjects.length > 0 && (
+                      <>
+                        <SubjectLabel>
+                          {language === "fi" ? "Aihe" : "Subject"}
+                        </SubjectLabel>
+                        <SubjectRow>
+                          {availableBrandSubjects.map((subjectId) => (
+                            <SubjectChip
+                              key={subjectId}
+                              $active={variantSubjects[i] === subjectId}
+                              onClick={() => {
+                                // Update state
+                                setVariantSubjects((prev) => {
+                                  const next = [...prev];
+                                  next[i] = subjectId;
+                                  return next;
+                                });
+                                // Regenerate with new subject
+                                handleRegenerateImage(i, subjectId);
+                              }}
+                            >
+                              {subjectLabelMap[subjectId] || subjectId}
+                            </SubjectChip>
+                          ))}
+                        </SubjectRow>
+                      </>
+                    )}
 
                   {/* Actions */}
                   <ImageActionsRow>
@@ -2583,7 +3476,9 @@ export default function UnifiedCreationFlow({
             {/* ---- Schedule Summary ---- */}
             <ScheduleSummaryBox>
               <SummaryTitle>
-                {language === "fi" ? "Julkaisuaikataulu" : "Publishing schedule"}
+                {language === "fi"
+                  ? "Julkaisuaikataulu"
+                  : "Publishing schedule"}
               </SummaryTitle>
               <SummaryGrid>
                 <SummaryItem>
@@ -2603,7 +3498,9 @@ export default function UnifiedCreationFlow({
                 </SummaryItem>
                 <SummaryItem>
                   <SummaryLabel>
-                    {language === "fi" ? "Ilmoita seuraajille" : "Notify followers"}
+                    {language === "fi"
+                      ? "Ilmoita seuraajille"
+                      : "Notify followers"}
                   </SummaryLabel>
                   <SummaryValue>
                     {formState.notifyFollowers
@@ -2618,7 +3515,9 @@ export default function UnifiedCreationFlow({
                 {formState.notifyFollowers && !formState.scheduledPublishAt && (
                   <SummaryItem>
                     <SummaryLabel>
-                      {language === "fi" ? "Ilmoituksen ajankohta" : "Notification timing"}
+                      {language === "fi"
+                        ? "Ilmoituksen ajankohta"
+                        : "Notification timing"}
                     </SummaryLabel>
                     <SummaryValue>
                       {formState.notifyTiming === "now"
@@ -2630,7 +3529,9 @@ export default function UnifiedCreationFlow({
                             ? "Optimaalinen aika"
                             : "Optimal time"
                           : formState.notifyCustomTime
-                            ? new Date(formState.notifyCustomTime).toLocaleString(
+                            ? new Date(
+                                formState.notifyCustomTime,
+                              ).toLocaleString(
                                 language === "fi" ? "fi-FI" : "en-US",
                                 { dateStyle: "medium", timeStyle: "short" },
                               )
@@ -2641,7 +3542,9 @@ export default function UnifiedCreationFlow({
                 {formState.scheduledPublishAt && formState.notifyFollowers && (
                   <SummaryItem>
                     <SummaryLabel>
-                      {language === "fi" ? "Ilmoituksen ajankohta" : "Notification timing"}
+                      {language === "fi"
+                        ? "Ilmoituksen ajankohta"
+                        : "Notification timing"}
                     </SummaryLabel>
                     <SummaryValue>
                       {language === "fi"
@@ -2653,7 +3556,9 @@ export default function UnifiedCreationFlow({
                 {contentType === "event" && formState.remindBeforeEvent && (
                   <SummaryItem>
                     <SummaryLabel>
-                      {language === "fi" ? "Muistutus ennen tapahtumaa" : "Reminder before event"}
+                      {language === "fi"
+                        ? "Muistutus ennen tapahtumaa"
+                        : "Reminder before event"}
                     </SummaryLabel>
                     <SummaryValue>
                       {formState.remindMinutesBefore >= 1440
@@ -2675,7 +3580,9 @@ export default function UnifiedCreationFlow({
             {(contentType === "promotion" || contentType === "event") && (
               <RetargetingBox>
                 <RetargetingTitle>
-                  {language === "fi" ? "Uudelleenkohdennus" : "Follow-up retargeting"}
+                  {language === "fi"
+                    ? "Uudelleenkohdennus"
+                    : "Follow-up retargeting"}
                 </RetargetingTitle>
                 <CheckboxRow style={{ marginTop: "0.75rem" }}>
                   <input
@@ -2704,7 +3611,10 @@ export default function UnifiedCreationFlow({
                     <SelectField
                       value={formState.retargetDelayHours}
                       onChange={(e) =>
-                        onFieldChange("retargetDelayHours", Number(e.target.value))
+                        onFieldChange(
+                          "retargetDelayHours",
+                          Number(e.target.value),
+                        )
                       }
                       style={{ width: "auto", minWidth: "160px" }}
                     >
@@ -2718,7 +3628,13 @@ export default function UnifiedCreationFlow({
                         {language === "fi" ? "72 tuntia" : "72 hours"}
                       </option>
                     </SelectField>
-                    <div style={{ fontSize: "0.75rem", color: "#9ca3af", marginTop: "0.35rem" }}>
+                    <div
+                      style={{
+                        fontSize: "0.75rem",
+                        color: "#9ca3af",
+                        marginTop: "0.35rem",
+                      }}
+                    >
                       {language === "fi"
                         ? `Käyttäjät jotka katsoivat mutta eivät toimineet saavat push-ilmoituksen ${formState.retargetDelayHours} tunnin kuluttua.`
                         : `Users who viewed but didn't act will get a push notification after ${formState.retargetDelayHours} hours.`}
@@ -2730,7 +3646,9 @@ export default function UnifiedCreationFlow({
 
             <SubmitRow>
               <BackLink onClick={goBack} style={{ marginBottom: 0 }}>
-                {language === "fi" ? "← Takaisin aikatauluun" : "← Back to schedule"}
+                {language === "fi"
+                  ? "← Takaisin aikatauluun"
+                  : "← Back to schedule"}
               </BackLink>
               <SubmitButton
                 onClick={onSubmit}
@@ -2961,22 +3879,34 @@ const ExampleCard = styled.div<{ $tone?: string | null }>`
   border: 1px solid #2d2d4a;
   background: ${({ $tone }) => {
     switch ($tone) {
-      case "BOLD_ENERGETIC": return "rgba(239, 68, 68, 0.06)";
-      case "WARM_INVITING": return "rgba(245, 158, 11, 0.06)";
-      case "EDGY_IRREVERENT": return "rgba(168, 85, 247, 0.06)";
-      case "ELEGANT_PREMIUM": return "rgba(59, 130, 246, 0.06)";
-      case "PLAYFUL_FUN": return "rgba(34, 197, 94, 0.06)";
-      default: return "#0d0d1a";
+      case "BOLD_ENERGETIC":
+        return "rgba(239, 68, 68, 0.06)";
+      case "WARM_INVITING":
+        return "rgba(245, 158, 11, 0.06)";
+      case "EDGY_IRREVERENT":
+        return "rgba(168, 85, 247, 0.06)";
+      case "ELEGANT_PREMIUM":
+        return "rgba(59, 130, 246, 0.06)";
+      case "PLAYFUL_FUN":
+        return "rgba(34, 197, 94, 0.06)";
+      default:
+        return "#0d0d1a";
     }
   }};
   border-color: ${({ $tone }) => {
     switch ($tone) {
-      case "BOLD_ENERGETIC": return "rgba(239, 68, 68, 0.25)";
-      case "WARM_INVITING": return "rgba(245, 158, 11, 0.25)";
-      case "EDGY_IRREVERENT": return "rgba(168, 85, 247, 0.25)";
-      case "ELEGANT_PREMIUM": return "rgba(59, 130, 246, 0.25)";
-      case "PLAYFUL_FUN": return "rgba(34, 197, 94, 0.25)";
-      default: return "#2d2d4a";
+      case "BOLD_ENERGETIC":
+        return "rgba(239, 68, 68, 0.25)";
+      case "WARM_INVITING":
+        return "rgba(245, 158, 11, 0.25)";
+      case "EDGY_IRREVERENT":
+        return "rgba(168, 85, 247, 0.25)";
+      case "ELEGANT_PREMIUM":
+        return "rgba(59, 130, 246, 0.25)";
+      case "PLAYFUL_FUN":
+        return "rgba(34, 197, 94, 0.25)";
+      default:
+        return "#2d2d4a";
     }
   }};
   transition: all 0.2s;
@@ -3179,13 +4109,28 @@ const ToneRow = styled.div`
   flex-wrap: wrap;
 `;
 
-const ToneChip = styled.button<{ $active: boolean }>`
+const ToneChip = styled.button<{
+  $active: boolean;
+  $recommended?: boolean;
+  $cautionary?: boolean;
+}>`
   padding: 6px 12px;
-  border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
+  border: 1px solid
+    ${({ $active, $recommended }) =>
+      $active
+        ? "#7c3aed"
+        : $recommended
+          ? "rgba(16, 185, 129, 0.4)"
+          : "#2d2d4a"};
   border-radius: 8px;
-  background: ${({ $active }) =>
-    $active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a"};
-  color: ${({ $active }) => ($active ? "#ffffff" : "#d1d5db")};
+  background: ${({ $active, $recommended }) =>
+    $active
+      ? "rgba(124, 58, 237, 0.12)"
+      : $recommended
+        ? "rgba(16, 185, 129, 0.06)"
+        : "#0d0d1a"};
+  color: ${({ $active, $cautionary }) =>
+    $active ? "#ffffff" : $cautionary ? "#6b7280" : "#d1d5db"};
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -3193,14 +4138,27 @@ const ToneChip = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
   gap: 4px;
+  opacity: ${({ $cautionary }) => ($cautionary ? 0.65 : 1)};
   &:hover:not(:disabled) {
     border-color: #7c3aed;
     color: #ffffff;
+    opacity: 1;
   }
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
   }
+`;
+
+const ToneRecommendTag = styled.span`
+  font-size: 9px;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 2px;
+  white-space: nowrap;
 `;
 
 // ---- Templates ----
@@ -3775,6 +4733,39 @@ const LayoutChip = styled.button<{ $active: boolean }>`
   }
 `;
 
+const SubjectLabel = styled.div`
+  font-size: 10px;
+  font-weight: 600;
+  color: #4b5563;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  margin-top: 6px;
+`;
+
+const SubjectRow = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+`;
+
+const SubjectChip = styled.button<{ $active: boolean }>`
+  padding: 3px 8px;
+  border: 1px solid ${({ $active }) => ($active ? "#10b981" : "#2d2d4a")};
+  border-radius: 5px;
+  background: ${({ $active }) =>
+    $active ? "rgba(16, 185, 129, 0.15)" : "transparent"};
+  color: ${({ $active }) => ($active ? "#34d399" : "#6b7280")};
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  &:hover {
+    border-color: #10b981;
+  }
+`;
+
 const ImageActionsRow = styled.div`
   display: flex;
   gap: 6px;
@@ -4021,7 +5012,6 @@ const IngredientsTags = styled.div`
   flex-wrap: wrap;
 `;
 
-
 // ---- Custom context input ----
 
 const CustomContextRow = styled.div`
@@ -4073,7 +5063,9 @@ const CustomContextAddBtn = styled.button`
   }
 `;
 
-const IngredientTag = styled.span<{ $kind: "tone" | "template" | "context" }>`
+const IngredientTag = styled.span<{
+  $kind: "tone" | "template" | "context" | "brand";
+}>`
   padding: 3px 8px;
   border-radius: 5px;
   font-size: 10px;
@@ -4083,20 +5075,26 @@ const IngredientTag = styled.span<{ $kind: "tone" | "template" | "context" }>`
       ? "rgba(245, 158, 11, 0.12)"
       : $kind === "template"
         ? "rgba(124, 58, 237, 0.15)"
-        : "rgba(59, 130, 246, 0.12)"};
+        : $kind === "brand"
+          ? "rgba(16, 185, 129, 0.12)"
+          : "rgba(59, 130, 246, 0.12)"};
   color: ${({ $kind }) =>
     $kind === "tone"
       ? "#f59e0b"
       : $kind === "template"
         ? "#a78bfa"
-        : "#60a5fa"};
+        : $kind === "brand"
+          ? "#34d399"
+          : "#60a5fa"};
   border: 1px solid
     ${({ $kind }) =>
       $kind === "tone"
         ? "rgba(245, 158, 11, 0.25)"
         : $kind === "template"
           ? "rgba(124, 58, 237, 0.25)"
-          : "rgba(59, 130, 246, 0.25)"};
+          : $kind === "brand"
+            ? "rgba(16, 185, 129, 0.25)"
+            : "rgba(59, 130, 246, 0.25)"};
 `;
 
 // ---- Compliance blocked ----
@@ -4271,4 +5269,56 @@ const SubmitButton = styled.button`
     opacity: 0.5;
     cursor: not-allowed;
   }
+`;
+
+// ---- Mode Selector (Brand vs Promotional) ----
+
+const ModeGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 8px;
+
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const ModeCard = styled.button<{ $active: boolean }>`
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 20px;
+  background: ${({ $active }) =>
+    $active ? "rgba(124, 58, 237, 0.12)" : "rgba(255, 255, 255, 0.03)"};
+  border: 2px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  color: inherit;
+
+  &:hover {
+    border-color: ${({ $active }) => ($active ? "#7c3aed" : "#4a4a6a")};
+    background: ${({ $active }) =>
+      $active ? "rgba(124, 58, 237, 0.16)" : "rgba(255, 255, 255, 0.06)"};
+  }
+`;
+
+const ModeCardEmoji = styled.span`
+  font-size: 28px;
+  margin-bottom: 4px;
+`;
+
+const ModeCardLabel = styled.span`
+  font-size: 15px;
+  font-weight: 700;
+  color: #e5e7eb;
+`;
+
+const ModeCardDesc = styled.span`
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.5;
 `;

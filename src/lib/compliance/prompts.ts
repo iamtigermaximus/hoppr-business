@@ -651,3 +651,207 @@ ${outputFormat}
 
 ${visualGuidelines}${complianceReminder}`;
 }
+
+// ============================================================================
+// BRAND CONTENT GENERATION PROMPT BUILDER
+// ============================================================================
+//
+// Follows the exact same proven architecture as buildGeneratePrompt above,
+// but adapted for brand/advertising content — no prices, discounts, or
+// deal-related fields. Outputs headline + body + cta + imagePrompt per variant.
+
+import type {
+  AudienceChip,
+  CoreMessageChip,
+  AtmosphereChip,
+  CopyStructureChip,
+} from "@/lib/prompts/creative-director";
+import {
+  AUDIENCE_GUIDANCE,
+  CORE_MESSAGE_FOCUS,
+  ATMOSPHERE_LAYER,
+  COPY_STRUCTURE_ARCHITECTURE,
+} from "@/lib/prompts/build-brand-prompt";
+
+export interface BrandGenerateInput {
+  barName: string;
+  barType: string;
+  district?: string | null;
+  cityName?: string | null;
+  priceRange?: string | null;
+  amenities?: string | null;
+  description?: string | null;
+  musicTags?: string | null;
+  template?: string | null;
+  tone?: string | null;
+  toneInstruction?: string | null;
+  audience?: string[];
+  coreMessage?: string | null;
+  atmosphere?: string[];
+  imageWorld?: string | null;
+  copyStructure?: string | null;
+  language: "en" | "fi";
+  numVariants: number;
+  nonce: number;
+  barId: string;
+}
+
+export function buildBrandGeneratePrompt(input: BrandGenerateInput): string {
+  const isFi = input.language === "fi";
+  const variants = Math.max(1, Math.min(3, input.numVariants));
+
+  // ---- Compliance guardrails (same as promotion version) ----
+  const complianceReminder = isFi
+    ? `\n\nSUOMEN ALKOHOLILAIN VAATIMUKSET — sisältösi HYLÄTÄÄN jos rikot näitä:\nEHDOTTOMASTI KIELLETTY: tilapäiset hinnanalennukset, ilmaiset juomat, alkoholiprosenttien maininta, alaikäisiin vetoava kieli, juomapelit/kilpailut, humalahakuinen kulutus, terveysväittämät.\nSALLITTU LÄHESTYMISTAPA: keskity tunnelmaan, musiikkiin, seuraan, identiteettiin ja ympäristöön. Kuvaile MILTÄ TUNTUU olla paikalla — älä MITÄ JUODAAN. Alkoholi on osa ympäristöä, ei tarinan päähenkilö.\nTÄRKEIN SÄÄNTÖ: Jos tekstissäsi kuvaillaan alkoholin juomista, se rikkoo lakia. Kirjoita niin että juoma voisi olla mitä tahansa — kahvia, mocktailia, vichyä. Se mikä tekee illasta erityisen on TUNNELMA ja SEURA, ei alkoholi.`
+    : `\n\nFINNISH ALCOHOL ACT REQUIREMENTS — your content WILL be rejected if it violates these:\nABSOLUTELY PROHIBITED: temporary price cuts, free drinks, mentioning alcohol percentages, minor-targeting language, drinking games/contests, intoxication encouragement, health claims.\nALLOWED APPROACH: focus on atmosphere, music, company, identity, and environment. Describe HOW IT FEELS to be there — not WHAT PEOPLE DRINK. Alcohol is part of the setting, not the protagonist.\nMOST IMPORTANT RULE: If your text describes drinking alcohol, it's a violation. Write so the drink could be anything — coffee, mocktail, sparkling water. What makes the night special is the ATMOSPHERE and COMPANY, not the alcohol.`;
+
+  // ---- Template line ----
+  const templateLine = input.template
+    ? (() => {
+        const chars = (TEMPLATE_CHARACTERISTICS as Record<string, { en: string; fi: string }>)[input.template!];
+        const traits = chars ? (isFi ? chars.fi : chars.en) : null;
+        return isFi
+          ? `\nSisältötyyppi: ${input.template}${traits ? ` — ominaispiirteet: ${traits}` : ""}. Käytä luovana suuntana — älä kopioi valmista tekstiä.`
+          : `\nContent type: ${input.template}${traits ? ` — characteristics: ${traits}` : ""}. Use as creative direction — do not copy pre-written text.`;
+      })()
+    : "";
+
+  // ---- Tone voice block ----
+  const toneBlock = input.toneInstruction
+    ? `\n\n${input.toneInstruction}`
+    : "";
+
+  // ---- Brand ingredients ----
+  const audienceLines: string[] = [];
+  if (input.audience && input.audience.length > 0) {
+    const labels = input.audience.map((a) => {
+      const chip = a as AudienceChip;
+      return (AUDIENCE_GUIDANCE as Record<string, { fi: string; en: string }>)[chip]?.[input.language] ?? a;
+    }).filter(Boolean);
+    if (labels.length > 0) {
+      audienceLines.push(isFi ? `YLEISÖ: ${input.audience.join(", ")}` : `AUDIENCE: ${input.audience.join(", ")}`);
+      audienceLines.push(labels.join(" "));
+    }
+  }
+  const audienceBlock = audienceLines.length > 0 ? `\n${audienceLines.join("\n")}` : "";
+
+  const coreMsgBlock = input.coreMessage
+    ? (() => {
+        const chip = input.coreMessage as CoreMessageChip;
+        const focus = (CORE_MESSAGE_FOCUS as Record<string, { fi: string; en: string }>)[chip]?.[input.language] ?? "";
+        return `\n${focus}`;
+      })()
+    : "";
+
+  const atmosphereBlock = input.atmosphere && input.atmosphere.length > 0
+    ? (() => {
+        const labels = input.atmosphere.map((a) => {
+          const chip = a as AtmosphereChip;
+          return (ATMOSPHERE_LAYER as Record<string, { fi: string; en: string }>)[chip]?.[input.language] ?? a;
+        }).filter(Boolean);
+        return labels.length > 0 ? `\n${isFi ? "TUNNELMA: " : "ATMOSPHERE: "}${labels.join(" ")}` : "";
+      })()
+    : "";
+
+  const imageWorldBlock = input.imageWorld && input.imageWorld !== "venue"
+    ? `\n${isFi ? "KUVAMAILMA: " : "IMAGE WORLD: "}${input.imageWorld} — ${isFi ? "kuva ei esitä baaria, vaan tunnelmaa / käsityötä / luontoa. Tekstin tulee tukea tätä kuvamaailmaa." : "image does not show the bar, but mood / craft / nature. Text must support this image world."}`
+    : "";
+
+  const copyStructBlock = input.copyStructure
+    ? (() => {
+        const chip = input.copyStructure as CopyStructureChip;
+        return (COPY_STRUCTURE_ARCHITECTURE as Record<string, { fi: string; en: string }>)[chip]?.[input.language] ?? "";
+      })()
+    : "";
+
+  // ---- Nonce rotation ----
+  const nonceLine = input.nonce > 0
+    ? (isFi
+        ? `\nVariaatioavain: ${input.nonce} — tuota TÄYSIN ERI sisältö kuin aiemmilla avaimilla.`
+        : `\nVariation seed: ${input.nonce} — generate COMPLETELY DIFFERENT content than previous seeds.`)
+    : "";
+
+  // ---- Bar hooks ----
+  const barHooksBlock = buildBarHooksBlock(
+    {
+      type: input.barType,
+      district: input.district ?? undefined,
+      amenities: (input.amenities?.split(",") ?? []).map((a) => a.trim().toLowerCase()),
+      priceRange: input.priceRange ?? undefined,
+      musicTags: (input.musicTags?.split(",") ?? []).map((t) => t.trim().toLowerCase()),
+    },
+    isFi ? "fi" : "en",
+  );
+
+  // ---- Rotation block ----
+  const rotationBlock = buildRotationBlock(input.barId, variants, isFi ? "fi" : "en");
+
+  // ---- Variant differentiation (brand-specific angles) ----
+  const variantsInstruction = variants > 1
+    ? (isFi
+        ? `\nLuo ${variants} TÄYSIN ERI vaihtoehtoa — JOKAINEN variantti ottaa ERI luovan kulman:\n` +
+          `1. TARINAKULMA: kerro pieni tarina — hetki, tunne, muisto. Rakenna narratiivia.\n` +
+          `2. TUNNELMAKULMA: keskity siihen MILTÄ TUNTUU — aistit, ilmapiiri, valo, ääni.\n` +
+          `3. KUTSUKULMA: puhuttele suoraan — "sinä", "te", "tule". Kutsu, ei mainos.\n` +
+          `Jokaisella variantilla on ERI otsikko, ERI leipäteksti, ERI sävy — ne eivät saa kuulostaa samalta.`
+        : `\nGenerate ${variants} COMPLETELY DIFFERENT variants — EACH variant takes a DIFFERENT creative angle:\n` +
+          `1. STORY ANGLE: tell a small story — a moment, a feeling, a memory. Build narrative.\n` +
+          `2. ATMOSPHERE ANGLE: focus on HOW IT FEELS — senses, vibe, light, sound.\n` +
+          `3. INVITATION ANGLE: speak directly — "you", "come". An invitation, not an ad.\n` +
+          `Each variant has a DIFFERENT headline, DIFFERENT body, DIFFERENT voice — they must NOT sound the same.`)
+    : "";
+
+  // ---- Output format (brand-specific: headline, body, cta, imagePrompt) ----
+  const headlineRules = isFi
+    ? `"headline": "OTSIKKO (max 60 merkkiä). Otsikko on ITSENÄINEN, MIELEENJÄÄVÄ lause — ei tunnelmakuvaus, ei leipätekstin alku, ei 'Paikka jossa...'.\nHYVÄ OTSIKKO ON: tiivis lupaus tai väite, joka herättää tunteen tai uteliaisuuden. Esim: 'Ilta alkaa tästä.' 'Täällä soi mitä haluat kuulla.' 'Kaupunki tarvitsee tämän paikan.' 'Tule sellaisena kuin olet.' 'Ei turhaan täällä.'\nHUONO OTSIKKO ON: tunnelman kuvailua ('Huone hengittää.' 'Tummat seinät, matala katto.'), epämääräinen ('Baarin taika'), tai geneerinen ('Tervetuloa meille'). Otsikko ei kuvaile — se väittää, lupaa tai kutsuu. Kirjoita jokainen otsikko kuin se luettaisiin ääneen julisteesta. Sen on toimittava yksinään.\nJos otsikkosi voisi olla leipätekstin ensimmäinen lause, se on väärin. Otsikko on itsenäinen yksikkö — iskevä, tiivis, omaperäinen."`
+    : `"headline": "HEADLINE (max 60 chars). A headline is a STANDALONE, MEMORABLE statement — not atmospheric narration, not the start of body text, not 'A place where...'.\nA GOOD HEADLINE IS: a tight promise or claim that triggers emotion or curiosity. E.g.: 'The night starts here.' 'This is what you wanted to hear.' 'The city needs this place.' 'Come as you are.' 'Not for nothing.'\nA BAD HEADLINE IS: atmospheric scene-setting ('The room breathes.' 'Dark walls, low ceilings.'), vague ('Bar magic'), or generic ('Welcome to our bar'). A headline doesn't describe — it claims, promises, or invites. Write every headline as if it will be read aloud from a poster. It must work on its own.\nIf your headline could be the first sentence of body text, it's wrong. A headline is a self-contained unit — punchy, tight, original."`;
+  const outputFormat = variants > 1
+    ? (isFi
+        ? `Palauta VAIN JSON-taulukko (ei muuta tekstiä):\n[\n  {\n    ${headlineRules},\n    "body": "Leipäteksti (max 250 merkkiä) — rakenna tunnelmaa, älä myy tuotetta",\n    "cta": "Toimintakehote (max 40 merkkiä) — esim. Varaa pöytä, Tule paikalle, Lue lisää",\n    "imagePrompt": "Yksityiskohtainen kuvagenerointiprompti englanniksi (max 200 merkkiä) — kuvaile mitä kuvassa näkyy: sijainti, valaistus, värit, tunnelma, sommittelma. Älä mainitse alkoholia, baaria tai ihmisiä jos kuvamaailma ei ole baari."\n  },\n  ...\n]`
+        : `Return ONLY a JSON array (no other text):\n[\n  {\n    ${headlineRules},\n    "body": "Body text (max 250 chars) — build atmosphere, don't sell a product",\n    "cta": "Call to action (max 40 chars) — e.g. Book a table, Come by, Read more",\n    "imagePrompt": "Detailed image generation prompt in English (max 200 chars) — describe what's in the image: location, lighting, colors, mood, composition. Do not mention alcohol, bars, or people if the image world is not venue."\n  },\n  ...\n]`)
+    : (isFi
+        ? `Palauta VAIN tämä JSON (ei muuta tekstiä):\n{\n  "headline": "Otsikko — itsenäinen, iskevä väite tai lupaus, EI tunnelmakuvaus",\n  "body": "...",\n  "cta": "...",\n  "imagePrompt": "..."\n}`
+        : `Return ONLY this JSON (no other text):\n{\n  "headline": "Headline — standalone, punchy claim or promise, NOT atmospheric description",\n  "body": "...",\n  "cta": "...",\n  "imagePrompt": "..."\n}`);
+
+  // ---- Assemble ingredients block (same pattern as buildGeneratePrompt) ----
+  const ingredientsBlock = isFi
+    ? `${templateLine}${toneBlock}${audienceBlock}${coreMsgBlock}${atmosphereBlock}${imageWorldBlock}${copyStructBlock}${nonceLine}${rotationBlock}${barHooksBlock}\n\nTÄRKEÄÄ — LUOVA OHJEISTUS:\nYhdistä yllä olevat ainekset ${variants} ainutlaatuiseksi brändisisällöksi baarille "${input.barName}".\n\nJOKAINEN variantti ammentaa eri asiasta:\n- Baarin ainutlaatuisista yksityiskohdista (${input.barType} tyyli, ${input.district || "sijainti"}, ${input.priceRange || "hintataso"})\n- Valitusta äänensävystä ja sisältötyypin ominaispiirteistä\n- Kuvamaailmasta ja tunnelmasta\n\nKIELLETTY:\n- Hinnat, alennukset, tarjoukset, "happy hour", "ilmainen", "tarjous"\n- Geneeriset "liity meihin" / "tervetuloa" / "paras baari" -fraasit\n- Saman lauseen toistaminen eri varianteissa\n- Alkoholin mainitseminen pääasiana\n\nTEE NÄIN:\n- OTSIKKO: iskevä, itsenäinen lause joka toimii yksinään — lupaa jotain, väitä jotain, kutsu johonkin\n- LEIPÄTEKSTI: mainitse KONKREETTISIA yksityiskohtia tästä baarista, kirjoita kuin olisit paikalla\n- Jokainen variantti kuulostaa eri ihmisen kirjoittamalta\n- Rakenna mielikuvaa ja muistijälkeä — älä myy, kerro`
+    : `${templateLine}${toneBlock}${audienceBlock}${coreMsgBlock}${atmosphereBlock}${imageWorldBlock}${copyStructBlock}${nonceLine}${rotationBlock}${barHooksBlock}\n\nCRITICAL — CREATIVE INSTRUCTION:\nCombine the ingredients above into ${variants} unique brand content pieces for "${input.barName}".\n\nEACH variant draws from different aspects:\n- The bar's unique details (${input.barType} style, ${input.district || "location"}, ${input.priceRange || "price level"})\n- The chosen tone and content type characteristics\n- The image world and atmosphere\n\nFORBIDDEN:\n- Prices, discounts, deals, "happy hour", "free", "offer"\n- Generic "join us" / "welcome" / "best bar in town" filler\n- Repeating the same sentence across variants\n- Mentioning alcohol as the main subject\n\nDO THIS:\n- HEADLINE: punchy, standalone statement that works on its own — promise something, claim something, invite somewhere\n- BODY TEXT: mention SPECIFIC, CONCRETE details about THIS bar, write as if you're standing in the room\n- Each variant sounds like a different person wrote it\n- Build association and memory — don't sell, tell`;
+
+  // ---- Final prompt (same structure as buildGeneratePrompt) ----
+  const districtStr = [input.district, input.cityName].filter(Boolean).join(", ");
+
+  return isFi
+    ? `BAARIN TIEDOT:
+- Nimi: ${input.barName}
+- Tyyppi: ${input.barType}
+- Sijainti: ${districtStr || ""}
+- Hintataso: ${input.priceRange || "Kohtalainen"}
+- Palvelut: ${input.amenities || "Vakiovarustelu"}
+- Kuvaus: ${input.description || "Loistava paikka nauttia illasta"}
+
+LUOVA OHJEISTUS:
+${ingredientsBlock}
+
+TÄRKEÄÄ — Kaikki sisältö TÄYTYY olla SUOMEKSI. Jos tuotat englantia, tulos hylätään.
+${variantsInstruction}
+
+${outputFormat}
+${complianceReminder}`
+    : `BAR CONTEXT:
+- Name: ${input.barName}
+- Type: ${input.barType}
+- Location: ${districtStr || ""}
+- Price Range: ${input.priceRange || "Moderate"}
+- Amenities: ${input.amenities || "Standard bar amenities"}
+- Description: ${input.description || "A great place to enjoy nightlife"}
+
+CREATIVE INSTRUCTION:
+${ingredientsBlock}
+
+IMPORTANT — All content MUST be in English. Do not output Finnish.
+${variantsInstruction}
+
+${outputFormat}
+${complianceReminder}`;
+}

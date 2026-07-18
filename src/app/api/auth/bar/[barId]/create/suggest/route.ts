@@ -20,6 +20,11 @@ import {
   inferPassCategory,
   type PassPromptOutput,
 } from "@/lib/prompts/build-pass-prompt";
+import { getTonePromptBlock, toneSystemInstruction, type ContentTone } from "@/lib/prompts/tone-voices";
+import { buildBrandGeneratePrompt } from "@/lib/compliance/prompts";
+import { scanCompliance } from "@/lib/compliance/engine";
+import { inferImageChips } from "@/lib/prompts/infer-image-chips";
+import { extractJsonObjects } from "@/lib/json-extractor";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -136,14 +141,50 @@ export async function POST(
       text,
       language = "en",
       contentType,
-    } = body as { text: string; language?: string; contentType?: string };
+      contentTone,
+      // New: advertising hub mode and ingredients
+      mode,
+      audience,
+      coreMessage,
+      atmosphere,
+      imageWorld,
+      timeOfDay,
+      season: bodySeason,
+      roomEnergy,
+      focalPoint,
+      copyStructure,
+      templateName,
+      avoidHeadlinePatterns,
+    } = body as {
+      text: string;
+      language?: string;
+      contentType?: string;
+      contentTone?: string;
+      mode?: string;
+      audience?: string[];
+      coreMessage?: string;
+      atmosphere?: string[];
+      imageWorld?: string;
+      timeOfDay?: string;
+      season?: string;
+      roomEnergy?: string;
+      focalPoint?: string;
+      copyStructure?: string;
+      templateName?: string;
+      avoidHeadlinePatterns?: string[];
+    };
 
-    if (!text || typeof text !== "string" || text.trim().length === 0) {
+    // In brand mode, the structured ingredients (audience, coreMessage,
+    // atmosphere, imageWorld, copyStructure) carry the content intent.
+    // A free-text brief is optional — the route synthesizes one when empty.
+    const isBrand = mode === "brand";
+    if (!isBrand && (!text || typeof text !== "string" || text.trim().length === 0)) {
       return NextResponse.json(
         { error: "Missing required field: text" },
         { status: 400 },
       );
     }
+    const safeText = typeof text === "string" ? text : "";
 
     // Validate language
     const validLanguages = ["en", "fi"];
@@ -193,11 +234,13 @@ export async function POST(
     const useAI = !!DEEPSEEK_API_KEY;
 
     // 6a. Build type-specific prompts when contentType is specified
-    // When "auto", fall through to the generic prompt builder below
+    // When "auto", fall through to the generic prompt builder below.
+    // IMPORTANT: When mode is "brand", skip event/pass prompts entirely —
+    // the brand prompt builder (6b) handles all content generation.
     let eventPromptResult: EventPromptOutput | null = null;
     let passPromptResult: PassPromptOutput | null = null;
 
-    if (ct === "event") {
+    if (ct === "event" && mode !== "brand") {
       const inferredCategory = inferEventCategory(text);
       eventPromptResult = buildEventPrompt({
         barName: bar.name,
@@ -213,7 +256,7 @@ export async function POST(
         language: lang as "en" | "fi",
         eventCategory: inferredCategory,
       });
-    } else if (ct === "pass") {
+    } else if (ct === "pass" && mode !== "brand") {
       const inferredCategory = inferPassCategory(text);
       passPromptResult = buildPassPrompt({
         barName: bar.name,
@@ -230,6 +273,100 @@ export async function POST(
       });
     }
 
+    // 6b. Build brand prompt when mode is "brand"
+    let brandSystemPrompt: string | null = null;
+    let brandUserPrompt: string | null = null;
+
+    if (mode === "brand" || ct === "brand") {
+      console.log("[suggest] Brand mode detected — building brand generate prompt (mode:", mode, "ct:", ct, ")");
+
+      // Strip tone/template instruction lines from the brief.
+      // The client injects "Tone: playful and fun..." into the textarea
+      // when a tone is selected, which confuses the AI. For brand mode,
+      // structured ingredients carry all the information — the brief
+      // should be the user's actual words, not auto-generated metadata.
+      let cleanBrief = safeText;
+      const briefLines = safeText.split("\n").filter((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return false; // drop blank lines
+        if (trimmed.startsWith("Tone:") || trimmed.startsWith("Äänensävy:")) return false;
+        if (trimmed.startsWith("Template:") || trimmed.startsWith("Malli:")) return false;
+        return true;
+      });
+      if (briefLines.length > 0) {
+        cleanBrief = briefLines.join("\n").trim();
+      }
+      // If the brief was entirely auto-generated metadata, synthesize one
+      // from the ingredients so the AI has meaningful context.
+      if (!cleanBrief) {
+        const audienceFi = Array.isArray(audience) && audience.length > 0
+          ? `kohderyhmä: ${audience.join(", ")}`
+          : "";
+        const msgFi = coreMessage ? `viesti: ${coreMessage}` : "";
+        const atmosFi = Array.isArray(atmosphere) && atmosphere.length > 0
+          ? `tunnelma: ${atmosphere.join(", ")}`
+          : "";
+        const parts = [audienceFi, msgFi, atmosFi].filter(Boolean);
+        cleanBrief = parts.length > 0
+          ? `Luo brändisisältöä — ${parts.join("; ")}`
+          : "Luo brändisisältöä tälle baarille";
+      }
+      console.log("[suggest] Brand mode — cleaned brief:", cleanBrief.slice(0, 120));
+
+      // Build tone instruction from the tone voice profiles.
+      // The tone defaults to WARM_INVITING for brand content — the client
+      // sends tone selection in a separate step; for now we use the default.
+      const defaultTone: ContentTone = "WARM_INVITING";
+      const toneInstruction = getTonePromptBlock(defaultTone, lang as "en" | "fi");
+
+      const amenitiesStr = (bar.amenities as string[])?.join(", ") ?? undefined;
+      const musicTagsStr = (bar.musicTags as string[])?.join(", ") ?? undefined;
+
+      // Build the brand user prompt using the SAME proven architecture
+      // as buildGeneratePrompt — bar context → creative ingredients →
+      // output format → compliance. This replaces the old buildBrandPrompt
+      // which used a different prompt structure that produced garbage.
+      brandUserPrompt = buildBrandGeneratePrompt({
+        barName: bar.name,
+        barType: bar.type,
+        district: bar.district,
+        cityName: bar.cityName,
+        priceRange: bar.priceRange,
+        amenities: amenitiesStr,
+        description: bar.description,
+        musicTags: musicTagsStr,
+        template: templateName ?? null,
+        tone: defaultTone,
+        toneInstruction,
+        audience: (audience as string[]) ?? [],
+        coreMessage: coreMessage ?? null,
+        atmosphere: (atmosphere as string[]) ?? [],
+        imageWorld: imageWorld ?? null,
+        copyStructure: copyStructure ?? null,
+        language: lang as "en" | "fi",
+        numVariants: 3,
+        nonce: 0,
+        barId,
+      });
+
+      // System prompt: persona + compliance + variant differentiation + tone + footer
+      // Same architecture as promotions ai-generate route.
+      const isFi = lang === "fi";
+      const variantDifferentiation = isFi
+        ? `\n\nVARIAATIOIDEN EROTTELU — EHDOTTOMAN KRIITTINEN SAANTO:\nKun luot useita variantteja, JOKAISELLA on oltava AIDOSTI ERI:\n- Otsikko: eri sanat, eri rakenne, eri koukku. Ala kierrata avainsanoja.\n- Leipateksti: eri kulma. 1) TARINAKULMA (pieni tarina, hetki, muisto, narratiivi). 2) TUNNELMAKULMA (milta tuntuu, aistit, ilmapiiri, valo, aani). 3) KUTSUKULMA (puhuttelee suoraan — "sina", "tule", kutsu).\n- Aani: jokainen kuulostaa eri henkilon kirjoittamalta.\n- ALA tuota kolmea uudelleenmuotoiltua versiota samasta ideasta. Niiden on luettava kuin eri ihmisten kirjoittamina.\n- Jokaisella variantilla on ERI imagePrompt - eri kohtaus, eri perspektiivi, eri tunnelma.`
+        : `\n\nVARIANT DIFFERENTIATION - ABSOLUTELY CRITICAL RULE:\nWhen generating multiple variants, EACH one MUST have GENUINELY DIFFERENT:\n- Headline: different words, different structure, different hook. Do NOT recycle keywords.\n- Body: different angle. 1) STORY ANGLE (a small story, moment, memory, narrative). 2) ATMOSPHERE ANGLE (how it feels, senses, vibe, light, sound). 3) INVITATION ANGLE (speaks directly — "you", "come", an invitation).\n- Voice: each sounds like a different person wrote it.\n- Do NOT produce three rephrasings of the same idea. They must read as if written by different people.\n- Every variant has a DIFFERENT imagePrompt - different scene, different perspective, different mood.`;
+      const footerText = isFi
+        ? `\nALA KOSKAAN mainitse lakiviitteita (Alkoholilaki, Valvira, compliance) otsikoissa, leipateksteissa tai toimintakehotteissa - ne ovat asiakasteksteja, eivat lakidokumentteja.\nKAIKKI teksti TAYTYY olla suomeksi. Palauta VAIN validi JSON.`
+        : `\nNEVER mention legal references (Alcohol Act, Valvira, compliance) in headlines, body text, or CTAs - these are customer-facing, not legal documents.\nReturn ONLY valid JSON.`;
+      const toneInstr = contentTone
+        ? toneSystemInstruction(contentTone as ContentTone)
+        : "";
+      brandSystemPrompt = `${buildFullSystemPrompt(lang as "en" | "fi", barPositioning)}\n${variantDifferentiation}${footerText}${toneInstr ? `\n${toneInstr}` : ""}`;
+
+      console.log("[suggest] Brand prompt built — system:", brandSystemPrompt.length, "user:", brandUserPrompt.length);
+      console.log("[suggest] Brand user prompt first 200 chars:", brandUserPrompt.slice(0, 200));
+    }
+
     // 7. Build system prompt — senior marketing persona + compliance rules
     // When contentType is specified, use the type-specific prompts instead
     let systemPrompt: string;
@@ -239,10 +376,17 @@ export async function POST(
     if (eventPromptResult) {
       systemPrompt = eventPromptResult.systemPrompt;
       userPrompt = eventPromptResult.userPrompt;
+      console.log("[suggest] Using event prompt");
     } else if (passPromptResult) {
       systemPrompt = passPromptResult.systemPrompt;
       userPrompt = passPromptResult.userPrompt;
+      console.log("[suggest] Using pass prompt");
+    } else if (brandUserPrompt && brandSystemPrompt) {
+      systemPrompt = brandSystemPrompt;
+      userPrompt = brandUserPrompt;
+      console.log("[suggest] Using brand generate prompt");
     } else {
+      console.log("[suggest] Using generic route prompt (no type-specific prompt built)");
       const routeInstructions = isFi
       ? `\n\nMääritä, haluaako käyttäjä luoda TAPAHTUMAN, TARJOUKSEN, VIP-PASSIN vai MAINOSKAMPANJAN. Poimi kaikki olennaiset kentät ja tuota sisältö SUOMEKSI.
 
@@ -367,10 +511,10 @@ ${buildUserReminder("en")}`;
               { role: "system", content: systemPrompt },
               { role: "user", content: userPrompt },
             ],
-            temperature: 0.7,
-            max_tokens: 1000,
+            temperature: (mode === "brand" || ct === "brand") ? 0.95 : 0.7,
+            max_tokens: (mode === "brand" || ct === "brand") ? 3000 : 1000,
           }),
-          signal: AbortSignal.timeout(15_000),
+          signal: AbortSignal.timeout((mode === "brand" || ct === "brand") ? 30_000 : 15_000),
         });
 
         if (response.ok) {
@@ -386,12 +530,88 @@ ${buildUserReminder("en")}`;
           }
 
           try {
-            const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-            result = jsonMatch
-              ? JSON.parse(jsonMatch[0])
-              : JSON.parse(aiResponse);
-            aiGenerated = true;
-            console.log("[suggest] AI generated type:", result?.inferredType);
+            const isBrandResponse = (mode === "brand" || ct === "brand");
+            if (isBrandResponse) {
+              // Robust parsing — same strategy as promotions ai-generate route.
+              // Step 1: Strip markdown code blocks
+              let jsonText = aiResponse.trim();
+              const codeBlockMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)```/);
+              if (codeBlockMatch) {
+                jsonText = codeBlockMatch[1].trim();
+                console.log("[suggest] Stripped markdown code block from brand response");
+              }
+
+              // Step 2: Try array parse with trailing comma cleanup
+              let brandVariants: Record<string, unknown>[] = [];
+              if (jsonText.startsWith("[")) {
+                const arrayMatch = jsonText.match(/\[[\s\S]*\]/);
+                if (arrayMatch) {
+                  let cleanJson = arrayMatch[0].replace(/,(\s*[}\]])/g, "$1");
+                  try {
+                    const parsed = JSON.parse(cleanJson);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                      brandVariants = parsed;
+                      console.log("[suggest] Brand array parse —", brandVariants.length, "variants");
+                    }
+                  } catch (arrayErr) {
+                    console.log("[suggest] Brand array parse failed:", (arrayErr as Error).message);
+                  }
+                }
+              }
+
+              // Step 3: Fall back to extractJsonObjects for malformed responses
+              if (brandVariants.length === 0) {
+                const objectMatches = extractJsonObjects(jsonText, { maxObjects: 5, maxLength: 50_000 });
+                for (const objStr of objectMatches) {
+                  try {
+                    const parsed = JSON.parse(objStr);
+                    brandVariants.push(parsed);
+                  } catch {
+                    // Skip malformed objects
+                  }
+                }
+                if (brandVariants.length > 0) {
+                  console.log("[suggest] Extracted", brandVariants.length, "brand objects via extractJsonObjects");
+                }
+              }
+
+              // Step 4: Fall back to object format (old prompt compatibility)
+              if (brandVariants.length === 0) {
+                const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
+                const parsed = jsonMatch
+                  ? JSON.parse(jsonMatch[0])
+                  : JSON.parse(jsonText);
+                if (Array.isArray((parsed as Record<string, unknown>).variants)) {
+                  brandVariants = (parsed as Record<string, unknown>).variants as Record<string, unknown>[];
+                } else {
+                  brandVariants = [parsed as Record<string, unknown>];
+                }
+              }
+
+              // Step 5: Wrap for response builder
+              if (brandVariants.length > 0) {
+                result = { variants: brandVariants };
+                aiGenerated = true;
+                console.log("[suggest] Brand response —", brandVariants.length, "variant(s) parsed:", brandVariants.map((v) => ((v.headline as string) || (v.title as string) || "").slice(0, 50)));
+              } else {
+                warning = "AI response could not be processed. Using template-based suggestion instead.";
+              }
+            } else {
+              const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+              result = jsonMatch
+                ? JSON.parse(jsonMatch[0])
+                : JSON.parse(aiResponse);
+              aiGenerated = true;
+              console.log("[suggest] AI generated type:", result?.inferredType);
+              console.log("[suggest] AI result keys:", Object.keys(result as object).join(", "));
+            }
+            if (aiGenerated && result) {
+              console.log("[suggest] AI result has variants?:", !!(result as Record<string, unknown>).variants, "variants type:", typeof (result as Record<string, unknown>).variants);
+              if ((result as Record<string, unknown>).variants && Array.isArray((result as Record<string, unknown>).variants)) {
+                console.log("[suggest] Variant count:", (result as Record<string, unknown> & { variants: unknown[] }).variants.length);
+              }
+            }
+            console.log("[suggest] AI raw response first 500 chars:", aiResponse.slice(0, 500));
           } catch {
             warning = "AI response could not be processed. Using template-based suggestion instead.";
           }
@@ -443,19 +663,168 @@ ${buildUserReminder("en")}`;
     }
 
     // 11. Build response with type-specific fields
+    const isBrandMode = mode === "brand" || ct === "brand";
+
+    // Hoist bar fields for use in nested functions (TypeScript narrowing)
+    const barName = bar.name;
+    const barDistrict = bar.district;
+    const barCity = bar.cityName;
+    const barTypeStr2 = bar.type;
+
+    // Build fallback brand variants from bar info + ingredients when AI
+    // doesn't return the expected { variants: [...] } structure.
+    function buildBrandFallbackVariants(): Array<Record<string, unknown>> {
+      const district = barDistrict ? `, ${barDistrict}` : "";
+      const city = barCity || "";
+      const typeStr = barTypeStr2.toLowerCase().replace(/_/g, " ");
+      const worldFi = typeof imageWorld === "string" ? imageWorld : "venue";
+      const atmosphereFi = Array.isArray(atmosphere) && atmosphere.length > 0
+        ? atmosphere.join(", ")
+        : "lämmin ja kutsuva";
+
+      const fi2 = lang === "fi";
+      return [
+        {
+          headline: fi2 ? `${barName} — ${city}${district}` : `${barName} — ${city}${district}`,
+          body: fi2
+            ? `Tutustu ${barName}n tunnelmaan. ${atmosphereFi} ilmapiiri — täällä ilta on aina hyvä.`
+            : `Discover the atmosphere at ${barName}. A ${atmosphereFi} vibe — the evening is always good here.`,
+          cta: fi2 ? "Tule käymään" : "Come visit",
+          imagePrompt: `warm inviting ${typeStr} interior with soft lighting and ${worldFi} ambiance`,
+        },
+        {
+          headline: fi2 ? `Illanviettoa ${city}ssa` : `An evening in ${city}`,
+          body: fi2
+            ? `Kaipaatko jotain uutta? ${barName} tarjoaa ${atmosphereFi} elämyksen ${city}n sydämessä.`
+            : `Looking for something new? ${barName} offers a ${atmosphereFi} experience in the heart of ${city}.`,
+          cta: fi2 ? "Varaa pöytä" : "Book a table",
+          imagePrompt: `cozy ${typeStr} corner with ambient lighting, ${worldFi} mood, no people visible`,
+        },
+        {
+          headline: fi2 ? `Täällä on hyvä olla` : `A place to be`,
+          body: fi2
+            ? `${barName} — ${city}n ${atmosphereFi} kohtaamispaikka. Tule sellaisena kuin olet.`
+            : `${barName} — ${city}'s ${atmosphereFi} meeting spot. Come as you are.`,
+          cta: fi2 ? "Löydä meidät" : "Find us",
+          imagePrompt: `${typeStr} details with ${worldFi} aesthetic, warm tones, shallow depth of field`,
+        },
+      ];
+    }
+
     const response_: Record<string, unknown> = {
       inferredType,
       aiGenerated,
       ...(warning && { warning }),
+      mode: isBrandMode ? "brand" : "promotional",
       confidence: typeof result.confidence === "number" ? result.confidence : 0.8,
-      title: result.title || result.name || text.slice(0, 60),
-      description: result.description || "",
+      ...(isBrandMode
+        ? (() => {
+            // Brand mode output: 3 variants with headline + body + cta + imagePrompt
+            // AI returns { variants: [...] } with the new prompt format; fall back
+            // to intelligent template-based variants if AI didn't produce brand content
+            // Use bar name as ultimate headline fallback (safeText may be empty in brand mode)
+            const headlineFallback = safeText ? safeText.slice(0, 60) : barName;
+            let brandVariants: Array<Record<string, unknown>>;
+
+            if (Array.isArray(result.variants) && result.variants.length > 0) {
+              brandVariants = (result.variants as Array<Record<string, unknown>>).map((v) => ({
+                headline: (v.headline as string) || headlineFallback,
+                body: (v.body as string) || "",
+                cta: (v.cta as string) || "",
+                imagePrompt: (v.imagePrompt as string) || "",
+              }));
+            } else if ((result.headline as string) || (result.title as string)) {
+              // AI returned generic format with some content fields — wrap as single variant
+              console.log("[suggest] Brand mode fallback: AI returned generic format, wrapping as single variant");
+              brandVariants = [{
+                headline: (result.headline as string) || (result.title as string) || headlineFallback,
+                body: (result.body as string) || (result.description as string) || "",
+                cta: (result.cta as string) || "",
+                imagePrompt: (result.imageSuggestion as string) || "",
+              }];
+            } else {
+              // No proper content at all — use ingredient-based fallback variants
+              console.log("[suggest] Brand mode fallback: no content fields in AI response, using template variants");
+              warning = warning || (lang === "fi"
+                ? "AI tuotti yleismuotoisen vastauksen — näytetään brändipohjaiset ehdotukset."
+                : "AI returned a generic response — showing brand-based suggestions.");
+              brandVariants = buildBrandFallbackVariants();
+            }
+
+            // ---- POST-PROCESSING: same steps as promotions ai-generate route ----
+
+            // 1. Compliance scanning per variant
+            const complianceResults: Array<{
+              variantIndex: number;
+              violations: Array<{ rule: string; keyword: string; severity: string; message: string; suggestion: string }>;
+            }> = [];
+            for (let i = 0; i < brandVariants.length; i++) {
+              const scan = scanCompliance(
+                (brandVariants[i].headline as string) || "",
+                (brandVariants[i].body as string) || "",
+                { barName: bar.name },
+              );
+              if (scan.violations.length > 0) {
+                complianceResults.push({
+                  variantIndex: i,
+                  violations: scan.violations.map((v) => ({
+                    rule: v.rule,
+                    keyword: v.keyword,
+                    severity: v.severity,
+                    message: v.message,
+                    suggestion: v.suggestion || "",
+                  })),
+                });
+              }
+            }
+            console.log("[suggest] Brand compliance scan —", complianceResults.length, "variant(s) with violations");
+
+            // 2. Image chip inference per variant
+            const barForChips = {
+              name: bar.name,
+              type: bar.type,
+              description: bar.description ?? undefined,
+              district: bar.district ?? undefined,
+              priceRange: bar.priceRange ?? undefined,
+              amenities: (bar.amenities as string[])?.join(", ") ?? undefined,
+            };
+            const variantsWithChips = brandVariants.map((v) => ({
+              ...v,
+              imageChips: inferImageChips(
+                safeText || "",
+                barForChips,
+                {
+                  title: (v.headline as string) || "",
+                  description: (v.body as string) || "",
+                  type: "brand",
+                  discount: null,
+                },
+              ),
+            }));
+
+            return {
+              variants: variantsWithChips,
+              ...(complianceResults.length > 0 && { complianceResults }),
+            };
+          })()
+        : {
+            // Standard output
+            title: result.title || result.name || text.slice(0, 60),
+            description: result.description || "",
+          }),
       reasoning: result.reasoning || `Based on your description, this appears to be a ${inferredType}.`,
       imageSuggestion: result.imageSuggestion || "bar-ambiance",
     };
 
     // Add type-specific fields
-    if (inferredType === "event") {
+    if (isBrandMode) {
+      // Brand mode doesn't need promotion/event/pass-specific fields
+      response_.imageWorld = imageWorld || "venue";
+      response_.atmosphere = atmosphere || [];
+      response_.audience = audience || [];
+      response_.coreMessage = coreMessage || "best-place";
+      response_.copyStructure = copyStructure || "direct";
+    } else if (inferredType === "event") {
       response_.startTime = result.startTime || null;
       response_.endTime = result.endTime || null;
       response_.maxAttendees = result.maxAttendees || null;

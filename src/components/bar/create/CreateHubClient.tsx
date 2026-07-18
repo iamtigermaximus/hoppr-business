@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import styled from "styled-components";
 import { scanCompliance } from "@/lib/compliance-engine";
 import type { ComplianceViolation } from "@/lib/compliance-engine";
-import type { ContentType, FormState } from "./types";
+import type { ContentType, FormState, CreationMode, AudienceChip, CoreMessageChip, AtmosphereChip, ImageWorldChip, CopyStructureChip } from "./types";
 import { EMPTY_FORM, supportsBoost } from "./types";
 import UnifiedCreationFlow from "./UnifiedCreationFlow";
 import ComplianceBar from "./ComplianceBar";
@@ -594,7 +594,15 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   }, [resurfaceId, contentTypeForResurface, barId]);
 
   const [contentType, setContentType] = useState<ContentType>(initialType);
+  const [creationMode, setCreationMode] = useState<CreationMode>("brand");
   const [formState, setFormState] = useState<FormState>(EMPTY_FORM);
+  // Brand ingredient state — pre-filled by CreativeDirector on mount
+  const [brandAudience, setBrandAudience] = useState<AudienceChip[]>([]);
+  const [brandCoreMessage, setBrandCoreMessage] = useState<CoreMessageChip | null>(null);
+  const [brandAtmosphere, setBrandAtmosphere] = useState<AtmosphereChip[]>([]);
+  const [brandImageWorld, setBrandImageWorld] = useState<ImageWorldChip>("venue");
+  const [brandCopyStructure, setBrandCopyStructure] = useState<CopyStructureChip>("direct");
+  const [brandTemplateName, setBrandTemplateName] = useState<string>("");
   const [resurfaceSourceTitle, setResurfaceSourceTitle] = useState<string | null>(null);
   const [aiInferred, setAiInferred] = useState(false);
   const [aiVisual, setAiVisual] = useState<Record<string, unknown> | null>(null);
@@ -849,11 +857,23 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         setCardFormat(data.cardFormat as "square" | "wide" | "banner");
       }
 
-      const updates: Partial<FormState> = {
-        title: (data.title as string) || formState.title,
-        description: (data.description as string) || formState.description,
-        imageUrl: data.imageUrl ? (data.imageUrl as string) : formState.imageUrl,
-      };
+      // Brand mode uses headline/body/cta instead of title/description
+      const isBrandMode = data.mode === "brand" || creationMode === "brand";
+
+      const updates: Partial<FormState> = isBrandMode
+        ? {
+            title: (data.headline as string) || (data.title as string) || formState.title,
+            description: (data.body as string) || (data.description as string) || formState.description,
+            brandHeadline: (data.headline as string) || "",
+            brandBody: (data.body as string) || "",
+            brandCta: (data.cta as string) || "",
+            imageUrl: data.imageUrl ? (data.imageUrl as string) : formState.imageUrl,
+          }
+        : {
+            title: (data.title as string) || formState.title,
+            description: (data.description as string) || formState.description,
+            imageUrl: data.imageUrl ? (data.imageUrl as string) : formState.imageUrl,
+          };
 
       if (effectiveType === "event") {
         const now = new Date();
@@ -1368,6 +1388,8 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                   barName={barName}
                   barCoverImage={barCoverImage}
                   contentType={contentType}
+                  creationMode={creationMode}
+                  onModeChange={setCreationMode}
                   formState={formState}
                   contentTone={contentTone}
                   initialStep={resurfaceSourceTitle ? "publish" : undefined}
@@ -1376,6 +1398,19 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                   onTypeChange={handleTypeChange}
                   onSubmit={handleSubmit}
                   submitting={submitting}
+                  // Brand ingredient props
+                  brandAudience={brandAudience}
+                  onBrandAudienceChange={(chips) => setBrandAudience(chips as AudienceChip[])}
+                  brandCoreMessage={brandCoreMessage}
+                  onBrandCoreMessageChange={(chip) => setBrandCoreMessage(chip as CoreMessageChip | null)}
+                  brandAtmosphere={brandAtmosphere}
+                  onBrandAtmosphereChange={(chips) => setBrandAtmosphere(chips as AtmosphereChip[])}
+                  brandImageWorld={brandImageWorld}
+                  onBrandImageWorldChange={(chip) => setBrandImageWorld(chip as ImageWorldChip)}
+                  brandCopyStructure={brandCopyStructure}
+                  onBrandCopyStructureChange={(chip) => setBrandCopyStructure(chip as CopyStructureChip)}
+                  brandTemplateName={brandTemplateName}
+                  onBrandTemplateNameChange={setBrandTemplateName}
                 />
 
                 <ComplianceBar

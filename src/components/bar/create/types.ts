@@ -10,6 +10,31 @@
 
 export type ContentType = "event" | "promotion" | "pass" | "campaign";
 
+/** Creation mode — "brand" = advertising/brand building, "promotional" = deals/offers */
+export type CreationMode = "brand" | "promotional";
+
+// ---- Advertising hub ingredient types (re-exported from creative-director for UI use) ----
+
+export type AudienceChip =
+  | "friend-groups" | "couples" | "work-colleagues" | "music-lovers"
+  | "food-focused" | "neighborhood-locals" | "celebrants" | "city-explorers"
+  | "casual-evening" | "premium-seekers" | "seasonal-celebrants" | "meeting-people";
+
+export type CoreMessageChip =
+  | "something-new" | "night-is-special" | "best-place" | "did-you-know"
+  | "come-as-you-are" | "your-place" | "one-night-one-experience" | "season-is-now";
+
+export type AtmosphereChip =
+  | "warm-homey" | "energetic-pulsating" | "calm-serene" | "curious-discovering"
+  | "polished-considered" | "authentic-honest" | "joyful-lighthearted"
+  | "intimate-personal" | "celebratory-meaningful" | "bold-distinctive"
+  | "playful-surprising" | "nostalgic-storied" | "easy-carefree";
+
+export type ImageWorldChip =
+  | "venue" | "mood" | "craft" | "nature" | "graphic" | "city" | "celebration" | "abstract";
+
+export type CopyStructureChip = "fab" | "aida" | "pas" | "direct";
+
 // ---- Canonical promotion types — single source of truth for all dropdowns ----
 
 export interface PromotionTypeOption {
@@ -34,6 +59,23 @@ export interface FormState {
   title: string;
   description: string;
   imageUrl: string | null;
+  // Creation mode — "brand" or "promotional"
+  creationMode: CreationMode;
+  // Brand mode output fields (no price/discount)
+  brandHeadline: string;
+  brandBody: string;
+  brandCta: string;
+  // Brand ingredient selections
+  audienceChips: AudienceChip[];
+  coreMessageChip: CoreMessageChip | null;
+  atmosphereChips: AtmosphereChip[];
+  imageWorldChip: ImageWorldChip;
+  copyStructureChip: CopyStructureChip;
+  timeOfDayChip: string;
+  seasonChip: string;
+  roomEnergyChip: string;
+  focalPointChip: string;
+  templateName: string;
   // Event
   startTime: string;
   endTime: string;
@@ -91,6 +133,20 @@ export const EMPTY_FORM: FormState = {
   title: "",
   description: "",
   imageUrl: null,
+  creationMode: "brand",
+  brandHeadline: "",
+  brandBody: "",
+  brandCta: "",
+  audienceChips: [],
+  coreMessageChip: null,
+  atmosphereChips: [],
+  imageWorldChip: "venue",
+  copyStructureChip: "direct",
+  timeOfDayChip: "evening",
+  seasonChip: "high-summer",
+  roomEnergyChip: "steady-hum",
+  focalPointChip: "bar-counter",
+  templateName: "",
   startTime: "",
   endTime: "",
   maxAttendees: null,
