@@ -14,6 +14,7 @@ import ComplianceReferencePanel from "./ComplianceReferencePanel";
 import ConsumerPreviewPanel from "./ConsumerPreviewPanel";
 import { generateCaption } from "./ShareCard";
 import { PromotionImagePreview } from "./PromotionImagePreview";
+import { BrandCardCapture } from "./BrandCardCapture";
 import type { PromotionImageInput } from "@/lib/og-templates/generate";
 import type { ContentTone } from "./ToneSelector";
 
@@ -679,7 +680,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
     if (!createdItem) return "";
     return generateCaption(
       {
-        contentType: createdItem.type as "event" | "promotion",
+        contentType: createdItem.type as "event" | "promotion" | "brand",
         title: createdItem.title,
         description: formState.description,
         barName,
@@ -704,9 +705,12 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
   }, [createdItem, formState, barName, barLogoUrl]);
 
   const consumerUrl = useMemo(() => {
-    return (process.env.NEXT_PUBLIC_CONSUMER_URL || "https://hoppr.fi") +
-      `/${createdItem?.type ?? "promotion"}s/${createdItem?.id ?? ""}`;
-  }, [createdItem]);
+    const base = process.env.NEXT_PUBLIC_CONSUMER_URL || "https://hoppr.fi";
+    if (createdItem?.type === "brand") {
+      return `${base}/venues/${barId}`;
+    }
+    return `${base}/${createdItem?.type ?? "promotion"}s/${createdItem?.id ?? ""}`;
+  }, [createdItem, barId]);
 
   /** Share to Instagram: copy image to clipboard → open Instagram app */
   const handleShareInstagram = async () => {
@@ -1003,6 +1007,10 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
         body.skipLinePriority = formState.skipLinePriority;
         body.coverFeeIncluded = formState.coverFeeIncluded;
         body.coverFeeAmount = formState.coverFeeAmount;
+      } else if (contentType === "brand") {
+        body.brandCta = formState.brandCta;
+        body.startDate = formState.startDate;
+        body.endDate = formState.endDate;
       }
 
       // Boost only for promotions and events (campaigns ARE the ad)
@@ -1042,7 +1050,12 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
       // ── Pre-submit card capture ──
       // Capture the composed social card via html2canvas BEFORE the API call
       // so the card URL can be stored atomically during creation.
-      if ((contentType === "promotion" || contentType === "event") && savedAiVisual.current) {
+      // Promos/events need AI visual params; brand content captures regardless.
+      const shouldCapture =
+        ((contentType === "promotion" || contentType === "event") && savedAiVisual.current) ||
+        (contentType === "brand" && !!formState.title);
+
+      if (shouldCapture) {
         try {
           const dataUrl = await new Promise<string>((resolve) => {
             cardCaptureResolver.current = resolve;
@@ -1210,9 +1223,14 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
               )}
               <ActionButton
                 $variant="outline"
-                onClick={() => router.push(`/bar/${barId}/${contentType === "campaign" ? "campaigns" : contentType + "s"}`)}
+                onClick={() => {
+                  const route = contentType === "campaign" || contentType === "brand"
+                    ? "campaigns"
+                    : contentType + "s";
+                  router.push(`/bar/${barId}/${route}`);
+                }}
               >
-                View all {contentType === "campaign" ? "campaigns" : contentType + "s"}
+                View all {contentType === "campaign" || contentType === "brand" ? "campaigns" : contentType + "s"}
               </ActionButton>
               <ActionButton $variant="outline" onClick={handleReset}>
                 + Create another
@@ -1221,7 +1239,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
           </SuccessCard>
 
           {/* ---- Share to social media (Option 1: Web Share API) — prominent, no OAuth needed ---- */}
-          {(createdItem.type === "event" || createdItem.type === "promotion") && (
+          {(createdItem.type === "event" || createdItem.type === "promotion" || createdItem.type === "brand") && (
             <ShareHero>
               <ShareHeroBadge>✨ One-Tap Share</ShareHeroBadge>
               <ShareHeroTitle>
@@ -1449,7 +1467,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
 
             {/* Pre-submit card capture — renders offscreen, captures via html2canvas,
                 uploads to Cloudinary, and includes the URL in the submit body. */}
-            {capturingCard && savedAiVisual.current && (() => {
+            {capturingCard && savedAiVisual.current && contentType !== "brand" && (() => {
               const template = (savedAiVisual.current.template as "split" | "centered" | "card") || (contentType === "event" ? "centered" : "card");
               const format = template === "card" ? "square" : "wide";
               return (
@@ -1494,6 +1512,20 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                 </div>
               );
             })()}
+
+            {/* Brand card capture — renders BrandPreviewCard offscreen for html2canvas */}
+            {capturingCard && contentType === "brand" && formState.title && (
+              <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+                <BrandCardCapture
+                  title={formState.brandHeadline || formState.title}
+                  description={formState.brandBody || formState.description}
+                  imageUrl={formState.imageUrl}
+                  cta={formState.brandCta}
+                  barCoverImage={barCoverImage}
+                  onCapture={handleCardCaptured}
+                />
+              </div>
+            )}
         </>
       )}
 

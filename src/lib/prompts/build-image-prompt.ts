@@ -424,6 +424,7 @@ const contentTypeLabelMap: Record<ContentType, string> = {
   event: "bar event or live music night",
   pass: "VIP bar experience or premium nightlife pass",
   campaign: "bar advertising campaign",
+  brand: "bar brand identity and atmosphere",
 };
 
 function formatPromotionType(type: string): string {

@@ -243,6 +243,66 @@ interface ConsumerPreviewPanelProps {
 
 type PreviewTab = "social" | "app";
 
+// ---- Brand preview card (for creationMode === "brand") ----
+
+export interface BrandPreviewCardProps {
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  cta?: string;
+  barCoverImage?: string | null;
+}
+
+export function BrandPreviewCard({ title, description, imageUrl, cta, barCoverImage }: BrandPreviewCardProps) {
+  const bgImage = imageUrl || barCoverImage;
+  return (
+    <div
+      style={{
+        borderRadius: "12px",
+        overflow: "hidden",
+        background: bgImage
+          ? `linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.7)), url(${bgImage}) center/cover`
+          : "linear-gradient(135deg, #1a1a2e, #2d1f4e)",
+        minHeight: "220px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-end",
+        padding: "20px",
+        position: "relative",
+      }}
+    >
+      <div style={{ position: "relative", zIndex: 1 }}>
+        {title ? (
+          <div style={{ color: "#fff", fontWeight: 800, fontSize: "18px", lineHeight: 1.3, marginBottom: "6px" }}>
+            {title}
+          </div>
+        ) : null}
+        {description ? (
+          <div style={{ color: "rgba(255,255,255,0.8)", fontSize: "13px", lineHeight: 1.5, marginBottom: cta ? "10px" : 0 }}>
+            {description}
+          </div>
+        ) : null}
+        {cta ? (
+          <div
+            style={{
+              display: "inline-block",
+              background: "rgba(255,255,255,0.15)",
+              color: "#fff",
+              padding: "6px 14px",
+              borderRadius: "20px",
+              fontSize: "12px",
+              fontWeight: 600,
+              backdropFilter: "blur(4px)",
+            }}
+          >
+            {cta}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function ConsumerPreviewPanel({
   contentType,
   formState,
@@ -261,7 +321,7 @@ export default function ConsumerPreviewPanel({
     : null;
 
   // Only promos and events have social cards
-  const hasSocialCard = contentType === "promotion" || contentType === "event";
+  const hasSocialCard = contentType === "promotion" || contentType === "event" || contentType === "brand";
   const showTabs = hasSocialCard && !!formState.title;
 
   return (
@@ -299,7 +359,7 @@ export default function ConsumerPreviewPanel({
 
       <PreviewBody>
         {/* ---- SOCIAL CARD PREVIEW ---- */}
-        {(activeTab === "social" || !showTabs) && hasSocialCard && formState.title && (
+        {(activeTab === "social" || !showTabs) && hasSocialCard && formState.title && contentType !== "brand" && (
           <div>
             <VisualStyleMeta>
               <StyleLabel>Visual Style</StyleLabel>
@@ -364,6 +424,32 @@ export default function ConsumerPreviewPanel({
           </div>
         )}
 
+        {/* Brand social card preview — uses BrandPreviewCard inside OG-style frame */}
+        {(activeTab === "social" || !showTabs) && contentType === "brand" && formState.title && (
+          <div>
+            <VisualStyleMeta>
+              <StyleLabel>Visual Style</StyleLabel>
+              <StyleValue>
+                {toneLabel ? `brand · ${toneLabel}` : "brand · identity"}
+              </StyleValue>
+            </VisualStyleMeta>
+            <OGImageWrap>
+              <BrandPreviewCard
+                title={formState.brandHeadline || formState.title}
+                description={formState.brandBody || formState.description}
+                imageUrl={formState.imageUrl}
+                cta={formState.brandCta}
+                barCoverImage={barCoverImage}
+              />
+            </OGImageWrap>
+            {toneLabel && (
+              <ToneIndicator>
+                Brand card styled with {toneLabel.toLowerCase()} voice
+              </ToneIndicator>
+            )}
+          </div>
+        )}
+
         {/* ---- CONSUMER APP CARD PREVIEW ---- */}
         {(activeTab === "app" || !showTabs) && (
           <DeviceFrame>
@@ -415,6 +501,14 @@ export default function ConsumerPreviewPanel({
                 campaignEndDate={formState.campaignEndDate}
                 barCoverImage={null}
                 barLogoUrl={barLogoUrl}
+              />
+            ) : contentType === "brand" ? (
+              <BrandPreviewCard
+                title={formState.brandHeadline || formState.title}
+                description={formState.brandBody || formState.description}
+                imageUrl={formState.imageUrl}
+                cta={formState.brandCta}
+                barCoverImage={barCoverImage}
               />
             ) : (
               <PassPreviewCard

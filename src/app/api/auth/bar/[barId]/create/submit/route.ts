@@ -7,7 +7,7 @@ import { triggers } from "@/lib/notifications";
 
 // ---- Types ----
 
-type ContentType = "event" | "promotion" | "pass" | "campaign";
+type ContentType = "event" | "promotion" | "pass" | "campaign" | "brand";
 
 interface SubmitBody {
   contentType: ContentType;
@@ -68,6 +68,8 @@ interface SubmitBody {
   // Retargeting
   retargetViewers?: boolean;
   retargetDelayHours?: number; // 24, 48, or 72
+  // Brand content
+  brandCta?: string;
   // Content lineage
   duplicatedFrom?: string;
 }
@@ -125,9 +127,9 @@ export async function POST(
     // 2. Parse and validate request body
     const body = (await request.json()) as SubmitBody;
 
-    if (!body.contentType || !["event", "promotion", "pass", "campaign"].includes(body.contentType)) {
+    if (!body.contentType || !["event", "promotion", "pass", "campaign", "brand"].includes(body.contentType)) {
       return NextResponse.json(
-        { error: "Invalid or missing contentType. Must be: event, promotion, campaign, or pass." },
+        { error: "Invalid or missing contentType. Must be: event, promotion, campaign, pass, or brand." },
         { status: 400 },
       );
     }
@@ -182,6 +184,13 @@ export async function POST(
           error:
             "Missing required fields for campaign: campaignType, campaignStartDate, campaignEndDate, campaignBudget",
         },
+        { status: 400 },
+      );
+    }
+
+    if (body.contentType === "brand" && !body.title) {
+      return NextResponse.json(
+        { error: "Missing required fields for brand content: title" },
         { status: 400 },
       );
     }
@@ -634,6 +643,69 @@ export async function POST(
         campaignType: campaign.type,
         budgetCents: campaign.budgetCents,
         status: campaign.status,
+        complianceStatus: resolvedComplianceStatus,
+      };
+    } else if (body.contentType === "brand") {
+      const isAutoApproved =
+        payload.staffRole === "OWNER" || payload.staffRole === "MANAGER";
+
+      const now = new Date();
+
+      // Parse optional start/end dates from the form.
+      // Default: start now, end 90 days (reasonable brand content window).
+      const ninetyDays = new Date(now);
+      ninetyDays.setDate(ninetyDays.getDate() + 90);
+
+      const brandStartDate = body.startDate
+        ? new Date(body.startDate)
+        : now;
+      const brandEndDate = body.endDate
+        ? new Date(body.endDate)
+        : ninetyDays;
+
+      // Deactivate any existing active brand posts for this bar.
+      // A bar can only have one active brand post at a time.
+      await prisma.adCampaign.updateMany({
+        where: { barId, type: "BRAND_POST", status: "ACTIVE" },
+        data: { status: "COMPLETED" },
+      });
+
+      const brandPost = await prisma.adCampaign.create({
+        data: {
+          barId,
+          title: body.title.trim(),
+          description: body.description || null,
+          type: "BRAND_POST",
+          status: isAutoApproved ? "ACTIVE" : "PENDING_REVIEW",
+          budgetCents: 0,
+          spentCents: 0,
+          impressions: 0,
+          clicks: 0,
+          conversions: 0,
+          startDate: brandStartDate,
+          endDate: brandEndDate,
+          imageUrl: body.cardImageUrl || body.imageUrl || null,
+          targetUrl: null,
+          promotedItemId: null,
+          category: body.intentText || "brand",
+          complianceStatus: resolvedComplianceStatus,
+        },
+      });
+
+      await prisma.complianceCheck.create({
+        data: {
+          adCampaignId: brandPost.id,
+          status: resolvedComplianceStatus,
+          violations: compliance.violations as unknown as object[],
+          checkedAt: compliance.checkedAt,
+        },
+      });
+
+      record = {
+        id: brandPost.id,
+        type: "brand",
+        title: brandPost.title,
+        status: brandPost.status,
         complianceStatus: resolvedComplianceStatus,
       };
     }

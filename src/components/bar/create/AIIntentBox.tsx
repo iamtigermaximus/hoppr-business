@@ -21,7 +21,7 @@ interface AIIntentBoxProps {
 type Language = "fi" | "en";
 type Step = "brief" | "generating" | "variants";
 type CardFormat = "square" | "wide" | "banner";
-type ContentType = "promotion" | "event" | "pass";
+type ContentType = "promotion" | "event" | "pass" | "campaign" | "brand";
 
 const CONTENT_TYPES: { value: ContentType; label: string; emoji: string }[] = [
   { value: "promotion", label: "Promotion", emoji: "🍻" },
@@ -118,6 +118,14 @@ const PLACEHOLDERS: Record<ContentType, Record<Language, string>> = {
   pass: {
     fi: "Kuvaile VIP-passi — esim. \"Jononohitus lauantaisin, 10 € per henkilö, sisältää etuoikeutetun sisäänpääsyn\"",
     en: "Describe your VIP pass — e.g. \"Skip-the-line on Saturdays, €10 per person, priority entry included\"",
+  },
+  campaign: {
+    fi: "Kuvaile mainoskampanja — esim. \"Näkyvyyttä baarille keskustan alueella, kohderyhmänä 25–35-vuotiaat\"",
+    en: "Describe your ad campaign — e.g. \"Visibility for the bar in the city center, targeting 25–35 year olds\"",
+  },
+  brand: {
+    fi: "Kuvaile brändiäsi — esim. \"Kallion sydämessä, rento ja kotoisa karaokebaari jossa jokainen on tervetullut\"",
+    en: "Describe your brand — e.g. \"In the heart of Kallio, a relaxed and welcoming karaoke bar where everyone belongs\"",
   },
 };
 

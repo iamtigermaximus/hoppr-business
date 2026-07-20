@@ -188,7 +188,7 @@ const ErrorText = styled.span`
 interface ImageUploaderProps {
   value: string | null;
   onChange: (url: string | null) => void;
-  contentType: "event" | "promotion" | "pass" | "campaign";
+  contentType: "event" | "promotion" | "pass" | "campaign" | "brand";
   barId: string;
   /** Use dark theme to match creation hub */
   dark?: boolean;

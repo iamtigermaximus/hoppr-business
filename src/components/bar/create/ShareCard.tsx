@@ -17,7 +17,7 @@ import {
 // ---- Types ----
 
 interface ShareCardProps {
-  contentType: "event" | "promotion";
+  contentType: "event" | "promotion" | "brand";
   title: string;
   description: string;
   barName: string;
@@ -73,6 +73,7 @@ function generateCaption(
     tags.push(`#${occ.en.toLowerCase().replace(/\s+/g, "")}`);
   }
   if (contentType === "promotion") tags.push("#baarit");
+  else if (contentType === "brand") tags.push("#helsinkibars");
   else tags.push("#tapahtumat");
 
   const tagStr = tags.join(" ");
@@ -84,6 +85,13 @@ function generateCaption(
       return `${discountLine}${title} — nyt ${barName}ssa!\n\n${description || ""}\n\n${typeLabel ? `${typeLabel} · ` : ""}Voimassa: ${date}\n\nLöydät Hopprista: ${link}\n\n${tagStr}`;
     }
     return `${discountLine}${title} at ${barName}!\n\n${description || ""}\n\n${typeLabel ? `${typeLabel} · ` : ""}Valid: ${date}\n\nFind it on Hoppr: ${link}\n\n${tagStr}`;
+  }
+
+  if (contentType === "brand") {
+    if (lang === "fi") {
+      return `${title}\n\n${description || ""}\n\n${barName} — tutustu Hopprissa: ${link}\n\n${tagStr}`;
+    }
+    return `${title}\n\n${description || ""}\n\n${barName} — discover on Hoppr: ${link}\n\n${tagStr}`;
   }
 
   // event
@@ -98,12 +106,15 @@ function generateCaption(
 
 /** Build the full consumer URL for QR code linking */
 function buildConsumerUrl(
-  contentType: "event" | "promotion",
+  contentType: "event" | "promotion" | "brand",
   contentId: string,
   consumerUrl?: string,
 ): string {
   const base = consumerUrl || "hoppr.fi";
   const protocol = base.startsWith("http") ? "" : "https://";
+  if (contentType === "brand") {
+    return `${protocol}${base}/venues/${contentId}`;
+  }
   return `${protocol}${base}/${contentType}s/${contentId}`;
 }
 

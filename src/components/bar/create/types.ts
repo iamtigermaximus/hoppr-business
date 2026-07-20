@@ -8,7 +8,7 @@
 // when new content types are added.
 // ============================================================================
 
-export type ContentType = "event" | "promotion" | "pass" | "campaign";
+export type ContentType = "event" | "promotion" | "pass" | "campaign" | "brand";
 
 /** Creation mode — "brand" = advertising/brand building, "promotional" = deals/offers */
 export type CreationMode = "brand" | "promotional";

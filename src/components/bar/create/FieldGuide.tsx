@@ -148,6 +148,7 @@ const FIELDS_BY_TYPE: Record<ContentType, FieldDefinition[]> = {
   promotion: PROMOTION_FIELDS,
   campaign: CAMPAIGN_FIELDS,
   pass: PASS_FIELDS,
+  brand: [],
 };
 
 // ---- Helpers ----

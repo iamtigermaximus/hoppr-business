@@ -1903,7 +1903,11 @@ export default function UnifiedCreationFlow({
             <ModeGrid>
               <ModeCard
                 $active={creationMode === "brand"}
-                onClick={() => onModeChange?.("brand")}
+                onClick={() => {
+                  onModeChange?.("brand");
+                  onTypeChange("brand" as ContentType);
+                  setStep("brief");
+                }}
               >
                 <ModeCardLabel>
                   {language === "fi" ? "Sisältöä brändille" : "Brand Content"}
@@ -1929,32 +1933,31 @@ export default function UnifiedCreationFlow({
               </ModeCard>
             </ModeGrid>
 
-            <SectionLabel style={{ marginTop: 20 }}>
-              {language === "fi"
-                ? "Valitse sisältötyyppi"
-                : "Choose content type"}
-            </SectionLabel>
-            <TypeGrid>
-              {TYPE_OPTIONS.filter((opt) => {
-                // Brand mode: hide Promotion (brand content has no prices/deals)
-                if (creationMode === "brand" && opt.value === "promotion")
-                  return false;
-                return true;
-              }).map((opt) => (
-                <TypeCard
-                  key={opt.value}
-                  $selected={contentType === opt.value}
-                  onClick={() => {
-                    onTypeChange(opt.value);
-                    setStep("brief");
-                  }}
-                >
-                  <TypeCardEmoji>{opt.emoji}</TypeCardEmoji>
-                  <TypeCardLabel>{opt.label}</TypeCardLabel>
-                  <TypeCardDesc>{opt.desc}</TypeCardDesc>
-                </TypeCard>
-              ))}
-            </TypeGrid>
+            {creationMode !== "brand" && (
+              <>
+                <SectionLabel style={{ marginTop: 20 }}>
+                  {language === "fi"
+                    ? "Valitse sisältötyyppi"
+                    : "Choose content type"}
+                </SectionLabel>
+                <TypeGrid>
+                  {TYPE_OPTIONS.map((opt) => (
+                    <TypeCard
+                      key={opt.value}
+                      $selected={contentType === opt.value}
+                      onClick={() => {
+                        onTypeChange(opt.value);
+                        setStep("brief");
+                      }}
+                    >
+                      <TypeCardEmoji>{opt.emoji}</TypeCardEmoji>
+                      <TypeCardLabel>{opt.label}</TypeCardLabel>
+                      <TypeCardDesc>{opt.desc}</TypeCardDesc>
+                    </TypeCard>
+                  ))}
+                </TypeGrid>
+              </>
+            )}
           </>
         )}
 
@@ -3275,7 +3278,56 @@ export default function UnifiedCreationFlow({
               />
             </FieldGroup>
 
-            {contentType === "promotion" && (
+            {/* Brand mode: CTA field + dates + generated image */}
+            {contentType === "brand" && (
+              <>
+                <FieldRow>
+                  <FieldGroup style={{ flex: 1 }}>
+                    <FieldLabel>
+                      {language === "fi" ? "Alkamispäivä" : "Start Date"}
+                    </FieldLabel>
+                    <FieldInput
+                      type="date"
+                      value={formState.startDate}
+                      onChange={(e) => onFieldChange("startDate", e.target.value)}
+                    />
+                  </FieldGroup>
+                  <FieldGroup style={{ flex: 1 }}>
+                    <FieldLabel>
+                      {language === "fi" ? "Päättymispäivä" : "End Date"}
+                    </FieldLabel>
+                    <FieldInput
+                      type="date"
+                      value={formState.endDate}
+                      onChange={(e) => onFieldChange("endDate", e.target.value)}
+                    />
+                  </FieldGroup>
+                </FieldRow>
+                <FieldGroup>
+                  <FieldLabel>
+                    {language === "fi" ? "Toimintakehote (CTA)" : "Call to Action"}
+                  </FieldLabel>
+                  <FieldInput
+                    value={formState.brandCta}
+                    onChange={(e) => onFieldChange("brandCta", e.target.value)}
+                    placeholder={
+                      language === "fi"
+                        ? "esim. Lava on auki joka ilta."
+                        : "e.g. The stage is open every night."
+                    }
+                  />
+                </FieldGroup>
+                <ImageUploader
+                  value={formState.imageUrl}
+                  onChange={(url) => onFieldChange("imageUrl", url)}
+                  contentType={contentType}
+                  barId={barId}
+                  dark
+                />
+              </>
+            )}
+
+            {contentType !== "brand" && contentType === "promotion" && (
               <>
                 <FieldRow>
                   <FieldGroup style={{ flex: 1 }}>

@@ -33,6 +33,7 @@ const typeLabels: Record<string, string> = {
   BANNER_AD: "Banner Ad",
   BOOSTED_PROMO: "Boosted Promo",
   SPONSORED_EVENT: "Sponsored Event",
+  BRAND_POST: "Brand Post",
 };
 
 const statusConfig: Record<string, { color: string; bg: string }> = {
