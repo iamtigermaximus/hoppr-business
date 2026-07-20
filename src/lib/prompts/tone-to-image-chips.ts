@@ -22,6 +22,11 @@ const TONE_STYLE_MAP: Record<ContentTone, string> = {
   EDGY_IRREVERENT: "modern_sleek",
   ELEGANT_PREMIUM: "classic_elegant",
   PLAYFUL_FUN: "outdoor_terrace",
+  COMMUNITY_LOCAL: "warm_cozy",
+  ROMANTIC_INTIMATE: "classic_elegant",
+  MYSTERIOUS_EXCLUSIVE: "modern_sleek",
+  ADVENTUROUS_CURIOUS: "outdoor_terrace",
+  NOSTALGIC_CLASSIC: "classic_elegant",
 };
 
 // Template → composition hint (IDs must match COMPOSITION_PRESETS in image-compliance.ts)

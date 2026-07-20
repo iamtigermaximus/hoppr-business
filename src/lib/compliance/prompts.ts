@@ -89,6 +89,115 @@ export const TEMPLATE_CHARACTERISTICS: Record<string, { en: string; fi: string }
     en: "immersive transformation, dress code, shared reality, the bar becomes something else for one night, theatrical",
     fi: "uppouttava muutos, pukukoodi, jaettu todellisuus, baari muuttuu joksikin muuksi yhdeksi illaksi, teatterillinen",
   },
+
+  // ---- New tone-adaptive template IDs (from promotion-templates.ts) ----
+  // UNIVERSAL
+  "after-work": {
+    en: "weekday transition from work to evening, decompression, first drink, atmosphere over specifics, time-anchored (16:00–19:00)",
+    fi: "siirtymä arkipäivästä iltaan, rentoutuminen, tunnelma edellä, aika-ankkuroitu (klo 16–19)",
+  },
+  "weekend-special": {
+    en: "Friday/Saturday peak energy, full room, weekend atmosphere, positive but measured, city nightlife",
+    fi: "perjantai/lauantai huippuenergia, täysi huone, viikonlopputunnelma, positiivinen mutta hillitty",
+  },
+  "seasonal-special": {
+    en: "limited-time seasonal offering, weather-dependent, timely relevance, terrace/glögi/fresh flavors, natural scarcity",
+    fi: "rajoitetun ajan kausitarjonta, sääriippuvainen, ajankohtainen, terassi/glögi/tuoreet maut, luonnollinen niukkuus",
+  },
+  "regulars-night": {
+    en: "loyalty appreciation, familiar faces, genuine thank-you, community over commerce, the bar as third place",
+    fi: "kanta-asiakkaiden arvostus, tutut kasvot, aito kiitos, yhteisö ennen kauppaa, baari kolmantena paikkana",
+  },
+
+  // SOCIAL
+  "quiz-night": {
+    en: "team trivia, friendly competition, brain-teasing fun, weekly ritual, strangers becoming teammates, host-led",
+    fi: "joukkuevisa, ystävällinen kilpailu, viikoittainen rituaali, tuntemattomista joukkuetovereita, juontajan johtama",
+  },
+  "karaoke-night": {
+    en: "open microphone, audience as entertainment, courage and surprise talent, shared singing joy, stage for everyone",
+    fi: "avoin mikki, yleisö viihteenä, rohkeus ja yllätyslahjakkuus, jaettu laulamisen ilo, lava kaikille",
+  },
+  "group-celebration": {
+    en: "birthdays/reunions/promotions, reserved tables, shared platters, hosts can relax, occasion-first, group-friendly",
+    fi: "syntymäpäivät/tapaamiset/ylennykset, varatut pöydät, jaetut tarjoilut, isännätkin nauttivat, tilaisuus edellä",
+  },
+  "industry-night": {
+    en: "hospitality workers' night off, industry discounts, familiar faces, community-building, on the other side of the bar",
+    fi: "ravintola-alan työntekijöiden vapaa ilta, alennukset, tutut kasvot, yhteisön rakentaminen, baarin toisella puolella",
+  },
+
+  // FOOD
+  "tasting-menu": {
+    en: "guided tasting, kitchen+bar collaboration, curated progression, limited seats, sensory journey, food as primary focus",
+    fi: "opastettu maistelu, keittiö+baari yhteistyö, kuratoitu eteneminen, rajoitetut paikat, aistimatka, ruoka pääosassa",
+  },
+  "food-drink-pairing": {
+    en: "dish and drink partners, flavor interplay, craft focus, complementary pairing, food leads drink follows",
+    fi: "annos ja juoma kumppaneina, makujen vuorovaikutus, käsityö keskiössä, täydentävä yhdistelmä, ruoka johtaa juoma seuraa",
+  },
+  "chefs-special": {
+    en: "kitchen showing off, seasonal ingredients, bold technique, limited-time dish, food-first, culinary showcase",
+    fi: "keittiö näyttää osaamistaan, kausiraaka-aineet, rohkea tekniikka, rajoitetun ajan annos, ruoka edellä, kulinaarinen näyteikkuna",
+  },
+  "brunch-service": {
+    en: "daytime bar, different energy, daylight ambience, coffee and pastries, weekend mornings, slower pace, food-dominant",
+    fi: "päiväbaari, eri energia, päivänvalotunnelma, kahvia ja leivonnaisia, viikonloppuaamut, hitaampi tahti, ruokapainotteinen",
+  },
+
+  // ENTERTAINMENT
+  "live-music": {
+    en: "performer-first, live sound, stage presence, genre identity, audience+artist dynamic, music as the headline, venue as backdrop",
+    fi: "esiintyjä ensin, live-ääni, lavaläsnäolo, genreidentiteetti, yleisö+artisti-dynamiikka, musiikki otsikkona, tila taustana",
+  },
+  "dj-night": {
+    en: "DJ controls the room, beats and rhythm, dance floor energy, late-night build, sound journey, music-driven not drink-driven",
+    fi: "DJ hallitsee tilaa, biitit ja rytmi, tanssilattiaenergia, myöhäisillan nousu, äänimatka, musiikkivetoinen ei juomavetoinen",
+  },
+  "sports-screening": {
+    en: "big game on big screen, collective tension, shared cheers, match-day energy, sports is the focus, drinks as refreshment",
+    fi: "iso peli isolla ruudulla, kollektiivinen jännitys, jaetut hurraukset, pelipäivän energia, urheilu fokuksena, juomat virvokkeina",
+  },
+  "open-mic": {
+    en: "raw talent showcase, supportive crowd, unexpected moments, platform for new voices, performers first, bar as venue",
+    fi: "raaka lahjakkuus esillä, kannustava yleisö, odottamattomat hetket, alusta uusille äänille, esiintyjät ensin, baari tapahtumapaikkana",
+  },
+
+  // PREMIUM
+  "cocktail-masterclass": {
+    en: "behind the bar, hands-on learning, craft and technique, educational focus, limited spots, knowledge over consumption",
+    fi: "baarin takana, käytännön oppiminen, käsityö ja tekniikka, opetuksellinen fokus, rajoitetut paikat, tieto ennen kulutusta",
+  },
+  "meet-the-maker": {
+    en: "distiller/brewer/winemaker present, knowledge sharing, tasting with context, cultural experience, craft stories, educational",
+    fi: "tislaaja/panija/viinintekijä paikalla, tiedon jakaminen, maistelu kontekstilla, kulttuurikokemus, käsityötarinat, opetuksellinen",
+  },
+  "private-tasting": {
+    en: "small group, rare bottles, guided exploration, curated journey, intimate setting, depth over volume, water and palate cleansers",
+    fi: "pieni ryhmä, harvinaiset pullot, opastettu tutkimus, kuratoitu matka, intiimi ympäristö, syvyys ennen määrää, vesi ja makupuhdistajat",
+  },
+  "rare-release": {
+    en: "limited-release product, single-barrel/small-batch, fleeting opportunity, product rarity, tasting portions moderate, scarcity as fact",
+    fi: "rajoitettu erä, harvinainen tuote, hetkellinen tilaisuus, tuotteen harvinaisuus, maltilliset maisteluannokset, niukkuus faktana",
+  },
+
+  // COMMUNITY
+  "neighbourhood-night": {
+    en: "local gathering, third place, bartender knows your order, community over consumption, neighbourhood celebration, unpretentious",
+    fi: "lähibaari-kokoontuminen, kolmas paikka, baarimikko tuntee tilauksesi, yhteisö ennen kulutusta, naapuruston juhla, vaatimaton",
+  },
+  "local-artist": {
+    en: "walls become gallery, local artist showcase, rotating exhibitions, art-first messaging, bar as creative platform, opening night centers artist",
+    fi: "seinät galleriana, paikallistaiteilijan esittely, vaihtuvat näyttelyt, taide edellä -viestintä, baari luovana alustana, avajaiset keskittyvät taiteilijaan",
+  },
+  "charity-fundraiser": {
+    en: "bar gives back, portion of sales to local cause, transparent donation mechanism, cause-first messaging, community impact",
+    fi: "baari antaa takaisin, osa myynnistä paikalliseen kohteeseen, läpinäkyvä lahjoitusmekanismi, kohde edellä -viestintä, yhteisövaikutus",
+  },
+  "new-in-town": {
+    en: "newcomer welcome, no cliques, inclusive social space, first semester/posting, belonging, non-alcoholic options included, warm and open",
+    fi: "uusien tulokkaiden tervetulotoivotus, ei kuppikuntia, inklusiivinen sosiaalinen tila, ensimmäinen lukukausi/työpaikka, kuuluvuus, alkoholittomat vaihtoehdot mukana, lämmin ja avoin",
+  },
 };
 
 // ---------------------------------------------------------------------------

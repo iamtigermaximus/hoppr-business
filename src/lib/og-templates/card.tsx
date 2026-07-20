@@ -13,10 +13,11 @@ export function CardTemplate(props: TemplateProps) {
   // Dynamically reduce title font size for long titles
   const titleFontSize = promotionTitle.length > 50 ? 40 : promotionTitle.length > 35 ? 46 : 52;
 
-  // Dynamically reduce description font size for long text so it fits without clipping
+  // Dynamically reduce description font size for long text so it fits without clipping.
+  // Higher line-clamp limits let longer descriptions breathe — the card layout has generous vertical space.
   const descLen = promotionDescription.length;
-  const descFontSize = descLen > 350 ? 17 : descLen > 250 ? 19 : descLen > 150 ? 21 : 24;
-  const descLineClamp = descLen > 350 ? 6 : descLen > 250 ? 5 : 4;
+  const descFontSize = descLen > 400 ? 14 : descLen > 300 ? 15 : descLen > 200 ? 17 : descLen > 120 ? 20 : 24;
+  const descLineClamp = descLen > 400 ? 8 : descLen > 300 ? 7 : descLen > 200 ? 6 : descLen > 120 ? 5 : 4;
 
   return (
     <div style={styles.wrapper}>
@@ -160,9 +161,9 @@ const styles: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.6)",
     fontSize: 24,
     lineHeight: 1.4,
-    maxWidth: 800,
+    maxWidth: 880,
     display: "-webkit-box",
-    WebkitLineClamp: 3,
+    WebkitLineClamp: 4,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
   } as React.CSSProperties,

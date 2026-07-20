@@ -41,6 +41,23 @@ import {
   SUBJECT_PRESETS,
 } from "@/lib/compliance/image-compliance";
 import { getTemplateToneRecommendations } from "@/lib/prompts/synergy-rules";
+import {
+  getScoredContexts,
+  type ScoredContext,
+} from "@/lib/prompts/context-analyzer";
+import {
+  getTemplates,
+  getTemplatesByCategory,
+  getSuggestedTemplates,
+  CATEGORY_LABELS,
+  type PromotionTemplate,
+  type TemplateCategory,
+} from "@/lib/prompts/promotion-templates";
+import TemplateDetailPanel from "./TemplateDetailPanel";
+import {
+  getFieldsForTemplate,
+  formatTemplateFieldValues,
+} from "@/lib/prompts/template-fields";
 
 // ---- Types ----
 
@@ -50,6 +67,7 @@ type FlowStep = "type" | "brief" | "refine" | "images" | "schedule" | "publish";
 interface UnifiedCreationFlowProps {
   barId: string;
   barName?: string;
+  barType?: string | null;
   barCoverImage?: string | null;
   contentType: ContentType;
   creationMode?: "brand" | "promotional";
@@ -95,9 +113,32 @@ interface EditableVariant {
   } | null;
   /** The Flux prompt — derived from visualDirection but fully editable */
   fluxPrompt: string;
+  /** User-supplied image mood/context — e.g. "Christmas party", "summer beach",
+   *  "golden hour". Prepended to the flux prompt during image generation. */
+  imageMood?: string;
+  /** Marketing strategy label for this variant — derived from the three
+   *  fixed differentiation angles (offer, vibe, social). */
+  strategy?: "offer" | "vibe" | "social";
 }
 
 // ---- Constants ----
+
+/** Strategy labels derived from the AI's three fixed differentiation angles.
+ *  Variant 0 = offer-focused, 1 = vibe-focused, 2 = social-focused. */
+const STRATEGY_LABELS: Record<
+  "offer" | "vibe" | "social",
+  { en: string; fi: string; color: string }
+> = {
+  offer: { en: "Offer-driven", fi: "Tarjousvetoinen", color: "#f59e0b" },
+  vibe: { en: "Vibe-driven", fi: "Tunnelmavetoinen", color: "#8b5cf6" },
+  social: { en: "Social", fi: "Yhteisöllinen", color: "#06b6d4" },
+};
+
+const STRATEGIES: Array<"offer" | "vibe" | "social"> = [
+  "offer",
+  "vibe",
+  "social",
+];
 
 const TYPE_OPTIONS: {
   value: ContentType;
@@ -746,10 +787,13 @@ function getContextualSuggestions(language: Language): ContextSuggestion[] {
   return suggestions;
 }
 
-/** Builds a label→value lookup map from the current suggestion set. */
-function getContextValueMap(language: Language): Map<string, string> {
+/** Builds a label→value lookup map from the scored context set. */
+function getContextValueMap(
+  contexts: ScoredContext[],
+  language: "en" | "fi",
+): Map<string, string> {
   return new Map(
-    getContextualSuggestions(language).map((s) => [s.label, s.value]),
+    contexts.map((s) => [s.label[language], s.value[language]]),
   );
 }
 
@@ -767,6 +811,11 @@ function toneInstructionText(tone: ContentTone, language: Language): string {
       ELEGANT_PREMIUM:
         "Äänensävy: elegantti ja premium. Hillittyä, laadukasta, hienostunutta.",
       PLAYFUL_FUN: "Äänensävy: leikkisä ja hauska. Iloinen, energinen, rento.",
+      COMMUNITY_LOCAL: "Äänensävy: yhteisöllinen ja paikallinen. Naapurillinen, tuttu, vaatimaton.",
+      ROMANTIC_INTIMATE: "Äänensävy: romanttinen ja intiimi. Pehmeä, aistillinen, pariskuntakeskeinen.",
+      MYSTERIOUS_EXCLUSIVE: "Äänensävy: salaperäinen ja eksklusiivinen. Arvoituksellinen, minimalistinen.",
+      ADVENTUROUS_CURIOUS: "Äänensävy: seikkailunhaluinen ja utelias. Uutuusvetoinen, kokeellinen.",
+      NOSTALGIC_CLASSIC: "Äänensävy: nostalginen ja klassinen. Ajaton, itsevarma, perintö edellä.",
     };
     return map[tone];
   }
@@ -779,6 +828,11 @@ function toneInstructionText(tone: ContentTone, language: Language): string {
       "Tone: edgy and irreverent. Casual, direct, personality-driven.",
     ELEGANT_PREMIUM: "Tone: elegant and premium. Understated sophistication.",
     PLAYFUL_FUN: "Tone: playful and fun. Upbeat, emoji-friendly, energetic.",
+    COMMUNITY_LOCAL: "Tone: community and local. Neighbourly, familiar, unpretentious.",
+    ROMANTIC_INTIMATE: "Tone: romantic and intimate. Soft, sensual, couple-focused.",
+    MYSTERIOUS_EXCLUSIVE: "Tone: mysterious and exclusive. Cryptic, minimal, secret-door energy.",
+    ADVENTUROUS_CURIOUS: "Tone: adventurous and curious. Novelty-driven, educational, craft-forward.",
+    NOSTALGIC_CLASSIC: "Tone: nostalgic and classic. Timeless, confident, heritage-forward.",
   };
   return map[tone];
 }
@@ -799,57 +853,204 @@ function buildInitialFluxPrompt(
   return [vd.description, elements, notes].filter(Boolean).join(" ");
 }
 
-// ---- Build live preview of the combined prompt from ingredients ----
+// ---- Build synthesized creative brief from ingredients ----
+// Produces a professional creative brief that reads like a senior marketing
+// brief — weaving template, tone, context, and bar identity into a unified
+// creative direction. Each establishment type gets a unique framing.
+// The brief explicitly shows HOW ingredients connect and WHY the combination works.
 
 function buildPreviewPrompt(
   barName: string,
+  barType: string | null | undefined,
   prompt: string,
   template: string | null,
   tone: ContentTone | null,
-  contexts: string[],
+  contextValues: string[],
+  templateFieldValues: Record<string, string>,
   language: Language,
 ): string {
-  const parts: string[] = [];
   const isFi = language === "fi";
+  const lines: string[] = [];
 
-  if (template) {
-    const chars = TEMPLATE_CHARACTERISTICS[template];
-    const traits = chars ? (isFi ? chars.fi : chars.en) : null;
-    parts.push(
-      isFi
-        ? `Mallipohja: ${template}${traits ? ` — ${traits}` : ""}`
-        : `Template: ${template}${traits ? ` — ${traits}` : ""}`,
-    );
+  // ---- Collect ingredient data ----
+  const tpl = template ? getTemplates().find((t) => t.id === template) : null;
+  const templateName = tpl ? tpl.label[language] : template || "";
+  const chars = template ? TEMPLATE_CHARACTERISTICS[template] : null;
+  const templateTraits = chars ? (isFi ? chars.fi : chars.en) : null;
+  const toneOption = tone ? TONE_OPTIONS.find((t) => t.value === tone) : null;
+  const toneLabel = toneOption?.label || tone || "";
+  const hasBrief = prompt.trim().length > 0;
+
+  // Bar type label for per-establishment uniqueness
+  const barTypeLabel = barType
+    ? barType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+    : "";
+
+  // ---- No ingredients — show placeholder ----
+  if (!template && !tone && contextValues.length === 0 && !hasBrief) {
+    return isFi
+      ? "Valitse aineksia nähdäksesi luovan briefin — malli, sävy, konteksti tai kuvaus."
+      : "Select ingredients to see your creative brief — template, tone, context, or description.";
   }
 
+  // ---- SECTION 1: Establishment & Format — who we are + what we're making ----
+  // Anchors the entire brief in the bar's identity so no two establishments
+  // produce the same opening, even with identical template choices.
+  if (isFi) {
+    const typeIntro = barTypeLabel
+      ? `${barName} on ${barTypeLabel}`
+      : barName;
+    if (template) {
+      lines.push(`${typeIntro} — ${templateName.toLowerCase()}.`);
+      if (templateTraits) lines.push(`Suunta: ${templateTraits}.`);
+    } else {
+      lines.push(typeIntro);
+    }
+  } else {
+    const typeIntro = barTypeLabel
+      ? `${barName} is a ${barTypeLabel}`
+      : barName;
+    if (template) {
+      lines.push(`${typeIntro} — creating a ${templateName.toLowerCase()} promotion.`);
+      if (templateTraits) lines.push(`Direction: ${templateTraits}.`);
+    } else {
+      lines.push(typeIntro);
+    }
+  }
+
+  // ---- SECTION 2: Voice & Connection — how the tone shapes the message ----
+  // Explicitly connects tone to template (synergy) and bar type (fit).
   if (tone) {
-    const toneLabel = TONE_OPTIONS.find((t) => t.value === tone)?.label || tone;
-    parts.push(isFi ? `Äänensävy: ${toneLabel}` : `Tone: ${toneLabel}`);
+    lines.push("");
+    if (isFi) {
+      lines.push(`Äänensävy: ${toneLabel}.`);
+      // Tone description
+      if (toneOption) {
+        const voice = toneOption as typeof TONE_OPTIONS[number];
+        if (voice.sampleBody) lines.push(voice.sampleBody.slice(0, 120) + ".");
+      }
+      // Tone × template connection
+      if (template) {
+        lines.push(
+          templateTraits
+            ? `Yhteys: ${toneLabel.toLowerCase()} -sävy vahvistaa ${templateName.toLowerCase()} -mallin luontaista suuntaa — ${templateTraits.slice(0, 100)}.`
+            : `Yhteys: ${toneLabel.toLowerCase()} -sävy ja ${templateName.toLowerCase()} -malli tukevat toisiaan.`
+        );
+      }
+      // Tone × bar type fit
+      if (barTypeLabel) {
+        lines.push(`Sopii: ${toneLabel.toLowerCase()} -sävy on luonteva valinta ${barTypeLabel.toLowerCase()} -tyyppiselle paikalle.`);
+      }
+    } else {
+      lines.push(`Voice: ${toneLabel}.`);
+      if (toneOption) {
+        const voice = toneOption as typeof TONE_OPTIONS[number];
+        if (voice.sampleBody) lines.push(voice.sampleBody.slice(0, 120) + ".");
+      }
+      if (template) {
+        lines.push(
+          templateTraits
+            ? `Connection: ${toneLabel.toLowerCase()} voice amplifies the ${templateName.toLowerCase()} format's core — ${templateTraits.slice(0, 100)}.`
+            : `Connection: ${toneLabel.toLowerCase()} voice and ${templateName.toLowerCase()} format reinforce each other.`
+        );
+      }
+      if (barTypeLabel) {
+        lines.push(`Fit: ${toneLabel.toLowerCase()} voice is a natural choice for a ${barTypeLabel.toLowerCase()} venue.`);
+      }
+    }
   }
 
-  if (contexts.length > 0) {
-    parts.push(
-      isFi
-        ? `Konteksti: ${contexts.join(", ")}`
-        : `Context: ${contexts.join(", ")}`,
-    );
+  // ---- SECTION 3: Scene & Context — when, where, what's the vibe ----
+  // Context values are woven into the setting. Shows time/season/atmosphere
+  // and how they interact with the template and tone choices.
+  if (contextValues.length > 0) {
+    lines.push("");
+    const ctxText = contextValues.join(". ");
+    if (isFi) {
+      lines.push(`Ajankohta: ${ctxText}.`);
+      if (template || tone) {
+        lines.push("Vaikutus: Konteksti tarkentaa kohdentamista — sama tarjous eri vuodenaikana tai kellonaikana tuntuu erilaiselta.");
+      }
+    } else {
+      lines.push(`Setting: ${ctxText}.`);
+      if (template || tone) {
+        lines.push("Impact: Context sharpens targeting — the same offer at a different time or season feels entirely different.");
+      }
+    }
   }
 
-  if (prompt.trim()) {
-    parts.push(
-      isFi ? `\nKuvaus:\n${prompt.trim()}` : `\nBrief:\n${prompt.trim()}`,
-    );
+  // ---- SECTION 4: Core Message — the user's brief as creative anchor ----
+  if (hasBrief) {
+    lines.push("");
+    lines.push(isFi ? "Ydinviesti:" : "Core message:");
+    lines.push(prompt.trim());
   }
 
-  if (parts.length === 0) return "";
+  // ---- SECTION 4b: Template Details — user-supplied specifics ----
+  const fieldValuesStr = formatTemplateFieldValues(templateFieldValues, language);
+  if (fieldValuesStr) {
+    lines.push(fieldValuesStr);
+  }
 
-  parts.push(
-    isFi
-      ? `\n\n→ Näistä aineksista luodaan 3 uniikkia varianttia baarille "${barName}".`
-      : `\n\n→ From these ingredients, 3 unique variants will be created for "${barName}".`,
-  );
+  // ---- SECTION 5: Creative Strategy Summary — what we're building ----
+  const ingredientCount = [template, tone, contextValues.length > 0, hasBrief].filter(Boolean).length;
+  lines.push("");
+  lines.push("---");
+  if (isFi) {
+    lines.push(`LUOVA STRATEGIA (${ingredientCount} ainesta):`);
+    lines.push("");
+    if (template) {
+      lines.push(`• Malli "${templateName}" määrittää formaatin ja kohderyhmän.`);
+    }
+    if (tone) {
+      lines.push(`• Sävy "${toneLabel}" määrittää kirjoitustyylin — sanavalinnat, rytmin, tunteen.`);
+      if (template) {
+        lines.push(`  → Nämä kaksi yhdessä luovat tunnistettavan äänen juuri tälle tarjoukselle.`);
+      }
+    }
+    if (contextValues.length > 0) {
+      lines.push(`• Konteksti kohdentaa viestin oikeaan hetkeen — ${contextValues[0].slice(0, 80)}.`);
+      if (tone) {
+        lines.push(`  → Konteksti + sävy = tunne siitä, ETTÄ TÄMÄ ON NYT.`);
+      }
+    }
+    if (hasBrief) {
+      lines.push(`• Ydinviesti ankkuroi kaiken baarin omaan sanaan — ei geneeristä täytettä.`);
+    }
+    lines.push("");
+    lines.push("TULOS:");
+    lines.push("3 uniikkia sisältövarianttia — jokainen eri kulmasta, eri otsikolla.");
+    lines.push("3 kuvagenerointipromptia — jokainen johdettu samoista aineksista.");
+    lines.push("Sävy, malli ja konteksti ohjaavat myös visuaalista suuntaa.");
+  } else {
+    lines.push(`CREATIVE STRATEGY (${ingredientCount} ingredients):`);
+    lines.push("");
+    if (template) {
+      lines.push(`• Format "${templateName}" defines the structure and target audience.`);
+    }
+    if (tone) {
+      lines.push(`• Voice "${toneLabel}" defines the writing style — word choice, rhythm, emotional register.`);
+      if (template) {
+        lines.push(`  → Together they create a recognizable voice for this specific promotion.`);
+      }
+    }
+    if (contextValues.length > 0) {
+      lines.push(`• Context targets the right moment — ${contextValues[0].slice(0, 80)}.`);
+      if (tone) {
+        lines.push(`  → Context + voice = the feeling that THIS IS NOW.`);
+      }
+    }
+    if (hasBrief) {
+      lines.push(`• Core message anchors everything in the bar's own story — no generic filler.`);
+    }
+    lines.push("");
+    lines.push("OUTPUT:");
+    lines.push("3 unique content variants — each from a different angle, with a different headline.");
+    lines.push("3 image generation prompts — each derived from the same ingredients.");
+    lines.push("Voice, format, and context also steer the visual direction.");
+  }
 
-  return parts.join("\n");
+  return lines.join("\n");
 }
 
 // ---- Component ----
@@ -857,6 +1058,7 @@ function buildPreviewPrompt(
 export default function UnifiedCreationFlow({
   barId,
   barName = "Your Bar",
+  barType,
   barCoverImage,
   contentType,
   creationMode = "promotional",
@@ -916,6 +1118,11 @@ export default function UnifiedCreationFlow({
   // Store the suggest response for events/passes so handleSelectVariant can
   // access type-specific fields (startTime, priceEuros, benefits, etc.)
   const suggestDataRef = useRef<Record<string, unknown> | null>(null);
+  const [synthesizingBrief, setSynthesizingBrief] = useState(false);
+  const [aiBrief, setAiBrief] = useState<string | null>(null);
+  const [templateFieldValues, setTemplateFieldValues] = useState<
+    Record<string, string>
+  >({});
 
   // Derive templates based on content type
   const activeTemplates = useMemo(() => {
@@ -923,6 +1130,40 @@ export default function UnifiedCreationFlow({
     if (contentType === "pass") return PASS_TEMPLATES[language];
     return TEMPLATES[language];
   }, [contentType, language]);
+
+  // Categorized templates for promotions (new tone-adaptive system)
+  const isCategorizedTemplates = contentType === "promotion";
+  const categorizedTemplates = useMemo(() => {
+    if (!isCategorizedTemplates) return null;
+    return getTemplatesByCategory();
+  }, [isCategorizedTemplates]);
+
+  // Lookup display label for an active template (new system)
+  const activeTemplateLabel = useMemo(() => {
+    if (!activeTemplate) return null;
+    const tpl = getTemplates().find((t) => t.id === activeTemplate);
+    return tpl ? tpl.label[language] : activeTemplate;
+  }, [activeTemplate, language]);
+
+  // AI-suggested templates based on bar type + tone
+  const suggestedTemplates = useMemo(() => {
+    if (!isCategorizedTemplates) return [];
+    return getSuggestedTemplates(barType, activeTone, 4);
+  }, [isCategorizedTemplates, barType, activeTone]);
+
+  // Custom "Can't find what you need?" state
+  const [customTemplateIdea, setCustomTemplateIdea] = useState("");
+
+  const handleCustomTemplateSubmit = () => {
+    const idea = customTemplateIdea.trim();
+    if (!idea) return;
+    setActiveTemplate("custom");
+    setText(idea);
+    setWizardActive(false);
+    setTemplatesOpen(false);
+    setContextOpen(true);
+    setCustomTemplateIdea("");
+  };
 
   // Helper collapse state
   const [toneOpen, setToneOpen] = useState(false);
@@ -1010,6 +1251,31 @@ export default function UnifiedCreationFlow({
     [activeTemplate],
   );
 
+  // Smart context suggestions — scored against all current ingredients
+  const nowDate = useMemo(() => new Date(), []);
+  const scoredContexts = useMemo(
+    () =>
+      getScoredContexts({
+        template: activeTemplate,
+        tone: activeTone,
+        barType: barType ?? undefined,
+        now: nowDate,
+        promptText: text || null,
+        language,
+      }),
+    [activeTemplate, activeTone, barType, nowDate, text, language],
+  );
+
+  const topSuggestedContexts = useMemo(
+    () => scoredContexts.filter((c) => c.score >= 4),
+    [scoredContexts],
+  );
+
+  const remainingContexts = useMemo(
+    () => scoredContexts.filter((c) => c.score < 4),
+    [scoredContexts],
+  );
+
   const token =
     typeof window !== "undefined" ? localStorage.getItem("hoppr_token") : null;
 
@@ -1057,6 +1323,21 @@ export default function UnifiedCreationFlow({
     }
 
     setActiveTemplate(label);
+
+    // New tone-adaptive templates: fill textarea with concept prompt.
+    // Tone voice, template voice, and compliance are handled by the backend's prompt builder.
+    if (isCategorizedTemplates && categorizedTemplates) {
+      const tpl = getTemplates().find((t) => t.id === label);
+      if (tpl) {
+        setText(tpl.conceptPrompt[language]);
+        setWizardActive(false);
+        setTemplatesOpen(false);
+        setContextOpen(true);
+        return;
+      }
+    }
+
+    // Old template system (events, passes, legacy promotions)
     const wizard = getWizardForTemplate(label);
 
     if (wizard) {
@@ -1118,12 +1399,13 @@ export default function UnifiedCreationFlow({
 
   // ---- Toggle context tag ----
 
-  const handleToggleContext = (suggestion: ContextSuggestion) => {
+  const handleToggleContext = (suggestion: { label: { en: string; fi: string } }) => {
+    const label = suggestion.label[language];
     setSelectedContexts((prev) => {
-      if (prev.includes(suggestion.label)) {
-        return prev.filter((s) => s !== suggestion.label);
+      if (prev.includes(label)) {
+        return prev.filter((s) => s !== label);
       }
-      return [...prev, suggestion.label];
+      return [...prev, label];
     });
   };
 
@@ -1141,6 +1423,52 @@ export default function UnifiedCreationFlow({
 
   const handleRemoveContext = (ctx: string) => {
     setSelectedContexts((prev) => prev.filter((s) => s !== ctx));
+  };
+
+  // ---- AI-synthesize creative brief from selected ingredients ----
+
+  const handleSynthesizeBrief = async () => {
+    if (!token) return;
+    setSynthesizingBrief(true);
+    setAiBrief(null);
+    try {
+      const res = await fetch(
+        `/api/auth/bar/${barId}/create/synthesize`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            template: activeTemplate,
+            tone: activeTone,
+            context: selectedContexts.length > 0
+              ? selectedContexts.map(
+                  (label) =>
+                    getContextValueMap(scoredContexts, language).get(label) || label,
+                )
+              : [],
+            language,
+            templateFields: templateFieldValues,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (data.brief) {
+        setAiBrief(data.brief);
+        // Populate the textarea with the AI-synthesized brief as the user's
+        // creative core — the backend generate step still adds its own
+        // synthesis (tone voice, compliance, bar hooks, etc.) on top.
+        setText(data.brief);
+      } else if (!data.success) {
+        console.warn("[synthesize] No brief returned:", data);
+      }
+    } catch (err) {
+      console.error("[synthesize] Failed:", err);
+    } finally {
+      setSynthesizingBrief(false);
+    }
   };
 
   // ---- Step 2 → 3: Generate text ----
@@ -1166,6 +1494,7 @@ export default function UnifiedCreationFlow({
         language,
         contentTone: activeTone,
         contentType,
+        templateFields: templateFieldValues,
       };
       if (creationMode === "brand") {
         suggestBody.mode = "brand";
@@ -1240,6 +1569,8 @@ export default function UnifiedCreationFlow({
             conditions: "",
             visualDirection: null,
             fluxPrompt: (bv.imagePrompt as string) || "",
+            imageMood: "",
+            strategy: STRATEGIES[idx % STRATEGIES.length],
           }),
         );
 
@@ -1326,6 +1657,8 @@ export default function UnifiedCreationFlow({
               : (suggestData.entryFee as string) || "",
           visualDirection: null,
           fluxPrompt: (suggestData.imageSuggestion as string) || "",
+          imageMood: "",
+          strategy: "vibe",
         };
 
         setVariants([singleVariant]);
@@ -1354,12 +1687,13 @@ export default function UnifiedCreationFlow({
             context:
               selectedContexts.length > 0
                 ? selectedContexts.map(
-                    (label) => getContextValueMap(language).get(label) || label,
+                    (label) => getContextValueMap(scoredContexts, language).get(label) || label,
                   )
                 : undefined,
             language,
             numVariants: 3,
             nonce: nonceRef.current,
+            templateFields: templateFieldValues,
           }),
         },
       );
@@ -1425,7 +1759,7 @@ export default function UnifiedCreationFlow({
         const rawVariants = genData.variants as Array<Record<string, unknown>>;
 
         // Build editable variants with Flux prompts
-        const editableVariants: EditableVariant[] = rawVariants.map((v) => {
+        const editableVariants: EditableVariant[] = rawVariants.map((v, idx) => {
           const vd = v.visualDirection as
             | EditableVariant["visualDirection"]
             | undefined;
@@ -1440,6 +1774,8 @@ export default function UnifiedCreationFlow({
             conditions: (v.conditions as string) || "",
             visualDirection: vd || null,
             fluxPrompt: buildInitialFluxPrompt(vd),
+            imageMood: "",
+            strategy: STRATEGIES[idx % STRATEGIES.length],
           };
         });
 
@@ -1476,6 +1812,7 @@ export default function UnifiedCreationFlow({
     activeTemplate,
     selectedContexts,
     contentType,
+    templateFieldValues,
   ]);
 
   // ---- Edit a variant field ----
@@ -1568,19 +1905,45 @@ export default function UnifiedCreationFlow({
         creationMode === "brand" ? brandImageWorld : undefined,
       );
 
-      const variantVDs = variants.map((v, i) => ({
-        visualDirection: {
-          description: v.fluxPrompt || v.visualDirection?.description || "",
-          keyElements: v.visualDirection?.keyElements || [],
-          styleNotes: v.visualDirection?.styleNotes || "",
-        },
-        formContext: {
-          title: v.title,
-          description: v.description,
-          promotionType: v.type,
-          barName,
-        },
-      }));
+      // Enrich each variant's visual description with imageMood + selected context
+      const contextKeywords =
+        selectedContexts.length > 0
+          ? selectedContexts
+              .map((label) =>
+                getContextValueMap(scoredContexts, language).get(label) || label,
+              )
+              .join(", ")
+          : "";
+      const variantVDs = variants.map((v) => {
+        const moodPrefix = v.imageMood?.trim();
+        const baseDescription =
+          v.fluxPrompt || v.visualDirection?.description || "";
+        // Weave mood + context into the prompt as natural scene-setting
+        // language, not bracketed metadata — Flux responds better to
+        // descriptive prose than tagged prefixes.
+        const moodIntro = moodPrefix
+          ? `${moodPrefix}.`
+          : "";
+        const contextIntro = contextKeywords
+          ? `${contextKeywords} setting.`
+          : "";
+        const enrichedDescription = [moodIntro, contextIntro, baseDescription]
+          .filter(Boolean)
+          .join(" ");
+        return {
+          visualDirection: {
+            description: enrichedDescription,
+            keyElements: v.visualDirection?.keyElements || [],
+            styleNotes: v.visualDirection?.styleNotes || "",
+          },
+          formContext: {
+            title: v.title,
+            description: v.description,
+            promotionType: v.type,
+            barName,
+          },
+        };
+      });
 
       const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
         method: "POST",
@@ -1677,6 +2040,9 @@ export default function UnifiedCreationFlow({
     activeTone,
     activeTemplate,
     contentType,
+    selectedContexts,
+    scoredContexts,
+    language,
   ]);
 
   // ---- Step 4 → 5: Select variant ----
@@ -1765,6 +2131,29 @@ export default function UnifiedCreationFlow({
           chips.subjectId = variantSubjects[variantIndex];
         }
 
+        // Enrich visual description with imageMood + context (same as handleGenerateImages)
+        const moodPrefix = v.imageMood?.trim();
+        const contextKeywords =
+          selectedContexts.length > 0
+            ? selectedContexts
+                .map((label) =>
+                  getContextValueMap(scoredContexts, language).get(label) || label,
+                )
+                .join(", ")
+            : "";
+        const baseDescription =
+          v.fluxPrompt || v.visualDirection?.description || "";
+        // Weave mood + context into the prompt as natural scene-setting language
+        const moodIntro = moodPrefix
+          ? `${moodPrefix}.`
+          : "";
+        const contextIntro = contextKeywords
+          ? `${contextKeywords} setting.`
+          : "";
+        const enrichedDescription = [moodIntro, contextIntro, baseDescription]
+          .filter(Boolean)
+          .join(" ");
+
         const res = await fetch(`/api/auth/bar/${barId}/images/generate`, {
           method: "POST",
           headers: {
@@ -1775,8 +2164,7 @@ export default function UnifiedCreationFlow({
             variantVisualDirections: [
               {
                 visualDirection: {
-                  description:
-                    v.fluxPrompt || v.visualDirection?.description || "",
+                  description: enrichedDescription,
                   keyElements: v.visualDirection?.keyElements || [],
                   styleNotes: v.visualDirection?.styleNotes || "",
                 },
@@ -1833,6 +2221,9 @@ export default function UnifiedCreationFlow({
       barName,
       activeTone,
       activeTemplate,
+      selectedContexts,
+      scoredContexts,
+      language,
     ],
   );
 
@@ -2052,7 +2443,7 @@ export default function UnifiedCreationFlow({
                   {language === "fi" ? "Äänensävy" : "Tone"}
                   {activeTone && (
                     <HelperActiveTag>
-                      {toneLabel?.emoji} {toneLabel?.label}
+                      {toneLabel?.label}
                     </HelperActiveTag>
                   )}
                 </HelperToggleLabel>
@@ -2091,7 +2482,7 @@ export default function UnifiedCreationFlow({
                           onClick={() => handleToneSelect(opt.value)}
                           disabled={generatingText}
                         >
-                          <span>{opt.emoji}</span> {opt.label}
+                          {opt.label}
                           {isRecommended && (
                             <ToneRecommendTag>
                               {language === "fi" ? "suositus" : "recommended"}
@@ -2113,8 +2504,8 @@ export default function UnifiedCreationFlow({
                 </HelperToggleIcon>
                 <HelperToggleLabel>
                   {language === "fi" ? "Pikamallit" : "Quick templates"}
-                  {activeTemplate && (
-                    <HelperActiveTag>{activeTemplate}</HelperActiveTag>
+                  {activeTemplateLabel && (
+                    <HelperActiveTag>{activeTemplateLabel}</HelperActiveTag>
                   )}
                 </HelperToggleLabel>
                 {!templatesOpen && (
@@ -2127,36 +2518,182 @@ export default function UnifiedCreationFlow({
                 <HelperBody>
                   <HelperDesc>
                     {language === "fi"
-                      ? "Klikkaa mallia täyttääksesi briefin. Mallit joissa on ohjattu toiminto auttavat rakentamaan briefin vaihe vaiheelta."
-                      : "Click a template to fill your brief. Templates with a wizard guide you step by step."}
+                      ? "Klikkaa mallia täyttääksesi briefin. Jokainen malli on sävyyn mukautuva ja noudattaa Suomen alkoholilainsäädäntöä."
+                      : "Click a template to fill your brief. Each template is tone-adaptive and complies with Finnish alcohol marketing law."}
                   </HelperDesc>
-                  <TemplateGrid>
-                    {activeTemplates.map((tpl) => {
-                      const hasWizard = !!getWizardForTemplate(tpl.label);
-                      return (
-                        <TemplateCard
-                          key={tpl.label}
-                          $active={activeTemplate === tpl.label}
-                          onClick={() => handleTemplateClick(tpl.label)}
+
+                  {/* Categorized template view (promotions) */}
+                  {isCategorizedTemplates && categorizedTemplates ? (
+                    <>
+                      {/* Suggested for you — AI-ranked by bar type + tone */}
+                      {suggestedTemplates.length > 0 && (
+                        <CategorySection>
+                          <CategoryHeader style={{ color: "#a78bfa" }}>
+                            {language === "fi"
+                              ? `Ehdotukset: ${barName}`
+                              : `Suggested for ${barName || "you"}`}
+                          </CategoryHeader>
+                          <CategoryTemplateGrid>
+                            {suggestedTemplates.map((tpl) => (
+                              <CategoryTemplateCard
+                                key={`suggested-${tpl.id}`}
+                                $active={activeTemplate === tpl.id}
+                                onClick={() => handleTemplateClick(tpl.id)}
+                                disabled={generatingText}
+                                style={{
+                                  borderColor:
+                                    tpl.reason === "both"
+                                      ? "rgba(167, 139, 250, 0.5)"
+                                      : tpl.reason === "tone-match" || tpl.reason === "bar-type-match"
+                                        ? "rgba(167, 139, 250, 0.3)"
+                                        : undefined,
+                                }}
+                              >
+                                <TemplateName>
+                                  {tpl.label[language]}
+                                  {tpl.reason === "both" && (
+                                    <WizardBadge style={{ background: "rgba(167,139,250,0.2)", color: "#c4b5fd" }}>
+                                      {language === "fi" ? "paras" : "top pick"}
+                                    </WizardBadge>
+                                  )}
+                                </TemplateName>
+                                <TemplateDesc>
+                                  {tpl.conceptPrompt[language].length > 60
+                                    ? tpl.conceptPrompt[language].slice(0, 57) + "…"
+                                    : tpl.conceptPrompt[language]}
+                                </TemplateDesc>
+                              </CategoryTemplateCard>
+                            ))}
+                          </CategoryTemplateGrid>
+                        </CategorySection>
+                      )}
+
+                      {/* All templates by category */}
+                      {(Object.entries(categorizedTemplates) as [TemplateCategory, PromotionTemplate[]][])
+                        .filter(([, templates]) => templates.length > 0)
+                        .map(([category, templates]) => (
+                          <CategorySection key={category}>
+                            <CategoryHeader>
+                              {CATEGORY_LABELS[category]?.[language] || category}
+                            </CategoryHeader>
+                            <CategoryTemplateGrid>
+                              {templates.map((tpl) => (
+                                <CategoryTemplateCard
+                                  key={tpl.id}
+                                  $active={activeTemplate === tpl.id}
+                                  onClick={() => handleTemplateClick(tpl.id)}
+                                  disabled={generatingText}
+                                >
+                                  <TemplateName>{tpl.label[language]}</TemplateName>
+                                  <TemplateDesc>
+                                    {tpl.conceptPrompt[language].length > 70
+                                      ? tpl.conceptPrompt[language].slice(0, 67) + "…"
+                                      : tpl.conceptPrompt[language]}
+                                  </TemplateDesc>
+                                </CategoryTemplateCard>
+                              ))}
+                            </CategoryTemplateGrid>
+                          </CategorySection>
+                        ))}
+
+                      {/* "Can't find what you need?" custom prompt */}
+                      <div style={{
+                        marginTop: "10px",
+                        padding: "10px 12px",
+                        background: "rgba(124, 58, 237, 0.04)",
+                        border: "1px dashed rgba(124, 58, 237, 0.2)",
+                        borderRadius: "8px",
+                        display: "flex",
+                        gap: "6px",
+                        alignItems: "center",
+                      }}>
+                        <input
+                          type="text"
+                          value={customTemplateIdea}
+                          onChange={(e) => setCustomTemplateIdea(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleCustomTemplateSubmit();
+                          }}
+                          placeholder={
+                            language === "fi"
+                              ? "Etkö löydä etsimääsi? Kuvaile ideasi..."
+                              : "Can't find what you need? Describe your idea..."
+                          }
                           disabled={generatingText}
+                          style={{
+                            flex: 1,
+                            padding: "6px 10px",
+                            border: "1px solid #2d2d4a",
+                            borderRadius: "6px",
+                            background: "#0d0d1a",
+                            color: "#e5e7eb",
+                            fontSize: "11px",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                        <button
+                          onClick={handleCustomTemplateSubmit}
+                          disabled={!customTemplateIdea.trim() || generatingText}
+                          style={{
+                            padding: "6px 12px",
+                            background: customTemplateIdea.trim()
+                              ? "rgba(124, 58, 237, 0.2)"
+                              : "rgba(124, 58, 237, 0.05)",
+                            color: customTemplateIdea.trim() ? "#c4b5fd" : "#4b5563",
+                            border: customTemplateIdea.trim()
+                              ? "1px solid rgba(124, 58, 237, 0.3)"
+                              : "1px solid rgba(124, 58, 237, 0.1)",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            cursor: customTemplateIdea.trim() ? "pointer" : "default",
+                            whiteSpace: "nowrap",
+                            fontFamily: "inherit",
+                          }}
                         >
-                          <TemplateName>
-                            {tpl.label}
-                            {hasWizard && (
-                              <WizardBadge>
-                                {language === "fi" ? "ohjattu" : "wizard"}
-                              </WizardBadge>
-                            )}
-                          </TemplateName>
-                          <TemplateDesc>
-                            {tpl.prompt.length > 80
-                              ? tpl.prompt.slice(0, 77) + "…"
-                              : tpl.prompt}
-                          </TemplateDesc>
-                        </TemplateCard>
-                      );
-                    })}
-                  </TemplateGrid>
+                          {language === "fi" ? "Käytä" : "Use idea"}
+                        </button>
+                      </div>
+                    {/* Template detail panel — shows category-specific fields
+                        when a new-system template is selected */}
+                    {activeTemplate && getFieldsForTemplate(activeTemplate).length > 0 && (
+                      <TemplateDetailPanel
+                        templateId={activeTemplate}
+                        language={language}
+                        onChange={setTemplateFieldValues}
+                      />
+                    )}
+                    </>
+                  ) : (
+                    /* Old flat template grid (events/passes) */
+                    <TemplateGrid>
+                      {activeTemplates.map((tpl) => {
+                        const hasWizard = !!getWizardForTemplate(tpl.label);
+                        return (
+                          <TemplateCard
+                            key={tpl.label}
+                            $active={activeTemplate === tpl.label}
+                            onClick={() => handleTemplateClick(tpl.label)}
+                            disabled={generatingText}
+                          >
+                            <TemplateName>
+                              {tpl.label}
+                              {hasWizard && (
+                                <WizardBadge>
+                                  {language === "fi" ? "ohjattu" : "wizard"}
+                                </WizardBadge>
+                              )}
+                            </TemplateName>
+                            <TemplateDesc>
+                              {tpl.prompt.length > 80
+                                ? tpl.prompt.slice(0, 77) + "…"
+                                : tpl.prompt}
+                            </TemplateDesc>
+                          </TemplateCard>
+                        );
+                      })}
+                    </TemplateGrid>
+                  )}
 
                   {/* Wizard panel */}
                   {wizardActive && wizardSteps.length > 0 && (
@@ -2222,9 +2759,11 @@ export default function UnifiedCreationFlow({
                 </HelperToggleLabel>
                 {!contextOpen && (
                   <HelperHint>
-                    {language === "fi"
-                      ? "Kausiluonteiset vinkit"
-                      : "Seasonal hooks"}
+                    {topSuggestedContexts.length > 0
+                      ? `${topSuggestedContexts.length} ${language === "fi" ? "ehdotusta" : "suggestions"}`
+                      : language === "fi"
+                        ? "Kausiluonteiset vinkit"
+                        : "Seasonal hooks"}
                   </HelperHint>
                 )}
               </HelperToggle>
@@ -2232,24 +2771,100 @@ export default function UnifiedCreationFlow({
                 <HelperBody>
                   <HelperDesc>
                     {language === "fi"
-                      ? "Lisää ajankohtainen konteksti briefiin yhdellä klikkauksella."
-                      : "Add timely context to your brief with one click."}
+                      ? "Konteksti auttaa tekoälyä räätälöimään sisältöä tilanteeseen. Klikkaa lisätäksesi."
+                      : "Context helps the AI tailor content to the situation. Click to add."}
                   </HelperDesc>
+
+                  {/* Suggested contexts — scored by relevance */}
+                  {topSuggestedContexts.length > 0 && (
+                    <div style={{ marginBottom: "10px" }}>
+                      <div style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: "#a78bfa",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        marginBottom: "5px",
+                      }}>
+                        {language === "fi" ? "Ehdotetut" : "Suggested for you"}
+                      </div>
+                      <SuggestionRow>
+                        {topSuggestedContexts.map((ctx) => {
+                          const labelKey = ctx.label[language];
+                          const isSelected = selectedContexts.includes(labelKey);
+                          return (
+                            <SuggestionChip
+                              key={ctx.id || labelKey}
+                              $selected={isSelected}
+                              onClick={() => handleToggleContext(ctx)}
+                              disabled={generatingText}
+                              title={ctx.value[language]}
+                              style={{
+                                borderColor: isSelected ? "#7c3aed" : "rgba(167, 139, 250, 0.3)",
+                              }}
+                            >
+                              {isSelected ? "✓ " : ""}
+                              {labelKey}
+                              {ctx.reasons.length > 0 && (
+                                <span style={{
+                                  fontSize: "8px",
+                                  color: "#a78bfa",
+                                  marginLeft: "3px",
+                                  opacity: 0.7,
+                                }}>
+                                  {ctx.reasons[0]}
+                                </span>
+                              )}
+                            </SuggestionChip>
+                          );
+                        })}
+                      </SuggestionRow>
+                    </div>
+                  )}
+
+                  {/* All contexts */}
+                  <div style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: "#6b7280",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em",
+                    marginBottom: "5px",
+                    marginTop: topSuggestedContexts.length > 0 ? "8px" : 0,
+                  }}>
+                    {language === "fi" ? "Kaikki kontekstit" : "All contexts"}
+                  </div>
                   <SuggestionRow>
-                    {getContextualSuggestions(language).map((suggestion, i) => {
-                      const isSelected = selectedContexts.includes(
-                        suggestion.label,
-                      );
+                    {remainingContexts.map((ctx) => {
+                      const labelKey = ctx.label[language];
+                      const isSelected = selectedContexts.includes(labelKey);
                       return (
                         <SuggestionChip
-                          key={i}
+                          key={ctx.id || labelKey}
                           $selected={isSelected}
-                          onClick={() => handleToggleContext(suggestion)}
+                          onClick={() => handleToggleContext(ctx)}
                           disabled={generatingText}
-                          title={suggestion.value}
+                          title={ctx.value[language]}
                         >
                           {isSelected ? "✓ " : ""}
-                          {suggestion.label}
+                          {labelKey}
+                        </SuggestionChip>
+                      );
+                    })}
+                    {topSuggestedContexts.length > 0 && topSuggestedContexts.map((ctx) => {
+                      const labelKey = ctx.label[language];
+                      const isSelected = selectedContexts.includes(labelKey);
+                      return (
+                        <SuggestionChip
+                          key={`all-${ctx.id || labelKey}`}
+                          $selected={isSelected}
+                          onClick={() => handleToggleContext(ctx)}
+                          disabled={generatingText}
+                          title={ctx.value[language]}
+                          style={{ opacity: 0.5 }}
+                        >
+                          {isSelected ? "✓ " : ""}
+                          {labelKey}
                         </SuggestionChip>
                       );
                     })}
@@ -2564,12 +3179,12 @@ export default function UnifiedCreationFlow({
                 <IngredientsTags>
                   {activeTone && (
                     <IngredientTag $kind="tone">
-                      {toneLabel?.emoji} {toneLabel?.label}
+                      {toneLabel?.label}
                     </IngredientTag>
                   )}
-                  {activeTemplate && (
+                  {activeTemplateLabel && (
                     <IngredientTag $kind="template">
-                      {activeTemplate}
+                      {activeTemplateLabel}
                     </IngredientTag>
                   )}
                   {selectedContexts.map((ctx, i) => (
@@ -2578,7 +3193,7 @@ export default function UnifiedCreationFlow({
                       $kind="context"
                       onClick={() => handleRemoveContext(ctx)}
                       style={{ cursor: "pointer" }}
-                      title={getContextValueMap(language).get(ctx) || ctx}
+                      title={getContextValueMap(scoredContexts, language).get(ctx) || ctx}
                     >
                       {ctx} ✕
                     </IngredientTag>
@@ -2696,13 +3311,15 @@ export default function UnifiedCreationFlow({
                   <PreviewBody>
                     {buildPreviewPrompt(
                       barName,
+                      barType,
                       text,
                       activeTemplate,
                       activeTone,
                       selectedContexts.map(
                         (label) =>
-                          getContextValueMap(language).get(label) || label,
+                          getContextValueMap(scoredContexts, language).get(label) || label,
                       ),
+                      templateFieldValues,
                       language,
                     )
                       .split("\n")
@@ -2736,6 +3353,109 @@ export default function UnifiedCreationFlow({
             )}
 
             <Divider />
+
+            {/* AI synthesis — enrich the brief by weaving ingredients together */}
+            {hasIngredients && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  padding: "10px 14px",
+                  background: "linear-gradient(135deg, rgba(99, 102, 241, 0.10) 0%, rgba(139, 92, 246, 0.06) 100%)",
+                  border: "1px solid rgba(99, 102, 241, 0.18)",
+                  borderRadius: "10px",
+                  marginTop: "2px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "15px",
+                    lineHeight: 1,
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                >
+                  ✦
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "#c4b5fd",
+                      fontFamily: "inherit",
+                      marginBottom: "2px",
+                    }}
+                  >
+                    {language === "fi"
+                      ? "Tekoäly rikastaa briefin"
+                      : "AI enriches your brief"}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "#6b7280",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    {language === "fi"
+                      ? "Punoo ainekset yhteen ammattimaiseksi luovaksi briefiksi — jokainen lause ankkuroituu baariisi"
+                      : "Weaves your ingredients into a professional creative brief — every sentence anchored to your bar"}
+                  </div>
+                </div>
+                <button
+                  onClick={handleSynthesizeBrief}
+                  disabled={synthesizingBrief || generatingText}
+                  style={{
+                    padding: "8px 18px",
+                    background:
+                      synthesizingBrief || generatingText
+                        ? "rgba(99, 102, 241, 0.15)"
+                        : "linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)",
+                    color:
+                      synthesizingBrief || generatingText ? "#6b7280" : "white",
+                    border: "none",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor:
+                      synthesizingBrief || generatingText ? "default" : "pointer",
+                    fontFamily: "inherit",
+                    whiteSpace: "nowrap",
+                    flexShrink: 0,
+                    transition: "all 0.15s ease",
+                    boxShadow:
+                      synthesizingBrief || generatingText
+                        ? "none"
+                        : "0 1px 3px rgba(99, 102, 241, 0.3)",
+                  }}
+                >
+                  {synthesizingBrief
+                    ? language === "fi"
+                      ? "Yhdistellään..."
+                      : "Synthesizing..."
+                    : language === "fi"
+                      ? "Rikasta tekoälyllä"
+                      : "Enrich with AI"}
+                </button>
+                {aiBrief && (
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: "#86efac",
+                      fontFamily: "inherit",
+                      flexShrink: 0,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {language === "fi"
+                      ? "Brief päivitetty"
+                      : "Brief enriched"}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Generate button */}
             <GenerateRow>
@@ -2828,6 +3548,24 @@ export default function UnifiedCreationFlow({
                     <VariantNumber>
                       {language === "fi" ? "Vaihtoehto" : "Option"} {i + 1}
                     </VariantNumber>
+                    {v.strategy && STRATEGY_LABELS[v.strategy] && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          color: STRATEGY_LABELS[v.strategy].color,
+                          background: `${STRATEGY_LABELS[v.strategy].color}18`,
+                          padding: "2px 8px",
+                          borderRadius: "4px",
+                          fontFamily: "inherit",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {STRATEGY_LABELS[v.strategy][language]}
+                      </span>
+                    )}
                     {variants.length > 1 && (
                       <DeleteButton
                         onClick={() => deleteVariant(i)}
@@ -2943,6 +3681,36 @@ export default function UnifiedCreationFlow({
                         />
                       </FieldGroup>
                     )}
+                  </FieldRow>
+
+                  {/* Image mood — quick customization for backgrounds & atmosphere */}
+                  <FieldRow style={{ marginTop: "6px" }}>
+                    <FieldLabel>
+                      {language === "fi"
+                        ? "Kuvan tunnelma / teema"
+                        : "Image mood / theme"}
+                    </FieldLabel>
+                    <FieldInput
+                      value={v.imageMood || ""}
+                      onChange={(e) =>
+                        updateVariant(i, "imageMood", e.target.value)
+                      }
+                      placeholder={
+                        language === "fi"
+                          ? "esim. joulutunnelma, kesäterassi, kultainen hetki, ranta..."
+                          : "e.g. Christmas party, summer beach, golden hour, candlelit..."
+                      }
+                    />
+                    <span style={{
+                      fontSize: "10px",
+                      color: "#6b7280",
+                      fontFamily: "inherit",
+                      marginTop: "2px",
+                    }}>
+                      {language === "fi"
+                        ? "Lisää vuodenaika, tunnelma tai teema kuvagenerointiin. Yhdistetään Flux-promptiin automaattisesti."
+                        : "Add a season, mood, or theme to the image. Automatically blended into the Flux prompt."}
+                    </span>
                   </FieldRow>
 
                   {/* Flux prompt editor — collapsible */}
@@ -4718,7 +5486,8 @@ const ImagePreview = styled.div`
 const CardImage = styled.img`
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #0a0a14;
 `;
 
 const ImagePlaceholder = styled.div`
@@ -5373,4 +6142,57 @@ const ModeCardDesc = styled.span`
   font-size: 12px;
   color: #9ca3af;
   line-height: 1.5;
+`;
+
+// ---- Categorized template sections (new tone-adaptive system) ----
+
+const CategorySection = styled.div`
+  margin-bottom: 14px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const CategoryHeader = styled.div`
+  font-size: 10px;
+  font-weight: 700;
+  color: #7c3aed;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+`;
+
+const CategoryTemplateGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+
+  @media (max-width: 480px) {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
+`;
+
+const CategoryTemplateCard = styled.button<{ $active: boolean }>`
+  padding: 8px 10px;
+  border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
+  border-radius: 6px;
+  background: ${({ $active }) =>
+    $active ? "rgba(124, 58, 237, 0.12)" : "#0d0d1a"};
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all 0.15s;
+  ${({ $active }) =>
+    $active && "box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.3);"}
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+  }
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
 `;

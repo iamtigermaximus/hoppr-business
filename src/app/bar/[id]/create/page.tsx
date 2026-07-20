@@ -28,7 +28,7 @@ export default async function CreateHubPage({
   // 2. Verify bar exists
   const bar = await prisma.bar.findUnique({
     where: { id: barId },
-    select: { id: true, name: true, coverImage: true, logoUrl: true, contentTone: true },
+    select: { id: true, name: true, coverImage: true, logoUrl: true, contentTone: true, type: true },
   });
 
   if (!bar) {
@@ -40,7 +40,7 @@ export default async function CreateHubPage({
 
   return (
     <Suspense fallback={<div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>Loading creation hub...</div>}>
-      <CreateHubClient barId={barId} userRole={userRole} barName={bar.name} barCoverImage={bar.coverImage} barLogoUrl={bar.logoUrl} contentTone={bar.contentTone} />
+      <CreateHubClient barId={barId} userRole={userRole} barName={bar.name} barCoverImage={bar.coverImage} barLogoUrl={bar.logoUrl} barType={bar.type} contentTone={bar.contentTone} />
     </Suspense>
   );
 }

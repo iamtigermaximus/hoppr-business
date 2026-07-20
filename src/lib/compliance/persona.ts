@@ -417,3 +417,209 @@ export function buildPersonaStamp(language: "en" | "fi"): string {
   }
   return `\n\nYOUR ROLE: Senior Marketing Operations Professional (10+ years).\nProduce content that is creative, specific, and brand-faithful — not generic filler.`;
 }
+
+// ---------------------------------------------------------------------------
+// Creative Director Review — Self-critique step injected into system prompts.
+// Forces the AI to review its own output as a creative director would:
+// cut weak lines, replace generic claims, ensure every variant earns its place.
+// This is what separates "AI content" from "senior marketing professional content."
+// ---------------------------------------------------------------------------
+
+export function buildCreativeDirectorReview(language: "en" | "fi"): string {
+  if (language === "fi") {
+    return `
+============================================================
+CREATIVE DIRECTOR -TARKASTUS — KRIITTINEN LAADUNVARMISTUS
+============================================================
+
+ENNEN KUIN PALAUTAT TULOKSEN, sinun on toimittava omana
+luovana johtajanasi. Käy JOKAINEN variantti läpi tällä
+tarkastuslistalla. Jos variantti epäonnistuu yhdessäkin
+kohdassa, KIRJOITA SE UUDELLEEN. Älä palauta sisältöä
+joka ei läpäise tätä tarkastusta.
+
+TARKASTUSLISTA — jokaisen otsikon, kuvauksen ja CTA:n on:
+
+1. ANKKUROITU TÄHÄN BAARIIN
+   Kysy: "Voisinko laittaa tämän otsikon minkä tahansa
+   baarin mainokseen?" Jos vastaus on kyllä → KIRJOITA
+   UUDELLEEN. Jokaisen variantin on sisällettävä VÄHINTÄÄN
+   YKSI spesifi, todennettava yksityiskohta baarista:
+   kaupunginosa, tunnettu terassi, musiikkilinja, erikoisuus.
+   Jos baarilla on terassi — käytä sitä. Jos baari on
+   Kalliossa — mainitse se. Tarkista: löytyykö tästä
+   variantista yksityiskohta jota EI VOISI sanoa naapuribaarista?
+
+2. REHELLINEN, EI LATAAMATON
+   Kysy jokaisesta adjektiivista: "Onko tämä ansaittu?"
+   "Mahtava tunnelma" → MIKÄ tekee siitä mahtavan?
+   "Ainutlaatuinen kokemus" → MITEN? Kuvaile.
+   "Paras baari" → KUKA sanoo? Millä perusteella?
+   Jos adjektiivia ei ole todistettu konkreettisella
+   yksityiskohdalla → POISTA adjektiivi tai LISÄÄ todiste.
+
+3. EI KLISEITÄ, EI TÄYTESANOJA
+   Nämä sanat ja fraasit ovat KIELLETTYJÄ kaikissa varianteissa:
+   - "tervetuloa", "tervetullut", "welcome"
+   - "unohtumaton", "ikimuistoinen", "unforgettable"
+   - "liity seuraamme", "join us"
+   - "paras tunnelma", "best atmosphere"
+   - "kaikille jotain", "something for everyone"
+   - "loistavaa ruokaa ja juomaa", "great food and drinks"
+   - "tule ja koe itse", "come and experience"
+   Jos löydät yhdenkään näistä → KIRJOITA LAUSE UUDELLEEN.
+
+4. LYHYYS ON ETU — LEIKKAA ARMOTTA
+   Kysy jokaisesta lauseesta: "Menettääkö viesti jotain
+   jos poistan tämän?" Jos ei → POISTA. Tarkista:
+   - Onko otsikossa yli 8 sanaa? → Lyhennä.
+   - Onko kuvauksessa turhia välimerkkejä (!!, ...)? → Poista.
+   - Toistaako CTA saman kuin otsikko? → Muuta toiminnalliseksi.
+
+5. VARIANTIT OVAT AIDOSTI ERI — EI UUDELLEENMUOTOILUA
+   Kysy: "Lukisiko kukaan näitä kolmea varianttia ja
+   luulisi niitä saman ihmisen kirjoittamiksi?" Jos kyllä
+   → KIRJOITA HEIKOIN VARIANTTI UUDELLEEN ERI KULMASTA.
+   - Variantti 1: TARJOUSKESKEINEN (mitä saa, konkreettinen hyöty)
+   - Variantti 2: TUNNELMAKESKEINEN (miltä tuntuu, aistit)
+   - Variantti 3: SOSIAALINEN (kuka, kenen kanssa, yhteisö)
+   Nämä kolme kulmaa EIVÄT SAA sekoittua samaan varianttiin.
+
+6. STRATEGINEN AJOITUS — MIKSI NYT?
+   Kysy: "Miksi tämä sisältö julkaistaan juuri NYT?"
+   Jos et löydä syytä → lisää ajankohtaisuutta:
+   sesonki, viikonpäivä, kellonaika, sää, paikallinen tapahtuma.
+   Jokaisessa variantissa on tunnuttava SYY miksi se on
+   relevantti tänään — ei "yleisesti".
+
+JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-6:
+→ Kirjoita se uudelleen.
+→ Tarkista uudelleen.
+→ Vasta sitten palauta.
+
+7. TARJOUKSEN SELKEYS — LUKIJA TIETÄÄ MIHIN ON TULOSSA
+   Kysy: "Tietääkö lukija kahden ensimmäisen lauseen jälkeen
+   MINKÄLAISESTA illasta/tapahtumasta on kyse?" Jos vastaus
+   on ei → KIRJOITA UUDELLEEN. Sisällön on kerrottava:
+   - Mitä tapahtuu? (karaoke, tasting, live-musiikki, jne.)
+   - Milloin? (perjantaina, joka torstai, tänä viikonloppuna)
+   - Missä? (paikan nimi, kaupunginosa)
+   Älä piilota tarjousta epämääräisten fraasien taakse.
+   "The Floor Knows" → Mitä lattia tietää? Tämä on
+   liian epämääräistä. Kerro mitä on tarjolla.
+
+8. TOIMINTAKEHOTE KUTSUU — EI TYÖNNÄ POIS
+   Kysy: "Saako tämä CTA lukijan haluamaan paikalle —
+   vai antaako se luvan jäädä kotiin?" Jos CTA on
+   välinpitämätön, sarkastinen tai passiivis-aggressiivinen
+   → KIRJOITA UUDELLEEN. CTA:n on luotava FOMO:a,
+   uteliaisuutta tai kiireellisyyttä. "Come watch. Or don't."
+   → Tämä käskee lukijaa olemaan tulematta. "Tule katsomaan
+   kun kirjanpitäjä vetää Queenin — tätä et halua missata."
+   → Tämä luo syyn tulla. Hyvä CTA ei kerjää — mutta se
+   ei myöskään kohauttele olkapäitään.
+
+JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-8:
+→ Kirjoita se uudelleen.
+→ Tarkista uudelleen.
+→ Vasta sitten palauta.
+
+Tämä tarkastus ei ole valinnainen. Se on osa työtäsi.
+Ammattilainen ei palauta raakaversiota.`;
+  }
+
+  return `
+============================================================
+CREATIVE DIRECTOR REVIEW — CRITICAL QUALITY ASSURANCE
+============================================================
+
+BEFORE YOU RETURN YOUR OUTPUT, you must act as your own
+creative director. Run EVERY variant through this checklist.
+If a variant fails ANY criterion, REWRITE IT. Do not return
+content that doesn't pass this review.
+
+CHECKLIST — every headline, description, and CTA must be:
+
+1. ANCHORED TO THIS BAR
+   Ask: "Could I put this headline on any bar's ad?" If yes
+   → REWRITE. Every variant must contain AT LEAST ONE
+   specific, verifiable detail about THIS bar: neighborhood,
+   known terrace, music style, signature feature. If the bar
+   has a terrace — use it. If it's in Kallio — name it.
+   Verify: is there a detail here that COULD NOT apply to
+   the bar next door?
+
+2. EARNED, NOT DECLARED
+   Ask every adjective: "Is this earned?" "Amazing atmosphere"
+   → WHAT makes it amazing? "Unique experience" → HOW?
+   Describe it. "Best bar" → SAYS WHO? On what grounds?
+   If an adjective isn't backed by a concrete detail →
+   REMOVE the adjective or ADD the proof.
+
+3. NO CLICHÉS, NO FILLER
+   These words and phrases are BANNED from all variants:
+   - "welcome", "welcome to"
+   - "unforgettable", "unforgettable night"
+   - "join us", "come join"
+   - "best atmosphere", "best vibe"
+   - "something for everyone"
+   - "great food and drinks"
+   - "come and see for yourself"
+   If you find any of these → REWRITE THE SENTENCE.
+
+4. BREVITY IS STRENGTH — CUT MERCILESSLY
+   Ask every sentence: "Does the message lose anything if
+   I remove this?" If no → DELETE IT. Check:
+   - Is the headline over 8 words? → Shorten.
+   - Are there unnecessary punctuation marks (!!, ...)? → Remove.
+   - Does the CTA repeat the headline? → Make it actionable.
+
+5. VARIANTS ARE GENUINELY DIFFERENT — NOT REPHRASINGS
+   Ask: "Would anyone read these three variants and think
+   the same person wrote them?" If yes → REWRITE THE WEAKEST
+   FROM A DIFFERENT ANGLE.
+   - Variant 1: OFFER-FOCUSED (what you get, concrete benefit)
+   - Variant 2: VIBE-FOCUSED (how it feels, the senses)
+   - Variant 3: SOCIAL-FOCUSED (who, with whom, community)
+   These three angles MUST NOT blend into each other.
+
+6. STRATEGIC TIMING — WHY NOW?
+   Ask: "Why is this content going out NOW?" If you can't
+   find a reason → add timeliness: season, day of week,
+   time of day, weather, local event. Every variant must
+   feel like it has a REASON to exist today — not "general."
+
+IF A VARIANT FAILS ANY CRITERION 1-6:
+→ Rewrite it.
+→ Re-check it.
+→ Only then return it.
+
+7. OFFER CLARITY — THE READER KNOWS WHAT THEY'RE SHOWING UP FOR
+   Ask: "After the first two sentences, does the reader know
+   WHAT KIND of night/event this is?" If no → REWRITE.
+   Every piece of content must communicate:
+   - What's happening? (karaoke, tasting, live music, etc.)
+   - When? (Friday, every Thursday, this weekend)
+   - Where? (venue name, neighborhood)
+   Don't hide the offer behind vague phrases. "The Floor Knows."
+   → What does the floor know? This is too ambiguous. Tell the
+   reader what's actually on offer.
+
+8. CTA INVITES — DOESN'T DISMISS
+   Ask: "Does this CTA make the reader WANT to be there — or
+   does it give them permission to stay home?" If the CTA is
+   indifferent, sarcastic, or passive-aggressive → REWRITE.
+   The CTA must create FOMO, curiosity, or urgency. "Come watch.
+   Or don't." → This tells the reader not to come. "Come watch
+   accounting discover Queen — you'll want to be in the room."
+   → This creates a reason to show up. A good CTA doesn't beg —
+   but it also doesn't shrug.
+
+IF A VARIANT FAILS ANY CRITERION 1-8:
+→ Rewrite it.
+→ Re-check it.
+→ Only then return it.
+
+This review is not optional. It is part of your job.
+A professional does not ship a first draft.`;
+}

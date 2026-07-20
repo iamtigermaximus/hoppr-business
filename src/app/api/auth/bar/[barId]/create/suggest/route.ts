@@ -6,7 +6,7 @@ import {
   buildFullSystemPrompt,
   buildUserReminder,
 } from "@/lib/compliance/prompts";
-import { type BarPositioning } from "@/lib/compliance/persona";
+import { type BarPositioning, buildCreativeDirectorReview } from "@/lib/compliance/persona";
 import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
 import { logUsage } from "@/lib/credit-tracker";
 import { handleApiError } from "@/lib/api-error";
@@ -25,6 +25,7 @@ import { buildBrandGeneratePrompt } from "@/lib/compliance/prompts";
 import { scanCompliance } from "@/lib/compliance/engine";
 import { inferImageChips } from "@/lib/prompts/infer-image-chips";
 import { extractJsonObjects } from "@/lib/json-extractor";
+import { formatTemplateFieldValues } from "@/lib/prompts/template-fields";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -155,6 +156,7 @@ export async function POST(
       copyStructure,
       templateName,
       avoidHeadlinePatterns,
+      templateFields = {},
     } = body as {
       text: string;
       language?: string;
@@ -172,6 +174,7 @@ export async function POST(
       copyStructure?: string;
       templateName?: string;
       avoidHeadlinePatterns?: string[];
+      templateFields?: Record<string, string>;
     };
 
     // In brand mode, the structured ingredients (audience, coreMessage,
@@ -485,6 +488,17 @@ Bar context:
 Analyze the text: event, promotion, or VIP pass? Extract all relevant fields. Generate ALL content in English.
 
 ${buildUserReminder("en")}`;
+    }
+
+    // 7b. Inject Creative Director Review into every system prompt path.
+    // The event/pass/brand/generic branches above each build their own systemPrompt —
+    // append the quality assurance review after all branches for consistency.
+    systemPrompt += `\n${buildCreativeDirectorReview(lang as "en" | "fi")}`;
+
+    // 7c. Inject template-specific detail fields into the user prompt.
+    const fieldValuesStr = formatTemplateFieldValues(templateFields, lang as "en" | "fi");
+    if (fieldValuesStr) {
+      userPrompt += fieldValuesStr;
     }
 
     // 8. Try DeepSeek API; fall back to templates on any failure

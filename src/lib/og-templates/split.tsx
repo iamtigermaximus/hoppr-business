@@ -13,10 +13,11 @@ export function SplitTemplate(props: TemplateProps) {
   // Dynamically reduce title font size for very long titles
   const titleFontSize = promotionTitle.length > 50 ? 40 : promotionTitle.length > 35 ? 46 : 50;
 
-  // Dynamically reduce description font size for long text so it fits without clipping
+  // Dynamically reduce description font size for long text so it fits without clipping.
+  // Higher line-clamp limits let longer descriptions breathe — the text area has room.
   const descLen = promotionDescription.length;
-  const descFontSize = descLen > 350 ? 16 : descLen > 250 ? 18 : descLen > 150 ? 19 : 21;
-  const descLineClamp = descLen > 350 ? 5 : descLen > 250 ? 4 : 3;
+  const descFontSize = descLen > 400 ? 14 : descLen > 300 ? 15 : descLen > 200 ? 17 : descLen > 120 ? 19 : 21;
+  const descLineClamp = descLen > 400 ? 8 : descLen > 300 ? 7 : descLen > 200 ? 6 : descLen > 120 ? 5 : 4;
 
   return (
     <div style={styles.wrapper}>
@@ -176,9 +177,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 21,
     lineHeight: 1.5,
     marginBottom: 12,
-    maxWidth: 500,
+    maxWidth: 560,
     display: "-webkit-box",
-    WebkitLineClamp: 3,
+    WebkitLineClamp: 4,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
   } as React.CSSProperties,

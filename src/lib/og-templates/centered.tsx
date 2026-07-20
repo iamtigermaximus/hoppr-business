@@ -13,10 +13,11 @@ export function CenteredTemplate(props: TemplateProps) {
   const titleFont = getTitleFontConfig(titleFontStyle as TitleFontStyle | null | undefined);
   const titleFontSize = promotionTitle.length > 50 ? 46 : promotionTitle.length > 35 ? 56 : 64;
 
-  // Dynamically reduce description font size for long text so it fits without clipping
+  // Dynamically reduce description font size for long text so it fits without clipping.
+  // Higher line-clamp limits let longer descriptions breathe — the centered layout has generous vertical space.
   const descLen = promotionDescription.length;
-  const descFontSize = descLen > 350 ? 16 : descLen > 250 ? 18 : descLen > 150 ? 19 : 22;
-  const descLineClamp = descLen > 350 ? 5 : descLen > 250 ? 4 : 3;
+  const descFontSize = descLen > 400 ? 14 : descLen > 300 ? 15 : descLen > 200 ? 17 : descLen > 120 ? 19 : 22;
+  const descLineClamp = descLen > 400 ? 8 : descLen > 300 ? 7 : descLen > 200 ? 6 : descLen > 120 ? 5 : 4;
 
   return (
     <div style={{
@@ -138,10 +139,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.65)",
     fontSize: 22,
     lineHeight: 1.5,
-    maxWidth: 700,
+    maxWidth: 760,
     marginBottom: 12,
     display: "-webkit-box",
-    WebkitLineClamp: 3,
+    WebkitLineClamp: 4,
     WebkitBoxOrient: "vertical",
     overflow: "hidden",
   } as React.CSSProperties,

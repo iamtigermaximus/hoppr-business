@@ -17,7 +17,12 @@ export type ContentTone =
   | "WARM_INVITING"
   | "EDGY_IRREVERENT"
   | "ELEGANT_PREMIUM"
-  | "PLAYFUL_FUN";
+  | "PLAYFUL_FUN"
+  | "COMMUNITY_LOCAL"
+  | "ROMANTIC_INTIMATE"
+  | "MYSTERIOUS_EXCLUSIVE"
+  | "ADVENTUROUS_CURIOUS"
+  | "NOSTALGIC_CLASSIC";
 
 export interface ToneVoice {
   id: ContentTone;
@@ -166,6 +171,121 @@ Light rhythm. Wordplay encouraged. Pop culture references if natural. Banter, no
 
       fi: `ÄÄNISÄÄNNÖT — Leikkisä & hauska:
 Kevyt rytmi. Sanaleikit sallittuja. Pop-kulttuuriviittaukset jos luontevia. Läppää, ei myyntipuhetta. Emoji-arvoista energiaa ilman emojeja. Kirjoita kuin se ryhmächatti, jossa joku sanoi "pitäis tehdä jotain tänään" ja sä vastasit "hoidossa."`,
+    },
+  },
+
+  COMMUNITY_LOCAL: {
+    id: "COMMUNITY_LOCAL",
+    label: { en: "Community & Local", fi: "Yhteisöllinen & paikallinen" },
+    emoji: "🏠",
+    sentenceLength: "medium",
+    maxWordsPerSentence: 15,
+    ctaStyle: "Like a neighbour reminding you — familiar, not marketing",
+    emojiUsage: "sparse",
+    punctuationStyle: "Periods. Occasional question for engagement. No exclamation stacks.",
+    rhythm: "Steady, grounded. Like the bartender who's worked here 10 years — unhurried, knows exactly what to say.",
+    characteristicPhrases: {
+      en: ["Your usual?", "We saved your spot.", "Around the corner.", "See you Thursday."],
+      fi: ["Tavalliseen tapaan?", "Säästettiin sun paikka.", "Kulman takana.", "Nähdään torstaina."],
+    },
+    avoidPatterns: "Hype language, trend-chasing phrases, anything that sounds like a chain, sales-pitch framing, urgency words.",
+    promptBlock: {
+      en: `VOICE RULES — Community & Local:
+Familiar, neighbourly, unpretentious. Rooted in the neighbourhood — reference the street, the corner, the regulars. Highlight routine and consistency. Write like someone who knows the regulars by name and is genuinely glad they came back. The bar is the third place between home and work — talk like it.`,
+      fi: `ÄÄNISÄÄNNÖT — Yhteisöllinen & paikallinen:
+Tuttavallinen, naapurillinen, vaatimaton. Juurrettu kaupunginosaan — viittaa katuun, kulmaan, vakiokasvoihin. Korosta rutiinia ja jatkuvuutta. Kirjoita kuin joku, joka tuntee vakioasiakkaat nimeltä ja on aidosti iloinen heidän paluustaan. Baari on kolmas paikka kodin ja työn välillä — puhu sen mukaisesti.`,
+    },
+  },
+
+  ROMANTIC_INTIMATE: {
+    id: "ROMANTIC_INTIMATE",
+    label: { en: "Romantic & Intimate", fi: "Romanttinen & intiimi" },
+    emoji: "🕯️",
+    sentenceLength: "medium",
+    maxWordsPerSentence: 16,
+    ctaStyle: "Suggest, don't sell — an invitation to two people, not a crowd",
+    emojiUsage: "none",
+    punctuationStyle: "Periods. Occasional ellipsis for pause. No exclamation marks.",
+    rhythm: "Slow, deliberate, sensory. Like a candle burning down — each sentence has room to breathe.",
+    characteristicPhrases: {
+      en: ["Just the two of you.", "Take your time.", "Low lights,", "Stay as long as you like."],
+      fi: ["Vain te kaksi.", "Aikaa on.", "Hämärässä valossa,", "Viipyilkää niin kauan kuin haluatte."],
+    },
+    avoidPatterns: "Loud formatting, party references, group language ('bring the crew'), urgency, exclamation marks, discount framing.",
+    promptBlock: {
+      en: `VOICE RULES — Romantic & Intimate:
+Soft, sensual, couple-focused. Suggest intimacy through atmosphere — the lighting, the corner table, the unhurried pace. Write for two people who chose this bar for each other. Never use group energy language. The night is a slow burn, not a firework.`,
+      fi: `ÄÄNISÄÄNNÖT — Romanttinen & intiimi:
+Pehmeä, aistillinen, pariskuntakeskeinen. Ehdota intimiteettiä tunnelman kautta — valaistus, nurkkapöytä, kiireetön tahti. Kirjoita kahdelle ihmiselle, jotka valitsivat tämän baarin toisilleen. Älä koskaan käytä ryhmäenergiakieltä. Ilta on hidas palo, ei ilotulitus.`,
+    },
+  },
+
+  MYSTERIOUS_EXCLUSIVE: {
+    id: "MYSTERIOUS_EXCLUSIVE",
+    label: { en: "Mysterious & Exclusive", fi: "Salaperäinen & eksklusiivinen" },
+    emoji: "🔑",
+    sentenceLength: "short",
+    maxWordsPerSentence: 10,
+    ctaStyle: "Cryptic — leave room for curiosity, never over-explain",
+    emojiUsage: "none",
+    punctuationStyle: "Periods. Minimal punctuation. Fragments over full sentences. The unsaid is the message.",
+    rhythm: "Terse, deliberate. Like a secret passed between two people who both know what it means. Every word earns its place.",
+    characteristicPhrases: {
+      en: ["Find the door.", "Few know.", "If you know, you know.", "Limited. Always."],
+      fi: ["Löydä ovi.", "Harva tietää.", "Jos tiedät, tiedät.", "Rajoitetusti. Aina."],
+    },
+    avoidPatterns: "Loud CTAs, discount language, mass-market phrasing, over-explaining, anything that sounds like a chain promotion, exclamation marks.",
+    promptBlock: {
+      en: `VOICE RULES — Mysterious & Exclusive:
+Cryptic. Minimal. Share a secret — don't run an ad. Less is more. Leave room for curiosity. The reader's reward is the discovery. Write like the door is unmarked and some things are better that way. Never explain — suggest. Never sell — invite.`,
+      fi: `ÄÄNISÄÄNNÖT — Salaperäinen & eksklusiivinen:
+Arvoituksellinen. Minimalistinen. Jaa salaisuus — älä pyöritä mainosta. Vähemmän on enemmän. Jätä tilaa uteliaisuudelle. Lukijan palkinto on löytö. Kirjoita kuin ovi on merkitsemätön ja jotkut asiat ovat parempia niin. Älä koskaan selitä — ehdota. Älä koskaan myy — kutsu.`,
+    },
+  },
+
+  ADVENTUROUS_CURIOUS: {
+    id: "ADVENTUROUS_CURIOUS",
+    label: { en: "Adventurous & Curious", fi: "Seikkailunhaluinen & utelias" },
+    emoji: "🧪",
+    sentenceLength: "medium",
+    maxWordsPerSentence: 16,
+    ctaStyle: "Curiosity-driven — 'come see what we're making' over 'come buy what we're selling'",
+    emojiUsage: "sparse",
+    punctuationStyle: "Periods. Occasional em-dash for asides. Question marks for engagement. No exclamation stacks.",
+    rhythm: "Exploratory, unfolding. Like a menu where each course is a surprise. Build anticipation through process and craft.",
+    characteristicPhrases: {
+      en: ["This week's experiment:", "Come curious.", "Behind the bar:", "We've been working on something."],
+      fi: ["Tämän viikon kokeilu:", "Tule uteliaana.", "Baarin takana:", "Olemme työstäneet jotain."],
+    },
+    avoidPatterns: "Generic bar language, 'good times' clichés, party-focused framing, anything that could describe any other bar.",
+    promptBlock: {
+      en: `VOICE RULES — Adventurous & Curious:
+Novelty-driven. Educational but never pretentious. Reference ingredients, techniques, process — the craft is the story. Highlight what makes THIS bar different. Write like a curious explorer who wants the reader to discover something they've never tried before. The bar is a laboratory, not a factory.`,
+      fi: `ÄÄNISÄÄNNÖT — Seikkailunhaluinen & utelias:
+Uutuusvetoinen. Opetuksellinen muttei koskaan ylimielinen. Viittaa raaka-aineisiin, tekniikoihin, prosessiin — käsityö on tarina. Korosta mikä tekee TÄSTÄ baarista erilaisen. Kirjoita kuin utelias tutkija, joka haluaa lukijan löytävän jotain mitä hän ei ole koskaan ennen kokeillut. Baari on laboratorio, ei tehdas.`,
+    },
+  },
+
+  NOSTALGIC_CLASSIC: {
+    id: "NOSTALGIC_CLASSIC",
+    label: { en: "Nostalgic & Classic", fi: "Nostalginen & klassinen" },
+    emoji: "📻",
+    sentenceLength: "varied",
+    maxWordsPerSentence: 20,
+    ctaStyle: "Confident, earned — 'we've been here longer than most, and here's why'",
+    emojiUsage: "none",
+    punctuationStyle: "Periods. Occasional semicolon — measured, deliberate. No exclamation marks. Serif-worthy sentence cadence.",
+    rhythm: "Measured, patient. Like a jazz standard — it doesn't rush because it knows where it's going. Every phrase carries institutional weight.",
+    characteristicPhrases: {
+      en: ["Since 19", "Same bar,", "Some things don't need", "As always,", "We've been doing this"],
+      fi: ["Vuodesta 19", "Sama baari,", "Joitain asioita ei tarvitse", "Kuten aina,", "Olemme tehneet tätä"],
+    },
+    avoidPatterns: "Trend language, urgency words, slang, emojis, novelty framing, anything that suggests reinvention or pivoting.",
+    promptBlock: {
+      en: `VOICE RULES — Nostalgic & Classic:
+Timeless. Confident. Heritage-forward. Reference history and consistency — the bar's age is a feature. Write with the authority of an institution. Every sentence should suggest: we've been doing this longer, and better, and we don't need to shout about it. The bar endures because it deserves to.`,
+      fi: `ÄÄNISÄÄNNÖT — Nostalginen & klassinen:
+Ajaton. Itsevarma. Perintö edellä. Viittaa historiaan ja jatkuvuuteen — baarin ikä on ominaisuus. Kirjoita instituution arvovallalla. Jokaisen lauseen tulisi vihjata: olemme tehneet tätä pidempään, ja paremmin, eikä meidän tarvitse huutaa siitä. Baari kestää koska se ansaitsee sen.`,
     },
   },
 };

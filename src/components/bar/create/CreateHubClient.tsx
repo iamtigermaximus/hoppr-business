@@ -440,12 +440,13 @@ interface CreateHubClientProps {
   barId: string;
   userRole: string;
   barName: string;
+  barType?: string | null;
   barCoverImage: string | null;
   barLogoUrl: string | null;
   contentTone?: ContentTone | null;
 }
 
-export default function CreateHubClient({ barId, userRole, barName, barCoverImage, barLogoUrl, contentTone }: CreateHubClientProps) {
+export default function CreateHubClient({ barId, userRole, barName, barType, barCoverImage, barLogoUrl, contentTone }: CreateHubClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1404,6 +1405,7 @@ export default function CreateHubClient({ barId, userRole, barName, barCoverImag
                 <UnifiedCreationFlow
                   barId={barId}
                   barName={barName}
+                  barType={barType}
                   barCoverImage={barCoverImage}
                   contentType={contentType}
                   creationMode={creationMode}

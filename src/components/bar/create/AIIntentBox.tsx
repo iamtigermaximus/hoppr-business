@@ -414,7 +414,6 @@ export default function AIIntentBox({
                     title={opt.description}
                   >
                     <span style={styles.toneCardTop}>
-                      <span style={styles.toneCardEmoji}>{opt.emoji}</span>
                       <span style={styles.toneCardLabel}>{opt.label}</span>
                       {isDefault && !isActive && (
                         <span style={styles.toneCardDefaultBadge}>default</span>
@@ -438,7 +437,6 @@ export default function AIIntentBox({
               return (
                 <div style={styles.tonePreview}>
                   <div style={styles.tonePreviewRow}>
-                    <span style={styles.tonePreviewEmoji}>{selected.emoji}</span>
                     <span style={styles.tonePreviewLabel}>{selected.label}</span>
                   </div>
                   <div style={styles.tonePreviewHeadline}>

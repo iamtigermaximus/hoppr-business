@@ -301,17 +301,9 @@ interface ToneRecommendation {
 }
 
 const TEMPLATE_TONE_RECOMMENDATIONS: Record<string, ToneRecommendation> = {
-  "after-work": {
-    recommended: ["WARM_INVITING", "PLAYFUL_FUN"],
-    cautionary: ["EDGY_IRREVERENT"],
-  },
   "ladies-night": {
     recommended: ["PLAYFUL_FUN", "BOLD_ENERGETIC"],
     cautionary: ["EDGY_IRREVERENT", "ELEGANT_PREMIUM"],
-  },
-  "live-music": {
-    recommended: ["BOLD_ENERGETIC", "EDGY_IRREVERENT"],
-    cautionary: ["ELEGANT_PREMIUM"],
   },
   "game-night": {
     recommended: ["PLAYFUL_FUN", "BOLD_ENERGETIC"],
@@ -332,6 +324,109 @@ const TEMPLATE_TONE_RECOMMENDATIONS: Record<string, ToneRecommendation> = {
   "theme-night": {
     recommended: ["PLAYFUL_FUN", "EDGY_IRREVERENT"],
     cautionary: ["ELEGANT_PREMIUM"],
+  },
+  // ---- New tone-adaptive templates ----
+  // UNIVERSAL
+  "after-work": {
+    recommended: ["WARM_INVITING", "PLAYFUL_FUN"],
+    cautionary: ["EDGY_IRREVERENT"],
+  },
+  "weekend-special": {
+    recommended: ["BOLD_ENERGETIC", "PLAYFUL_FUN"],
+    cautionary: ["ELEGANT_PREMIUM"],
+  },
+  "seasonal-special": {
+    recommended: ["WARM_INVITING", "ELEGANT_PREMIUM"],
+    cautionary: ["EDGY_IRREVERENT", "BOLD_ENERGETIC"],
+  },
+  "regulars-night": {
+    recommended: ["WARM_INVITING", "COMMUNITY_LOCAL"],
+    cautionary: ["EDGY_IRREVERENT", "MYSTERIOUS_EXCLUSIVE"],
+  },
+  // SOCIAL
+  "quiz-night": {
+    recommended: ["PLAYFUL_FUN", "BOLD_ENERGETIC"],
+    cautionary: ["ELEGANT_PREMIUM", "ROMANTIC_INTIMATE"],
+  },
+  "karaoke-night": {
+    recommended: ["PLAYFUL_FUN", "BOLD_ENERGETIC"],
+    cautionary: ["ELEGANT_PREMIUM", "MYSTERIOUS_EXCLUSIVE"],
+  },
+  "group-celebration": {
+    recommended: ["PLAYFUL_FUN", "WARM_INVITING"],
+    cautionary: ["MYSTERIOUS_EXCLUSIVE"],
+  },
+  "industry-night": {
+    recommended: ["EDGY_IRREVERENT", "COMMUNITY_LOCAL"],
+    cautionary: ["ROMANTIC_INTIMATE", "ELEGANT_PREMIUM"],
+  },
+  // FOOD
+  "tasting-menu": {
+    recommended: ["ELEGANT_PREMIUM", "WARM_INVITING"],
+    cautionary: ["EDGY_IRREVERENT", "BOLD_ENERGETIC"],
+  },
+  "food-drink-pairing": {
+    recommended: ["ELEGANT_PREMIUM", "WARM_INVITING"],
+    cautionary: ["EDGY_IRREVERENT"],
+  },
+  "chefs-special": {
+    recommended: ["ELEGANT_PREMIUM", "BOLD_ENERGETIC"],
+    cautionary: ["EDGY_IRREVERENT", "PLAYFUL_FUN"],
+  },
+  "brunch-service": {
+    recommended: ["WARM_INVITING", "PLAYFUL_FUN"],
+    cautionary: ["EDGY_IRREVERENT", "MYSTERIOUS_EXCLUSIVE"],
+  },
+  // ENTERTAINMENT
+  "live-music": {
+    recommended: ["BOLD_ENERGETIC", "EDGY_IRREVERENT"],
+    cautionary: ["ELEGANT_PREMIUM"],
+  },
+  "dj-night": {
+    recommended: ["BOLD_ENERGETIC", "EDGY_IRREVERENT"],
+    cautionary: ["ELEGANT_PREMIUM", "ROMANTIC_INTIMATE"],
+  },
+  "sports-screening": {
+    recommended: ["BOLD_ENERGETIC", "PLAYFUL_FUN"],
+    cautionary: ["ELEGANT_PREMIUM", "ROMANTIC_INTIMATE"],
+  },
+  "open-mic": {
+    recommended: ["WARM_INVITING", "PLAYFUL_FUN"],
+    cautionary: ["MYSTERIOUS_EXCLUSIVE", "ELEGANT_PREMIUM"],
+  },
+  // PREMIUM
+  "cocktail-masterclass": {
+    recommended: ["ELEGANT_PREMIUM", "WARM_INVITING"],
+    cautionary: ["EDGY_IRREVERENT", "PLAYFUL_FUN"],
+  },
+  "meet-the-maker": {
+    recommended: ["ELEGANT_PREMIUM", "WARM_INVITING"],
+    cautionary: ["EDGY_IRREVERENT"],
+  },
+  "private-tasting": {
+    recommended: ["ELEGANT_PREMIUM", "MYSTERIOUS_EXCLUSIVE"],
+    cautionary: ["BOLD_ENERGETIC", "PLAYFUL_FUN"],
+  },
+  "rare-release": {
+    recommended: ["MYSTERIOUS_EXCLUSIVE", "ELEGANT_PREMIUM"],
+    cautionary: ["PLAYFUL_FUN"],
+  },
+  // COMMUNITY
+  "neighbourhood-night": {
+    recommended: ["COMMUNITY_LOCAL", "WARM_INVITING"],
+    cautionary: ["MYSTERIOUS_EXCLUSIVE", "ELEGANT_PREMIUM"],
+  },
+  "local-artist": {
+    recommended: ["COMMUNITY_LOCAL", "ELEGANT_PREMIUM"],
+    cautionary: ["EDGY_IRREVERENT"],
+  },
+  "charity-fundraiser": {
+    recommended: ["COMMUNITY_LOCAL", "WARM_INVITING"],
+    cautionary: ["EDGY_IRREVERENT", "MYSTERIOUS_EXCLUSIVE"],
+  },
+  "new-in-town": {
+    recommended: ["COMMUNITY_LOCAL", "WARM_INVITING"],
+    cautionary: ["MYSTERIOUS_EXCLUSIVE"],
   },
 };
 

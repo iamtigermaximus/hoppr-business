@@ -3,7 +3,7 @@ import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { planHasFeature } from "@/lib/plan-limits";
 import { buildGeneratePrompt, buildFullSystemPrompt, type PromptLanguage } from "@/lib/compliance/prompts";
-import { type BarPositioning } from "@/lib/compliance/persona";
+import { type BarPositioning, buildCreativeDirectorReview } from "@/lib/compliance/persona";
 import { checkPromptCompliance } from "@/lib/compliance/image-compliance";
 import { scanCompliance } from "@/lib/compliance/engine";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
@@ -17,6 +17,7 @@ import {
   type PromotionType,
 } from "@/lib/ai/fallback-templates";
 import { toneSystemInstruction } from "@/lib/prompts/tone-voices";
+import { formatTemplateFieldValues } from "@/lib/prompts/template-fields";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -29,6 +30,8 @@ const VALID_PROMO_TYPES = [
 
 const VALID_TONES = [
   "BOLD_ENERGETIC", "WARM_INVITING", "EDGY_IRREVERENT", "ELEGANT_PREMIUM", "PLAYFUL_FUN",
+  "COMMUNITY_LOCAL", "ROMANTIC_INTIMATE", "MYSTERIOUS_EXCLUSIVE",
+  "ADVENTUROUS_CURIOUS", "NOSTALGIC_CLASSIC",
 ] as const;
 type ContentTone = (typeof VALID_TONES)[number];
 
@@ -47,6 +50,11 @@ const TONE_PRESET_MAP: Record<ContentTone, number[]> = {
   EDGY_IRREVERENT: [0, 4],
   ELEGANT_PREMIUM: [2, 4],
   PLAYFUL_FUN: [3, 1],
+  COMMUNITY_LOCAL: [1, 0],
+  ROMANTIC_INTIMATE: [2, 1],
+  MYSTERIOUS_EXCLUSIVE: [0, 2],
+  ADVENTUROUS_CURIOUS: [1, 2],
+  NOSTALGIC_CLASSIC: [2, 4],
 };
 
 /** Infer differentiators from bar data for the persona */
@@ -234,6 +242,7 @@ export async function POST(
       contentTone,
       nonce = 0,
       layoutHint,
+      templateFields = {},
     } = body as {
       prompt?: string;
       type?: string;
@@ -246,6 +255,7 @@ export async function POST(
       contentTone?: string | null;
       nonce?: number;
       layoutHint?: string | null;
+      templateFields?: Record<string, string>;
     };
 
     const tone: ContentTone | undefined =
@@ -329,7 +339,7 @@ export async function POST(
       }
     }
 
-    const userPrompt = buildGeneratePrompt(
+    let userPrompt = buildGeneratePrompt(
       {
         name: bar.name,
         type: bar.type,
@@ -365,7 +375,13 @@ export async function POST(
       ? `\nALA KOSKAAN mainitse lakiviitteita (Alkoholilaki, Valvira, compliance) otsikoissa, kuvauksissa, ehdoissa tai toimintakehotteissa - ne ovat asiakasteksteja, eivat lakidokumentteja.\nKAIKKI teksti TAYTYY olla suomeksi. Palauta VAIN validi JSON.`
       : `\nNEVER mention legal references (Alkoholilaki, Valvira, compliance) in titles, descriptions, conditions, or CTAs - these are customer-facing, not legal documents.\nReturn ONLY valid JSON.`;
 
-    const systemPrompt = `${buildFullSystemPrompt(lang, barPositioning)}\n${variantDifferentiation}${footerText}${toneInstruction ? `\n${toneInstruction}` : ""}`;
+    const systemPrompt = `${buildFullSystemPrompt(lang, barPositioning)}\n${variantDifferentiation}\n${buildCreativeDirectorReview(lang)}${footerText}${toneInstruction ? `\n${toneInstruction}` : ""}`;
+
+    // Inject template-specific detail fields into the user prompt
+    const fieldValuesStr = formatTemplateFieldValues(templateFields, lang);
+    if (fieldValuesStr) {
+      userPrompt += fieldValuesStr;
+    }
 
     let generatedPromotions: Record<string, unknown>[] = [];
     let aiGenerated = false;

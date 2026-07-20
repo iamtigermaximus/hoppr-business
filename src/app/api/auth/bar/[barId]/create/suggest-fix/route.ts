@@ -3,7 +3,7 @@ import { verifyToken, isBarStaffToken } from "@/lib/auth";
 import { prisma } from "@/lib/database";
 import { scanCompliance } from "@/lib/compliance-engine";
 import { buildFixPrompt, buildFullSystemPrompt } from "@/lib/compliance/prompts";
-import { type BarPositioning } from "@/lib/compliance/persona";
+import { type BarPositioning, buildCreativeDirectorReview } from "@/lib/compliance/persona";
 import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import { handleApiError } from "@/lib/api-error";
 
@@ -174,7 +174,7 @@ export async function POST(
     };
 
     // 6. Build system prompt — senior marketing persona + compliance rules
-    const systemPrompt = buildFullSystemPrompt(lang as "en" | "fi", barPositioning);
+    const systemPrompt = buildFullSystemPrompt(lang as "en" | "fi", barPositioning) + `\n${buildCreativeDirectorReview(lang as "en" | "fi")}`;
 
     // 7. Build fix prompt (user message) using canonical rules and call DeepSeek
     const userPrompt = buildFixPrompt(

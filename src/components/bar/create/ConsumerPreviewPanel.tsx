@@ -171,24 +171,35 @@ const DeviceFrame = styled.div`
   margin: 0 auto;
 `;
 
-const OGImageWrap = styled.div`
+const OGImageWrap = styled.div<{ $format?: "square" | "wide" | "banner" }>`
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid #262626;
   box-shadow: 0 2px 16px rgba(0,0,0,0.3);
   position: relative;
-  aspect-ratio: 1200 / 630;
+  aspect-ratio: ${({ $format }) =>
+    $format === "square" ? "1080 / 1080" :
+    $format === "banner" ? "1200 / 400" :
+    "1200 / 630"};
   width: 100%;
 `;
 
-const ScaledOgContainer = styled.div`
+const ScaledOgContainer = styled.div<{ $format?: "square" | "wide" | "banner" }>`
   position: absolute;
   top: 0;
   left: 0;
-  width: 303%;
-  height: 303%;
-  transform: scale(0.33);
-  transform-origin: top left;
+  ${({ $format }) => {
+    if ($format === "square") {
+      // 1080×1080 rendered at 1:1 — no scaling needed, just fill the container
+      return `width: 100%; height: 100%;`;
+    }
+    if ($format === "banner") {
+      // 1200×400 rendered at ~3x scale-down
+      return `width: 300%; height: 300%; transform: scale(0.333); transform-origin: top left;`;
+    }
+    // wide (default): 1200×630 at 0.33 scale
+    return `width: 300%; height: 300%; transform: scale(0.333); transform-origin: top left;`;
+  }}
 `;
 
 const ToneIndicator = styled.div`
@@ -331,7 +342,6 @@ export default function ConsumerPreviewPanel({
         <HeaderTitle>Live Preview</HeaderTitle>
         {contentTone && (
           <span style={{ fontSize: "0.625rem", color: "#a78bfa", marginLeft: "auto", fontWeight: 600 }}>
-            {TONE_OPTIONS.find((o) => o.value === contentTone)?.emoji}{" "}
             {TONE_OPTIONS.find((o) => o.value === contentTone)?.label}
           </span>
         )}
@@ -375,8 +385,8 @@ export default function ConsumerPreviewPanel({
                 {toneLabel && ` · ${toneLabel}`}
               </StyleValue>
             </VisualStyleMeta>
-            <OGImageWrap>
-              <ScaledOgContainer>
+            <OGImageWrap $format={cardFormat}>
+              <ScaledOgContainer $format={cardFormat}>
                 <PromotionImage
                   input={{
                     barName: barName || "Your Bar",
@@ -433,7 +443,7 @@ export default function ConsumerPreviewPanel({
                 {toneLabel ? `brand · ${toneLabel}` : "brand · identity"}
               </StyleValue>
             </VisualStyleMeta>
-            <OGImageWrap>
+            <OGImageWrap $format="wide">
               <BrandPreviewCard
                 title={formState.brandHeadline || formState.title}
                 description={formState.brandBody || formState.description}
