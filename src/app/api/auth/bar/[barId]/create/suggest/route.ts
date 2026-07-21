@@ -10,6 +10,7 @@ import { type BarPositioning, buildCreativeDirectorReview } from "@/lib/complian
 import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
 import { logUsage } from "@/lib/credit-tracker";
 import { handleApiError } from "@/lib/api-error";
+import { buildPerformanceContextBlock } from "@/lib/performance-feedback";
 import {
   buildEventPrompt,
   inferEventCategory,
@@ -235,6 +236,21 @@ export async function POST(
       differentiators: inferDifferentiators(bar),
       seasonalContext: getSeasonalContext(),
     };
+
+    // 5a. Fetch performance feedback context (non-blocking — fails silently)
+    let performanceContext = "";
+    try {
+      performanceContext = await buildPerformanceContextBlock(
+        barId,
+        lang as "en" | "fi",
+      );
+      if (performanceContext) {
+        console.log("[suggest] Performance context loaded:", performanceContext.length, "chars");
+      }
+    } catch (err) {
+      console.warn("[suggest] Failed to load performance context:", err);
+      // Continue without it — this is an enhancement, not a requirement
+    }
 
     // 6. Check if DeepSeek API key is configured — use fallback templates if not
     const useAI = !!DEEPSEEK_API_KEY;
@@ -503,6 +519,13 @@ ${buildUserReminder("en")}`;
     if (voiceProfileContext && typeof voiceProfileContext === "string") {
       systemPrompt += voiceProfileContext;
       console.log("[suggest] Voice profile context injected —", voiceProfileContext.length, "chars");
+    }
+
+    // 7b3. Inject performance feedback data — tells the AI which creative
+    // choices have driven the best engagement for this specific bar.
+    if (performanceContext) {
+      systemPrompt += `\n${performanceContext}`;
+      console.log("[suggest] Performance context injected —", performanceContext.length, "chars");
     }
 
     // 7c. Inject template-specific detail fields into the user prompt.

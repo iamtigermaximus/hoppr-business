@@ -472,6 +472,18 @@ export interface BarProfileForDirector {
   vipEnabled?: boolean;
 }
 
+/** Performance weightings — optional creative ingredient boosts/dampens */
+export interface PerformanceWeightingsInput {
+  tone?: Record<string, number>;
+  template?: Record<string, number>;
+  audience?: Record<string, number>;
+  coreMessage?: Record<string, number>;
+  atmosphere?: Record<string, number>;
+  imageWorld?: Record<string, number>;
+  copyStructure?: Record<string, number>;
+  hookPattern?: Record<string, number>;
+}
+
 export interface DirectorDecision {
   /** All pre-filled ingredient selections */
   mode: CreationMode;
@@ -496,6 +508,12 @@ export interface DirectorDecision {
 
   /** Whether this is a special date (Vappu, Juhannus, Christmas, etc.) */
   isSpecialDate: boolean;
+
+  /** Performance weightings attached to the decision (for caller reference) */
+  weightings?: PerformanceWeightingsInput;
+
+  /** Human-readable performance insights (one-liners for the UI) */
+  performanceNotes?: string[];
 }
 
 /**
@@ -513,6 +531,7 @@ export function direct(
   now: Date = new Date(),
   history?: ContentHistoryEntry[],
   explicitMode?: CreationMode,
+  weightings?: PerformanceWeightingsInput,
 ): DirectorDecision {
   const dayOfWeek = now.getDay();
   const hour = now.getHours();
@@ -587,7 +606,42 @@ export function direct(
     RESTAURANT: ["Baarin taika", "Kesäilta", "Kutsu"],
   };
   const tmplPool = templateMap[bar.type?.toUpperCase()] ?? ["Kesäilta", "Baarin taika", "Kutsu"];
-  const suggestTemplate = tmplPool[poolRotation(bar.id, tmplPool.length)];
+
+  // Apply template performance weightings to boost/dampen the pool selection
+  let suggestTemplate = tmplPool[poolRotation(bar.id, tmplPool.length)];
+  if (weightings?.template) {
+    // Build a weighted pool — prefer templates with high multipliers
+    const templateScores = tmplPool.map((t) => ({
+      name: t,
+      score: weightings.template?.[t] ?? 1.0,
+    }));
+    const topTemplate = templateScores.sort((a, b) => b.score - a.score)[0];
+    if (topTemplate && topTemplate.score > 1.15) {
+      suggestTemplate = topTemplate.name; // Override rotation for proven winners
+    }
+  }
+
+  // --- Build performance notes for UI display ---
+  const performanceNotes: string[] = [];
+  if (weightings) {
+    const topEntries = Object.entries(weightings)
+      .flatMap(([category, scores]) => {
+        if (!scores || typeof scores !== "object") return [];
+        return Object.entries(scores as Record<string, number>)
+          .map(([name, multiplier]) => ({ category, name, multiplier }))
+          .filter((e) => e.multiplier > 1.1 || e.multiplier < 0.9);
+      })
+      .sort((a, b) => Math.abs(b.multiplier - 1) - Math.abs(a.multiplier - 1))
+      .slice(0, 3);
+
+    for (const entry of topEntries) {
+      const dir = entry.multiplier > 1 ? "boost" : "dampen";
+      const pct = Math.round(Math.abs(entry.multiplier - 1) * 100);
+      performanceNotes.push(
+        `${entry.category}:${entry.name} → ${dir} ${pct}% (${entry.multiplier.toFixed(2)}x)`
+      );
+    }
+  }
 
   const isSpecialDate = ["vappu", "midsummer", "christmas"].includes(season);
 
@@ -606,6 +660,8 @@ export function direct(
     suggestTemplate,
     seasonalContext: seasonalFi[season],
     isSpecialDate,
+    weightings,
+    performanceNotes: performanceNotes.length > 0 ? performanceNotes : undefined,
   };
 }
 
@@ -663,6 +719,15 @@ export function buildDirectorContext(
       isFi
         ? "ERITYISPÄIVÄ: Tämä on suomalainen juhlapäivä. Sisällytä juhlan henki luontevasti — ei väkisin, ei kliseisesti."
         : "SPECIAL DATE: This is a Finnish holiday. Include the holiday spirit naturally — not forced, not clichéd.",
+    );
+  }
+
+  // Performance feedback — only included when data is available
+  if (decision.performanceNotes && decision.performanceNotes.length > 0) {
+    lines.push(
+      isFi
+        ? `\nSUORITUSTIEDOT (luovat valinnat, jotka ovat toimineet parhaiten tälle baarille):\n${decision.performanceNotes.map((n) => `• ${n}`).join("\n")}`
+        : `\nPERFORMANCE DATA (creative choices that have worked best for this venue):\n${decision.performanceNotes.map((n) => `• ${n}`).join("\n")}`,
     );
   }
 

@@ -72,6 +72,16 @@ interface SubmitBody {
   brandCta?: string;
   // Content lineage
   duplicatedFrom?: string;
+  // Creative ingredients (for performance feedback loop — ContentCreativeSnapshot)
+  tone?: string;
+  template?: string;
+  audience?: string[];
+  atmosphere?: string[];
+  coreMessage?: string;
+  imageWorld?: string;
+  copyStructure?: string;
+  hookPattern?: string;
+  cardLayout?: string;
 }
 
 // ---- Route ----
@@ -708,6 +718,35 @@ export async function POST(
         status: brandPost.status,
         complianceStatus: resolvedComplianceStatus,
       };
+    }
+
+    // 7a. Capture creative ingredients snapshot for performance feedback loop
+    if (record?.id) {
+      const hasCreativeIngredients =
+        body.tone || body.template || (body.audience && body.audience.length > 0) ||
+        (body.atmosphere && body.atmosphere.length > 0) || body.coreMessage ||
+        body.imageWorld || body.copyStructure;
+      if (hasCreativeIngredients) {
+        await prisma.contentCreativeSnapshot.create({
+          data: {
+            barId,
+            contentId: record.id as string,
+            contentType: body.contentType,
+            tone: body.tone ?? null,
+            template: body.template ?? null,
+            audience: body.audience ?? [],
+            atmosphere: body.atmosphere ?? [],
+            coreMessage: body.coreMessage ?? null,
+            imageWorld: body.imageWorld ?? null,
+            copyStructure: body.copyStructure ?? null,
+            hookPattern: body.hookPattern ?? null,
+            cardLayout: body.cardLayout ?? null,
+          },
+        }).catch((err) => {
+          console.error("[Submit] Failed to create ContentCreativeSnapshot:", err);
+          // Don't fail the request — content was created successfully
+        });
+      }
     }
 
     // 8. Handle notification scheduling based on user preferences

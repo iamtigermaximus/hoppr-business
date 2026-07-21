@@ -10,6 +10,7 @@ import { EMPTY_FORM, supportsBoost } from "./types";
 import UnifiedCreationFlow from "./UnifiedCreationFlow";
 import ComplianceBar from "./ComplianceBar";
 import SuggestionPanel from "./SuggestionPanel";
+import PerformanceInsightsPanel from "./PerformanceInsightsPanel";
 import ComplianceReferencePanel from "./ComplianceReferencePanel";
 import ConsumerPreviewPanel from "./ConsumerPreviewPanel";
 import { generateCaption } from "./ShareCard";
@@ -1048,6 +1049,16 @@ export default function CreateHubClient({ barId, userRole, barName, barType, bar
         body.duplicatedFrom = resurfaceId;
       }
 
+      // Creative ingredients — sent to server for ContentCreativeSnapshot recording
+      // so the performance feedback loop can tie creative choices to outcomes.
+      if (activeTone) body.tone = activeTone;
+      if (formState.templateName) body.template = formState.templateName;
+      if (formState.audienceChips && formState.audienceChips.length > 0) body.audience = formState.audienceChips;
+      if (formState.atmosphereChips && formState.atmosphereChips.length > 0) body.atmosphere = formState.atmosphereChips;
+      if (formState.coreMessageChip) body.coreMessage = formState.coreMessageChip;
+      if (formState.imageWorldChip) body.imageWorld = formState.imageWorldChip;
+      if (formState.copyStructureChip) body.copyStructure = formState.copyStructureChip;
+
       // ── Pre-submit card capture ──
       // Capture the composed social card via html2canvas BEFORE the API call
       // so the card URL can be stored atomically during creation.
@@ -1449,6 +1460,11 @@ export default function CreateHubClient({ barId, userRole, barName, barType, bar
                     barId={barId}
                     onAcceptFix={handleAcceptFix}
                   />
+                )}
+
+                {/* Performance insights — data-driven creative feedback from past content */}
+                {token && (
+                  <PerformanceInsightsPanel barId={barId} token={token} />
                 )}
               </FormPanel>
 

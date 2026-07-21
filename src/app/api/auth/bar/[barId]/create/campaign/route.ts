@@ -5,6 +5,7 @@ import { checkRateLimit, RateLimits } from "@/lib/rate-limiter";
 import { handleApiError } from "@/lib/api-error";
 import { logUsage } from "@/lib/credit-tracker";
 import { extractJsonObjects } from "@/lib/json-extractor";
+import { buildPerformanceContextBlock } from "@/lib/performance-feedback";
 import { getTonePromptBlock, type ContentTone } from "@/lib/prompts/tone-voices";
 import {
   buildCampaignSystemPrompt,
@@ -194,6 +195,18 @@ export async function POST(
     let systemPrompt = buildCampaignSystemPrompt(lang, barPositioning);
     if (voiceProfileContext) {
       systemPrompt += voiceProfileContext;
+    }
+
+    // 6a. Inject performance feedback context — helps the AI prefer
+    // creative choices that have driven better engagement for this bar.
+    try {
+      const performanceCtx = await buildPerformanceContextBlock(barId, lang);
+      if (performanceCtx) {
+        systemPrompt += `\n${performanceCtx}`;
+        console.log("[campaign] Performance context injected —", performanceCtx.length, "chars");
+      }
+    } catch (err) {
+      console.warn("[campaign] Failed to load performance context:", err);
     }
 
     const amenitiesStr = (bar.amenities as string[])?.join(", ") ?? undefined;
