@@ -151,6 +151,7 @@ function normalizePromotion(
     discount: typeof raw.discount === "number" ? raw.discount : null,
     callToAction: raw.callToAction || "View Offer",
     ctaOptions: Array.isArray(raw.ctaOptions) ? (raw.ctaOptions as string[]) : [],
+    hookPattern: typeof raw.hookPattern === "string" ? (raw.hookPattern as string) : undefined,
     accentColor: raw.accentColor || preset.accentColor,
     conditions: raw.conditions || "Valid with valid ID. Terms apply.",
     visual: {
@@ -244,6 +245,7 @@ export async function POST(
       nonce = 0,
       layoutHint,
       templateFields = {},
+      voiceProfileContext,
     } = body as {
       prompt?: string;
       type?: string;
@@ -257,6 +259,7 @@ export async function POST(
       nonce?: number;
       layoutHint?: string | null;
       templateFields?: Record<string, string>;
+      voiceProfileContext?: string;
     };
 
     const tone: ContentTone | undefined =
@@ -376,7 +379,7 @@ export async function POST(
       ? `\nALA KOSKAAN mainitse lakiviitteita (Alkoholilaki, Valvira, compliance) otsikoissa, kuvauksissa, ehdoissa tai toimintakehotteissa - ne ovat asiakasteksteja, eivat lakidokumentteja.\nKAIKKI teksti TAYTYY olla suomeksi. Palauta VAIN validi JSON.`
       : `\nNEVER mention legal references (Alkoholilaki, Valvira, compliance) in titles, descriptions, conditions, or CTAs - these are customer-facing, not legal documents.\nReturn ONLY valid JSON.`;
 
-    const systemPrompt = `${buildFullSystemPrompt(lang, barPositioning)}\n${variantDifferentiation}\n${buildCreativeDirectorReview(lang)}${footerText}${toneInstruction ? `\n${toneInstruction}` : ""}`;
+    const systemPrompt = `${buildFullSystemPrompt(lang, barPositioning)}\n${variantDifferentiation}\n${buildCreativeDirectorReview(lang)}${footerText}${toneInstruction ? `\n${toneInstruction}` : ""}${voiceProfileContext && typeof voiceProfileContext === "string" ? voiceProfileContext : ""}`;
 
     // Inject template-specific detail fields into the user prompt
     const fieldValuesStr = formatTemplateFieldValues(templateFields, lang);

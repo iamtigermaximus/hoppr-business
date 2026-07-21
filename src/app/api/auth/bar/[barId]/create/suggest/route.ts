@@ -157,6 +157,7 @@ export async function POST(
       templateName,
       avoidHeadlinePatterns,
       templateFields = {},
+      voiceProfileContext,
     } = body as {
       text: string;
       language?: string;
@@ -175,6 +176,8 @@ export async function POST(
       templateName?: string;
       avoidHeadlinePatterns?: string[];
       templateFields?: Record<string, string>;
+      /** Pre-built voice profile block from the client — injected into system prompt */
+      voiceProfileContext?: string;
     };
 
     // In brand mode, the structured ingredients (audience, coreMessage,
@@ -495,6 +498,13 @@ ${buildUserReminder("en")}`;
     // append the quality assurance review after all branches for consistency.
     systemPrompt += `\n${buildCreativeDirectorReview(lang as "en" | "fi")}`;
 
+    // 7b2. Inject voice profile context — gives the creative director awareness
+    // of the bar's established brand voice so it maintains consistency across sessions.
+    if (voiceProfileContext && typeof voiceProfileContext === "string") {
+      systemPrompt += voiceProfileContext;
+      console.log("[suggest] Voice profile context injected —", voiceProfileContext.length, "chars");
+    }
+
     // 7c. Inject template-specific detail fields into the user prompt.
     const fieldValuesStr = formatTemplateFieldValues(templateFields, lang as "en" | "fi");
     if (fieldValuesStr) {
@@ -755,6 +765,7 @@ ${buildUserReminder("en")}`;
                 body: (v.body as string) || "",
                 cta: (v.cta as string) || "",
                 ctaOptions: Array.isArray(v.ctaOptions) ? (v.ctaOptions as string[]) : [],
+                hookPattern: typeof v.hookPattern === "string" ? (v.hookPattern as string) : undefined,
                 imagePrompt: (v.imagePrompt as string) || "",
               }));
             } else if ((result.headline as string) || (result.title as string)) {
@@ -765,6 +776,7 @@ ${buildUserReminder("en")}`;
                 body: (result.body as string) || (result.description as string) || "",
                 cta: (result.cta as string) || "",
                 ctaOptions: Array.isArray(result.ctaOptions) ? (result.ctaOptions as string[]) : [],
+                hookPattern: typeof result.hookPattern === "string" ? (result.hookPattern as string) : undefined,
                 imagePrompt: (result.imageSuggestion as string) || "",
               }];
             } else {

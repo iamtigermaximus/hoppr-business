@@ -535,6 +535,9 @@ model Bar {
   retargetingCampaigns RetargetingCampaign[]
   busynessPatterns     BarBusynessPattern[]
 
+  // Brand voice memory
+  voiceProfile BarVoiceProfile?
+
   @@map("bars")
 }
 
@@ -1540,4 +1543,38 @@ model BarIncident {
   @@index([incidentType, createdAt])
   @@index([createdAt])
   @@map("bar_incidents")
+}
+
+// ============================================
+// BAR VOICE PROFILE — persistent brand voice memory per bar
+// ============================================
+// Accumulates over sessions to build a recognizable brand identity.
+// The creative director references this profile by default when generating
+// content, so the AI maintains a consistent voice across weeks.
+// Bar staff can override at any time — the override is explicit.
+
+model BarVoiceProfile {
+  id               String   @id @default(cuid())
+  barId            String   @unique
+  totalGenerations Int      @default(0)
+
+  // Tone tracking — JSON object: { "WARM_INVITING": 5, "BOLD_ENERGETIC": 2, ... }
+  // The key with the highest count is the bar's established voice.
+  toneUsage        Json     @default("{}")
+
+  // Template tracking — JSON object: { "after-work": 3, "live-music": 1, ... }
+  // Most-used template IDs. Used to suggest familiar formats.
+  templateUsage    Json     @default("{}")
+
+  // Audience preference — JSON array: ["young-professionals", "friend-groups"]
+  // Most-targeted audience segments across generations.
+  preferredAudience Json    @default("[]")
+
+  lastUsedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  bar Bar @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@map("bar_voice_profiles")
 }

@@ -723,14 +723,16 @@ TEE NÄIN — KOUKKU → RUNKO → TOIMINTAKEHOTE -rakenteella:
 - KOUKKU (otsikko): Yksi lause joka PYSÄYTTÄÄ selauksen. Ei tunnelmakuvaus, ei geneerinen tervehdys. Käytä yhtä kuudesta koukkutyypistä: uteliaisuusrako, some-häiriö, sosiaalinen todiste, kiireellisyys, tunne-ärsyke tai suora lupaus. Alle 10 sanaa. Otsikko väittää, lupaa tai kutsuu — se ei kuvaile.
 - RUNKO (kuvaus): 2-3 lausetta jotka TOIMITTAVAT sen mitä otsikko lupasi. Kerro mitä tapahtuu, milloin, missä. Mainitse KONKREETTISIA yksityiskohtia tästä baarista. Kirjoita niin kuin olisit itse paikalla — mitä näet, kuulet, tunnet.
 - TOIMINTAKEHOTE (callToAction): Yksi lause joka SULKEE viestin. Luo FOMO:a, uteliaisuutta tai kiireellisyyttä. Hyvä CTA ei kerjää — mutta se ei myöskään kohauttele olkapäitään. Luo LISÄKSI 2-3 ctaOptions-vaihtoehtoa jotka vaihtelevat kiireellisyyden mukaan: (1) kiireellisin — aikapaine/niukkuus, (2) pehmeämpi — uteliaisuus/kiinnostus paineen sijaan, (3) suorin — selkein pyyntö. Mukauta CTA:t sisältötyyppiin: tapahtumat → lippu/ilmoittautumiskieli, tarjoukset → lunasta/hyödynnä, passit → osta/avaa, kampanjat → tutustu/löydä. Mukauta kiireellisyyssignaaleihin: rajoitettu aika → takaraja (ennen, viimeinen, päättyy), kausiluonteinen → kalenteri (vain tänä viikonloppuna, kesän ajan), eksklusiivinen → niukkuus (rajoitettu, vain jäsenille), säännöllinen → kutsu (tule käymään, kurkkaa).
-- Jokainen variantti kuulostaa eri ihmisen kirjoittamalta`
+- Jokainen variantti kuulostaa eri ihmisen kirjoittamalta
+- Lisää JOKAISEEN varianttiin "hookPattern"-kenttä: kerro mitä kuudesta koukkutyypistä käytit (curiosity_gap, pattern_interrupt, social_proof, urgency_scarcity, emotional_spike tai direct_promise)`
     : `${templateLine}${toneBlock}${templateVoiceBlock}${blendInstruction}${synergyBlock}${userBriefLine}${contextLine}${nonceLine}${rotationBlock}${barHooksBlock}\n\nCRITICAL — CREATIVE INSTRUCTION:\nCombine the ingredients above into ${numVariants} unique ${type} promotions for "${barContext.name}".\n\nEACH variant draws from different aspects:\n- The bar's unique details (${barContext.type} style, ${barContext.district || "location"}, ${barContext.priceRange || "price level"})\n- The chosen tone and template characteristics\n- The context's timeliness (season, time of day, weather)\n\nFORBIDDEN:\n- Generic "join us" / "welcome" / "best bar in town" filler\n- Repeating the same sentence across variants\n- Bland descriptions that could fit any bar anywhere
 
 DO THIS — using HOOK → BODY → CTA structure:
 - HOOK (title): One line that STOPS THE SCROLL. Not ambiance description, not a generic greeting. Use one of six hook types: curiosity gap, pattern interrupt, social proof, urgency/scarcity, emotional spike, or direct promise. Under 10 words. The headline claims, promises, or beckons — it does not describe.
 - BODY (description): 2-3 sentences that DELIVER what the hook promised. Say what's happening, when, where. Mention SPECIFIC, CONCRETE details about THIS bar. Write as if you're standing in the room — what you see, hear, feel.
 - CTA (callToAction) + ctaOptions: The PRIMARY callToAction closes the message with FOMO, curiosity, or urgency. A good CTA doesn't beg — but it also doesn't shrug. ALSO generate 2-3 ctaOptions that vary by urgency: (1) most urgent — time pressure/scarcity, (2) softer — curiosity/intrigue over pressure, (3) direct — the simplest, clearest ask. Adapt CTAs to content TYPE: events → ticket/RSVP language, promotions → redeem/claim, passes → buy/unlock, campaigns → discover/explore. Adapt to URGENCY signals: limited-time → deadline words (before, last chance, ends), seasonal → calendar words (this weekend, summer only), exclusive → scarcity (limited, members only), regular → invitation (come by, check it out).
-- Each variant sounds like a different person wrote it`;
+- Each variant sounds like a different person wrote it
+- Include a "hookPattern" field in EVERY variant identifying which hook type was used: curiosity_gap, pattern_interrupt, social_proof, urgency_scarcity, emotional_spike, or direct_promise`;
 
   // Fully bilingual return
   // IMPORTANT: The creative instruction (ingredientsBlock) comes FIRST after bar context.
@@ -943,7 +945,8 @@ TEE NÄIN — KOUKKU → RUNKO → TOIMINTAKEHOTE -rakenteella:
 - RUNKO (leipäteksti): 2-3 lausetta jotka TOIMITTAVAT sen mitä otsikko lupasi. Mainitse KONKREETTISIA yksityiskohtia tästä baarista. Kirjoita kuin olisit paikalla — mitä näet, kuulet, tunnet.
 - TOIMINTAKEHOTE (cta): Yksi lause joka SULKEE viestin. Luo FOMO:a, uteliaisuutta tai kiireellisyyttä. Kutsu, ei olankohautus. Luo LISÄKSI 2-3 ctaOptions-vaihtoehtoa jotka vaihtelevat kiireellisyyden mukaan: (1) kiireellisin — aikapaine/niukkuus, (2) pehmeämpi — uteliaisuus/kiinnostus, (3) suorin — selkein pyyntö. Mukauta CTA:t yleisösignaaleihin: kaveriporukat → ryhmätoiminta (tuo porukkasi), pariskunnat → intiimi (vain te kaksi), työkaverit → ammatillinen (työpäivän jälkeen), musiikinystävät → kokemuksellinen (kuule livenä), ruokaintoilijat → aistillinen (maista tätä), lähialueen asukkaat → yhteenkuuluvuus (sinun uusi paikkasi).
 - Jokainen variantti kuulostaa eri ihmisen kirjoittamalta
-- Rakenna mielikuvaa ja muistijälkeä — älä myy, kerro`
+- Rakenna mielikuvaa ja muistijälkeä — älä myy, kerro
+- Lisää JOKAISEEN varianttiin "hookPattern"-kenttä: kerro mitä kuudesta koukkutyypistä käytit (curiosity_gap, pattern_interrupt, social_proof, urgency_scarcity, emotional_spike tai direct_promise)`
     : `${templateLine}${toneBlock}${audienceBlock}${coreMsgBlock}${atmosphereBlock}${imageWorldBlock}${copyStructBlock}${nonceLine}${rotationBlock}${barHooksBlock}\n\nCRITICAL — CREATIVE INSTRUCTION:\nCombine the ingredients above into ${variants} unique brand content pieces for "${input.barName}".\n\nEACH variant draws from different aspects:\n- The bar's unique details (${input.barType} style, ${input.district || "location"}, ${input.priceRange || "price level"})\n- The chosen tone and content type characteristics\n- The image world and atmosphere\n\nFORBIDDEN:\n- Prices, discounts, deals, "happy hour", "free", "offer"\n- Generic "join us" / "welcome" / "best bar in town" filler\n- Repeating the same sentence across variants\n- Mentioning alcohol as the main subject
 
 DO THIS — using HOOK → BODY → CTA structure:
@@ -951,7 +954,8 @@ DO THIS — using HOOK → BODY → CTA structure:
 - BODY (body): 2-3 sentences that DELIVER what the hook promised. Mention SPECIFIC, CONCRETE details about THIS bar. Write as if you're standing in the room — what you see, hear, feel.
 - CTA (cta): One line that CLOSES the message. Create FOMO, curiosity, or urgency. An invitation, not a shrug. ALSO generate 2-3 ctaOptions that vary by urgency: (1) most urgent — time pressure/scarcity, (2) softer — curiosity/intrigue, (3) direct — the simplest, clearest ask. Adapt CTAs to audience signals: friend-groups → group action (bring your crew), couples → intimate (just the two of you), work-colleagues → professional (after hours), music-lovers → experiential (hear it live), food-focused → sensory (taste this), neighborhood-locals → belonging (your new spot).
 - Each variant sounds like a different person wrote it
-- Build association and memory — don't sell, tell`;
+- Build association and memory — don't sell, tell
+- Include a "hookPattern" field in EVERY variant identifying which hook type was used: curiosity_gap, pattern_interrupt, social_proof, urgency_scarcity, emotional_spike, or direct_promise`;
 
   // ---- Final prompt (same structure as buildGeneratePrompt) ----
   const districtStr = [input.district, input.cityName].filter(Boolean).join(", ");
