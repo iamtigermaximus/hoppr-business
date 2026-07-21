@@ -11,7 +11,7 @@
 export type ContentType = "event" | "promotion" | "pass" | "campaign" | "brand";
 
 /** Creation mode — "brand" = advertising/brand building, "promotional" = deals/offers */
-export type CreationMode = "brand" | "promotional";
+export type CreationMode = "brand" | "promotional" | "campaign";
 
 // ---- Advertising hub ingredient types (re-exported from creative-director for UI use) ----
 

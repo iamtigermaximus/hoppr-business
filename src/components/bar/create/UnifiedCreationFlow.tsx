@@ -63,6 +63,70 @@ import {
   buildVoiceProfileBlock,
 } from "@/lib/voice-profile";
 import {
+  BEAT_DEFS,
+  BEAT_ORDER,
+  type CampaignBeatJob,
+} from "@/lib/prompts/build-campaign-prompt";
+
+// ---- Canvas helpers for social card export ----
+
+/** Draw a rounded rectangle path on a canvas context */
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h);
+  ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r);
+  ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+/** Draw wrapped text on a canvas context, returning the next y position */
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+): number {
+  const words = text.split(" ");
+  let line = "";
+  let currentY = y;
+  for (const word of words) {
+    const testLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(testLine).width > maxWidth && line) {
+      ctx.fillText(line, x, currentY);
+      currentY += lineHeight;
+      line = word;
+    } else {
+      line = testLine;
+    }
+  }
+  if (line) ctx.fillText(line, x, currentY);
+  return currentY + lineHeight;
+}
+
+type CampaignBeatResult = {
+  job: CampaignBeatJob;
+  headline: string;
+  body: string;
+  cta: string;
+  hookPattern?: string;
+  imagePrompt: string;
+};
+import {
   getTemplates,
   getTemplatesByCategory,
   getSuggestedTemplates,
@@ -87,8 +151,8 @@ interface UnifiedCreationFlowProps {
   barType?: string | null;
   barCoverImage?: string | null;
   contentType: ContentType;
-  creationMode?: "brand" | "promotional";
-  onModeChange?: (mode: "brand" | "promotional") => void;
+  creationMode?: "brand" | "promotional" | "campaign";
+  onModeChange?: (mode: "brand" | "promotional" | "campaign") => void;
   formState: FormState;
   contentTone?: ContentTone | null;
   onGenerated: (data: Record<string, unknown>) => void;
@@ -1124,6 +1188,40 @@ export default function UnifiedCreationFlow({
   const [voiceOverride, setVoiceOverride] = useState(false);
   const voiceProfileFetched = useRef(false);
 
+  // ---- Campaign state ----
+  const [campaignName, setCampaignName] = useState("");
+  const [campaignBeats, setCampaignBeats] = useState<CampaignBeatJob[]>([
+    "teaser",
+    "announcement",
+    "day_of",
+  ]);
+  const [campaignEventDate, setCampaignEventDate] = useState("");
+  const [campaignEventTime, setCampaignEventTime] = useState("");
+  const [campaignResults, setCampaignResults] = useState<
+    Array<{
+      job: CampaignBeatJob;
+      headline: string;
+      body: string;
+      cta: string;
+      hookPattern?: string;
+      imagePrompt: string;
+    }>
+  >([]);
+  const [campaignGenerating, setCampaignGenerating] = useState(false);
+  const [campaignGenerationStatus, setCampaignGenerationStatus] = useState("");
+  const [editingCampaignBeat, setEditingCampaignBeat] = useState<number | null>(
+    null,
+  );
+  const [activeCampaignBeatIndex, setActiveCampaignBeatIndex] = useState<number>(0);
+  const [campaignBeatImages, setCampaignBeatImages] = useState<string[]>([]);
+  const [campaignBeatImagesLoading, setCampaignBeatImagesLoading] = useState<
+    boolean[]
+  >([]);
+
+  // Social card export — captures each beat as a 1200×630 downloadable PNG
+  const [campaignCardDataUrls, setCampaignCardDataUrls] = useState<(string | null)[]>([]);
+  const campaignCardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
   // Compute the voice profile context block for AI prompts — always
   // in sync with the current language
   const voicePromptBlock = useMemo(() => {
@@ -1266,6 +1364,35 @@ export default function UnifiedCreationFlow({
     // Only run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, barId]);
+
+  // Auto-fill campaign defaults when entering campaign mode
+  const campaignDefaultsApplied = useRef(false);
+  useEffect(() => {
+    if (creationMode === "campaign" && !campaignDefaultsApplied.current) {
+      campaignDefaultsApplied.current = true;
+
+      // Default event date to next Friday
+      if (!campaignEventDate) {
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0=Sun, 5=Fri
+        const daysUntilFriday = (5 - dayOfWeek + 7) % 7 || 7; // next Friday (skip today if it's Fri)
+        const nextFriday = new Date(today);
+        nextFriday.setDate(today.getDate() + daysUntilFriday);
+        setCampaignEventDate(nextFriday.toISOString().slice(0, 10));
+      }
+
+      // Auto-suggest campaign name from bar name
+      if (!campaignName && barName) {
+        const monthName = new Date().toLocaleString("default", { month: "long" });
+        setCampaignName(`${barName} — ${monthName} Series`);
+      }
+    }
+    // Reset when switching away from campaign
+    if (creationMode !== "campaign") {
+      campaignDefaultsApplied.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [creationMode]);
 
   // Text generation state (declared above the voice profile useEffect
   // that depends on variants.length)
@@ -1609,6 +1736,327 @@ export default function UnifiedCreationFlow({
       setSynthesizingBrief(false);
     }
   };
+
+  // ---- Campaign: beat toggle ----
+
+  const toggleCampaignBeat = (beat: CampaignBeatJob) => {
+    setCampaignBeats((prev) =>
+      prev.includes(beat)
+        ? prev.filter((b) => b !== beat)
+        : [...prev, beat].sort(
+            (a, b) =>
+              BEAT_ORDER.indexOf(a as CampaignBeatJob) -
+              BEAT_ORDER.indexOf(b as CampaignBeatJob),
+          ),
+    );
+  };
+
+  const handleCampaignGenerate = async () => {
+    if (!token || !campaignName.trim()) return;
+    setCampaignGenerating(true);
+    setError(null);
+    setCampaignResults([]);
+    setCampaignGenerationStatus(
+      language === "fi" ? "Valmistellaan kampanjaa..." : "Preparing campaign...",
+    );
+
+    try {
+      const body: Record<string, unknown> = {
+        campaignName: campaignName.trim(),
+        language,
+        beats: campaignBeats,
+        contentTone: activeTone,
+        eventDate: campaignEventDate || undefined,
+        eventTime: campaignEventTime || undefined,
+        userBrief: text.trim() || undefined,
+        voiceProfileContext: voicePromptBlock || undefined,
+      };
+      if (creationMode === "brand") {
+        if (brandAudience.length > 0) body.audience = brandAudience;
+        if (brandCoreMessage) body.coreMessage = brandCoreMessage;
+        if (brandAtmosphere.length > 0) body.atmosphere = brandAtmosphere;
+        if (brandImageWorld) body.imageWorld = brandImageWorld;
+        if (brandCopyStructure) body.copyStructure = brandCopyStructure;
+      }
+
+      setCampaignGenerationStatus(
+        language === "fi"
+          ? `Luodaan ${campaignBeats.length} postausta... (tämä voi kestää hetken)`
+          : `Generating ${campaignBeats.length} posts... (this may take a moment)`,
+      );
+
+      const res = await fetch(`/api/auth/bar/${barId}/create/campaign`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Campaign generation failed");
+      }
+
+      const data = await res.json();
+
+      setCampaignGenerationStatus(
+        language === "fi"
+          ? "Käsitellään tuloksia..."
+          : "Processing results...",
+      );
+
+      if (data.warning) setError(data.warning as string);
+      setCampaignResults(data.beats as CampaignBeatResult[]);
+      setCampaignBeatImages(new Array((data.beats as CampaignBeatResult[]).length).fill(""));
+      setCampaignBeatImagesLoading([]);
+      setActiveCampaignBeatIndex(0);
+
+      // Sync first beat to formState so ConsumerPreviewPanel shows live social preview
+      if (data.beats.length > 0) {
+        const firstBeat = data.beats[0];
+        onFieldChange("title", firstBeat.headline);
+        onFieldChange("description", firstBeat.body);
+        // Propagate campaign metadata for the preview panel
+        onFieldChange("brandHeadline", firstBeat.headline);
+        onFieldChange("brandBody", firstBeat.body);
+        onFieldChange("brandCta", firstBeat.cta);
+        if (campaignEventDate) onFieldChange("campaignStartDate", campaignEventDate);
+      }
+
+      // Update voice profile (fire-and-forget)
+      const updateBody: Record<string, unknown> = {};
+      if (activeTone) updateBody.tone = activeTone;
+      if (activeTemplate) updateBody.template = activeTemplate;
+      if (Object.keys(updateBody).length > 0) {
+        fetch(`/api/auth/bar/${barId}/voice-profile`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updateBody),
+        }).catch(() => {});
+      }
+
+      setCampaignGenerationStatus("");
+      setStep("refine");
+    } catch (err) {
+      setCampaignGenerationStatus("");
+      setError(err instanceof Error ? err.message : "Campaign generation failed");
+    } finally {
+      setCampaignGenerating(false);
+    }
+  };
+
+  // ---- Campaign image generation ----
+  const handleCampaignImageGenerate = useCallback(
+    async (beatIndex: number) => {
+      if (!token) return;
+
+      setCampaignBeatImagesLoading((prev) => {
+        const next = [...prev];
+        next[beatIndex] = true;
+        return next;
+      });
+      setError(null);
+
+      try {
+        const beat = campaignResults[beatIndex];
+        if (!beat?.imagePrompt) {
+          setError("No image prompt for this beat");
+          return;
+        }
+
+        const chips = deriveImageChips(activeTone, activeTemplate, 0);
+
+        const res = await fetch(
+          `/api/auth/bar/${barId}/images/generate`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              styleId: chips.styleId,
+              subjectId: chips.subjectId,
+              compositionId: chips.compositionId,
+              contentType: "campaign",
+              formContext: {
+                title: beat.headline,
+                description: beat.body,
+                barName,
+              },
+              visualDirection: {
+                description: beat.imagePrompt,
+                keyElements: [],
+                styleNotes: "",
+              },
+              count: 1,
+            }),
+          },
+        );
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || "Image generation failed");
+        }
+
+        const data = await res.json();
+        const jobIds: string[] = data.jobIds || [];
+
+        if (jobIds.length === 0) throw new Error("No image job created");
+
+        // Poll for completion (up to 45 attempts, 2s apart = 90s max)
+        let imageUrl: string | null = null;
+        for (let attempt = 0; attempt < 45; attempt++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          try {
+            const statusRes = await fetch(
+              `/api/auth/bar/${barId}/images/jobs/${jobIds[0]}`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (!statusRes.ok) continue;
+            const statusData = await statusRes.json();
+            if (statusData.status === "completed" && statusData.urls?.[0]) {
+              imageUrl = statusData.urls[0];
+              break;
+            }
+            if (statusData.status === "failed") break;
+          } catch {
+            // Continue polling
+          }
+        }
+
+        setCampaignBeatImages((prev) => {
+          const next = [...prev];
+          next[beatIndex] = imageUrl || "";
+          return next;
+        });
+
+        // Sync image to formState for live preview (if this is the active beat)
+        if (imageUrl && beatIndex === activeCampaignBeatIndex) {
+          onFieldChange("imageUrl", imageUrl);
+        }
+
+        if (!imageUrl) {
+          setError(
+            language === "fi"
+              ? "Kuvan luominen aikakatkaistiin. Yritä uudelleen."
+              : "Image generation timed out. Please try again.",
+          );
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Image generation failed",
+        );
+      } finally {
+        setCampaignBeatImagesLoading((prev) => {
+          const next = [...prev];
+          next[beatIndex] = false;
+          return next;
+        });
+      }
+    },
+    [token, barId, activeTone, activeTemplate, language, campaignResults, barName, activeCampaignBeatIndex, onFieldChange],
+  );
+
+  const handleCampaignAllImages = useCallback(async () => {
+    if (!token) return;
+
+    const loading = new Array(campaignResults.length).fill(true);
+    setCampaignBeatImagesLoading(loading);
+    setError(null);
+
+    try {
+      const chips = deriveImageChips(activeTone, activeTemplate, 0);
+
+      const variantVDs = campaignResults.map((beat) => ({
+        visualDirection: {
+          description: beat.imagePrompt || "",
+          keyElements: [],
+          styleNotes: "",
+        },
+        formContext: {
+          title: beat.headline,
+          description: beat.body,
+          barName,
+        },
+      }));
+
+      const res = await fetch(
+        `/api/auth/bar/${barId}/images/generate`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            variantVisualDirections: variantVDs,
+            contentType: "campaign",
+            styleId: chips.styleId,
+            subjectId: chips.subjectId,
+            compositionId: chips.compositionId,
+            count: 1,
+          }),
+        },
+      );
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Image generation failed");
+      }
+
+      const data = await res.json();
+      const jobIds: string[] = data.jobIds || [];
+
+      if (jobIds.length === 0) throw new Error("No image jobs created");
+
+      // Poll all jobs concurrently
+      const variantUrls: (string | null)[] = new Array(campaignResults.length).fill(null);
+
+      for (let attempt = 0; attempt < 45; attempt++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        let allDone = true;
+
+        for (let i = 0; i < jobIds.length; i++) {
+          if (variantUrls[i]) continue;
+          try {
+            const statusRes = await fetch(
+              `/api/auth/bar/${barId}/images/jobs/${jobIds[i]}`,
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+            if (!statusRes.ok) continue;
+            const statusData = await statusRes.json();
+            if (statusData.status === "completed" && statusData.urls?.[0]) {
+              variantUrls[i] = statusData.urls[0];
+            } else if (statusData.status === "failed") {
+              variantUrls[i] = null;
+            } else {
+              allDone = false;
+            }
+          } catch {
+            allDone = false;
+          }
+        }
+
+        if (allDone) break;
+      }
+
+      setCampaignBeatImages(variantUrls.map((url) => url || ""));
+
+      // Sync first beat's image to formState for live preview
+      const firstUrl = variantUrls[0];
+      if (firstUrl) onFieldChange("imageUrl", firstUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Image generation failed");
+    } finally {
+      setCampaignBeatImagesLoading([]);
+    }
+  }, [token, barId, activeTone, activeTemplate, campaignResults, barName, onFieldChange]);
 
   // ---- Step 2 → 3: Generate text ----
 
@@ -2589,6 +3037,22 @@ export default function UnifiedCreationFlow({
                     : "Time-limited benefit. Price, conditions, call to action. Alcohol law restrictions apply."}
                 </ModeCardDesc>
               </ModeCard>
+              <ModeCard
+                $active={creationMode === "campaign"}
+                onClick={() => {
+                  onModeChange?.("campaign");
+                  setStep("brief");
+                }}
+              >
+                <ModeCardLabel>
+                  {language === "fi" ? "Kampanja" : "Campaign"}
+                </ModeCardLabel>
+                <ModeCardDesc>
+                  {language === "fi"
+                    ? "Usean postauksen sarja. Teaseri → julkistus → muistutus → tapahtuu nyt → jälkiseuranta. Yhtenäinen luova suunta."
+                    : "Multi-post sequence. Teaser → announcement → reminder → day-of → follow-up. Unified creative direction."}
+                </ModeCardDesc>
+              </ModeCard>
             </ModeGrid>
 
             {creationMode !== "brand" && (
@@ -2622,6 +3086,160 @@ export default function UnifiedCreationFlow({
         {/* ===== STEP 2: BRIEF ===== */}
         {step === "brief" && (
           <div>
+            {/* Campaign config panel — only shown in campaign mode */}
+            {creationMode === "campaign" && (
+              <CampaignConfigPanel>
+                <SectionLabel>
+                  {language === "fi"
+                    ? "Kampanjan asetukset"
+                    : "Campaign Settings"}
+                </SectionLabel>
+
+                {/* Campaign name */}
+                <FieldGroup>
+                  <FieldLabel>
+                    {language === "fi" ? "Kampanjan nimi" : "Campaign Name"}
+                  </FieldLabel>
+                  <CampaignNameInput
+                    type="text"
+                    value={campaignName}
+                    onChange={(e) => setCampaignName(e.target.value)}
+                    placeholder={
+                      language === "fi"
+                        ? 'esim. "Perjantai After-Work -sarja"'
+                        : 'e.g. "Friday After-Work Series"'
+                    }
+                    disabled={campaignGenerating}
+                  />
+                </FieldGroup>
+
+                {/* Beat selection */}
+                <FieldGroup>
+                  <FieldLabel>
+                    {language === "fi"
+                      ? "Postaukset (järjestyksessä)"
+                      : "Posts (in order)"}
+                  </FieldLabel>
+                  <BeatCheckRow>
+                    {BEAT_ORDER.map((beat) => {
+                      const def = BEAT_DEFS[beat];
+                      const label = language === "fi" ? def.label.fi : def.label.en;
+                      const isSelected = campaignBeats.includes(beat);
+                      return (
+                        <BeatCheckChip
+                          key={beat}
+                          $active={isSelected}
+                          onClick={() => toggleCampaignBeat(beat)}
+                          disabled={campaignGenerating}
+                          title={
+                            language === "fi"
+                              ? def.objective.fi
+                              : def.objective.en
+                          }
+                        >
+                          {label}
+                        </BeatCheckChip>
+                      );
+                    })}
+                  </BeatCheckRow>
+                  <FieldHint style={{ marginTop: 6 }}>
+                    {language === "fi"
+                      ? "Suositus: teaser + julkistus + tapahtuu nyt = 3 postausta 5 päivässä"
+                      : "Recommended: teaser + announcement + day-of = 3 posts over 5 days"}
+                  </FieldHint>
+                </FieldGroup>
+
+                {/* Event date / time */}
+                <FieldGroup>
+                  <FieldLabel>
+                    {language === "fi"
+                      ? "Tapahtuman päivämäärä"
+                      : "Event Date"}
+                  </FieldLabel>
+                  <DateRow>
+                    <DateInput
+                      type="date"
+                      value={campaignEventDate}
+                      onChange={(e) => setCampaignEventDate(e.target.value)}
+                      disabled={campaignGenerating}
+                    />
+                    <TimeInput
+                      type="time"
+                      value={campaignEventTime}
+                      onChange={(e) => setCampaignEventTime(e.target.value)}
+                      disabled={campaignGenerating}
+                      placeholder="17:00"
+                    />
+                  </DateRow>
+                  <FieldHint style={{ marginTop: 4 }}>
+                    {language === "fi"
+                      ? "AI käyttää päivämäärää postausten ajoituksen laskemiseen (teaseri 3pv ennen, julkistus 1pv ennen jne.)"
+                      : "The AI uses this date to calculate post timing (teaser 3 days before, announcement 1 day before, etc.)"}
+                  </FieldHint>
+                </FieldGroup>
+
+                <Divider />
+              </CampaignConfigPanel>
+            )}
+
+            {/* Campaign preview — always visible summary of what will be generated */}
+            {creationMode === "campaign" && campaignName.trim() && (
+              <PreviewSection style={{ marginBottom: 16 }}>
+                <PreviewBody>
+                    <PreviewLine>
+                      <strong>{campaignName}</strong>
+                      {campaignEventDate && (
+                        <span style={{ color: "#6b7280", marginLeft: 8 }}>
+                          — {new Date(campaignEventDate).toLocaleDateString(
+                            language === "fi" ? "fi-FI" : "en-US",
+                            { weekday: "short", month: "long", day: "numeric" },
+                          )}
+                        </span>
+                      )}
+                    </PreviewLine>
+                    <PreviewLine style={{ color: "#9ca3af", marginTop: 4 }}>
+                      {`${barName} • ${toneLabel ? toneLabel.label : language === "fi" ? "Ei äänensävyä" : "No tone selected"}`}
+                    </PreviewLine>
+                    <PreviewLine style={{ color: "#6b7280", marginTop: 6 }}>
+                      {language === "fi" ? "Postaukset:" : "Posts:"}
+                    </PreviewLine>
+                    {campaignBeats.map((beat, i) => {
+                      const def = BEAT_DEFS[beat];
+                      const label = language === "fi" ? def.label.fi : def.label.en;
+                      return (
+                        <PreviewLine key={beat} style={{ color: "#e5e7eb", paddingLeft: 12 }}>
+                          <span
+                            style={{
+                              display: "inline-block",
+                              width: 6,
+                              height: 6,
+                              borderRadius: "50%",
+                              background: CAMPAIGN_JOB_COLORS[beat],
+                              marginRight: 8,
+                              verticalAlign: "middle",
+                            }}
+                          />
+                          {i + 1}. {label}
+                          <span style={{ color: "#6b7280", marginLeft: 6, fontSize: 11 }}>
+                            {language === "fi" ? def.objective.fi : def.objective.en}
+                          </span>
+                        </PreviewLine>
+                      );
+                    })}
+                    {text.trim() && (
+                      <>
+                        <PreviewLine style={{ color: "#6b7280", marginTop: 6 }}>
+                          {language === "fi" ? "Lisätiedot:" : "Additional context:"}
+                        </PreviewLine>
+                        <PreviewLine style={{ color: "#e5e7eb", paddingLeft: 12 }}>
+                          {text.trim()}
+                        </PreviewLine>
+                      </>
+                    )}
+                  </PreviewBody>
+              </PreviewSection>
+            )}
+
             {/* Language toggle */}
             <ControlsRow style={{ marginTop: 0, marginBottom: 14 }}>
               <ControlGroup>
@@ -3585,19 +4203,20 @@ export default function UnifiedCreationFlow({
               </IngredientsSummary>
             )}
 
-            {/* Live preview of the combined prompt */}
-            {!hasIngredients ? (
-              <PreviewSection>
-                <PreviewBody>
-                  <PreviewPlaceholder>
-                    {language === "fi"
-                      ? "Valitse malli tai äänensävy nähdäksesi esikatselun."
-                      : "Select a template or tone to see a preview."}
-                  </PreviewPlaceholder>
-                </PreviewBody>
-              </PreviewSection>
-            ) : (
-              <PreviewSection>
+            {/* Live preview of the combined prompt — hidden for campaign mode (has its own preview) */}
+            {creationMode !== "campaign" && (
+              !hasIngredients ? (
+                <PreviewSection>
+                  <PreviewBody>
+                    <PreviewPlaceholder>
+                      {language === "fi"
+                        ? "Valitse malli tai äänensävy nähdäksesi esikatselun."
+                        : "Select a template or tone to see a preview."}
+                    </PreviewPlaceholder>
+                  </PreviewBody>
+                </PreviewSection>
+              ) : (
+                <PreviewSection>
                 <PreviewToggle onClick={() => setPreviewOpen(!previewOpen)}>
                   <PreviewToggleIcon $open={previewOpen}>
                     {previewOpen ? "▼" : "▶"}
@@ -3633,7 +4252,8 @@ export default function UnifiedCreationFlow({
                   </PreviewBody>
                 )}
               </PreviewSection>
-            )}
+            )
+          )}
 
             {/* Compliance pre-check blocked */}
             {complianceBlocked && (
@@ -3761,56 +4381,111 @@ export default function UnifiedCreationFlow({
               </div>
             )}
 
-            {/* Generate button */}
-            <GenerateRow>
-              <FormatNote>
-                {creationMode === "brand"
-                  ? language === "fi"
-                    ? "Luo brändisisältöä valinnoistasi — otsikko, leipäteksti ja toimintakehote. Ei hintoja."
-                    : "Generates brand content from your selections — headline, body, and CTA. No prices."
-                  : contentType === "event" || contentType === "pass"
-                    ? language === "fi"
-                      ? "Luo sisältöä valinnoistasi. Voit muokata tulosta ennen julkaisua."
-                      : "Generates content from your selections. You can edit the result before publishing."
-                    : language === "fi"
-                      ? "Luo 3 tekstivarianttia valinnoistasi. Kuvat generoidaan erikseen."
-                      : "Generates 3 text variants from your selections. Images are separate."}
-              </FormatNote>
-              <GenerateButton
-                onClick={handleGenerateText}
-                disabled={generatingText}
-              >
-                {generatingText ? (
-                  <span
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+            {/* Generate button — campaign mode */}
+            {creationMode === "campaign" ? (
+              <>
+                <GenerateRow>
+                  <FormatNote>
+                    {language === "fi"
+                      ? `Luo ${campaignBeats.length} postausta — teaserista seurantaan. Yhtenäinen luova linja.`
+                      : `Generates ${campaignBeats.length} posts — teaser through follow-up. Unified creative direction.`}
+                  </FormatNote>
+                  <GenerateButton
+                    onClick={handleCampaignGenerate}
+                    disabled={campaignGenerating || generatingText || !campaignName.trim()}
                   >
-                    <Spinner /> {GENERATING_MESSAGES[language]}
-                  </span>
-                ) : creationMode === "brand" ? (
-                  language === "fi" ? (
-                    "Luo brändisisältö"
-                  ) : (
-                    "Generate brand content"
-                  )
-                ) : contentType === "event" || contentType === "pass" ? (
-                  language === "fi" ? (
-                    "Luo sisältö"
-                  ) : (
-                    "Generate content"
-                  )
-                ) : (
-                  "Generate 3 options"
-                )}
-              </GenerateButton>
-            </GenerateRow>
+                    {campaignGenerating ? (
+                      <span
+                        style={{ display: "flex", alignItems: "center", gap: 8 }}
+                      >
+                        <Spinner /> {GENERATING_MESSAGES[language]}
+                      </span>
+                    ) : language === "fi" ? (
+                      "Luo kampanja"
+                    ) : (
+                      "Generate campaign"
+                    )}
+                  </GenerateButton>
+                </GenerateRow>
 
-            <HintRow>
-              <HintKey>{language === "fi" ? "⌘+Enter" : "⌘+Enter"}</HintKey>
-              <HintText>
-                {" "}
-                {language === "fi" ? " generoidaksesi" : " to generate"}
-              </HintText>
-            </HintRow>
+                {/* Validation hint */}
+                {!campaignName.trim() && (
+                  <FieldHint style={{ marginTop: 10, color: "#f59e0b" }}>
+                    {language === "fi"
+                      ? "Anna kampanjalle nimi ennen generointia."
+                      : "Enter a campaign name before generating."}
+                  </FieldHint>
+                )}
+
+                {/* Campaign generation status */}
+                {campaignGenerationStatus && (
+                  <GenerationStatusBanner>
+                    <Spinner />
+                    {campaignGenerationStatus}
+                  </GenerationStatusBanner>
+                )}
+
+                <HintRow>
+                  <HintKey>{language === "fi" ? "⌘+Enter" : "⌘+Enter"}</HintKey>
+                  <HintText>
+                    {" "}
+                    {language === "fi" ? " generoidaksesi" : " to generate"}
+                  </HintText>
+                </HintRow>
+              </>
+            ) : (
+              <>
+                {/* Generate button — standard / brand */}
+                <GenerateRow>
+                  <FormatNote>
+                    {creationMode === "brand"
+                      ? language === "fi"
+                        ? "Luo brändisisältöä valinnoistasi — otsikko, leipäteksti ja toimintakehote. Ei hintoja."
+                        : "Generates brand content from your selections — headline, body, and CTA. No prices."
+                      : contentType === "event" || contentType === "pass"
+                        ? language === "fi"
+                          ? "Luo sisältöä valinnoistasi. Voit muokata tulosta ennen julkaisua."
+                          : "Generates content from your selections. You can edit the result before publishing."
+                        : language === "fi"
+                          ? "Luo 3 tekstivarianttia valinnoistasi. Kuvat generoidaan erikseen."
+                          : "Generates 3 text variants from your selections. Images are separate."}
+                  </FormatNote>
+                  <GenerateButton
+                    onClick={handleGenerateText}
+                    disabled={generatingText}
+                  >
+                    {generatingText ? (
+                      <span
+                        style={{ display: "flex", alignItems: "center", gap: 8 }}
+                      >
+                        <Spinner /> {GENERATING_MESSAGES[language]}
+                      </span>
+                    ) : creationMode === "brand" ? (
+                      language === "fi" ? (
+                        "Luo brändisisältö"
+                      ) : (
+                        "Generate brand content"
+                      )
+                    ) : contentType === "event" || contentType === "pass" ? (
+                      language === "fi" ? (
+                        "Luo sisältö"
+                      ) : (
+                        "Generate content"
+                      )
+                    ) : (
+                      "Generate 3 options"
+                    )}
+                  </GenerateButton>
+                </GenerateRow>
+                <HintRow>
+                  <HintKey>{language === "fi" ? "⌘+Enter" : "⌘+Enter"}</HintKey>
+                  <HintText>
+                    {" "}
+                    {language === "fi" ? " generoidaksesi" : " to generate"}
+                  </HintText>
+                </HintRow>
+              </>
+            )}
 
             {error && <ErrorBox>{error}</ErrorBox>}
             <BackLink onClick={goBack}>
@@ -3819,8 +4494,250 @@ export default function UnifiedCreationFlow({
           </div>
         )}
 
-        {/* ===== STEP 3: REFINE (Review & Edit Text) ===== */}
-        {step === "refine" && variants.length > 0 && (
+        {/* ===== STEP 3: REFINE — Campaign Beat Timeline ===== */}
+        {step === "refine" && creationMode === "campaign" && campaignResults.length > 0 && (
+          <div>
+            <SectionLabel>
+              {language === "fi"
+                ? `Kampanja: ${campaignName}`
+                : `Campaign: ${campaignName}`}
+            </SectionLabel>
+            <FieldHint style={{ marginTop: 0, marginBottom: 16 }}>
+              {language === "fi"
+                ? `${campaignResults.length} postausta — jokaisella oma tehtävänsä kampanjan kaaressa`
+                : `${campaignResults.length} posts — each with a defined job in the campaign arc`}
+            </FieldHint>
+
+            <CampaignTimeline>
+              {campaignResults.map((beat, i) => {
+                const def = BEAT_DEFS[beat.job];
+                const label = language === "fi" ? def.label.fi : def.label.en;
+                const objective = language === "fi" ? def.objective.fi : def.objective.en;
+                const isEditing = editingCampaignBeat === i;
+                const isActive = activeCampaignBeatIndex === i;
+                const annotation = getHookAnnotation(beat.headline, beat.hookPattern);
+
+                return (
+                  <CampaignBeatCard
+                    key={i}
+                    $job={beat.job}
+                    $active={isActive}
+                    onClick={() => {
+                      setActiveCampaignBeatIndex(i);
+                      onFieldChange("title", beat.headline);
+                      onFieldChange("description", beat.body);
+                      onFieldChange("brandHeadline", beat.headline);
+                      onFieldChange("brandBody", beat.body);
+                      onFieldChange("brandCta", beat.cta);
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {/* Beat header with job label */}
+                    <CampaignBeatHeader>
+                      <CampaignBeatDot $job={beat.job} />
+                      <CampaignBeatJobLabel $job={beat.job}>
+                        {i + 1}. {label}
+                      </CampaignBeatJobLabel>
+                      <CampaignBeatOffset>
+                        {def.dayOffset < 0
+                          ? `${Math.abs(def.dayOffset)}d ${language === "fi" ? "ennen" : "before"}`
+                          : def.dayOffset === 0
+                            ? language === "fi" ? "tapahtumapäivä" : "event day"
+                            : `+${def.dayOffset}d`}
+                      </CampaignBeatOffset>
+                      <CampaignBeatObjective>
+                        {objective}
+                      </CampaignBeatObjective>
+                      {isActive && (
+                        <span style={{
+                          fontSize: "9px",
+                          color: "#a78bfa",
+                          fontWeight: 600,
+                          marginLeft: "auto",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                        }}>
+                          {language === "fi" ? "Esikatselussa" : "Previewing"}
+                        </span>
+                      )}
+                    </CampaignBeatHeader>
+
+                    {/* Editable beat content */}
+                    <CampaignBeatContent>
+                      <FieldInput
+                        value={beat.headline}
+                        onChange={(e) => {
+                          const updated = [...campaignResults];
+                          updated[i] = { ...updated[i], headline: e.target.value };
+                          setCampaignResults(updated);
+                          if (i === activeCampaignBeatIndex) {
+                            onFieldChange("title", e.target.value);
+                            onFieldChange("brandHeadline", e.target.value);
+                          }
+                        }}
+                        onFocus={() => {
+                          setActiveCampaignBeatIndex(i);
+                          onFieldChange("title", beat.headline);
+                          onFieldChange("description", beat.body);
+                          onFieldChange("brandHeadline", beat.headline);
+                          onFieldChange("brandBody", beat.body);
+                          onFieldChange("brandCta", beat.cta);
+                        }}
+                        placeholder={language === "fi" ? "Otsikko" : "Headline"}
+                        $compliance={
+                          complianceWarnings?.length
+                            ? "warning"
+                            : complianceBlocked
+                              ? "error"
+                              : "clean"
+                        }
+                      />
+                      {/* Hook annotation */}
+                      {annotation && (
+                        <HookAnnotation>
+                          <HookBadge $confidence={annotation.confidence} title={annotation.explanation}>
+                            {language === "fi" ? annotation.labelFi : annotation.label}
+                          </HookBadge>
+                          <HookExplanation>
+                            {language === "fi" ? annotation.explanationFi : annotation.explanation}
+                          </HookExplanation>
+                        </HookAnnotation>
+                      )}
+                      <FieldTextarea
+                        rows={3}
+                        value={beat.body}
+                        onChange={(e) => {
+                          const updated = [...campaignResults];
+                          updated[i] = { ...updated[i], body: e.target.value };
+                          setCampaignResults(updated);
+                          if (i === activeCampaignBeatIndex) {
+                            onFieldChange("description", e.target.value);
+                            onFieldChange("brandBody", e.target.value);
+                          }
+                        }}
+                        onFocus={() => {
+                          setActiveCampaignBeatIndex(i);
+                          onFieldChange("title", beat.headline);
+                          onFieldChange("description", beat.body);
+                          onFieldChange("brandHeadline", beat.headline);
+                          onFieldChange("brandBody", beat.body);
+                          onFieldChange("brandCta", beat.cta);
+                        }}
+                        placeholder={language === "fi" ? "Leipäteksti" : "Body text"}
+                        $compliance={
+                          complianceWarnings?.length
+                            ? "warning"
+                            : complianceBlocked
+                              ? "error"
+                              : "clean"
+                        }
+                      />
+                      <FieldInput
+                        value={beat.cta}
+                        onChange={(e) => {
+                          const updated = [...campaignResults];
+                          updated[i] = { ...updated[i], cta: e.target.value };
+                          setCampaignResults(updated);
+                          if (i === activeCampaignBeatIndex) {
+                            onFieldChange("brandCta", e.target.value);
+                          }
+                        }}
+                        onFocus={() => {
+                          setActiveCampaignBeatIndex(i);
+                          onFieldChange("title", beat.headline);
+                          onFieldChange("description", beat.body);
+                          onFieldChange("brandHeadline", beat.headline);
+                          onFieldChange("brandBody", beat.body);
+                          onFieldChange("brandCta", beat.cta);
+                        }}
+                        placeholder={language === "fi" ? "Toimintakehotus" : "Call to action"}
+                        style={{ fontSize: "0.8125rem" }}
+                      />
+                    </CampaignBeatContent>
+                  </CampaignBeatCard>
+                );
+              })}
+            </CampaignTimeline>
+
+            {/* ---- Social card previews: every beat rendered as it would appear on IG/FB ---- */}
+            <SocialPreviewLabel>
+              {language === "fi"
+                ? "Näin postaukset näyttävät somessa"
+                : "How your posts will look on social media"}
+            </SocialPreviewLabel>
+            <SocialPreviewGrid>
+              {campaignResults.map((beat, i) => {
+                const imageUrl = campaignBeatImages[i] || "";
+                return (
+                  <SocialCard key={i} $job={beat.job}>
+                    <SocialCardCover
+                      $job={beat.job}
+                      $hasImage={!!imageUrl}
+                      style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined}
+                    >
+                      <SocialCardSponsored>
+                        {language === "fi" ? "Sisältöyhteistyö" : "Sponsored Content"}
+                      </SocialCardSponsored>
+                      <SocialCardJobBadge $job={beat.job}>
+                        {i + 1}/{campaignResults.length}
+                      </SocialCardJobBadge>
+                      {!imageUrl && (
+                        <SocialCardPlaceholderIcon>
+                          {beat.job === "teaser" ? "🔮"
+                            : beat.job === "announcement" ? "📣"
+                            : beat.job === "reminder" ? "🔔"
+                            : beat.job === "day_of" ? "🎉"
+                            : "💌"}
+                        </SocialCardPlaceholderIcon>
+                      )}
+                    </SocialCardCover>
+                    <SocialCardBody>
+                      <SocialCardTitle>{beat.headline}</SocialCardTitle>
+                      <SocialCardText>
+                        {beat.body.length > 140
+                          ? beat.body.slice(0, 137) + "..."
+                          : beat.body}
+                      </SocialCardText>
+                      <SocialCardCta>
+                        {beat.cta} <span style={{ fontWeight: 400 }}>→</span>
+                      </SocialCardCta>
+                    </SocialCardBody>
+                  </SocialCard>
+                );
+              })}
+            </SocialPreviewGrid>
+
+            <ButtonRow style={{ marginTop: 24 }}>
+              <ButtonSecondary onClick={() => setStep("brief")}>
+                ← {language === "fi" ? "Takaisin" : "Back"}
+              </ButtonSecondary>
+              <ButtonPrimary
+                onClick={() => {
+                  // Collect all campaign beats into a single payload for submission
+                  const campaignPayload: Record<string, unknown> = {
+                    campaignName,
+                    mode: "campaign",
+                    beats: campaignResults.map((b) => ({
+                      job: b.job,
+                      headline: b.headline,
+                      body: b.body,
+                      cta: b.cta,
+                      hookPattern: b.hookPattern,
+                      imagePrompt: b.imagePrompt,
+                    })),
+                  };
+                  onGenerated(campaignPayload);
+                  setStep("images");
+                }}
+              >
+                {language === "fi" ? "Jatka kuviin" : "Continue to Images"} →
+              </ButtonPrimary>
+            </ButtonRow>
+          </div>
+        )}
+
+        {/* ===== STEP 3: REFINE (Review & Edit Text) — Standard ===== */}
+        {step === "refine" && creationMode !== "campaign" && variants.length > 0 && (
           <div>
             <BriefRecap>
               <BriefLabel>{language === "fi" ? "Brief:" : "Brief:"}</BriefLabel>{" "}
@@ -4559,6 +5476,248 @@ export default function UnifiedCreationFlow({
           </div>
         )}
 
+        {/* ===== STEP 4: IMAGES — Campaign mode ===== */}
+        {step === "images" && creationMode === "campaign" && campaignResults.length > 0 && (
+          <div>
+            <SectionLabel>
+              {language === "fi"
+                ? `Kuvat kampanjaan: ${campaignName}`
+                : `Images for: ${campaignName}`}
+            </SectionLabel>
+            <FieldHint style={{ marginTop: 0, marginBottom: 14 }}>
+              {language === "fi"
+                ? "Luo kuvat jokaiselle postaukselle tai lataa omasi. AI käyttää jokaisen postauksen omaa kuvapromptia."
+                : "Generate images for each post or upload your own. AI uses each post's own image prompt."}
+            </FieldHint>
+
+            {/* Generate all */}
+            <GenerateRow>
+              <GenerateButton
+                onClick={handleCampaignAllImages}
+                disabled={campaignBeatImagesLoading.some(Boolean)}
+              >
+                {campaignBeatImagesLoading.some(Boolean) ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Spinner /> {GENERATING_MESSAGES[language]}
+                  </span>
+                ) : language === "fi" ? (
+                  "Luo kaikki kuvat"
+                ) : (
+                  "Generate all images"
+                )}
+              </GenerateButton>
+            </GenerateRow>
+
+            <ImageGrid>
+              {campaignResults.map((beat, i) => {
+                const def = BEAT_DEFS[beat.job];
+                const jobLabel = language === "fi" ? def.label.fi : def.label.en;
+
+                return (
+                  <ImageCard key={i}>
+                    <ImageCardBadge
+                      style={{
+                        background: `${CAMPAIGN_JOB_COLORS[beat.job]}22`,
+                        color: CAMPAIGN_JOB_COLORS[beat.job],
+                        border: `1px solid ${CAMPAIGN_JOB_COLORS[beat.job]}33`,
+                      }}
+                    >
+                      {i + 1}. {jobLabel}
+                    </ImageCardBadge>
+
+                    {/* Image or placeholder */}
+                    <ImagePreview>
+                      {campaignBeatImagesLoading[i] ? (
+                        <ImageLoading>
+                          <Spinner />
+                          <span>
+                            {language === "fi" ? "Luodaan..." : "Generating..."}
+                          </span>
+                        </ImageLoading>
+                      ) : campaignBeatImages[i] ? (
+                        <CardImage
+                          src={campaignBeatImages[i]}
+                          alt={beat.headline}
+                        />
+                      ) : (
+                        <ImagePlaceholder>
+                          {language === "fi" ? "Ei kuvaa" : "No image"}
+                        </ImagePlaceholder>
+                      )}
+                    </ImagePreview>
+
+                    {/* Beat summary */}
+                    <ImageCardTitle>{beat.headline}</ImageCardTitle>
+                    <ImageCardDesc>
+                      {beat.body.length > 80
+                        ? beat.body.slice(0, 77) + "…"
+                        : beat.body}
+                    </ImageCardDesc>
+
+                    {/* Image prompt */}
+                    <FluxToggleSmall
+                      onClick={() => {
+                        const el = document.getElementById(
+                          `campaign-flux-editor-${i}`,
+                        );
+                        if (el)
+                          el.style.display =
+                            el.style.display === "none" ? "block" : "none";
+                      }}
+                    >
+                      {language === "fi"
+                        ? "Muokkaa kuvapromptia"
+                        : "Edit image prompt"}
+                    </FluxToggleSmall>
+
+                    <FluxImgEditor
+                      id={`campaign-flux-editor-${i}`}
+                      style={{ display: "none" }}
+                    >
+                      <FieldTextarea
+                        value={beat.imagePrompt}
+                        onChange={(e) => {
+                          const updated = [...campaignResults];
+                          updated[i] = {
+                            ...updated[i],
+                            imagePrompt: e.target.value,
+                          };
+                          setCampaignResults(updated);
+                        }}
+                        rows={2}
+                        placeholder={
+                          language === "fi"
+                            ? "Kuvaprompt..."
+                            : "Image prompt..."
+                        }
+                      />
+                    </FluxImgEditor>
+
+                    {/* Actions */}
+                    <ImageActionsRow>
+                      <ImageActionBtn
+                        onClick={() => handleCampaignImageGenerate(i)}
+                        disabled={campaignBeatImagesLoading[i]}
+                      >
+                        {campaignBeatImages[i]
+                          ? language === "fi"
+                            ? "↻ Arvo uusi"
+                            : "↻ Regenerate"
+                          : language === "fi"
+                            ? "Luo kuva"
+                            : "Generate image"}
+                      </ImageActionBtn>
+                    </ImageActionsRow>
+
+                    {/* Upload alternative */}
+                    <ImageUploadWrapper>
+                      <ImageUploader
+                        value={campaignBeatImages[i] || ""}
+                        onChange={(url) => {
+                          setCampaignBeatImages((prev) => {
+                            const next = [...prev];
+                            next[i] = url || "";
+                            return next;
+                          });
+                          // Sync to formState for live preview
+                          if (i === activeCampaignBeatIndex) {
+                            onFieldChange("imageUrl", url || "");
+                          }
+                        }}
+                        contentType="campaign"
+                        barId={barId}
+                        dark
+                      />
+                    </ImageUploadWrapper>
+                  </ImageCard>
+                );
+              })}
+            </ImageGrid>
+
+            {/* Social card previews with generated images */}
+            {campaignBeatImages.some((url) => !!url) && (
+              <>
+                <SocialPreviewLabel>
+                  {language === "fi"
+                    ? "Näin postaukset näyttävät somessa"
+                    : "How your posts will look on social media"}
+                </SocialPreviewLabel>
+                <SocialPreviewGrid>
+                  {campaignResults.map((beat, i) => {
+                    const imageUrl = campaignBeatImages[i] || "";
+                    return (
+                      <SocialCard key={i} $job={beat.job}>
+                        <SocialCardCover
+                          $job={beat.job}
+                          $hasImage={!!imageUrl}
+                          style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined}
+                        >
+                          <SocialCardSponsored>
+                            {language === "fi" ? "Sisältöyhteistyö" : "Sponsored Content"}
+                          </SocialCardSponsored>
+                          <SocialCardJobBadge $job={beat.job}>
+                            {i + 1}/{campaignResults.length}
+                          </SocialCardJobBadge>
+                          {!imageUrl && (
+                            <SocialCardPlaceholderIcon>
+                              {beat.job === "teaser" ? "🔮"
+                                : beat.job === "announcement" ? "📣"
+                                : beat.job === "reminder" ? "🔔"
+                                : beat.job === "day_of" ? "🎉"
+                                : "💌"}
+                            </SocialCardPlaceholderIcon>
+                          )}
+                        </SocialCardCover>
+                        <SocialCardBody>
+                          <SocialCardTitle>{beat.headline}</SocialCardTitle>
+                          <SocialCardText>
+                            {beat.body.length > 140
+                              ? beat.body.slice(0, 137) + "..."
+                              : beat.body}
+                          </SocialCardText>
+                          <SocialCardCta>
+                            {beat.cta} <span style={{ fontWeight: 400 }}>→</span>
+                          </SocialCardCta>
+                        </SocialCardBody>
+                      </SocialCard>
+                    );
+                  })}
+                </SocialPreviewGrid>
+              </>
+            )}
+
+            {error && <ErrorBox>{error}</ErrorBox>}
+
+            <ButtonRow style={{ marginTop: 24 }}>
+              <ButtonSecondary onClick={() => setStep("refine")}>
+                ← {language === "fi" ? "Takaisin" : "Back"}
+              </ButtonSecondary>
+              <ButtonPrimary
+                onClick={() => {
+                  // Collect all campaign data into submission payload
+                  const campaignPayload: Record<string, unknown> = {
+                    campaignName,
+                    mode: "campaign",
+                    beats: campaignResults.map((b, idx) => ({
+                      job: b.job,
+                      headline: b.headline,
+                      body: b.body,
+                      cta: b.cta,
+                      hookPattern: b.hookPattern,
+                      imagePrompt: b.imagePrompt,
+                      imageUrl: campaignBeatImages[idx] || "",
+                    })),
+                  };
+                  onGenerated(campaignPayload);
+                  setStep("schedule");
+                }}
+              >
+                {language === "fi" ? "Jatka aikatauluun" : "Continue to Schedule"} →
+              </ButtonPrimary>
+            </ButtonRow>
+          </div>
+        )}
+
         {/* ===== STEP 5: SCHEDULE ===== */}
         {step === "schedule" && (
           <ScheduleStep
@@ -4815,6 +5974,143 @@ export default function UnifiedCreationFlow({
               </>
             )}
 
+            {/* ---- Campaign beats summary (publish step) ---- */}
+            {contentType === "campaign" && campaignResults.length > 0 && (
+              <>
+                <Divider />
+                <SectionLabel>
+                  {language === "fi"
+                    ? `Kampanjapostaukset (${campaignResults.length})`
+                    : `Campaign posts (${campaignResults.length})`}
+                </SectionLabel>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: "16px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  {campaignResults.map((beat, i) => {
+                    const def = BEAT_DEFS[beat.job];
+                    const label = language === "fi" ? def.label.fi : def.label.en;
+                    const imageUrl = campaignBeatImages[i] || "";
+                    return (
+                      <div
+                        key={i}
+                        style={{
+                          background: "#12122a",
+                          border: `1px solid ${(CAMPAIGN_JOB_COLORS[beat.job] || "#2d2d4a")}33`,
+                          borderLeft: `3px solid ${CAMPAIGN_JOB_COLORS[beat.job] || "#7c3aed"}`,
+                          borderRadius: "8px",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {/* Cover image */}
+                        <div
+                          style={{
+                            height: "140px",
+                            background: imageUrl
+                              ? `url(${imageUrl}) center/cover`
+                              : `linear-gradient(135deg, ${CAMPAIGN_JOB_COLORS[beat.job] || "#7c3aed"}22 0%, ${CAMPAIGN_JOB_COLORS[beat.job] || "#7c3aed"}08 100%)`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            position: "relative",
+                          }}
+                        >
+                          {!imageUrl && (
+                            <span style={{ fontSize: "2rem", opacity: 0.3 }}>
+                              {beat.job === "teaser" ? "🔮" : beat.job === "announcement" ? "📣" : beat.job === "reminder" ? "🔔" : beat.job === "day_of" ? "🎉" : "💌"}
+                            </span>
+                          )}
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: "8px",
+                              left: "8px",
+                              background: `${CAMPAIGN_JOB_COLORS[beat.job] || "#7c3aed"}cc`,
+                              color: "white",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "10px",
+                              fontWeight: 600,
+                            }}
+                          >
+                            {i + 1}. {label}
+                          </span>
+                          <span
+                            style={{
+                              position: "absolute",
+                              top: "8px",
+                              right: "8px",
+                              background: "rgba(0,0,0,0.6)",
+                              color: "#a5b4fc",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              fontSize: "9px",
+                              fontWeight: 600,
+                              textTransform: "uppercase",
+                            }}
+                          >
+                            {language === "fi" ? "Sponsoroitu" : "Sponsored"}
+                          </span>
+                        </div>
+
+                        {/* Content */}
+                        <div style={{ padding: "12px" }}>
+                          <div
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 700,
+                              color: "#f9fafb",
+                              marginBottom: "4px",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {beat.headline}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "11px",
+                              color: "#9ca3af",
+                              lineHeight: 1.4,
+                              marginBottom: "8px",
+                            }}
+                          >
+                            {beat.body.length > 120
+                              ? beat.body.slice(0, 117) + "..."
+                              : beat.body}
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              paddingTop: "8px",
+                              borderTop: "1px solid #262626",
+                              fontSize: "11px",
+                            }}
+                          >
+                            <span style={{ color: "#6b7280" }}>
+                              {def.dayOffset < 0
+                                ? `${Math.abs(def.dayOffset)}d ${language === "fi" ? "ennen" : "before"}`
+                                : def.dayOffset === 0
+                                  ? language === "fi" ? "tapahtumapäivä" : "event day"
+                                  : `+${def.dayOffset}d`}
+                            </span>
+                            <span style={{ color: "#6366f1", fontWeight: 600 }}>
+                              {beat.cta} →
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
             {contentType === "pass" && (
               <FieldRow>
                 <FieldGroup style={{ flex: 1 }}>
@@ -4839,6 +6135,190 @@ export default function UnifiedCreationFlow({
                   </SelectField>
                 </FieldGroup>
               </FieldRow>
+            )}
+
+            {/* ---- Campaign social card export (downloadable images) ---- */}
+            {contentType === "campaign" && campaignResults.length > 0 && (
+              <>
+                <Divider />
+                <SectionLabel>
+                  {language === "fi"
+                    ? "Ladattavat somekortit"
+                    : "Social cards ready to post"}
+                </SectionLabel>
+                <FieldHint style={{ marginTop: 0, marginBottom: 12 }}>
+                  {language === "fi"
+                    ? "Lataa kukin kortti erikseen ja jaa haluamassasi somekanavassa"
+                    : "Download each card individually and post to your preferred social channel"}
+                </FieldHint>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                    gap: "12px",
+                    marginBottom: "16px",
+                  }}
+                >
+                  {campaignResults.map((beat, i) => (
+                    <DownloadCard key={i}>
+                      <DownloadCardPreview $job={beat.job}>
+                        {/* Thumbnail */}
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "100px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            marginBottom: "8px",
+                            background: campaignBeatImages[i]
+                              ? `url(${campaignBeatImages[i]}) center/cover`
+                              : `linear-gradient(135deg, ${CAMPAIGN_JOB_COLORS[beat.job] || "#7c3aed"}22, ${CAMPAIGN_JOB_COLORS[beat.job] || "#7c3aed"}08)`,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {!campaignBeatImages[i] && (
+                            <span style={{ fontSize: "1.5rem", opacity: 0.3 }}>
+                              {beat.job === "teaser" ? "🔮"
+                                : beat.job === "announcement" ? "📣"
+                                : beat.job === "reminder" ? "🔔"
+                                : beat.job === "day_of" ? "🎉"
+                                : "💌"}
+                            </span>
+                          )}
+                        </div>
+                        <DownloadCardLabel $job={beat.job}>
+                          {i + 1}. {language === "fi"
+                            ? BEAT_DEFS[beat.job].label.fi
+                            : BEAT_DEFS[beat.job].label.en}
+                        </DownloadCardLabel>
+                        <DownloadCardTitle>{beat.headline}</DownloadCardTitle>
+                      </DownloadCardPreview>
+                      <DownloadCardBtn
+                        data-download-index={i}
+                        onClick={async () => {
+                          // Construct a full-size social card image from beat data
+                          try {
+                            const canvas = document.createElement("canvas");
+                            canvas.width = 1200;
+                            canvas.height = 630;
+                            const ctx = canvas.getContext("2d")!;
+
+                            // Background gradient
+                            const gradient = ctx.createLinearGradient(0, 0, 1200, 630);
+                            const jobColor = CAMPAIGN_JOB_COLORS[beat.job] || "#7c3aed";
+                            gradient.addColorStop(0, "#1a1a2e");
+                            gradient.addColorStop(0.5, jobColor + "22");
+                            gradient.addColorStop(1, "#0f0f1a");
+                            ctx.fillStyle = gradient;
+                            ctx.fillRect(0, 0, 1200, 630);
+
+                            // Draw image if available
+                            if (campaignBeatImages[i]) {
+                              try {
+                                const img = new Image();
+                                img.crossOrigin = "anonymous";
+                                await new Promise<void>((resolve, reject) => {
+                                  img.onload = () => resolve();
+                                  img.onerror = () => reject();
+                                  img.src = campaignBeatImages[i];
+                                });
+                                // Draw image with dark overlay
+                                ctx.drawImage(img, 0, 0, 1200, 630);
+                                ctx.fillStyle = "rgba(0,0,0,0.55)";
+                                ctx.fillRect(0, 0, 1200, 630);
+                              } catch { /* continue without image */ }
+                            }
+
+                            // "Sponsored Content" badge
+                            ctx.fillStyle = "rgba(0,0,0,0.5)";
+                            const badgeText = language === "fi" ? "Sisältöyhteistyö" : "Sponsored Content";
+                            ctx.font = "600 14px Inter, system-ui, sans-serif";
+                            const badgeW = ctx.measureText(badgeText).width + 24;
+                            roundRect(ctx, 32, 32, badgeW, 32, 6);
+                            ctx.fill();
+                            ctx.fillStyle = "#a5b4fc";
+                            ctx.fillText(badgeText, 44, 53);
+
+                            // Hoppr watermark
+                            ctx.fillStyle = "rgba(255,255,255,0.3)";
+                            ctx.font = "600 18px Inter, system-ui, sans-serif";
+                            ctx.textAlign = "right";
+                            ctx.fillText("HOPPR", 1168, 55);
+                            ctx.textAlign = "left";
+
+                            // Headline
+                            ctx.fillStyle = "#ffffff";
+                            ctx.font = "800 44px Inter, system-ui, sans-serif";
+                            ctx.shadowColor = "rgba(0,0,0,0.6)";
+                            ctx.shadowBlur = 12;
+                            wrapText(ctx, beat.headline, 64, 450, 1072, 52);
+
+                            // Body
+                            ctx.shadowBlur = 8;
+                            ctx.fillStyle = "rgba(255,255,255,0.85)";
+                            ctx.font = "400 20px Inter, system-ui, sans-serif";
+                            const bodyText = beat.body.length > 200
+                              ? beat.body.slice(0, 197) + "..."
+                              : beat.body;
+                            wrapText(ctx, bodyText, 64, 510, 1072, 28);
+                            ctx.shadowBlur = 0;
+
+                            // CTA pill
+                            const ctaText = `${beat.cta}  →`;
+                            ctx.font = "600 18px Inter, system-ui, sans-serif";
+                            const ctaW = ctx.measureText(ctaText).width + 36;
+                            roundRect(ctx, 64, 570, ctaW, 42, 21);
+                            ctx.fillStyle = "rgba(99, 102, 241, 0.2)";
+                            ctx.fill();
+                            ctx.strokeStyle = "rgba(99, 102, 241, 0.35)";
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                            ctx.fillStyle = "#818cf8";
+                            ctx.fillText(ctaText, 82, 597);
+
+                            // Trigger download
+                            canvas.toBlob((blob) => {
+                              if (!blob) return;
+                              const url = URL.createObjectURL(blob);
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `${campaignName.replace(/[^a-z0-9]/gi, "-").toLowerCase()}-${beat.job}.png`;
+                              a.click();
+                              URL.revokeObjectURL(url);
+                            }, "image/png");
+                          } catch (err) {
+                            console.error("Failed to generate card:", err);
+                          }
+                        }}
+                      >
+                        ⬇ {language === "fi" ? "Lataa" : "Download"}
+                      </DownloadCardBtn>
+                    </DownloadCard>
+                  ))}
+                </div>
+
+                {/* Download all button */}
+                <DownloadAllBtn
+                  onClick={async () => {
+                    for (let i = 0; i < campaignResults.length; i++) {
+                      const btn = document.querySelector(
+                        `[data-download-index="${i}"]`,
+                      ) as HTMLButtonElement | null;
+                      if (btn) {
+                        btn.click();
+                        await new Promise((r) => setTimeout(r, 600));
+                      }
+                    }
+                  }}
+                >
+                  ⬇ {language === "fi"
+                    ? `Lataa kaikki ${campaignResults.length} korttia`
+                    : `Download all ${campaignResults.length} cards`}
+                </DownloadAllBtn>
+              </>
             )}
 
             {/* ---- Schedule Summary ---- */}
@@ -5148,6 +6628,342 @@ const Divider = styled.div`
   margin: 16px 0;
 `;
 
+const FieldHint = styled.div`
+  font-size: 10px;
+  color: #6b7280;
+  font-style: italic;
+  line-height: 1.4;
+`;
+
+// ---- Campaign-specific styled components ----
+
+const CAMPAIGN_JOB_COLORS: Record<string, string> = {
+  teaser: "#8b5cf6",
+  announcement: "#3b82f6",
+  reminder: "#f59e0b",
+  day_of: "#ef4444",
+  follow_up: "#10b981",
+};
+
+const CampaignConfigPanel = styled.div`
+  background: #12122a;
+  border: 1px solid #2d2d4a;
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 16px;
+`;
+
+const CampaignNameInput = styled.input`
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1px solid #2d2d4a;
+  border-radius: 8px;
+  background: #0d0d1a;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-family: inherit;
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+  }
+  &::placeholder {
+    color: #4b5563;
+  }
+`;
+
+const BeatCheckRow = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
+
+const BeatCheckChip = styled.button<{ $active: boolean }>`
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid ${({ $active }) => ($active ? "#7c3aed" : "#2d2d4a")};
+  background: ${({ $active }) => ($active ? "rgba(124, 58, 237, 0.15)" : "transparent")};
+  color: ${({ $active }) => ($active ? "#e5e7eb" : "#6b7280")};
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  &:hover:not(:disabled) {
+    border-color: #7c3aed;
+    color: #e5e7eb;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const DateRow = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const DateInput = styled.input`
+  flex: 1;
+  padding: 8px 12px;
+  background: #0d0d1a;
+  border: 1px solid #2d2d4a;
+  border-radius: 8px;
+  color: #e5e7eb;
+  font-size: 13px;
+  font-family: inherit;
+  &:focus {
+    outline: none;
+    border-color: #7c3aed;
+  }
+  &::placeholder {
+    color: #4b5563;
+  }
+`;
+
+const TimeInput = styled(DateInput)`
+  flex: 0.6;
+`;
+
+const CampaignTimeline = styled.div`
+  position: relative;
+  padding-left: 20px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(
+      to bottom,
+      ${CAMPAIGN_JOB_COLORS.teaser},
+      ${CAMPAIGN_JOB_COLORS.announcement} 25%,
+      ${CAMPAIGN_JOB_COLORS.reminder} 50%,
+      ${CAMPAIGN_JOB_COLORS.day_of} 75%,
+      ${CAMPAIGN_JOB_COLORS.follow_up}
+    );
+    border-radius: 1px;
+  }
+`;
+
+const CampaignBeatCard = styled.div<{ $job: string; $active?: boolean }>`
+  position: relative;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: ${({ $active }) => ($active ? "#1a1a3e" : "#12122a")};
+  border: 1px solid ${({ $job, $active }) =>
+    $active
+      ? `${CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"}66`
+      : `${CAMPAIGN_JOB_COLORS[$job] || "#2d2d4a"}33`};
+  border-left: 3px solid ${({ $job }) => CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"};
+  border-radius: 8px;
+  transition: background 0.15s, border-color 0.15s;
+`;
+
+const CampaignBeatHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+`;
+
+const CampaignBeatDot = styled.div<{ $job: string }>`
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: ${({ $job }) => CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"};
+  flex-shrink: 0;
+`;
+
+const CampaignBeatJobLabel = styled.span<{ $job: string }>`
+  font-size: 13px;
+  font-weight: 700;
+  color: ${({ $job }) => CAMPAIGN_JOB_COLORS[$job] || "#e5e7eb"};
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+`;
+
+const CampaignBeatOffset = styled.span`
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.12);
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+`;
+
+const CampaignBeatObjective = styled.span`
+  font-size: 11px;
+  color: #6b7280;
+  font-style: italic;
+  width: 100%;
+  margin-top: 2px;
+`;
+
+const CampaignBeatContent = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+// ---- Campaign social card previews (refine step) ----
+
+const SocialPreviewGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #2d2d4a;
+`;
+
+const SocialPreviewLabel = styled.div`
+  font-size: 10px;
+  font-weight: 700;
+  color: #6366f1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+`;
+
+const SocialCard = styled.div<{ $job: string }>`
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid ${({ $job }) => `${CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"}33`};
+  background: #12122a;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  transition: transform 0.15s;
+  &:hover {
+    transform: translateY(-2px);
+  }
+`;
+
+const SocialCardCover = styled.div<{ $job: string; $hasImage: boolean }>`
+  height: 160px;
+  background: ${({ $job, $hasImage }) =>
+    $hasImage
+      ? "center/cover"
+      : `linear-gradient(135deg, ${CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"}22 0%, ${CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"}08 100%)`};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+`;
+
+const SocialCardSponsored = styled.span`
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  color: #a5b4fc;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+const SocialCardJobBadge = styled.span<{ $job: string }>`
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: ${({ $job }) => `${CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"}cc`};
+  color: white;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+`;
+
+const SocialCardPlaceholderIcon = styled.span`
+  font-size: 2.5rem;
+  opacity: 0.25;
+`;
+
+const SocialCardBody = styled.div`
+  padding: 14px;
+`;
+
+const SocialCardTitle = styled.div`
+  font-size: 14px;
+  font-weight: 700;
+  color: #f9fafb;
+  line-height: 1.35;
+  margin-bottom: 6px;
+`;
+
+const SocialCardText = styled.div`
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.45;
+  margin-bottom: 10px;
+`;
+
+const SocialCardCta = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #818cf8;
+`;
+
+// ---- Action buttons ----
+
+const ButtonRow = styled.div`
+  display: flex;
+  gap: 12px;
+  align-items: center;
+`;
+
+const ButtonPrimary = styled.button`
+  padding: 10px 22px;
+  background: #7c3aed;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover:not(:disabled) {
+    background: #6d28d9;
+  }
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+const ButtonSecondary = styled.button`
+  padding: 10px 18px;
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid #2d2d4a;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s;
+  &:hover {
+    border-color: #4b5563;
+    color: #e5e7eb;
+  }
+`;
+
 const BackLink = styled.button`
   display: block;
   margin-top: 12px;
@@ -5160,6 +6976,78 @@ const BackLink = styled.button`
   padding: 0;
   &:hover {
     color: #a78bfa;
+  }
+`;
+
+// ---- Campaign social card download components ----
+
+const DownloadCard = styled.div`
+  background: #12122a;
+  border: 1px solid #2d2d4a;
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+`;
+
+const DownloadCardPreview = styled.div<{ $job: string }>`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+`;
+
+const DownloadCardLabel = styled.div<{ $job: string }>`
+  font-size: 10px;
+  font-weight: 600;
+  color: ${({ $job }) => CAMPAIGN_JOB_COLORS[$job] || "#7c3aed"};
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+`;
+
+const DownloadCardTitle = styled.div`
+  font-size: 12px;
+  font-weight: 600;
+  color: #e5e7eb;
+  line-height: 1.3;
+  margin-bottom: 10px;
+`;
+
+const DownloadCardBtn = styled.button`
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(124, 58, 237, 0.15);
+  border: 1px solid rgba(124, 58, 237, 0.3);
+  border-radius: 8px;
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  &:hover {
+    background: rgba(124, 58, 237, 0.25);
+    border-color: rgba(124, 58, 237, 0.5);
+    color: #c4b5fd;
+  }
+`;
+
+const DownloadAllBtn = styled.button`
+  width: 100%;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.2), rgba(99, 102, 241, 0.15));
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: 10px;
+  color: #c4b5fd;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+  margin-bottom: 8px;
+  &:hover {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(99, 102, 241, 0.25));
+    border-color: rgba(124, 58, 237, 0.5);
   }
 `;
 
@@ -5814,6 +7702,26 @@ const FormatNote = styled.span`
   text-align: center;
 `;
 
+const GenerationStatusBanner = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.12) 0%, rgba(99, 102, 241, 0.08) 100%);
+  border: 1px solid rgba(124, 58, 237, 0.25);
+  border-radius: 10px;
+  margin-top: 12px;
+  color: #c4b5fd;
+  font-size: 13px;
+  font-weight: 500;
+  animation: pulse 2s ease-in-out infinite;
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+`;
+
 const GenerateButton = styled.button`
   padding: 10px 22px;
   background: #7c3aed;
@@ -6235,10 +8143,10 @@ const inputStyles = `
   &::placeholder { color: #4b5563; }
 `;
 
-const FieldInput = styled.input`
+const FieldInput = styled.input<{ $compliance?: string }>`
   ${inputStyles}
 `;
-const FieldTextarea = styled.textarea`
+const FieldTextarea = styled.textarea<{ $compliance?: string }>`
   ${inputStyles} resize: vertical;
 `;
 const SelectField = styled.select`
