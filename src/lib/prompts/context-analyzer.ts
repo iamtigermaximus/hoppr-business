@@ -233,6 +233,190 @@ const CONTEXT_TAGS: ContextTag[] = [
       fi: ["treffit", "romanttinen", "pari", "intiimi", "kahdelle", "illallinen", "kynttilä", "ystävänpäivä"],
     },
   },
+  // ── Cultural & sports event tags (Gap 11) ────────────────────────
+  {
+    id: "juhannus",
+    label: { en: "Midsummer (Juhannus)", fi: "Juhannus" },
+    value: {
+      en: "Midsummer — the city empties, cottages fill, the longest day of the year",
+      fi: "Juhannus — kaupunki tyhjenee, mökit täyttyvät, vuoden pisin päivä",
+    },
+    categories: ["seasonal", "social"],
+    templateMatches: ["seasonal-special", "weekend-special", "group-celebration", "brunch-service"],
+    toneAmplifies: ["PLAYFUL_FUN", "BOLD_ENERGETIC", "WARM_INVITING", "NOSTALGIC_CLASSIC"],
+    toneClashes: ["MYSTERIOUS_EXCLUSIVE", "EDGY_IRREVERENT"],
+    timeSignals: { months: [5], specificDates: [
+      { month: 5, day: 19 }, { month: 5, day: 20 }, { month: 5, day: 21 },
+      { month: 5, day: 22 }, { month: 5, day: 23 }, { month: 5, day: 24 },
+      { month: 5, day: 25 }, { month: 5, day: 26 },
+    ]},
+    keywords: {
+      en: ["midsummer", "juhannus", "longest day", "cottage", "mökki", "bonfire", "kokko", "sauna"],
+      fi: ["juhannus", "kesäjuhla", "mökki", "kokko", "sauna", "yötön yö", "juhannustaika"],
+    },
+  },
+  {
+    id: "easter-holiday",
+    label: { en: "Easter (Pääsiäinen)", fi: "Pääsiäinen" },
+    value: {
+      en: "Easter — long weekend, city quiet, regulars stay behind",
+      fi: "Pääsiäinen — pitkä viikonloppu, kaupunki hiljenee, kanta-asiakkaat jäävät",
+    },
+    categories: ["seasonal", "atmosphere"],
+    templateMatches: ["brunch-service", "seasonal-special", "neighbourhood-night"],
+    toneAmplifies: ["WARM_INVITING", "NOSTALGIC_CLASSIC", "COMMUNITY_LOCAL"],
+    toneClashes: ["BOLD_ENERGETIC", "EDGY_IRREVERENT", "PLAYFUL_FUN"],
+    timeSignals: { months: [2, 3] },
+    keywords: {
+      en: ["easter", "pääsiäinen", "long weekend", "brunch", "mämmi", "spring holiday"],
+      fi: ["pääsiäinen", "pitkä viikonloppu", "brunssi", "mämmi", "loma", "pääsiäismuna"],
+    },
+  },
+  {
+    id: "christmas-party",
+    label: { en: "Christmas party season", fi: "Pikkujoulukausi" },
+    value: {
+      en: "Christmas party season — every company and friend group needs a venue",
+      fi: "Pikkujoulukausi — jokainen firma ja kaveriporukka tarvitsee tilan",
+    },
+    categories: ["seasonal", "social"],
+    templateMatches: ["group-celebration", "seasonal-special", "weekend-special", "neighbourhood-night"],
+    toneAmplifies: ["WARM_INVITING", "PLAYFUL_FUN", "NOSTALGIC_CLASSIC", "BOLD_ENERGETIC"],
+    toneClashes: ["EDGY_IRREVERENT", "MYSTERIOUS_EXCLUSIVE"],
+    timeSignals: { months: [10, 11] },
+    keywords: {
+      en: ["christmas party", "pikkujoulu", "office party", "holiday", "glögi", "mulled wine", "xmas"],
+      fi: ["pikkujoulu", "joulu", "glögi", "toimistobileet", "firman juhlat", "joulukausi"],
+    },
+  },
+  {
+    id: "new-years-eve",
+    label: { en: "New Year's Eve", fi: "Uudenvuodenaatto" },
+    value: {
+      en: "New Year's Eve — the biggest party night of the year",
+      fi: "Uudenvuodenaatto — vuoden suurin juhlayö",
+    },
+    categories: ["seasonal", "social"],
+    templateMatches: ["weekend-special", "group-celebration", "theme-night"],
+    toneAmplifies: ["BOLD_ENERGETIC", "PLAYFUL_FUN", "ELEGANT_PREMIUM"],
+    toneClashes: ["COMMUNITY_LOCAL", "NOSTALGIC_CLASSIC"],
+    timeSignals: { months: [11], specificDates: [
+      { month: 11, day: 28 }, { month: 11, day: 29 }, { month: 11, day: 30 }, { month: 11, day: 31 },
+    ]},
+    keywords: {
+      en: ["new year", "new year's eve", "NYE", "countdown", "midnight", "champagne", "2026", "2027"],
+      fi: ["uusi vuosi", "uudenvuodenaatto", "keskiyö", "sampanja", "lähtölaskenta", "raketti"],
+    },
+  },
+  {
+    id: "independence",
+    label: { en: "Independence Day", fi: "Itsenäisyyspäivä" },
+    value: {
+      en: "Independence Day — solemn celebration, candles, the quietest day",
+      fi: "Itsenäisyyspäivä — juhlallinen, kynttilät, vuoden hiljaisin päivä",
+    },
+    categories: ["seasonal", "atmosphere"],
+    templateMatches: ["neighbourhood-night", "regulars-night", "seasonal-special"],
+    toneAmplifies: ["NOSTALGIC_CLASSIC", "ELEGANT_PREMIUM", "COMMUNITY_LOCAL"],
+    toneClashes: ["BOLD_ENERGETIC", "EDGY_IRREVERENT", "PLAYFUL_FUN"],
+    timeSignals: { months: [11], specificDates: [{ month: 11, day: 5 }, { month: 11, day: 6 }] },
+    keywords: {
+      en: ["independence day", "itsenäisyyspäivä", "finland", "candles", "linnanjuhlat", "solemn"],
+      fi: ["itsenäisyyspäivä", "suomi", "kynttilät", "linnanjuhlat", "juhlallinen"],
+    },
+  },
+  {
+    id: "hockey",
+    label: { en: "Hockey season", fi: "Jääkiekko" },
+    value: {
+      en: "Hockey season — game nights, playoff tension, communal viewing",
+      fi: "Jääkiekkokausi — peli-illat, pudotuspelijännitys, yhteinen katsominen",
+    },
+    categories: ["sports", "social"],
+    templateMatches: ["sports-screening", "regulars-night", "group-celebration", "weekend-special"],
+    toneAmplifies: ["BOLD_ENERGETIC", "COMMUNITY_LOCAL", "PLAYFUL_FUN"],
+    toneClashes: ["ROMANTIC_INTIMATE", "ELEGANT_PREMIUM"],
+    timeSignals: {
+      months: [8, 9, 10, 11, 0, 1, 2, 3, 4], // Sep to May, plus specific playoff windows
+    },
+    keywords: {
+      en: ["hockey", "ice hockey", "game", "playoffs", "finals", "tournament", "team", "championship"],
+      fi: ["jääkiekko", "lätkä", "peli", "pudotuspelit", "mestaruus", "kulta", "hopea"],
+    },
+  },
+  {
+    id: "eurovision-song",
+    label: { en: "Eurovision", fi: "Euroviisut" },
+    value: {
+      en: "Eurovision — the world's most gloriously unhinged music competition",
+      fi: "Euroviisut — maailman loistavimman överi musiikkikilpailu",
+    },
+    categories: ["cultural", "social"],
+    templateMatches: ["theme-night", "group-celebration", "weekend-special"],
+    toneAmplifies: ["PLAYFUL_FUN", "BOLD_ENERGETIC", "EDGY_IRREVERENT"],
+    toneClashes: ["ROMANTIC_INTIMATE", "ELEGANT_PREMIUM", "NOSTALGIC_CLASSIC"],
+    timeSignals: { months: [4], specificDates: [
+      { month: 4, day: 10 }, { month: 4, day: 11 }, { month: 4, day: 12 },
+      { month: 4, day: 13 }, { month: 4, day: 14 }, { month: 4, day: 15 },
+    ]},
+    keywords: {
+      en: ["eurovision", "song contest", "music competition", "douze points", "nil points", "key change"],
+      fi: ["euroviisut", "viisut", "laulukilpailu", "kaksitoista pistettä", "nolla pistettä"],
+    },
+  },
+  {
+    id: "flow-festival-tag",
+    label: { en: "Flow Festival", fi: "Flow Festival" },
+    value: {
+      en: "Flow Festival weekend — 80k visitors, music+arts, the city's biggest cultural weekend",
+      fi: "Flow Festival -viikonloppu — 80 000 kävijää, musiikki+taide, kaupungin suurin kulttuuriviikonloppu",
+    },
+    categories: ["cultural", "social"],
+    templateMatches: ["weekend-special", "dj-night", "live-music", "theme-night"],
+    toneAmplifies: ["BOLD_ENERGETIC", "ADVENTUROUS_CURIOUS", "PLAYFUL_FUN"],
+    toneClashes: ["ROMANTIC_INTIMATE", "NOSTALGIC_CLASSIC"],
+    timeSignals: { months: [7], specificDates: [
+      { month: 7, day: 7 }, { month: 7, day: 8 }, { month: 7, day: 9 }, { month: 7, day: 10 },
+    ]},
+    keywords: {
+      en: ["flow", "festival", "suvilahti", "music festival", "arts", "helsinki festival"],
+      fi: ["flow", "festari", "suvilahti", "musiikkifestari", "taide", "helsingin festivaali"],
+    },
+  },
+  {
+    id: "back-to-school-tag",
+    label: { en: "Back to school", fi: "Opiskelijat palaavat" },
+    value: {
+      en: "Students return — orientation week, new faces looking for their regular spot",
+      fi: "Opiskelijat palaavat — orientaatioviikko, uudet kasvot etsimässä kanta-paikkaansa",
+    },
+    categories: ["seasonal", "social"],
+    templateMatches: ["student-night", "regulars-night", "neighbourhood-night", "after-work"],
+    toneAmplifies: ["PLAYFUL_FUN", "BOLD_ENERGETIC", "COMMUNITY_LOCAL"],
+    toneClashes: ["ELEGANT_PREMIUM", "ROMANTIC_INTIMATE"],
+    timeSignals: { months: [7, 8] },
+    keywords: {
+      en: ["student", "orientation", "back to school", "university", "campus", "fresher", "freshman"],
+      fi: ["opiskelija", "orientaatio", "koulu", "yliopisto", "kampus", "fuksi", "uusi opiskelija"],
+    },
+  },
+  {
+    id: "terrace-opens",
+    label: { en: "Terrace season opens", fi: "Terassikausi avautuu" },
+    value: {
+      en: "Terrace season — the first warm days, chairs go outside, the city comes alive",
+      fi: "Terassikausi — ensimmäiset lämpimät päivät, tuolit ulos, kaupunki herää eloon",
+    },
+    categories: ["seasonal", "atmosphere"],
+    templateMatches: ["seasonal-special", "after-work", "neighbourhood-night", "brunch-service"],
+    toneAmplifies: ["PLAYFUL_FUN", "WARM_INVITING", "ADVENTUROUS_CURIOUS"],
+    toneClashes: ["MYSTERIOUS_EXCLUSIVE", "EDGY_IRREVERENT"],
+    timeSignals: { months: [3, 4] },
+    keywords: {
+      en: ["terrace", "outdoor", "patio", "terrace season", "sunny", "first warm day", "outside"],
+      fi: ["terassi", "ulkona", "patio", "terassikausi", "aurinkoinen", "ensimmäinen lämmin päivä", "ulos"],
+    },
+  },
 ];
 
 // ---- Scoring engine ----

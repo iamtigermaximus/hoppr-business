@@ -416,7 +416,7 @@ CTA-ohje: ${ctaGuide}`;
     "body": "Leipäteksti (2-4 lausetta)",
     "cta": "Toimintakehotus",
     "hookPattern": "curiosity_gap" | "pattern_interrupt" | "social_proof" | "urgency_scarcity" | "emotional_spike" | "direct_promise",
-    "imagePrompt": "Yksityiskohtainen englanninkielinen kuvaus Flux-kuvagenerointia varten"
+    "imagePrompt": "Yksityiskohtainen englanninkielinen kuvaus Flux-kuvagenerointia varten. KRIITTINEN: imagePromptin tunnelman ja valaistuksen ON VASTATTAVA otsikon ja leipatekstin tunnetilaa. Jos teksti on intiimi → kuvaan matala valaistus. Jos teksti on energinen → kuvaan liiketta ja energiaa. Kuva ja teksti kertovat saman tarinan."
   }
 ]`
     : `\n\nOUTPUT FORMAT — return ONLY a valid JSON array (no other text):
@@ -427,7 +427,7 @@ CTA-ohje: ${ctaGuide}`;
     "body": "Body text (2-4 sentences)",
     "cta": "Call to action",
     "hookPattern": "curiosity_gap" | "pattern_interrupt" | "social_proof" | "urgency_scarcity" | "emotional_spike" | "direct_promise",
-    "imagePrompt": "Detailed English description for Flux image generation"
+    "imagePrompt": "Detailed English description for Flux image generation. CRITICAL: The imagePrompt's mood and lighting MUST MATCH the emotional register of the headline and body text. If the text is intimate → low lighting in the image. If the text is energetic → movement and energy in the image. Image and copy tell the same story."
   }
 ]`;
 

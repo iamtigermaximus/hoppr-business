@@ -449,7 +449,7 @@ function buildBrandSystemPrompt(input: BrandPromptInput): string {
       "headline": "Otsikko (max 60 merkkiä) — kiinnostava, jää mieleen, alkoholilain mukainen",
       "body": "Leipäteksti (max 250 merkkiä) — rakenna tunnelmaa, älä myy tuotetta",
       "cta": "Toimintakehote (max 40 merkkiä) — esim. Varaa pöytä, Tule paikalle, Lue lisää",
-      "imagePrompt": "Yksityiskohtainen kuvagenerointiprompti englanniksi (max 200 merkkiä) — kuvaile mitä kuvassa näkyy: sijainti, valaistus, värit, tunnelma, sommittelma. Älä mainitse alkoholia, baaria tai ihmisiä jos kuvamaailma ei ole baari."
+      "imagePrompt": "Yksityiskohtainen kuvagenerointiprompti englanniksi (max 200 merkkiä) — kuvaile mitä kuvassa näkyy: sijainti, valaistus, värit, tunnelma, sommittelma. Älä mainitse alkoholia, baaria tai ihmisiä jos kuvamaailma ei ole baari. KRIITTINEN SÄÄNTÖ: imagePromptin tunnelman ja valaistuksen ON VASTATTAVA otsikon ja leipätekstin tunnetilaa. Jos teksti on intiimi ja lämmin → imagePromptissa on oltava matala valaistus ja lämmin tunnelma. Jos teksti on energinen ja bilettävä → imagePromptissa on oltava liikettä ja energiaa. Kuva ja teksti kertovat saman tarinan."
     },
     ...
   ]
@@ -464,7 +464,7 @@ function buildBrandSystemPrompt(input: BrandPromptInput): string {
       "headline": "Headline (max 60 chars) — compelling, memorable, alcohol-law compliant",
       "body": "Body text (max 250 chars) — build atmosphere, don't sell a product",
       "cta": "Call to action (max 40 chars) — e.g. Book a table, Come by, Read more",
-      "imagePrompt": "Detailed image generation prompt in English (max 200 chars) — describe what's in the image: location, lighting, colors, mood, composition. Do not mention alcohol, bars, or people if the image world is not venue."
+      "imagePrompt": "Detailed image generation prompt in English (max 200 chars) — describe what's in the image: location, lighting, colors, mood, composition. Do not mention alcohol, bars, or people if the image world is not venue. CRITICAL RULE: The imagePrompt's mood and lighting MUST MATCH the emotional register of the headline and body text. If the text is intimate and warm → the imagePrompt must use low lighting and warm tones. If the text is energetic and party-like → the imagePrompt must include movement and energy. Image and copy tell the same story."
     },
     ...
   ]

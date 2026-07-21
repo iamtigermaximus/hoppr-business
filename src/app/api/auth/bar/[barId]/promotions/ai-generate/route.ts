@@ -18,6 +18,7 @@ import {
 } from "@/lib/ai/fallback-templates";
 import { toneSystemInstruction } from "@/lib/prompts/tone-voices";
 import { formatTemplateFieldValues } from "@/lib/prompts/template-fields";
+import { getSeasonalBrief } from "@/lib/calendar/finnish-calendar";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -106,16 +107,6 @@ function inferDifferentiators(bar: {
   }
 
   return diffs.length > 0 ? diffs : ["Quality drinks and welcoming atmosphere"];
-}
-
-/** Get seasonal context based on current date */
-function getSeasonalContext(): string {
-  const month = new Date().getMonth(); // 0-11
-  if (month >= 5 && month <= 7) return "Summer terrace season — outdoor spaces are premium. Long daylight hours favor evening-to-night transitions.";
-  if (month === 8) return "Late summer — people are back from holidays, craving social connection before autumn.";
-  if (month >= 9 && month <= 10) return "Autumn cozy season — indoor warmth, candles, comfort drinks. Students are back in town.";
-  if (month >= 11 || month <= 1) return "Winter holiday season — Christmas parties, New Year celebrations, cozy indoor gatherings. Dark evenings favor warm, intimate atmospheres.";
-  return "Spring awakening — people emerge from winter hibernation, terraces reopen, energy rises.";
 }
 
 function normalizePromotion(
@@ -315,7 +306,7 @@ export async function POST(
       musicTags: (bar.musicTags as string[]) ?? undefined,
       targetAudience: targetAudience || undefined,
       differentiators: inferDifferentiators(bar),
-      seasonalContext: getSeasonalContext(),
+      seasonalContext: getSeasonalBrief(),
     };
 
     const useAI = !!DEEPSEEK_API_KEY;

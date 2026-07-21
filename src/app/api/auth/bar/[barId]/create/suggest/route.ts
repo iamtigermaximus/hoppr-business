@@ -27,6 +27,9 @@ import { scanCompliance } from "@/lib/compliance/engine";
 import { inferImageChips } from "@/lib/prompts/infer-image-chips";
 import { extractJsonObjects } from "@/lib/json-extractor";
 import { formatTemplateFieldValues } from "@/lib/prompts/template-fields";
+import { getCalendarContext, getSeasonalBrief } from "@/lib/calendar/finnish-calendar";
+import { checkCoherence } from "@/lib/coherence-check";
+import { getCompetitiveContext, buildCompetitiveContextBlock } from "@/lib/competitive-context";
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -77,16 +80,6 @@ function inferDifferentiators(bar: {
   }
 
   return diffs.length > 0 ? diffs : ["Quality drinks and welcoming atmosphere"];
-}
-
-/** Get seasonal context based on current date */
-function getSeasonalContext(): string {
-  const month = new Date().getMonth();
-  if (month >= 5 && month <= 7) return "Summer terrace season — outdoor spaces are premium. Long daylight hours favor evening-to-night transitions.";
-  if (month === 8) return "Late summer — people are back from holidays, craving social connection before autumn.";
-  if (month >= 9 && month <= 10) return "Autumn cozy season — indoor warmth, candles, comfort drinks. Students are back in town.";
-  if (month >= 11 || month <= 1) return "Winter holiday season — Christmas parties, New Year celebrations, cozy indoor gatherings. Dark evenings favor warm, intimate atmospheres.";
-  return "Spring awakening — people emerge from winter hibernation, terraces reopen, energy rises.";
 }
 
 export async function POST(
@@ -234,7 +227,7 @@ export async function POST(
       description: bar.description ?? undefined,
       musicTags: (bar.musicTags as string[]) ?? undefined,
       differentiators: inferDifferentiators(bar),
-      seasonalContext: getSeasonalContext(),
+      seasonalContext: getSeasonalBrief(new Date(), lang as "en" | "fi"),
     };
 
     // 5a. Fetch performance feedback context (non-blocking — fails silently)
@@ -250,6 +243,36 @@ export async function POST(
     } catch (err) {
       console.warn("[suggest] Failed to load performance context:", err);
       // Continue without it — this is an enhancement, not a requirement
+    }
+
+    // 5b. Fetch calendar context — Finnish holidays, cultural events, sports
+    let calendarContextStr = "";
+    try {
+      const calendarCtx = getCalendarContext(new Date(), lang as "en" | "fi");
+      calendarContextStr = calendarCtx.systemPromptBlock[lang as "en" | "fi"];
+      if (calendarCtx.topEvent) {
+        console.log("[suggest] Calendar top event:", calendarCtx.topEvent.name[lang as "en" | "fi"], `(${calendarCtx.topEvent.phase})`);
+      }
+    } catch (err) {
+      console.warn("[suggest] Failed to load calendar context:", err);
+    }
+
+    // 5c. Fetch competitive context — what other bars in the district/type are running
+    let competitiveContextStr = "";
+    try {
+      const compCtx = await getCompetitiveContext(
+        barId,
+        bar.district,
+        bar.cityName,
+        bar.type,
+        (bar.amenities as string[]) ?? [],
+      );
+      competitiveContextStr = buildCompetitiveContextBlock(compCtx, lang as "en" | "fi");
+      if (competitiveContextStr) {
+        console.log("[suggest] Competitive context gathered —", compCtx?.competitors.length ?? 0, "competitors,", compCtx?.totalCompetitorPromos ?? 0, "promos,", compCtx?.whiteSpaceTypes?.length ?? 0, "white space types");
+      }
+    } catch (err) {
+      console.warn("[suggest] Failed to load competitive context:", err);
     }
 
     // 6. Check if DeepSeek API key is configured — use fallback templates if not
@@ -375,8 +398,8 @@ export async function POST(
       // Same architecture as promotions ai-generate route.
       const isFi = lang === "fi";
       const variantDifferentiation = isFi
-        ? `\n\nVARIAATIOIDEN EROTTELU — EHDOTTOMAN KRIITTINEN SAANTO:\nKun luot useita variantteja, JOKAISELLA on oltava AIDOSTI ERI:\n- Otsikko: eri sanat, eri rakenne, eri koukku. Ala kierrata avainsanoja.\n- Leipateksti: eri kulma. 1) TARINAKULMA (pieni tarina, hetki, muisto, narratiivi). 2) TUNNELMAKULMA (milta tuntuu, aistit, ilmapiiri, valo, aani). 3) KUTSUKULMA (puhuttelee suoraan — "sina", "tule", kutsu).\n- Aani: jokainen kuulostaa eri henkilon kirjoittamalta.\n- ALA tuota kolmea uudelleenmuotoiltua versiota samasta ideasta. Niiden on luettava kuin eri ihmisten kirjoittamina.\n- Jokaisella variantilla on ERI imagePrompt - eri kohtaus, eri perspektiivi, eri tunnelma.`
-        : `\n\nVARIANT DIFFERENTIATION - ABSOLUTELY CRITICAL RULE:\nWhen generating multiple variants, EACH one MUST have GENUINELY DIFFERENT:\n- Headline: different words, different structure, different hook. Do NOT recycle keywords.\n- Body: different angle. 1) STORY ANGLE (a small story, moment, memory, narrative). 2) ATMOSPHERE ANGLE (how it feels, senses, vibe, light, sound). 3) INVITATION ANGLE (speaks directly — "you", "come", an invitation).\n- Voice: each sounds like a different person wrote it.\n- Do NOT produce three rephrasings of the same idea. They must read as if written by different people.\n- Every variant has a DIFFERENT imagePrompt - different scene, different perspective, different mood.`;
+        ? `\n\nVARIAATIOIDEN EROTTELU — EHDOTTOMAN KRIITTINEN SAANTO:\nKun luot useita variantteja, JOKAISELLA on oltava AIDOSTI ERI:\n- Otsikko: eri sanat, eri rakenne, eri koukku. Ala kierrata avainsanoja.\n- Leipateksti: eri kulma. 1) TARINAKULMA (pieni tarina, hetki, muisto, narratiivi). 2) TUNNELMAKULMA (milta tuntuu, aistit, ilmapiiri, valo, aani). 3) KUTSUKULMA (puhuttelee suoraan — "sina", "tule", kutsu).\n- Aani: jokainen kuulostaa eri henkilon kirjoittamalta.\n- ALA tuota kolmea uudelleenmuotoiltua versiota samasta ideasta. Niiden on luettava kuin eri ihmisten kirjoittamina.\n- Jokaisella variantilla on ERI imagePrompt - eri kohtaus, eri perspektiivi, eri tunnelma.\n- VISUAALINEN YHTENAISYYS: Jokaisen imagePromptin on vastattava saman variantin tekstin tunnelmaa. Jos otsikko ja leipateksti kertovat intiimista kynttilanvalosta — imagePromptissa on oltava matala valaistus, ei kirkasta valoa. Jos teksti kertoo bileista ja tanssilattiasta — imagePromptissa on oltava energiaa ja ihmisia. Kuva ja teksti kertovat saman tarinan.`
+        : `\n\nVARIANT DIFFERENTIATION - ABSOLUTELY CRITICAL RULE:\nWhen generating multiple variants, EACH one MUST have GENUINELY DIFFERENT:\n- Headline: different words, different structure, different hook. Do NOT recycle keywords.\n- Body: different angle. 1) STORY ANGLE (a small story, moment, memory, narrative). 2) ATMOSPHERE ANGLE (how it feels, senses, vibe, light, sound). 3) INVITATION ANGLE (speaks directly — "you", "come", an invitation).\n- Voice: each sounds like a different person wrote it.\n- Do NOT produce three rephrasings of the same idea. They must read as if written by different people.\n- Every variant has a DIFFERENT imagePrompt - different scene, different perspective, different mood.\n- VISUAL-TEXT COHERENCE: Every imagePrompt must match the emotional register of its variant's text. If the headline and body describe an intimate candlelit setting — the imagePrompt must use low lighting, not bright light. If the text describes a party and dance floor — the imagePrompt must include energy and people. Image and copy tell the same story.`;
       const footerText = isFi
         ? `\nALA KOSKAAN mainitse lakiviitteita (Alkoholilaki, Valvira, compliance) otsikoissa, leipateksteissa tai toimintakehotteissa - ne ovat asiakasteksteja, eivat lakidokumentteja.\nKAIKKI teksti TAYTYY olla suomeksi. Palauta VAIN validi JSON.`
         : `\nNEVER mention legal references (Alcohol Act, Valvira, compliance) in headlines, body text, or CTAs - these are customer-facing, not legal documents.\nReturn ONLY valid JSON.`;
@@ -526,6 +549,20 @@ ${buildUserReminder("en")}`;
     if (performanceContext) {
       systemPrompt += `\n${performanceContext}`;
       console.log("[suggest] Performance context injected —", performanceContext.length, "chars");
+    }
+
+    // 7b4. Inject calendar context — Finnish holidays, cultural events, sports
+    // with lead-time phases and competitive differentiators.
+    if (calendarContextStr) {
+      systemPrompt += `\n${calendarContextStr}`;
+      console.log("[suggest] Calendar context injected —", calendarContextStr.length, "chars");
+    }
+
+    // 7b5. Inject competitive context — what competitors are running, where the
+    // whitespace is. Helps the AI make strategic positioning decisions.
+    if (competitiveContextStr) {
+      systemPrompt += `\n${competitiveContextStr}`;
+      console.log("[suggest] Competitive context injected —", competitiveContextStr.length, "chars");
     }
 
     // 7c. Inject template-specific detail fields into the user prompt.
@@ -862,9 +899,27 @@ ${buildUserReminder("en")}`;
               ),
             }));
 
+            // 3. Visual-text coherence check — verify imagePrompt matches text's
+            // emotional register before returning to the client.
+            const coherence = brandVariants.map((v) =>
+              checkCoherence(
+                (v.headline as string) || "",
+                (v.body as string) || "",
+                (v.imagePrompt as string) || "",
+                atmosphere ? (atmosphere as string[]) : undefined,
+              ),
+            );
+            const coherenceWarnings = coherence
+              .filter((c) => c.warnings.length > 0)
+              .flatMap((c, i) => c.warnings.map((w) => `Variant ${i + 1}: ${w}`));
+            if (coherenceWarnings.length > 0) {
+              console.log("[suggest] Coherence warnings:", coherenceWarnings);
+            }
+
             return {
               variants: variantsWithChips,
               ...(complianceResults.length > 0 && { complianceResults }),
+              ...(coherence.some((c) => !c.pass) && { coherenceWarnings }),
             };
           })()
         : {

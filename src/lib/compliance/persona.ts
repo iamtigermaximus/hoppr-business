@@ -537,7 +537,35 @@ JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-6:
 	   Otsikko on itsenäinen, alle 10 sanaa. Se väittää, lupaa tai
 	   kutsuu. Se ei kuvaile — se provosoi.
 
-JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-9:
+10. VISUAALISEN JA TEKSTIN YHTENÄISYYS — KUVA JA TEKSTI KERTOVAT SAMAA TARINAA
+    Kysy jokaisesta variantista: "Jos kuvittelen tämän imagePromptin kuvaamana
+    kohtauksena ja katson sitä tämän tekstin rinnalla — tukevatko ne toisiaan
+    vai riitelevätkö?" Jos ne riitelevät → KIRJOITA imagePrompt UUDELLEEN.
+
+    Tarkista jokainen ulottuvuus:
+    - ENERGIATASO: Onko teksti rauhallinen/intimi vai energinen/vilkas?
+      imagePromptin on vastattava samaa energiatasoa. Rauhallinen teksti
+      + "high energy crowd" = RISTIRIITA.
+    - VALAISTUS: Mainitseeko teksti kynttilät/hämärän/pimeän?
+      → imagePromptissa ON OLTAVA matala valaistus, ei "bright overhead".
+      Mainitseeko teksti auringon/valoisuuden/terassin?
+      → imagePromptissa ON OLTAVA päivänvalo, ei "dark moody".
+    - IHMISMÄÄRÄ: Kuvaako teksti kahdenkeskistä illallista/nurkkausta?
+      → imagePromptissa EI SAA olla "packed crowd / full of people".
+      Kuvaako teksti bileitä/juhlaa/sosiaalista iltaa?
+      → imagePromptissa ON OLTAVA ihmisiä ja energiaa.
+    - KUVAKOKO: Kertooko teksti yksityiskohdasta (drinkki, pieni hetki)?
+      → imagePromptin on oltava close-up tai medium, ei wide.
+      Kertooko teksti koko baarista/tilasta? → wide on sallittu.
+    - TUNNELMA-AVAINSANAT: Jokaisen atmosphere-sanan TEKSTISSÄ on
+      näyttävä imagePromptin visuaalisessa kielessä. "Lämmin" →
+      amber/keltainen valo, puunsävyt. "Intiimi" → lähikuva, pieni tila.
+      "Energinen" → liike, ihmiset, dynaaminen sommittelu.
+
+    Jos YKSIKIN ulottuvuus on ristiriidassa → KIRJOITA imagePrompt
+    UUDELLEEN niin että se vastaa tekstin tunnetilaa ja tunnelmaa.
+
+JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-10:
 → Kirjoita se uudelleen.
 → Tarkista uudelleen.
 → Vasta sitten palauta.
@@ -651,7 +679,35 @@ IF A VARIANT FAILS ANY CRITERION 1-6:
 	   The headline stands alone, under 10 words. It claims, promises,
 	   or beckons. It does not describe — it provokes.
 
-IF A VARIANT FAILS ANY CRITERION 1-9:
+10. VISUAL-TEXT COHERENCE — IMAGE AND COPY TELL THE SAME STORY
+    For each variant, ask: "If I picture the scene described by this
+    imagePrompt and look at it next to this text — do they reinforce each
+    other or fight each other?" If they fight → REWRITE the imagePrompt.
+
+    Check every dimension:
+    - ENERGY LEVEL: Is the text calm/intimate or energetic/vibrant?
+      The imagePrompt MUST match the same energy level. Calm text
+      + "high energy crowd" = MISMATCH.
+    - LIGHTING: Does the text mention candles/darkness/shadows?
+      → imagePrompt MUST have low lighting, not "bright overhead."
+      Does the text mention sun/brightness/terrace?
+      → imagePrompt MUST have daylight, not "dark moody."
+    - CROWD DENSITY: Does the text describe a quiet corner/date night?
+      → imagePrompt MUST NOT contain "packed crowd / full of people."
+      Does the text describe a party/celebration/social night?
+      → imagePrompt MUST include people and energy.
+    - SCALE: Is the text about a detail (a drink, a small moment)?
+      → imagePrompt must be close-up or medium, not wide.
+      Is the text about the whole venue/space? → wide is permitted.
+    - ATMOSPHERE KEYWORDS: Every atmosphere word in the TEXT must
+      show up in the imagePrompt's visual language. "Warm" →
+      amber/golden light, wood tones. "Intimate" → close-up, small space.
+      "Energetic" → motion, people, dynamic composition.
+
+    If ANY dimension is mismatched → REWRITE the imagePrompt so
+    it reflects the text's emotional register and atmosphere.
+
+IF A VARIANT FAILS ANY CRITERION 1-10:
 → Rewrite it.
 → Re-check it.
 → Only then return it.

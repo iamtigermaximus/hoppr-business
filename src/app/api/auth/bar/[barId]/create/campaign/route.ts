@@ -6,22 +6,15 @@ import { handleApiError } from "@/lib/api-error";
 import { logUsage } from "@/lib/credit-tracker";
 import { extractJsonObjects } from "@/lib/json-extractor";
 import { buildPerformanceContextBlock } from "@/lib/performance-feedback";
+import { getCalendarContext, getSeasonalBrief } from "@/lib/calendar/finnish-calendar";
+import { checkCoherence } from "@/lib/coherence-check";
+import { getCompetitiveContext, buildCompetitiveContextBlock } from "@/lib/competitive-context";
 import { getTonePromptBlock, type ContentTone } from "@/lib/prompts/tone-voices";
 import {
   buildCampaignSystemPrompt,
   buildCampaignUserPrompt,
   type CampaignBeatJob,
 } from "@/lib/prompts/build-campaign-prompt";
-
-/** Get seasonal context based on current date */
-function getSeasonalContext(): string {
-  const month = new Date().getMonth();
-  if (month >= 5 && month <= 7) return "Summer terrace season — outdoor spaces are premium. Long daylight hours favor evening-to-night transitions.";
-  if (month === 8) return "Late summer — people are back from holidays, craving social connection before autumn.";
-  if (month >= 9 && month <= 10) return "Autumn cozy season — indoor warmth, candles, comfort drinks. Students are back in town.";
-  if (month >= 11 || month <= 1) return "Winter holiday season — Christmas parties, New Year celebrations, cozy indoor gatherings. Dark evenings favor warm, intimate atmospheres.";
-  return "Spring awakening — people emerge from winter hibernation, terraces reopen, energy rises.";
-}
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
@@ -189,7 +182,7 @@ export async function POST(
       district: bar.district ?? undefined,
       cityName: bar.cityName ?? undefined,
       differentiators: inferDifferentiators(bar),
-      seasonalContext: getSeasonalContext(),
+      seasonalContext: getSeasonalBrief(new Date(), lang),
     };
 
     let systemPrompt = buildCampaignSystemPrompt(lang, barPositioning);
@@ -207,6 +200,37 @@ export async function POST(
       }
     } catch (err) {
       console.warn("[campaign] Failed to load performance context:", err);
+    }
+
+    // 6b. Inject calendar context — Finnish holidays, cultural events, sports
+    // with lead-time phases and competitive differentiators.
+    try {
+      const calendarCtx = getCalendarContext(new Date(), lang);
+      const calendarBlock = calendarCtx.systemPromptBlock[lang];
+      if (calendarBlock) {
+        systemPrompt += `\n${calendarBlock}`;
+        console.log("[campaign] Calendar context injected —", calendarBlock.length, "chars");
+      }
+    } catch (err) {
+      console.warn("[campaign] Failed to load calendar context:", err);
+    }
+
+    // 6c. Inject competitive context — what competitors are running, whitespace
+    try {
+      const compCtx = await getCompetitiveContext(
+        barId,
+        bar.district,
+        bar.cityName,
+        bar.type,
+        (bar.amenities as string[]) ?? [],
+      );
+      const compBlock = buildCompetitiveContextBlock(compCtx, lang);
+      if (compBlock) {
+        systemPrompt += `\n${compBlock}`;
+        console.log("[campaign] Competitive context injected —", compBlock.length, "chars");
+      }
+    } catch (err) {
+      console.warn("[campaign] Failed to load competitive context:", err);
     }
 
     const amenitiesStr = (bar.amenities as string[])?.join(", ") ?? undefined;
@@ -364,6 +388,18 @@ export async function POST(
       imagePrompt: (b.imagePrompt as string) || "",
     }));
 
+    // Visual-text coherence check — verify each beat's imagePrompt matches
+    // its headline/body emotional register.
+    const coherence = normalizedBeats.map((b) =>
+      checkCoherence(b.headline, b.body, b.imagePrompt),
+    );
+    const coherenceWarnings = coherence
+      .filter((c) => c.warnings.length > 0)
+      .flatMap((c, i) => c.warnings.map((w) => `Beat ${i + 1}: ${w}`));
+    if (coherenceWarnings.length > 0) {
+      console.log("[campaign] Coherence warnings:", coherenceWarnings);
+    }
+
     return NextResponse.json({
       success: true,
       aiGenerated,
@@ -371,6 +407,7 @@ export async function POST(
       campaignName: campaignName.trim(),
       beats: normalizedBeats,
       beatsRequested: validatedBeats,
+      ...(coherence.some((c) => !c.pass) && { coherenceWarnings }),
     });
   } catch (error) {
     return handleApiError(error, "campaign generate");
