@@ -704,6 +704,9 @@ ${buildUserReminder("en")}`;
             ? `Tutustu ${barName}n tunnelmaan. ${atmosphereFi} ilmapiiri — täällä ilta on aina hyvä.`
             : `Discover the atmosphere at ${barName}. A ${atmosphereFi} vibe — the evening is always good here.`,
           cta: fi2 ? "Tule käymään" : "Come visit",
+          ctaOptions: fi2
+            ? ["Tule tänään", "Kurkkaa sisään", "Löydä paikkasi"]
+            : ["Stop by tonight", "Take a look inside", "Find your spot"],
           imagePrompt: `warm inviting ${typeStr} interior with soft lighting and ${worldFi} ambiance`,
         },
         {
@@ -712,6 +715,9 @@ ${buildUserReminder("en")}`;
             ? `Kaipaatko jotain uutta? ${barName} tarjoaa ${atmosphereFi} elämyksen ${city}n sydämessä.`
             : `Looking for something new? ${barName} offers a ${atmosphereFi} experience in the heart of ${city}.`,
           cta: fi2 ? "Varaa pöytä" : "Book a table",
+          ctaOptions: fi2
+            ? ["Varaa nyt", "Tutustu listaan", "Tule porukalla"]
+            : ["Reserve now", "See the menu", "Bring your crew"],
           imagePrompt: `cozy ${typeStr} corner with ambient lighting, ${worldFi} mood, no people visible`,
         },
         {
@@ -720,6 +726,9 @@ ${buildUserReminder("en")}`;
             ? `${barName} — ${city}n ${atmosphereFi} kohtaamispaikka. Tule sellaisena kuin olet.`
             : `${barName} — ${city}'s ${atmosphereFi} meeting spot. Come as you are.`,
           cta: fi2 ? "Löydä meidät" : "Find us",
+          ctaOptions: fi2
+            ? ["Tule sellaisena kuin olet", "Tämä on sinun paikkasi", "Nähdään siellä"]
+            : ["Come as you are", "This is your spot", "See you there"],
           imagePrompt: `${typeStr} details with ${worldFi} aesthetic, warm tones, shallow depth of field`,
         },
       ];
@@ -745,6 +754,7 @@ ${buildUserReminder("en")}`;
                 headline: (v.headline as string) || headlineFallback,
                 body: (v.body as string) || "",
                 cta: (v.cta as string) || "",
+                ctaOptions: Array.isArray(v.ctaOptions) ? (v.ctaOptions as string[]) : [],
                 imagePrompt: (v.imagePrompt as string) || "",
               }));
             } else if ((result.headline as string) || (result.title as string)) {
@@ -754,6 +764,7 @@ ${buildUserReminder("en")}`;
                 headline: (result.headline as string) || (result.title as string) || headlineFallback,
                 body: (result.body as string) || (result.description as string) || "",
                 cta: (result.cta as string) || "",
+                ctaOptions: Array.isArray(result.ctaOptions) ? (result.ctaOptions as string[]) : [],
                 imagePrompt: (result.imageSuggestion as string) || "",
               }];
             } else {

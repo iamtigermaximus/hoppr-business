@@ -519,7 +519,25 @@ JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-6:
    → Tämä luo syyn tulla. Hyvä CTA ei kerjää — mutta se
    ei myöskään kohauttele olkapäitään.
 
-JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-8:
+9. KOUKUN LAATU — ENSIMMÄINEN LAUSE PYSÄYTTÄÄ SELAAJAN
+	   Kysy: "Pysäyttäisikö tämä otsikko/ensimmäinen lause sinut
+	   scrollatessasi somea?" Jos vastaus on ei → KIRJOITA UUDELLEEN.
+	   Otsikko EI SAA OLLA:
+	   - Tunnelmakuvaus ("Lämmin valo, hiljainen puheensorina")
+	   - Geneerinen tervehdys ("Tervetuloa Apolloon")
+	   - Pelkkä tapahtuman/tarjouksen nimi ("Perjantai After-Work")
+	   - Kuvaus joka toimisi yhtä hyvin missä tahansa baarissa
+	   Otsikon ON OLTAVA yksi näistä:
+	   - Uteliaisuusrako: herättää kysymyksen
+	   - Some-häiriö: rikkoo selaajan odotuksen
+	   - Sosiaalinen todiste: viittaa suosioon
+	   - Kiireellisyys: luo tunteen että jotain menetetään
+	   - Tunne-ärsyke: herättää tunnereaktion
+	   - Suora lupaus: kertoo arvon selkeästi
+	   Otsikko on itsenäinen, alle 10 sanaa. Se väittää, lupaa tai
+	   kutsuu. Se ei kuvaile — se provosoi.
+
+JOS VARIANTTI EPÄONNISTUU MISSÄÄN KOHDASSA 1-9:
 → Kirjoita se uudelleen.
 → Tarkista uudelleen.
 → Vasta sitten palauta.
@@ -615,7 +633,25 @@ IF A VARIANT FAILS ANY CRITERION 1-6:
    → This creates a reason to show up. A good CTA doesn't beg —
    but it also doesn't shrug.
 
-IF A VARIANT FAILS ANY CRITERION 1-8:
+9. HOOK QUALITY — FIRST LINE STOPS THE SCROLL
+	   Ask: "Would this headline/first line stop you mid-scroll on
+	   social media?" If no → REWRITE.
+	   The headline MUST NOT BE:
+	   - Ambiance description ("Warm lights, quiet murmur")
+	   - Generic greeting ("Welcome to Apollo")
+	   - Just the event/offer name ("Friday After-Work")
+	   - Something that would work identically for any bar
+	   The headline MUST BE one of:
+	   - Curiosity gap: raises a question the reader needs answered
+	   - Pattern interrupt: breaks the scroll with the unexpected
+	   - Social proof: signals popularity or peer behavior
+	   - Urgency/scarcity: creates fear of missing out
+	   - Emotional spike: triggers an immediate feeling
+	   - Direct promise: states the value clearly
+	   The headline stands alone, under 10 words. It claims, promises,
+	   or beckons. It does not describe — it provokes.
+
+IF A VARIANT FAILS ANY CRITERION 1-9:
 → Rewrite it.
 → Re-check it.
 → Only then return it.

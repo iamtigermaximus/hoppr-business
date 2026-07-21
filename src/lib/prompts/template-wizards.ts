@@ -333,11 +333,28 @@ const WIZARDS: Record<string, WizardConfig> = {
 // Templates without wizards — just fill the textarea directly
 // (VIP Experience, Signature Evening, Theme Night)
 
+/** Maps promotion template IDs (kebab-case) to wizard config labels (Title Case) */
+const PROMO_TEMPLATE_WIZARD_MAP: Record<string, string> = {
+  "after-work": "After-Work",
+  "live-music": "Live Music",
+  "quiz-night": "Game Night",
+  "food-drink-pairing": "Food Special",
+  "group-celebration": "Ladies Night",
+};
+
 /**
- * Get the wizard config for a template label, or null if it doesn't have one.
+ * Get the wizard config for a template label or promotion template ID, or null if it doesn't have one.
+ * Accepts both old Title Case labels and new kebab-case promotion template IDs.
  */
-export function getWizardForTemplate(label: string): WizardConfig | null {
-  return WIZARDS[label] || null;
+export function getWizardForTemplate(labelOrId: string): WizardConfig | null {
+  // Direct match first (old Title Case labels)
+  if (WIZARDS[labelOrId]) return WIZARDS[labelOrId];
+
+  // Try the promotion template ID mapping (new kebab-case IDs)
+  const mappedLabel = PROMO_TEMPLATE_WIZARD_MAP[labelOrId];
+  if (mappedLabel && WIZARDS[mappedLabel]) return WIZARDS[mappedLabel];
+
+  return null;
 }
 
 /**

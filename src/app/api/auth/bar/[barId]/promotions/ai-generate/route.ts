@@ -150,6 +150,7 @@ function normalizePromotion(
       : "DRINK_SPECIAL",
     discount: typeof raw.discount === "number" ? raw.discount : null,
     callToAction: raw.callToAction || "View Offer",
+    ctaOptions: Array.isArray(raw.ctaOptions) ? (raw.ctaOptions as string[]) : [],
     accentColor: raw.accentColor || preset.accentColor,
     conditions: raw.conditions || "Valid with valid ID. Terms apply.",
     visual: {
