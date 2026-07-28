@@ -131,7 +131,7 @@ export async function GET(
       metadataMap.set(p.id, {
         title: p.title,
         publishedAt: p.createdAt.toISOString(),
-        endDate: p.endDate.toISOString(),
+        endDate: p.endDate?.toISOString() ?? null,
         imageUrl: p.imageUrl,
         category: p.category || p.occasion,
         isActive: p.isActive,

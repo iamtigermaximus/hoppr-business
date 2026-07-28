@@ -62,7 +62,7 @@ export async function processQueue(): Promise<QueueProcessResult> {
           select: { isActive: true, endDate: true, scheduledPublishAt: true },
         });
 
-        if (!promo || promo.endDate < now) {
+        if (!promo || (promo.endDate && promo.endDate < now)) {
           await prisma.scheduledNotification.update({
             where: { id: item.id },
             data: { status: "CANCELLED" },

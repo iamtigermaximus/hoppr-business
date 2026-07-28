@@ -69,7 +69,7 @@ export async function onPromoCreated(barId: string, promoId: string) {
     const optimal = await computeOptimalSendTime(
       barId,
       promo.startDate,
-      promo.endDate,
+      promo.endDate ?? undefined,
       promo.validDays,
       promo.validHours as { start?: string; end?: string } | null,
     );

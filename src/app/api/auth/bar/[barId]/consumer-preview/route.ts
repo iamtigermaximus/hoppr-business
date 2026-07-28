@@ -154,7 +154,7 @@ export async function GET(
         description: p.description,
         type: p.type,
         validFrom: p.startDate.toISOString(),
-        validTo: p.endDate.toISOString(),
+        validTo: p.endDate?.toISOString() ?? null,
         imageUrl: p.imageUrl,
       })),
       events: events.map((e) => ({

@@ -69,7 +69,7 @@ export async function GET(
             description: promo.description,
             imageUrl: promo.imageUrl,
             startDate: promo.startDate.toISOString(),
-            endDate: promo.endDate.toISOString(),
+            endDate: promo.endDate?.toISOString() ?? null,
             conditions: promo.conditions,
             type: promo.type,
           };

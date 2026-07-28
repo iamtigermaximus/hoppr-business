@@ -167,12 +167,12 @@ export async function POST(
 
     if (
       body.contentType === "promotion" &&
-      (!body.promotionType || !body.startDate || !body.endDate)
+      (!body.promotionType || !body.startDate)
     ) {
       return NextResponse.json(
         {
           error:
-            "Missing required fields for promotion: promotionType, startDate, endDate",
+            "Missing required fields for promotion: promotionType, startDate",
         },
         { status: 400 },
       );
@@ -414,7 +414,7 @@ export async function POST(
           conditions: body.conditions ? [body.conditions] : [],
           benefits: body.promotionBenefits || [],
           startDate: new Date(body.startDate!),
-          endDate: new Date(body.endDate!),
+          endDate: body.endDate ? new Date(body.endDate) : null,
           validDays,
           imageUrl: body.imageUrl || null,
           isActive: !isScheduled,
@@ -446,7 +446,9 @@ export async function POST(
           : new Date(body.startDate!);
         const boostEnd = body.boostEndDate
           ? new Date(body.boostEndDate)
-          : new Date(body.endDate!);
+          : body.endDate
+            ? new Date(body.endDate)
+            : new Date(new Date(body.startDate!).getTime() + 30 * 24 * 60 * 60 * 1000);
 
         await prisma.adCampaign.create({
           data: {
@@ -481,7 +483,9 @@ export async function POST(
       if (body.createMatchingEvent && creatorUserId) {
         const eventStart = new Date(body.startDate!);
         eventStart.setHours(20, 0, 0, 0); // default 20:00
-        const eventEnd = new Date(body.endDate!);
+        const eventEnd = body.endDate
+          ? new Date(body.endDate)
+          : new Date(new Date(body.startDate!).getTime() + 30 * 24 * 60 * 60 * 1000);
         eventEnd.setHours(23, 59, 0, 0);
 
         try {

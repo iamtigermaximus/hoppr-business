@@ -5847,11 +5847,14 @@ export default function UnifiedCreationFlow({
                     />
                   </FieldGroup>
                   <FieldGroup style={{ flex: 1 }}>
-                    <FieldLabel>End date</FieldLabel>
+                    <FieldLabel>
+                      {language === "fi" ? "Päättymispäivä (valinnainen)" : "End date (optional)"}
+                    </FieldLabel>
                     <FieldInput
                       type="date"
                       value={formState.endDate?.slice(0, 10) || ""}
-                      onChange={(e) => onFieldChange("endDate", e.target.value)}
+                      onChange={(e) => onFieldChange("endDate", e.target.value || "")}
+                      placeholder={language === "fi" ? "Tyhjä = pysyvä" : "Blank = permanent"}
                     />
                   </FieldGroup>
                 </FieldRow>

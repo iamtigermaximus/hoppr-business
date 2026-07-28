@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date();
-    const isValid = now >= promotion.startDate && now <= promotion.endDate;
+    const isValid = now >= promotion.startDate && (!promotion.endDate || now <= promotion.endDate);
 
     switch (action) {
       case "CARD_SHOWN":

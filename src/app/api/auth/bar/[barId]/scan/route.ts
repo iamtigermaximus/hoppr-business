@@ -328,7 +328,7 @@ async function handlePromotionScan(
       });
     }
 
-    if (new Date(promotion.endDate) < new Date()) {
+    if (promotion.endDate && new Date(promotion.endDate) < new Date()) {
       return NextResponse.json({
         success: true,
         data: {

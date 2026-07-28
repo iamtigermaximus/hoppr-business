@@ -178,7 +178,7 @@ export async function GET(
           type: "promotion",
           title: p.title,
           startDate: p.startDate.toISOString().split("T")[0],
-          endDate: p.endDate.toISOString().split("T")[0],
+          endDate: p.endDate?.toISOString().split("T")[0] ?? "",
           status: p.complianceStatus || "COMPLIANT",
         }),
       ),
