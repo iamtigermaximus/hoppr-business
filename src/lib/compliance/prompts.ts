@@ -23,6 +23,7 @@ import { getTemplateVoiceBlock, getBlendInstruction } from "../prompts/template-
 import { getSynergyInstructions } from "../prompts/synergy-rules";
 import { buildRotationBlock } from "../prompts/prompt-rotation";
 import { buildBarHooksBlock, type BarHookContext } from "../prompts/bar-hooks";
+import { FI_PROHIBITED_MAP, FI_APPROVED_MAP } from "./prohibited-terms";
 
 export type PromptLanguage = "en" | "fi";
 
@@ -201,89 +202,9 @@ export const TEMPLATE_CHARACTERISTICS: Record<string, { en: string; fi: string }
 };
 
 // ---------------------------------------------------------------------------
-// Finnish prohibited → approved translation maps for AI prompt injection
+// Finnish prohibited → approved translation maps
+// Imported from prohibited-terms.ts (single source of truth)
 // ---------------------------------------------------------------------------
-
-const FI_PROHIBITED_MAP: Record<string, string> = {
-  "happy hour": "happy hour",
-  "half price drinks": "puoleen hintaan juomat",
-  "2 for 1": "2 yhden hinnalla",
-  "buy one get one": "osta yksi saat toisen",
-  "free drinks": "ilmaiset juomat",
-  "complimentary drinks": "ilmaiset juomat",
-  "drinks on the house": "talon tarjoamat juomat",
-  "open bar": "avoin baari",
-  "free flowing drinks": "vapaasti virtaavat juomat",
-  "first drink free": "ensimmäinen juoma ilmaiseksi",
-  "unlimited drinks": "rajattomasti juomia",
-  "all you can drink": "juo niin paljon kuin haluat",
-  "get wasted": "känniin / humalaan",
-  "get drunk": "juovu / humallu",
-  "drinking game": "juomapeli",
-  "beer pong": "beer pong",
-  "shot challenge": "shottihaaste",
-  "student discount": "opiskelija-alennus",
-  "student night": "opiskelijailta",
-  "under 18": "alle 18",
-  "win free drinks": "voita ilmaisia juomia",
-  "alcohol prize draw": "alkoholiarpajaiset",
-  "beer giveaway": "olutarjonta / olutarvonta",
-  "vodka": "vodka",
-  "whiskey": "viski",
-  "whisky": "viski",
-  "tequila": "tequila",
-  "cognac": "konjakki",
-  "brandy": "brandy",
-  "schnapps": "snapsi",
-  "healthy cocktail": "terveellinen cocktail",
-  "low-calorie drink": "vähäkalorinen juoma",
-  "detox drink": "detox-juoma",
-  "share your drink photo": "jaa juomakuvasi",
-  "tag us with your cocktail": "tägää meidät cocktailisi kanssa",
-  "post your beer": "postaa oluesi",
-  "get lucky": "saada seuraa",
-  "get laid": "saada / pokata",
-  "boost your confidence": "lisää itseluottamusta",
-  "designated driver": "kuskille ilmainen",
-  "park and drink": "pysäköi ja juo",
-  "high ABV": "korkea alkoholipitoisuus",
-  "extra strong": "extra vahva",
-  "tipsy": "hiprakassa",
-  "buzzed": "pienessä sievässä",
-  "cheapest drinks": "halvimmat juomat",
-  "lowest price": "alin hinta",
-  "bucket of beer": "ämpäri olutta",
-  "pitcher deal": "kannutarjous",
-  "tower of drinks": "juomatorni",
-};
-
-const FI_APPROVED_MAP: Record<string, string> = {
-  "After-work special": "After-work tarjous",
-  "Evening pricing": "Illan hinnoittelu",
-  "Featured selection": "Päivän valikoima",
-  "House specials": "Talon erikoisuudet",
-  "Signature serves": "Signature-annokset",
-  "Daily selection": "Päivittäinen valikoima",
-  "Evening menu": "Illan menu",
-  "Generous pours": "Reilut annokset",
-  "Extended service": "Pidennetty tarjoilu",
-  "Curated drinks menu": "Kuratoitu juomalista",
-  "Bar classics": "Baariklassikot",
-  "Seasonal pours": "Kauden annokset",
-  "Young adult offer (20+)": "Nuorten aikuisten tarjous (20+)",
-  "Valid ID required": "Henkilöllisyystodistus vaaditaan",
-  "Trivia night": "Tietovisailta",
-  "Premium spirits": "Premium-viinat",
-  "House pours": "Talon kaadot",
-  "Signature cocktails": "Signature-cocktailit",
-  "Refreshing blend": "Raikas sekoitus",
-  "Great atmosphere": "Loistava tunnelma",
-  "Social evening": "Illanvietto",
-  "Near public transport": "Lähellä julkista liikennettä",
-  "Bold flavor": "Rohkea maku",
-  "Craft beer flight": "Käsityöolutmaistelu",
-  "Tasting board": "Maistelulautanen",
-};
 
 // ---------------------------------------------------------------------------
 // 1. Full Compliance System Prompt Section

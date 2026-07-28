@@ -12,106 +12,11 @@
 // Instead, we filter prompts BEFORE they reach the AI and inject compliance-safe
 // framing that guides the model toward appropriate output.
 
-// ---- Blocked patterns ----
-
-interface ComplianceRule {
-  pattern: RegExp;
-  reason: string;
-  severity: "block" | "warn";
-}
-
-const BLOCKED_PATTERNS: ComplianceRule[] = [
-  {
-    pattern: /\b(shots?|shooting|downing|chug|binge|hammered|wasted|drunk|intoxicated)\b/i,
-    reason: "References to excessive or rapid alcohol consumption",
-    severity: "block",
-  },
-  {
-    pattern: /\b(sexy|hot\s*girls?|bikini|lingerie|stripper|pole\s*danc)/i,
-    reason: "Sexualized imagery or linking alcohol to sexual success",
-    severity: "block",
-  },
-  {
-    pattern: /\b(teen|underage|college\s*(kid|student|freshman)|high\s*school|prom\s*night)/i,
-    reason: "Content that could appeal primarily to minors",
-    severity: "block",
-  },
-  {
-    pattern: /\b(driving|drive|car|vehicle|motorcycle|scooter)\b.*\b(drink|alcohol|cocktail|beer|wine|shot)/i,
-    reason: "Linking alcohol consumption to driving",
-    severity: "block",
-  },
-  {
-    pattern: /\b(drinking\s*game|beer\s*pong|flip\s*cup|keg\s*stand)/i,
-    reason: "Depictions of drinking games or competitive drinking",
-    severity: "block",
-  },
-  {
-    pattern: /\b(free\s*alcohol|unlimited\s*drinks?|all\s*you\s*can\s*drink|bottomless)/i,
-    reason: "Promoting unlimited or free alcohol (restricted under Finnish law)",
-    severity: "block",
-  },
-  {
-    pattern: /\b(hangover|cure|remedy|morning\s*after)/i,
-    reason: "References to hangovers or drinking consequences",
-    severity: "warn",
-  },
-];
-
-// Finnish-language blocked patterns — checked alongside English ones.
-// These catch Finnish terms that the English patterns would miss.
-const BLOCKED_PATTERNS_FI: ComplianceRule[] = [
-  {
-    pattern: /(juomapeli|bisseturnaus|shottikisa|juomakilpailu)/i,
-    reason: "Viittauksia juomapeleihin tai juomakilpailuihin (juomapeli, shottikisa)",
-    severity: "block",
-  },
-  {
-    pattern: /(ilmainen|ilmaiset|ilmaisia)\s*(juoma|olut|viini|siideri|alkoholi|drinksu)/i,
-    reason: "Ilmaisten alkoholijuomien mainostaminen (ilmainen juoma)",
-    severity: "block",
-  },
-  {
-    pattern: /(känni|humala|päihty|hiprakka|juovuksissa)/i,
-    reason: "Päihtymyksen positiivinen kuvaaminen (känni, humala, hiprakka)",
-    severity: "block",
-  },
-  {
-    pattern: /(alaikä|alaikäis|alle\s*18)/i,
-    reason: "Alaikäisiin kohdistuva sisältö (alaikäinen, alle 18)",
-    severity: "block",
-  },
-  {
-    pattern: /(opiskelija\s*bileet|opiskelija\s*tarjous|koulu\s*bileet)/i,
-    reason: "Opiskelijoihin/alikäisiin vetoava kieli (opiskelijabileet, koulubileet)",
-    severity: "block",
-  },
-  {
-    pattern: /(auto|ajaa|ajaminen|parkkeeraa).{0,15}(juoma|alkoholi|olut|baari)/i,
-    reason: "Alkoholin yhdistäminen ajoneuvon käyttöön (auto, ajaa, parkkeeraa)",
-    severity: "block",
-  },
-  {
-    pattern: /(saada\s*seuraa|iskeä|pokata|viehättävämpi)/i,
-    reason: "Alkoholin yhdistäminen sosiaaliseen/seksuaaliseen menestykseen (saada seuraa, iskeä)",
-    severity: "block",
-  },
-  {
-    pattern: /(terveellinen|vähäkalorinen|detox|terveyshyöty)\s*(juoma|cocktail|olut|drinksu)/i,
-    reason: "Terveysväitteet alkoholijuomista (terveellinen, detox, vähäkalorinen)",
-    severity: "warn",
-  },
-  {
-    pattern: /(jaa\s*kuvasi|tägää\s*meidät|postaa\s*juomasi)/i,
-    reason: "Kuluttajien tuottaman alkoholisisällön jakamiskehotus (jaa, tägää, postaa)",
-    severity: "warn",
-  },
-  {
-    pattern: /(rajaton|pohjaton|kaikki\s*mitä\s*juot)\s*(juoma|olut|alkoholi)/i,
-    reason: "Rajattoman alkoholinkulutuksen mainostaminen (rajaton juoma, pohjaton)",
-    severity: "block",
-  },
-];
+import {
+  type ComplianceRule,
+  BLOCKED_PATTERNS,
+  BLOCKED_PATTERNS_FI,
+} from "./prohibited-terms";
 
 // ---- Compliance-safe framing ----
 

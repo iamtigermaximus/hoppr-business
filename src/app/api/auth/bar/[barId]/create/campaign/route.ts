@@ -10,6 +10,7 @@ import { getCalendarContext, getSeasonalBrief } from "@/lib/calendar/finnish-cal
 import { checkCoherence } from "@/lib/coherence-check";
 import { getCompetitiveContext, buildCompetitiveContextBlock } from "@/lib/competitive-context";
 import { getTonePromptBlock, type ContentTone } from "@/lib/prompts/tone-voices";
+import { buildVisualTextCoherenceBlock } from "@/lib/compliance/persona";
 import {
   buildCampaignSystemPrompt,
   buildCampaignUserPrompt,
@@ -26,6 +27,12 @@ const VALID_BEATS: CampaignBeatJob[] = [
   "day_of",
   "follow_up",
 ];
+
+/** Prompt version — logged alongside generated content for quality tracking.
+ *  Bump this whenever prompt structure, compliance rules, or context blocks
+ *  change. Enables rollback diagnosis ("output quality dropped around July 28 —
+ *  what prompt changed?"). */
+const PROMPT_VERSION = "2026-07-28";
 
 /** Infer differentiators from bar data */
 function inferDifferentiators(bar: {
@@ -113,6 +120,7 @@ export async function POST(
       eventTime,
       userBrief,
       voiceProfileContext,
+      promptVariant,
     } = body as {
       campaignName?: string;
       language?: string;
@@ -127,6 +135,8 @@ export async function POST(
       eventTime?: string;
       userBrief?: string;
       voiceProfileContext?: string;
+      /** A/B test variant selector — chooses between prompt versions (e.g. "v1", "v2") */
+      promptVariant?: string;
     };
 
     const lang = language === "fi" ? "fi" : "en";
@@ -186,36 +196,40 @@ export async function POST(
     };
 
     let systemPrompt = buildCampaignSystemPrompt(lang, barPositioning);
-    if (voiceProfileContext) {
-      systemPrompt += voiceProfileContext;
+
+    // 6a. Inject voice profile context — gives the AI awareness of the bar's
+    // established brand voice so it maintains consistency across sessions.
+    if (voiceProfileContext && typeof voiceProfileContext === "string") {
+      systemPrompt += `\n<voice_profile>${voiceProfileContext}</voice_profile>`;
+      console.log("[campaign] Voice profile context injected —", voiceProfileContext.length, "chars");
     }
 
-    // 6a. Inject performance feedback context — helps the AI prefer
+    // 6b. Inject performance feedback context — helps the AI prefer
     // creative choices that have driven better engagement for this bar.
     try {
       const performanceCtx = await buildPerformanceContextBlock(barId, lang);
       if (performanceCtx) {
-        systemPrompt += `\n${performanceCtx}`;
+        systemPrompt += `\n<performance_context>\n${performanceCtx}\n</performance_context>`;
         console.log("[campaign] Performance context injected —", performanceCtx.length, "chars");
       }
     } catch (err) {
       console.warn("[campaign] Failed to load performance context:", err);
     }
 
-    // 6b. Inject calendar context — Finnish holidays, cultural events, sports
+    // 6c. Inject calendar context — Finnish holidays, cultural events, sports
     // with lead-time phases and competitive differentiators.
     try {
       const calendarCtx = getCalendarContext(new Date(), lang);
       const calendarBlock = calendarCtx.systemPromptBlock[lang];
       if (calendarBlock) {
-        systemPrompt += `\n${calendarBlock}`;
+        systemPrompt += `\n<calendar_context>\n${calendarBlock}\n</calendar_context>`;
         console.log("[campaign] Calendar context injected —", calendarBlock.length, "chars");
       }
     } catch (err) {
       console.warn("[campaign] Failed to load calendar context:", err);
     }
 
-    // 6c. Inject competitive context — what competitors are running, whitespace
+    // 6d. Inject competitive context — what competitors are running, whitespace
     try {
       const compCtx = await getCompetitiveContext(
         barId,
@@ -226,12 +240,20 @@ export async function POST(
       );
       const compBlock = buildCompetitiveContextBlock(compCtx, lang);
       if (compBlock) {
-        systemPrompt += `\n${compBlock}`;
+        systemPrompt += `\n<competitive_context>\n${compBlock}\n</competitive_context>`;
         console.log("[campaign] Competitive context injected —", compBlock.length, "chars");
       }
     } catch (err) {
       console.warn("[campaign] Failed to load competitive context:", err);
     }
+
+    // 6e. Inject visual-text coherence instruction — placed adjacent to the
+    // output section so the AI sees it at the moment it composes image prompts.
+    systemPrompt += `\n${buildVisualTextCoherenceBlock(lang as "en" | "fi")}`;
+
+    // 6f. Inject prompt version — logged alongside generated content for
+    // quality tracking and rollback diagnosis.
+    systemPrompt += `\n<prompt_version>${PROMPT_VERSION}${promptVariant ? `.${promptVariant}` : ""}</prompt_version>`;
 
     const amenitiesStr = (bar.amenities as string[])?.join(", ") ?? undefined;
     const musicTagsStr = (bar.musicTags as string[])?.join(", ") ?? undefined;
@@ -403,6 +425,8 @@ export async function POST(
     return NextResponse.json({
       success: true,
       aiGenerated,
+      promptVersion: PROMPT_VERSION,
+      ...(promptVariant && { promptVariant }),
       ...(warning && { warning }),
       campaignName: campaignName.trim(),
       beats: normalizedBeats,

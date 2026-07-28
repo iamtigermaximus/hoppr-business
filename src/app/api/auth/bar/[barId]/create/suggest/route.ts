@@ -6,7 +6,7 @@ import {
   buildFullSystemPrompt,
   buildUserReminder,
 } from "@/lib/compliance/prompts";
-import { type BarPositioning, buildCreativeDirectorReview } from "@/lib/compliance/persona";
+import { type BarPositioning, buildCreativeDirectorReview, buildVisualTextCoherenceBlock } from "@/lib/compliance/persona";
 import { getFallbackSuggestion } from "@/lib/ai/fallback-templates";
 import { logUsage } from "@/lib/credit-tracker";
 import { handleApiError } from "@/lib/api-error";
@@ -33,6 +33,12 @@ import { getCompetitiveContext, buildCompetitiveContextBlock } from "@/lib/compe
 
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_API_URL = "https://api.deepseek.com/v1/chat/completions";
+
+/** Prompt version — logged alongside generated content for quality tracking.
+ *  Bump this whenever prompt structure, compliance rules, or context blocks
+ *  change. Enables rollback diagnosis ("output quality dropped around July 28 —
+ *  what prompt changed?"). */
+const PROMPT_VERSION = "2026-07-28";
 
 /** Infer differentiators from bar data for the persona */
 function inferDifferentiators(bar: {
@@ -152,6 +158,7 @@ export async function POST(
       avoidHeadlinePatterns,
       templateFields = {},
       voiceProfileContext,
+      promptVariant,
     } = body as {
       text: string;
       language?: string;
@@ -172,6 +179,8 @@ export async function POST(
       templateFields?: Record<string, string>;
       /** Pre-built voice profile block from the client — injected into system prompt */
       voiceProfileContext?: string;
+      /** A/B test variant selector — chooses between prompt versions (e.g. "v1", "v2") */
+      promptVariant?: string;
     };
 
     // In brand mode, the structured ingredients (audience, coreMessage,
@@ -398,8 +407,8 @@ export async function POST(
       // Same architecture as promotions ai-generate route.
       const isFi = lang === "fi";
       const variantDifferentiation = isFi
-        ? `\n\nVARIAATIOIDEN EROTTELU — EHDOTTOMAN KRIITTINEN SAANTO:\nKun luot useita variantteja, JOKAISELLA on oltava AIDOSTI ERI:\n- Otsikko: eri sanat, eri rakenne, eri koukku. Ala kierrata avainsanoja.\n- Leipateksti: eri kulma. 1) TARINAKULMA (pieni tarina, hetki, muisto, narratiivi). 2) TUNNELMAKULMA (milta tuntuu, aistit, ilmapiiri, valo, aani). 3) KUTSUKULMA (puhuttelee suoraan — "sina", "tule", kutsu).\n- Aani: jokainen kuulostaa eri henkilon kirjoittamalta.\n- ALA tuota kolmea uudelleenmuotoiltua versiota samasta ideasta. Niiden on luettava kuin eri ihmisten kirjoittamina.\n- Jokaisella variantilla on ERI imagePrompt - eri kohtaus, eri perspektiivi, eri tunnelma.\n- VISUAALINEN YHTENAISYYS: Jokaisen imagePromptin on vastattava saman variantin tekstin tunnelmaa. Jos otsikko ja leipateksti kertovat intiimista kynttilanvalosta — imagePromptissa on oltava matala valaistus, ei kirkasta valoa. Jos teksti kertoo bileista ja tanssilattiasta — imagePromptissa on oltava energiaa ja ihmisia. Kuva ja teksti kertovat saman tarinan.`
-        : `\n\nVARIANT DIFFERENTIATION - ABSOLUTELY CRITICAL RULE:\nWhen generating multiple variants, EACH one MUST have GENUINELY DIFFERENT:\n- Headline: different words, different structure, different hook. Do NOT recycle keywords.\n- Body: different angle. 1) STORY ANGLE (a small story, moment, memory, narrative). 2) ATMOSPHERE ANGLE (how it feels, senses, vibe, light, sound). 3) INVITATION ANGLE (speaks directly — "you", "come", an invitation).\n- Voice: each sounds like a different person wrote it.\n- Do NOT produce three rephrasings of the same idea. They must read as if written by different people.\n- Every variant has a DIFFERENT imagePrompt - different scene, different perspective, different mood.\n- VISUAL-TEXT COHERENCE: Every imagePrompt must match the emotional register of its variant's text. If the headline and body describe an intimate candlelit setting — the imagePrompt must use low lighting, not bright light. If the text describes a party and dance floor — the imagePrompt must include energy and people. Image and copy tell the same story.`;
+        ? `\n\n<variant_differentiation>\nVARIAATIOIDEN EROTTELU — EHDOTTOMAN KRIITTINEN SAANTO:\nKun luot useita variantteja, JOKAISELLA on oltava AIDOSTI ERI:\n- Otsikko: eri sanat, eri rakenne, eri koukku. Ala kierrata avainsanoja.\n- Leipateksti: eri kulma. 1) TARINAKULMA (pieni tarina, hetki, muisto, narratiivi). 2) TUNNELMAKULMA (milta tuntuu, aistit, ilmapiiri, valo, aani). 3) KUTSUKULMA (puhuttelee suoraan — "sina", "tule", kutsu).\n- Aani: jokainen kuulostaa eri henkilon kirjoittamalta.\n- ALA tuota kolmea uudelleenmuotoiltua versiota samasta ideasta. Niiden on luettava kuin eri ihmisten kirjoittamina.\n- Jokaisella variantilla on ERI imagePrompt - eri kohtaus, eri perspektiivi, eri tunnelma.\n</variant_differentiation>`
+        : `\n\n<variant_differentiation>\nVARIANT DIFFERENTIATION - ABSOLUTELY CRITICAL RULE:\nWhen generating multiple variants, EACH one MUST have GENUINELY DIFFERENT:\n- Headline: different words, different structure, different hook. Do NOT recycle keywords.\n- Body: different angle. 1) STORY ANGLE (a small story, moment, memory, narrative). 2) ATMOSPHERE ANGLE (how it feels, senses, vibe, light, sound). 3) INVITATION ANGLE (speaks directly — "you", "come", an invitation).\n- Voice: each sounds like a different person wrote it.\n- Do NOT produce three rephrasings of the same idea. They must read as if written by different people.\n- Every variant has a DIFFERENT imagePrompt - different scene, different perspective, different mood.\n</variant_differentiation>`;
       const footerText = isFi
         ? `\nALA KOSKAAN mainitse lakiviitteita (Alkoholilaki, Valvira, compliance) otsikoissa, leipateksteissa tai toimintakehotteissa - ne ovat asiakasteksteja, eivat lakidokumentteja.\nKAIKKI teksti TAYTYY olla suomeksi. Palauta VAIN validi JSON.`
         : `\nNEVER mention legal references (Alcohol Act, Valvira, compliance) in headlines, body text, or CTAs - these are customer-facing, not legal documents.\nReturn ONLY valid JSON.`;
@@ -540,30 +549,38 @@ ${buildUserReminder("en")}`;
     // 7b2. Inject voice profile context — gives the creative director awareness
     // of the bar's established brand voice so it maintains consistency across sessions.
     if (voiceProfileContext && typeof voiceProfileContext === "string") {
-      systemPrompt += voiceProfileContext;
+      systemPrompt += `\n<voice_profile>${voiceProfileContext}</voice_profile>`;
       console.log("[suggest] Voice profile context injected —", voiceProfileContext.length, "chars");
     }
 
     // 7b3. Inject performance feedback data — tells the AI which creative
     // choices have driven the best engagement for this specific bar.
     if (performanceContext) {
-      systemPrompt += `\n${performanceContext}`;
+      systemPrompt += `\n<performance_context>\n${performanceContext}\n</performance_context>`;
       console.log("[suggest] Performance context injected —", performanceContext.length, "chars");
     }
 
-    // 7b4. Inject calendar context — Finnish holidays, cultural events, sports
+    // 7b4. Inject visual-text coherence instruction — placed adjacent to the
+    // output section so the AI sees it at the moment it composes image prompts.
+    systemPrompt += `\n${buildVisualTextCoherenceBlock(lang as "en" | "fi")}`;
+
+    // 7b5. Inject calendar context — Finnish holidays, cultural events, sports
     // with lead-time phases and competitive differentiators.
     if (calendarContextStr) {
-      systemPrompt += `\n${calendarContextStr}`;
+      systemPrompt += `\n<calendar_context>\n${calendarContextStr}\n</calendar_context>`;
       console.log("[suggest] Calendar context injected —", calendarContextStr.length, "chars");
     }
 
-    // 7b5. Inject competitive context — what competitors are running, where the
+    // 7b6. Inject competitive context — what competitors are running, where the
     // whitespace is. Helps the AI make strategic positioning decisions.
     if (competitiveContextStr) {
-      systemPrompt += `\n${competitiveContextStr}`;
+      systemPrompt += `\n<competitive_context>\n${competitiveContextStr}\n</competitive_context>`;
       console.log("[suggest] Competitive context injected —", competitiveContextStr.length, "chars");
     }
+
+    // 7b7. Inject prompt version — logged alongside generated content for
+    // quality tracking and rollback diagnosis.
+    systemPrompt += `\n<prompt_version>${PROMPT_VERSION}${promptVariant ? `.${promptVariant}` : ""}</prompt_version>`;
 
     // 7c. Inject template-specific detail fields into the user prompt.
     const fieldValuesStr = formatTemplateFieldValues(templateFields, lang as "en" | "fi");
@@ -807,6 +824,8 @@ ${buildUserReminder("en")}`;
     const response_: Record<string, unknown> = {
       inferredType,
       aiGenerated,
+      promptVersion: PROMPT_VERSION,
+      ...(promptVariant && { promptVariant }),
       ...(warning && { warning }),
       mode: isBrandMode ? "brand" : "promotional",
       confidence: typeof result.confidence === "number" ? result.confidence : 0.8,

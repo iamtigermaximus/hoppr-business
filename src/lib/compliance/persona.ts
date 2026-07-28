@@ -425,6 +425,55 @@ export function buildPersonaStamp(language: "en" | "fi"): string {
 // This is what separates "AI content" from "senior marketing professional content."
 // ---------------------------------------------------------------------------
 
+/**
+ * Build a standalone visual-text coherence instruction block.
+ *
+ * Extracted from the creative director review checklist (item 10) so it can be
+ * placed directly adjacent to the output format section of the system prompt.
+ * This ensures the AI sees coherence requirements at the moment it's composing
+ * image prompts, not buried inside a 10-point checklist it might skim past.
+ *
+ * The instruction covers 5 dimensions: energy level, lighting, crowd density,
+ * scale (close-up vs wide), and atmosphere keywords.
+ */
+export function buildVisualTextCoherenceBlock(language: "en" | "fi"): string {
+  if (language === "fi") {
+    return `<visual_text_coherence>
+Jokaisen variantin imagePromptin on vastattava saman variantin tekstin
+tunnelmaa ja tunnetilaa. Tarkista nama ulottuvuudet:
+
+- ENERGIATASO: Rauhallinen/intimi teksti → rauhallinen imagePrompt.
+  Energinen/vilkas teksti → energinen imagePrompt.
+- VALAISTUS: Kynttilat/hamara → matala valaistus. Aurinko/terassi → paivanvalo.
+- IHMISMAARA: Kahdenkeskinen/illallinen → ei "taynna ihmisia".
+  Bileet/juhla → ihmisia ja energiaa.
+- KUVAKOKO: Yksityiskohta/drinkki → close-up/medium. Koko tila → wide.
+- TUNNELMA-AVAINSANAT: "Lämmin" → amber/keltainen valo. "Intiimi" → lahikuva.
+  "Energinen" → liike, dynaaminen sommittelu.
+
+Jos yksikaan ulottuvuus on ristiriidassa → kirjoita imagePrompt uudelleen.
+Kuva ja teksti kertovat saman tarinan.
+</visual_text_coherence>`;
+  }
+
+  return `<visual_text_coherence>
+Every variant's imagePrompt MUST match the emotional register and atmosphere
+of that variant's text. Check these dimensions:
+
+- ENERGY LEVEL: Calm/intimate text → calm imagePrompt.
+  Energetic/vibrant text → energetic imagePrompt.
+- LIGHTING: Candles/darkness → low lighting. Sun/terrace → daylight.
+- CROWD DENSITY: Date night/quiet corner → no "packed crowd".
+  Party/celebration → people and energy.
+- SCALE: Detail/drink → close-up or medium. Whole venue → wide.
+- ATMOSPHERE KEYWORDS: "Warm" → amber/golden light. "Intimate" → close-up.
+  "Energetic" → motion, dynamic composition.
+
+If ANY dimension is mismatched → rewrite the imagePrompt.
+Image and copy tell the same story.
+</visual_text_coherence>`;
+}
+
 export function buildCreativeDirectorReview(language: "en" | "fi"): string {
   if (language === "fi") {
     return `
