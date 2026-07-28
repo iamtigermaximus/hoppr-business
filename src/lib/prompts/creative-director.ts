@@ -410,12 +410,84 @@ interface ContentHistoryEntry {
   template?: string;
   imageSubject?: string;
   copyStructure?: CopyStructureChip;
+  hookPattern?: string;
+  cardLayout?: string;
   generatedAt: string; // ISO timestamp
 }
 
+// ---------------------------------------------------------------------------
+// Data-driven selection engine — replaces deterministic hash-based rotation
+// ---------------------------------------------------------------------------
+
+/** How many recent selections to avoid repeating per dimension */
+const HISTORY_WINDOW = 3;
+/** Probability of exploration (random selection ignoring weightings) */
+const EXPLORATION_RATE = 0.2;
+/** Softmax temperature — lower = more decisive (favors top-weighted), higher = flatter */
+const SOFTMAX_TEMPERATURE = 0.5;
+
 /**
- * Simple seeded rotation using week number + bar identity.
- * Returns a deterministic-but-changing index for a pool.
+ * Filter a pool to exclude recently used items. If everything is recent,
+ * returns the full pool (better to repeat than return nothing).
+ */
+function filterRecentHistory(pool: string[], history: string[]): string[] {
+  const recent = new Set(history.slice(0, HISTORY_WINDOW));
+  const available = pool.filter((item) => !recent.has(item));
+  return available.length > 0 ? available : pool;
+}
+
+/**
+ * Extract the last N values of a specific field from content history entries.
+ */
+function extractFieldHistory(
+  history: ContentHistoryEntry[] | undefined,
+  field: keyof ContentHistoryEntry,
+): string[] {
+  if (!history || history.length === 0) return [];
+  return history
+    .map((entry) => entry[field])
+    .filter((v): v is string => typeof v === "string" && v.length > 0)
+    .slice(0, HISTORY_WINDOW);
+}
+
+/**
+ * Softmax-weighted random selection from a pool. Uses available weightings
+ * to bias toward higher-performing ingredients. At temperature 0.5, a 1.5x
+ * multiplier gets ~3x more probability mass than a 1.0x.
+ */
+function weightedSelect(
+  pool: string[],
+  weights: Record<string, number> | undefined,
+): string {
+  if (!weights || Object.keys(weights).length === 0 || pool.length === 0) {
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  // Compute softmax scores
+  const scores = pool.map((item) => {
+    const w = weights[item] ?? 1.0;
+    return Math.exp(w / SOFTMAX_TEMPERATURE);
+  });
+
+  const totalScore = scores.reduce((sum, s) => sum + s, 0);
+  if (totalScore === 0) return pool[Math.floor(Math.random() * pool.length)];
+
+  const normalizedScores = scores.map((s) => s / totalScore);
+
+  // Weighted random selection via cumulative distribution
+  const rand = Math.random();
+  let cumulative = 0;
+  for (let i = 0; i < pool.length; i++) {
+    cumulative += normalizedScores[i];
+    if (rand <= cumulative) return pool[i];
+  }
+
+  return pool[pool.length - 1];
+}
+
+/**
+ * Simple seeded rotation — deterministic but time-varying. Used ONLY as the
+ * final fallback when zero performance data exists (confidence = 0, new bar).
  */
 function poolRotation(
   barId: string,
@@ -424,36 +496,73 @@ function poolRotation(
 ): number {
   const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   const seed = barId.length + weekNumber + shift;
-  return Math.abs(hashString(String(seed))) % poolSize;
-}
-
-function hashString(s: string): number {
+  // djb2 hash
   let hash = 0;
+  const s = String(seed);
   for (let i = 0; i < s.length; i++) {
-    const char = s.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = ((hash << 5) - hash) + s.charCodeAt(i);
     hash |= 0;
   }
-  return hash;
+  return Math.abs(hash) % poolSize;
 }
 
 /**
- * Rotate copy structure — never repeat the last used one.
+ * Unified data-driven selection from a creative ingredient pool.
+ *
+ * Decision chain (first match wins):
+ *   1. Strong data signal → deterministic override (confidence > 0.3, multiplier > 1.2x)
+ *   2. Filter out recently used (last HISTORY_WINDOW selections)
+ *   3. 20% exploration coin flip → random from available pool
+ *   4. Softmax-weighted selection using any available weightings
+ *   5. Hash-based rotation (zero data — brand new bar)
+ *
+ * Balances exploitation (use what works), exploration (discover new winners),
+ * and freshness (avoid repetition).
  */
-function rotateCopyStructure(
+function selectFromPool(
+  pool: string[],
+  weights: Record<string, number> | undefined,
+  history: ContentHistoryEntry[] | undefined,
+  historyField: keyof ContentHistoryEntry,
+  confidence: number,
   barId: string,
-  history?: ContentHistoryEntry[],
-): CopyStructureChip {
-  const pool: CopyStructureChip[] = ["direct", "fab", "aida", "pas"];
-  const lastUsed = history?.[0]?.copyStructure;
-  if (!lastUsed) {
-    const idx = poolRotation(barId, pool.length);
-    return pool[idx];
+  dimensionShift: number,
+): string {
+  // Build recent-history list for this dimension
+  const recentHistory = extractFieldHistory(history, historyField);
+
+  // --- 1. Strong data signal → deterministic override ---
+  if (confidence > 0.3 && weights) {
+    let best: string | null = null;
+    let bestScore = 1.15; // Slightly lower than the main OVERRIDE threshold to catch more
+    for (const item of pool) {
+      const score = weights[item] ?? 1.0;
+      if (score > bestScore) {
+        bestScore = score;
+        best = item;
+      }
+    }
+    // Only override if the winner wasn't used in the last 2 pieces
+    if (best && !recentHistory.slice(0, 2).includes(best)) {
+      return best;
+    }
   }
-  // Remove last used, pick from remaining
-  const available = pool.filter((s) => s !== lastUsed);
-  const idx = poolRotation(barId, available.length);
-  return available[idx];
+
+  // --- 2. Filter out recently used ---
+  const available = filterRecentHistory(pool, recentHistory);
+
+  // --- 3. 20% exploration → random from available pool ---
+  if (Math.random() < EXPLORATION_RATE) {
+    return available[Math.floor(Math.random() * available.length)];
+  }
+
+  // --- 4. Softmax-weighted selection ---
+  if (weights && confidence > 0) {
+    return weightedSelect(available, weights);
+  }
+
+  // --- 5. Hash-based rotation (zero data — new bar) ---
+  return pool[poolRotation(barId, pool.length, dimensionShift)];
 }
 
 // ---------------------------------------------------------------------------
@@ -482,6 +591,16 @@ export interface PerformanceWeightingsInput {
   imageWorld?: Record<string, number>;
   copyStructure?: Record<string, number>;
   hookPattern?: Record<string, number>;
+  cardLayout?: Record<string, number>;
+  focalPoint?: Record<string, number>;
+  season?: Record<string, number>;
+  timeOfDay?: Record<string, number>;
+  roomEnergy?: Record<string, number>;
+  mode?: Record<string, number>;
+  /** 0-1 confidence in the data — below 0.3, fall back to static rules */
+  confidence?: number;
+  /** Top-performing ingredient name, for inline display */
+  topInsight?: string | null;
 }
 
 export interface DirectorDecision {
@@ -497,11 +616,18 @@ export interface DirectorDecision {
   focalPoint: FocalPointChip;
   copyStructure: CopyStructureChip;
 
+  /** Data-driven ingredient pre-fills (always selected via pool, hash-based fallback when no data) */
+  hookPattern: string;
+  cardLayout: string;
+
   /** Avoid repeating these patterns from recent history */
   avoidHeadlinePatterns: string[];
 
   /** Suggested template based on bar type + time context */
   suggestTemplate: string;
+
+  /** Whether suggestions come from data rather than static bar-type rules */
+  dataDriven: boolean;
 
   /** Human-readable seasonal context for the LLM prompt */
   seasonalContext: string;
@@ -526,6 +652,76 @@ export interface DirectorDecision {
  * The returned decision feeds directly into the ingredient UI and the
  * suggest API. Users can override any field.
  */
+/** Threshold — weightings below this confidence fall back to static rules */
+const DATA_CONFIDENCE_THRESHOLD = 0.3;
+/** Threshold — an ingredient needs this multiplier to override a static default */
+const OVERRIDE_MULTIPLIER_THRESHOLD = 1.2;
+
+// Chip pools for data-driven selection — mirrors KNOWN_POOLS in performance-feedback.ts
+const KNOWN_CHIP_POOLS: Record<string, string[]> = {
+  audience: [
+    "friend-groups", "couples", "work-colleagues", "music-lovers", "food-focused",
+    "neighborhood-locals", "celebrants", "city-explorers", "casual-evening",
+    "premium-seekers", "seasonal-celebrants", "meeting-people",
+  ],
+  atmosphere: [
+    "warm-homey", "energetic-pulsating", "calm-serene", "curious-discovering",
+    "polished-considered", "authentic-honest", "joyful-lighthearted", "intimate-personal",
+    "celebratory-meaningful", "bold-distinctive", "playful-surprising",
+    "nostalgic-storied", "easy-carefree",
+  ],
+  coreMessage: [
+    "something-new", "night-is-special", "best-place", "did-you-know",
+    "come-as-you-are", "your-place", "one-night-one-experience", "season-is-now",
+  ],
+  imageWorld: ["venue", "mood", "craft", "nature", "graphic", "city", "celebration", "abstract"],
+  copyStructure: ["fab", "aida", "pas", "direct"],
+  hookPattern: [
+    "curiosity_gap", "urgency_scarcity", "social_proof", "direct_promise",
+    "emotional_hook", "pattern_interrupt",
+  ],
+  cardLayout: ["split", "centered", "card", "full_bleed", "overlay"],
+  focalPoint: [
+    "bar-counter", "seating", "terrace", "details", "lighting",
+    "stage", "entrance", "people", "in-the-glass", "walls-stories",
+  ],
+  roomEnergy: [
+    "just-opening", "first-arrivals", "quiet-company", "steady-hum",
+    "busy-hour", "full-house", "peak-night",
+  ],
+  mode: ["brand", "promotional"],
+};
+
+/**
+ * Pick the top-performing value from a weightings record that exceeds the
+ * override threshold. Returns null if nothing qualifies.
+ */
+function pickTopWeighted<T extends string>(
+  weights: Record<string, number> | undefined,
+  candidates: T[],
+): T | null {
+  if (!weights) return null;
+  let best: T | null = null;
+  let bestScore = OVERRIDE_MULTIPLIER_THRESHOLD;
+  for (const c of candidates) {
+    const score = weights[c] ?? 1.0;
+    if (score > bestScore) {
+      bestScore = score;
+      best = c;
+    }
+  }
+  return best;
+}
+
+/**
+ * Replace one element in an array with a data-driven pick. Inserts at the front
+ * (highest priority) and removes the last element to keep the same length.
+ */
+function injectDataDriven<T>(defaults: T[], pick: T): T[] {
+  const filtered = defaults.filter((d) => d !== pick);
+  return [pick, ...filtered].slice(0, defaults.length);
+}
+
 export function direct(
   bar: BarProfileForDirector,
   now: Date = new Date(),
@@ -548,24 +744,132 @@ export function direct(
 
   // --- Pre-fill every ingredient ---
   const season = currentSeason(now);
-  const mode = explicitMode ?? "brand";
+  let mode: CreationMode = explicitMode ?? "brand";
 
-  const audience = defaultAudienceForBar(barIdentity);
-  const atmosphere = defaultAtmosphereForBar(barIdentity);
-  const imageWorld = defaultImageWorld(barIdentity, season);
+  // Determine whether performance data is trustworthy
+  const dataConfidence = weightings?.confidence ?? 0;
+  const useDataDriven = dataConfidence >= DATA_CONFIDENCE_THRESHOLD;
+
+  // --- Static defaults (always computed as fallback) ---
+  let audience = defaultAudienceForBar(barIdentity);
+  let atmosphere = defaultAtmosphereForBar(barIdentity);
+  let imageWorld = defaultImageWorld(barIdentity, season);
+  let coreMessage: CoreMessageChip;
+  let copyStructure: CopyStructureChip = selectFromPool(
+    ["direct", "fab", "aida", "pas"],
+    weightings?.copyStructure,
+    history,
+    "copyStructure",
+    dataConfidence,
+    bar.id,
+    1, // dimensionShift: differentiates hash from template (shift 0)
+  ) as CopyStructureChip;
+
   const timeOfDay = defaultTimeOfDay(hour);
-  const roomEnergy = defaultRoomEnergy(dayOfWeek, hour);
-  const focalPoint = defaultFocalPoint(barIdentity);
-  const copyStructure = rotateCopyStructure(bar.id, history);
+  let roomEnergy = defaultRoomEnergy(dayOfWeek, hour);
+  let focalPoint = defaultFocalPoint(barIdentity);
 
-  // --- Core message rotation ---
+  // --- Core message (static default) ---
   const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
-  const coreMessage: CoreMessageChip =
+  const staticCoreMessage: CoreMessageChip =
     season === "vappu" || season === "midsummer" || season === "christmas"
       ? "season-is-now"
       : isWeekend
         ? "night-is-special"
         : "best-place";
+  coreMessage = staticCoreMessage;
+
+  // --- Ingredient selection from pool (always runs — hash-based fallback when no data) ---
+  let hookPattern = selectFromPool(
+    KNOWN_CHIP_POOLS.hookPattern,
+    weightings?.hookPattern,
+    history,
+    "hookPattern",
+    dataConfidence,
+    bar.id,
+    2,
+  );
+  let cardLayout = selectFromPool(
+    KNOWN_CHIP_POOLS.cardLayout,
+    weightings?.cardLayout,
+    history,
+    "cardLayout",
+    dataConfidence,
+    bar.id,
+    3,
+  );
+
+  // --- Data-driven overrides (only when confidence > 0.3) ---
+  let dataDriven = false;
+  if (dataConfidence > 0 && weightings?.hookPattern) dataDriven = true;
+  if (dataConfidence > 0 && weightings?.cardLayout) dataDriven = true;
+
+  if (useDataDriven && weightings) {
+    // Audience: if any chip has >1.2x boost, inject it into defaults
+    const audiencePool = KNOWN_CHIP_POOLS.audience as AudienceChip[];
+    const topAudience = pickTopWeighted(weightings.audience, audiencePool);
+    if (topAudience) {
+      audience = injectDataDriven(audience, topAudience);
+      dataDriven = true;
+    }
+
+    // Atmosphere: if any chip has >1.2x boost, inject it
+    const atmospherePool = KNOWN_CHIP_POOLS.atmosphere as AtmosphereChip[];
+    const topAtmosphere = pickTopWeighted(weightings.atmosphere, atmospherePool);
+    if (topAtmosphere) {
+      atmosphere = injectDataDriven(atmosphere, topAtmosphere);
+      dataDriven = true;
+    }
+
+    // Core message: if any has >1.2x boost, override the static default
+    const coreMessagePool = KNOWN_CHIP_POOLS.coreMessage as CoreMessageChip[];
+    const topCoreMsg = pickTopWeighted(weightings.coreMessage, coreMessagePool);
+    if (topCoreMsg) {
+      coreMessage = topCoreMsg;
+      dataDriven = true;
+    }
+
+    // Image world: if any has >1.2x boost, override
+    const imageWorldPool = KNOWN_CHIP_POOLS.imageWorld as ImageWorldChip[];
+    const topImgWorld = pickTopWeighted(weightings.imageWorld, imageWorldPool);
+    if (topImgWorld) {
+      imageWorld = topImgWorld;
+      dataDriven = true;
+    }
+
+    // Copy structure: already handled by selectFromPool
+    if (dataConfidence > 0 && weightings?.copyStructure) dataDriven = true;
+
+    // Focal point: override static defaultFocalPoint when data says another works better
+    if (weightings.focalPoint) {
+      const pointPool = KNOWN_CHIP_POOLS.focalPoint as FocalPointChip[];
+      const topPoint = pickTopWeighted(weightings.focalPoint, pointPool);
+      if (topPoint && topPoint !== focalPoint) {
+        focalPoint = topPoint;
+        dataDriven = true;
+      }
+    }
+
+    // Room energy: override static defaultRoomEnergy when data says another works better
+    if (weightings.roomEnergy) {
+      const energyPool = KNOWN_CHIP_POOLS.roomEnergy as RoomEnergyChip[];
+      const topEnergy = pickTopWeighted(weightings.roomEnergy, energyPool);
+      if (topEnergy && topEnergy !== roomEnergy) {
+        roomEnergy = topEnergy;
+        dataDriven = true;
+      }
+    }
+
+    // Mode: override explicit/static mode when data says the other mode works better
+    if (weightings.mode) {
+      const modePool = KNOWN_CHIP_POOLS.mode;
+      const topMode = pickTopWeighted(weightings.mode, modePool);
+      if (topMode && topMode !== mode) {
+        mode = topMode as CreationMode;
+        dataDriven = true;
+      }
+    }
+  }
 
   // --- Seasonal context for LLM ---
   const seasonalFi: Record<SeasonChip, string> = {
@@ -607,38 +911,38 @@ export function direct(
   };
   const tmplPool = templateMap[bar.type?.toUpperCase()] ?? ["Kesäilta", "Baarin taika", "Kutsu"];
 
-  // Apply template performance weightings to boost/dampen the pool selection
-  let suggestTemplate = tmplPool[poolRotation(bar.id, tmplPool.length)];
-  if (weightings?.template) {
-    // Build a weighted pool — prefer templates with high multipliers
-    const templateScores = tmplPool.map((t) => ({
-      name: t,
-      score: weightings.template?.[t] ?? 1.0,
-    }));
-    const topTemplate = templateScores.sort((a, b) => b.score - a.score)[0];
-    if (topTemplate && topTemplate.score > 1.15) {
-      suggestTemplate = topTemplate.name; // Override rotation for proven winners
-    }
-  }
+  // Apply template performance weightings using unified data-driven selection
+  let suggestTemplate = selectFromPool(
+    tmplPool,
+    weightings?.template,
+    history,
+    "template",
+    dataConfidence,
+    bar.id,
+    0,
+  ) as string;
+  if (dataConfidence > 0 && weightings?.template) dataDriven = true;
 
   // --- Build performance notes for UI display ---
   const performanceNotes: string[] = [];
   if (weightings) {
+    const skipKeys = new Set(["confidence", "topInsight"]);
     const topEntries = Object.entries(weightings)
       .flatMap(([category, scores]) => {
+        if (skipKeys.has(category)) return [];
         if (!scores || typeof scores !== "object") return [];
         return Object.entries(scores as Record<string, number>)
           .map(([name, multiplier]) => ({ category, name, multiplier }))
           .filter((e) => e.multiplier > 1.1 || e.multiplier < 0.9);
       })
       .sort((a, b) => Math.abs(b.multiplier - 1) - Math.abs(a.multiplier - 1))
-      .slice(0, 3);
+      .slice(0, 5); // Expanded from 3 to 5 — more dimensions to surface
 
     for (const entry of topEntries) {
       const dir = entry.multiplier > 1 ? "boost" : "dampen";
       const pct = Math.round(Math.abs(entry.multiplier - 1) * 100);
       performanceNotes.push(
-        `${entry.category}:${entry.name} → ${dir} ${pct}% (${entry.multiplier.toFixed(2)}x)`
+        `${entry.category}:${entry.name} → ${dir} ${pct}% (${entry.multiplier.toFixed(2)}x)`,
       );
     }
   }
@@ -656,10 +960,13 @@ export function direct(
     roomEnergy,
     focalPoint,
     copyStructure,
+    hookPattern,
+    cardLayout,
     avoidHeadlinePatterns,
     suggestTemplate,
     seasonalContext: seasonalFi[season],
     isSpecialDate,
+    dataDriven,
     weightings,
     performanceNotes: performanceNotes.length > 0 ? performanceNotes : undefined,
   };
@@ -668,6 +975,25 @@ export function direct(
 /**
  * Build a human-readable summary of the director's decisions for the LLM prompt.
  */
+/** Hook pattern labels */
+const HOOK_PATTERN_LABELS: Record<string, { fi: string; en: string }> = {
+  "curiosity_gap": { fi: "Uteliaisuusaukko", en: "Curiosity gap" },
+  "urgency_scarcity": { fi: "Kiireellisyys / niukkuus", en: "Urgency / scarcity" },
+  "social_proof": { fi: "Sosiaalinen todiste", en: "Social proof" },
+  "direct_promise": { fi: "Suora lupaus", en: "Direct promise" },
+  "emotional_hook": { fi: "Tunnekoukku", en: "Emotional hook" },
+  "pattern_interrupt": { fi: "Kaavan rikkoja", en: "Pattern interrupt" },
+};
+
+/** Card layout labels */
+const CARD_LAYOUT_LABELS: Record<string, { fi: string; en: string }> = {
+  "split": { fi: "Jaettu", en: "Split" },
+  "centered": { fi: "Keskitetty", en: "Centered" },
+  "card": { fi: "Kortti", en: "Card" },
+  "full_bleed": { fi: "Koko kuva", en: "Full bleed" },
+  "overlay": { fi: "Teksti kuvan päällä", en: "Text overlay" },
+};
+
 export function buildDirectorContext(
   decision: DirectorDecision,
   language: "en" | "fi" = "fi",
@@ -693,6 +1019,16 @@ export function buildDirectorContext(
     lines.push(`TILAN ENERGIA: ${ROOM_ENERGY_LABELS[decision.roomEnergy].fi}`);
     lines.push(`KESKITTYMISPISTE: ${FOCAL_POINT_LABELS[decision.focalPoint].fi}`);
     lines.push(`RAKENNE: ${COPY_STRUCTURE_LABELS[decision.copyStructure].fi}`);
+
+    // Data-driven pre-fills
+    if (decision.hookPattern) {
+      const hpLabel = HOOK_PATTERN_LABELS[decision.hookPattern]?.fi ?? decision.hookPattern;
+      lines.push(`KOUKKUTYYLI (dataohjattu): ${hpLabel}`);
+    }
+    if (decision.cardLayout) {
+      const clLabel = CARD_LAYOUT_LABELS[decision.cardLayout]?.fi ?? decision.cardLayout;
+      lines.push(`KORTTIASETTELU (dataohjattu): ${clLabel}`);
+    }
   } else {
     lines.push(`AUDIENCE: ${audienceStr}`);
     lines.push(`CORE MESSAGE: ${CORE_MESSAGE_LABELS[decision.coreMessage].en}`);
@@ -703,6 +1039,24 @@ export function buildDirectorContext(
     lines.push(`ROOM ENERGY: ${ROOM_ENERGY_LABELS[decision.roomEnergy].en}`);
     lines.push(`FOCAL POINT: ${FOCAL_POINT_LABELS[decision.focalPoint].en}`);
     lines.push(`STRUCTURE: ${COPY_STRUCTURE_LABELS[decision.copyStructure].en}`);
+
+    if (decision.hookPattern) {
+      const hpLabel = HOOK_PATTERN_LABELS[decision.hookPattern]?.en ?? decision.hookPattern;
+      lines.push(`HOOK PATTERN (data-driven): ${hpLabel}`);
+    }
+    if (decision.cardLayout) {
+      const clLabel = CARD_LAYOUT_LABELS[decision.cardLayout]?.en ?? decision.cardLayout;
+      lines.push(`CARD LAYOUT (data-driven): ${clLabel}`);
+    }
+  }
+
+  // Data-driven mode badge
+  if (decision.dataDriven) {
+    lines.push(
+      isFi
+        ? "HUOM: Nämä ehdotukset perustuvat baarin omaan suoritusdataan, eivät yleisiin sääntöihin."
+        : "NOTE: These suggestions are based on this bar's own performance data, not generic rules.",
+    );
   }
 
   if (decision.avoidHeadlinePatterns.length > 0) {

@@ -82,6 +82,11 @@ interface SubmitBody {
   copyStructure?: string;
   hookPattern?: string;
   cardLayout?: string;
+  focalPoint?: string;
+  season?: string;
+  timeOfDay?: string;
+  roomEnergy?: string;
+  mode?: string;
 }
 
 // ---- Route ----
@@ -725,7 +730,8 @@ export async function POST(
       const hasCreativeIngredients =
         body.tone || body.template || (body.audience && body.audience.length > 0) ||
         (body.atmosphere && body.atmosphere.length > 0) || body.coreMessage ||
-        body.imageWorld || body.copyStructure;
+        body.imageWorld || body.copyStructure || body.focalPoint ||
+        body.season || body.timeOfDay || body.roomEnergy || body.mode;
       if (hasCreativeIngredients) {
         await prisma.contentCreativeSnapshot.create({
           data: {
@@ -741,6 +747,11 @@ export async function POST(
             copyStructure: body.copyStructure ?? null,
             hookPattern: body.hookPattern ?? null,
             cardLayout: body.cardLayout ?? null,
+            focalPoint: body.focalPoint ?? null,
+            season: body.season ?? null,
+            timeOfDay: body.timeOfDay ?? null,
+            roomEnergy: body.roomEnergy ?? null,
+            mode: body.mode ?? null,
           },
         }).catch((err) => {
           console.error("[Submit] Failed to create ContentCreativeSnapshot:", err);
