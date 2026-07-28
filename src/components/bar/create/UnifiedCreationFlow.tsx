@@ -5865,6 +5865,149 @@ export default function UnifiedCreationFlow({
                     placeholder="e.g. Valid on Fridays 16:00–19:00"
                   />
                 </FieldGroup>
+
+                {/* Benefits — structured discount items the customer can activate */}
+                <FieldGroup>
+                  <FieldLabel>
+                    {language === "fi" ? "Tarjouslista (edut)" : "Discount items / benefits"}
+                  </FieldLabel>
+                  <span style={{
+                    fontSize: "12px", color: "#6b7280", display: "block",
+                    marginBottom: "12px", fontFamily: "inherit",
+                  }}>
+                    {language === "fi"
+                      ? "Lisaa jokainen tuote erikseen. Nama naytetaan asiakkaalle aktivoinnin yhteydessa."
+                      : "Add each discounted item. These appear on the activation screen for customers."}
+                  </span>
+
+                  {formState.promotionBenefits.map((benefit, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "2fr 1fr 0.7fr 0.9fr 36px",
+                        gap: "8px",
+                        marginBottom: "8px",
+                        alignItems: "end",
+                      }}
+                    >
+                      <FieldInput
+                        placeholder={language === "fi" ? "Tuote (esim. Espresso Martini)" : "Item (e.g. Espresso Martini)"}
+                        value={benefit.item}
+                        onChange={(e) => {
+                          const updated = formState.promotionBenefits.map(
+                            (b, j) => (j === idx ? { ...b, item: e.target.value } : b),
+                          );
+                          onFieldChange("promotionBenefits", updated);
+                        }}
+                      />
+                      <FieldInput
+                        type="number"
+                        placeholder={language === "fi" ? "Norm. hinta €" : "Normal €"}
+                        value={benefit.originalPrice || ""}
+                        onChange={(e) => {
+                          const newOriginal = e.target.value ? Number(e.target.value) : 0;
+                          const updated = formState.promotionBenefits.map(
+                            (b, j) =>
+                              j === idx
+                                ? {
+                                    ...b,
+                                    originalPrice: newOriginal,
+                                    discountedPrice: Math.round(newOriginal * (1 - b.discountPercent / 100) * 100) / 100,
+                                  }
+                                : b,
+                          );
+                          onFieldChange("promotionBenefits", updated);
+                        }}
+                        min={0}
+                      />
+                      <FieldInput
+                        type="number"
+                        placeholder={language === "fi" ? "Ale %" : "Disc. %"}
+                        value={benefit.discountPercent || ""}
+                        onChange={(e) => {
+                          const newPct = e.target.value ? Number(e.target.value) : 0;
+                          const updated = formState.promotionBenefits.map(
+                            (b, j) =>
+                              j === idx
+                                ? {
+                                    ...b,
+                                    discountPercent: newPct,
+                                    discountedPrice: Math.round(b.originalPrice * (1 - newPct / 100) * 100) / 100,
+                                  }
+                                : b,
+                          );
+                          onFieldChange("promotionBenefits", updated);
+                        }}
+                        min={0}
+                        max={100}
+                      />
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "flex-end",
+                        paddingBottom: "8px",
+                        fontSize: "14px",
+                        fontWeight: 700,
+                        color: benefit.discountedPrice > 0 ? "#10b981" : "#9ca3af",
+                      }}>
+                        {benefit.discountedPrice > 0 ? `${benefit.discountedPrice}€` : "—"}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = formState.promotionBenefits.filter(
+                            (_, j) => j !== idx,
+                          );
+                          onFieldChange("promotionBenefits", updated);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "1px solid #374151",
+                          color: "#9ca3af",
+                          width: "36px",
+                          height: "36px",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "14px",
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = [
+                        ...formState.promotionBenefits,
+                        { item: "", discountedPrice: 0, originalPrice: 0, discountPercent: 0 },
+                      ];
+                      onFieldChange("promotionBenefits", updated);
+                    }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      background: "transparent",
+                      border: "1px dashed #6366f1",
+                      color: "#818cf8",
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    + {language === "fi" ? "Lisaa tuote" : "Add item"}
+                  </button>
+                </FieldGroup>
+
                 <CheckboxRow>
                   <input
                     type="checkbox"

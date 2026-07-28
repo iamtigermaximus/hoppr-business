@@ -893,6 +893,9 @@ export default function CreateHubClient({ barId, userRole, barName, barType, bar
         updates.endDate = (data.endDate as string) || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
         updates.conditions = (data.conditions as string) || "";
         updates.targetAudience = (data.targetAudience as string) || "EVERYONE";
+        if (Array.isArray(data.promotionBenefits)) {
+          updates.promotionBenefits = data.promotionBenefits as typeof formState.promotionBenefits;
+        }
       } else if (effectiveType === "campaign") {
         updates.campaignType = (data.campaignType as string) || "FEATURED_LISTING";
         updates.campaignBudget = (data.campaignBudget as number) || 50;
@@ -988,6 +991,7 @@ export default function CreateHubClient({ barId, userRole, barName, barType, bar
         body.endDate = formState.endDate;
         body.conditions = formState.conditions;
         body.targetAudience = formState.targetAudience;
+        body.promotionBenefits = formState.promotionBenefits;
         body.createMatchingEvent = formState.createMatchingEvent;
       } else if (contentType === "campaign") {
         body.campaignType = formState.campaignType;

@@ -29,6 +29,7 @@ interface SubmitBody {
   conditions?: string;
   validDays?: string[];
   targetAudience?: string;
+  promotionBenefits?: { item: string; discountedPrice: number; originalPrice: number; description?: string }[];
   // Pass-specific
   passType?: string;
   priceEuros?: string;
@@ -411,6 +412,7 @@ export async function POST(
           type: body.promotionType as any,
           discount: body.discountValue || null,
           conditions: body.conditions ? [body.conditions] : [],
+          benefits: body.promotionBenefits || [],
           startDate: new Date(body.startDate!),
           endDate: new Date(body.endDate!),
           validDays,

@@ -88,6 +88,7 @@ export interface FormState {
   endDate: string;
   conditions: string;
   targetAudience: string;
+  promotionBenefits: { item: string; discountedPrice: number; originalPrice: number; discountPercent: number; description?: string }[];
   // Pass
   passType: string;
   priceEuros: string;
@@ -157,6 +158,7 @@ export const EMPTY_FORM: FormState = {
   endDate: "",
   conditions: "",
   targetAudience: "",
+  promotionBenefits: [],
   passType: "",
   priceEuros: "",
   originalPriceEuros: "",

@@ -178,6 +178,7 @@ export default function UnifiedForm({
                 endDate={formState.endDate}
                 targetAudience={formState.targetAudience}
                 conditions={formState.conditions}
+                promotionBenefits={formState.promotionBenefits}
                 onChange={onChange}
               />
               <FormSection>
