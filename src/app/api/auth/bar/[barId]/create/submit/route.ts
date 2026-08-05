@@ -21,6 +21,9 @@ interface SubmitBody {
   endTime?: string | null;
   maxAttendees?: number | null;
   isPrivate?: boolean;
+  headlinerName?: string;
+  headlinerImage?: string | null;
+  headlinerInstagram?: string;
   // Promotion-specific
   promotionType?: string;
   discountValue?: number | null;
@@ -323,6 +326,9 @@ export async function POST(
           endTime: body.endTime ? new Date(body.endTime) : null,
           maxAttendees: body.maxAttendees || null,
           isPrivate: body.isPrivate || false,
+          headlinerName: body.headlinerName || null,
+          headlinerImage: body.headlinerImage || null,
+          headlinerInstagram: body.headlinerInstagram || null,
           isActive: !isScheduled,
           scheduledPublishAt,
           imageUrl: body.imageUrl || null,

@@ -8,7 +8,7 @@ import React, {
   useEffect,
 } from "react";
 import styled from "styled-components";
-import type { ContentType, FormState } from "./types";
+import type { ContentType, CreationMode, FormState } from "./types";
 import { PROMOTION_TYPES } from "./types";
 import type { ContentTone } from "./ToneSelector";
 import { TONE_OPTIONS } from "./ToneSelector";
@@ -151,8 +151,8 @@ interface UnifiedCreationFlowProps {
   barType?: string | null;
   barCoverImage?: string | null;
   contentType: ContentType;
-  creationMode?: "brand" | "promotional" | "campaign";
-  onModeChange?: (mode: "brand" | "promotional" | "campaign") => void;
+  creationMode?: CreationMode;
+  onModeChange?: (mode: CreationMode) => void;
   formState: FormState;
   contentTone?: ContentTone | null;
   onGenerated: (data: Record<string, unknown>) => void;
@@ -2098,6 +2098,17 @@ export default function UnifiedCreationFlow({
         if (brandCopyStructure) suggestBody.copyStructure = brandCopyStructure;
         if (brandTemplateName) suggestBody.templateName = brandTemplateName;
       }
+      if (creationMode === "headliner" && formState.headlinerName) {
+        suggestBody.mode = "headliner";
+        suggestBody.headlinerTextStyles = formState.headlinerTextStyles.length > 0 ? formState.headlinerTextStyles : ["poster", "social"];
+        suggestBody.headliner = {
+          name: formState.headlinerName,
+          actType: formState.headlinerActType || undefined,
+          genre: formState.headlinerGenre || undefined,
+          instagram: formState.headlinerInstagram || undefined,
+          imagePrompt: formState.headlinerImagePrompt || undefined,
+        };
+      }
       const suggestRes = await fetch(`/api/auth/bar/${barId}/create/suggest`, {
         method: "POST",
         headers: {
@@ -2229,18 +2240,20 @@ export default function UnifiedCreationFlow({
       }
 
       // ---- Events & Passes: the suggest endpoint already returns full content ----
-      // No separate ai-generate call needed — build a single variant directly.
+      // No separate ai-generate call needed — build variants directly.
+      // Headliner mode with both styles: create 2 variants (poster + social).
       if (contentType === "event" || contentType === "pass") {
         suggestDataRef.current = suggestData; // save for handleSelectVariant
-        const singleVariant: EditableVariant = {
-          title: (suggestData.title as string) || input.slice(0, 60),
-          description: (suggestData.description as string) || "",
-          type:
-            contentType === "event"
-              ? (suggestData.eventCategory as string) || "OTHER"
-              : (suggestData.passType as string) || "SKIP_LINE",
+
+        const isHeadlinerDual = creationMode === "headliner"
+          && formState.headlinerTextStyles.includes("poster")
+          && formState.headlinerTextStyles.includes("social");
+
+        const baseVariant = {
+          type: contentType === "event"
+            ? (suggestData.eventCategory as string) || "OTHER"
+            : (suggestData.passType as string) || "SKIP_LINE",
           discount: null,
-          callToAction: contentType === "event" ? "Get Tickets" : "Buy Pass",
           ctaOptions: Array.isArray(suggestData.ctaOptions)
             ? (suggestData.ctaOptions as string[])
             : contentType === "event"
@@ -2249,22 +2262,53 @@ export default function UnifiedCreationFlow({
           hookPattern: typeof suggestData.hookPattern === "string" ? (suggestData.hookPattern as string) : null,
           accentColor: "#7c3aed",
           titleFontStyle: null,
-          conditions:
-            contentType === "pass"
-              ? (suggestData.priceEuros as string) ||
-                (suggestData.validityPeriod as string) ||
-                ""
-              : (suggestData.entryFee as string) || "",
+          conditions: contentType === "pass"
+            ? (suggestData.priceEuros as string) || (suggestData.validityPeriod as string) || ""
+            : (suggestData.entryFee as string) || "",
           visualDirection: null,
           fluxPrompt: (suggestData.imageSuggestion as string) || "",
           imageMood: "",
-          strategy: "vibe",
+          strategy: "vibe" as const,
         };
 
-        setVariants([singleVariant]);
-        setVariantLayouts(["centered"]);
-        setVariantImages([null]);
-        setVariantSubjects([]);
+        if (isHeadlinerDual) {
+          // Two variants: poster (headline only) and social (full post)
+          const title = (suggestData.title as string) || input.slice(0, 60);
+          const desc = (suggestData.description as string) || "";
+          setVariants([
+            {
+              ...baseVariant,
+              title,
+              description: "",
+              callToAction: "Be There",
+              imageMood: "poster",
+            },
+            {
+              ...baseVariant,
+              title,
+              description: desc,
+              callToAction: "See Who's Going",
+              imageMood: "social",
+            },
+          ]);
+          setVariantLayouts(["centered", "centered"]);
+          // Use uploaded headliner photo as default image — AI generation is optional
+          setVariantImages(formState.headlinerImage ? [formState.headlinerImage, formState.headlinerImage] : [null, null]);
+          setVariantSubjects([]);
+        } else {
+          const singleVariant: EditableVariant = {
+            ...baseVariant,
+            title: (suggestData.title as string) || input.slice(0, 60),
+            description: (suggestData.description as string) || "",
+            callToAction: contentType === "event" ? "Get Tickets" : "Buy Pass",
+          };
+          setVariants([singleVariant]);
+          setVariantLayouts(["centered"]);
+          // Use uploaded headliner photo as default image if available
+          setVariantImages(formState.headlinerImage ? [formState.headlinerImage] : [null]);
+          setVariantSubjects([]);
+        }
+
         setStep("refine");
         setGeneratingText(false);
         return;
@@ -3038,6 +3082,23 @@ export default function UnifiedCreationFlow({
                 </ModeCardDesc>
               </ModeCard>
               <ModeCard
+                $active={creationMode === "headliner"}
+                onClick={() => {
+                  onModeChange?.("headliner");
+                  onTypeChange("event" as ContentType);
+                  setStep("brief");
+                }}
+              >
+                <ModeCardLabel>
+                  {language === "fi" ? "esiintyjän nosto" : "Headliner Boost"}
+                </ModeCardLabel>
+                <ModeCardDesc>
+                  {language === "fi"
+                    ? "Mainosta keikan pääesiintyjää. Co-branded jako työkalut esiintyjälle. Ei maksa mitään."
+                    : "Promote a headliner act. Co-branded share kit for the talent. Costs nothing."}
+                </ModeCardDesc>
+              </ModeCard>
+              <ModeCard
                 $active={creationMode === "campaign"}
                 onClick={() => {
                   onModeChange?.("campaign");
@@ -3055,7 +3116,7 @@ export default function UnifiedCreationFlow({
               </ModeCard>
             </ModeGrid>
 
-            {creationMode !== "brand" && (
+            {creationMode !== "brand" && creationMode !== "headliner" && (
               <>
                 <SectionLabel style={{ marginTop: 20 }}>
                   {language === "fi"
@@ -3086,6 +3147,319 @@ export default function UnifiedCreationFlow({
         {/* ===== STEP 2: BRIEF ===== */}
         {step === "brief" && (
           <div>
+            {/* Headliner form — shown first when in headliner mode */}
+            {creationMode === "headliner" && (
+              <div style={{
+                padding: "24px", marginBottom: "24px",
+                background: "rgba(124,58,237,0.04)", border: "1px solid rgba(124,58,237,0.15)",
+                borderRadius: "14px",
+              }}>
+                <div style={{ marginBottom: "20px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                    <span style={{ fontSize: "20px" }}>🎤</span>
+                    <span style={{ color: "#fff", fontWeight: 800, fontSize: "16px" }}>Headliner Boost</span>
+                    {/* Language toggle — top-right of header */}
+                    <div style={{ marginLeft: "auto", display: "flex", gap: "4px" }}>
+                      {(["en", "fi"] as const).map((lang) => (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => setLanguage(lang)}
+                          disabled={generatingText}
+                          style={{
+                            padding: "4px 10px", borderRadius: "6px",
+                            border: language === lang ? "1.5px solid #7c3aed" : "1px solid #333",
+                            background: language === lang ? "rgba(124,58,237,0.15)" : "transparent",
+                            color: language === lang ? "#c4b5fd" : "#737373",
+                            fontSize: "11px", fontWeight: 700, cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {lang.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <span style={{ color: "#a3a3a3", fontSize: "12px" }}>
+                    Fill in the details — we'll generate a post the talent can share to their followers. Free.
+                  </span>
+                </div>
+
+                {/* Step 1: Who? */}
+                <div style={{ marginBottom: "20px" }}>
+                  <div style={{ color: "#7c3aed", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "10px" }}>1. The act</div>
+                  <FieldGroup>
+                    <FieldLabel>Name of performer, band, or act</FieldLabel>
+                    <FieldInput
+                      value={formState.headlinerName}
+                      onChange={(e) => onFieldChange("headlinerName", e.target.value)}
+                      placeholder="e.g. DJ Mira, The Backspaces, Jamie Smith"
+                      style={{ fontSize: "14px" }}
+                    />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel>What kind of act?</FieldLabel>
+                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                      {[
+                        { v: "dj", label: "DJ", emoji: "🎧" },
+                        { v: "band", label: "Live Band", emoji: "🎸" },
+                        { v: "solo", label: "Solo Artist", emoji: "🎤" },
+                        { v: "comedian", label: "Comedian", emoji: "🎭" },
+                        { v: "drag", label: "Drag", emoji: "💄" },
+                        { v: "other", label: "Other", emoji: "✨" },
+                      ].map((act) => (
+                        <button
+                          key={act.v}
+                          type="button"
+                          onClick={() => onFieldChange("headlinerActType", formState.headlinerActType === act.v ? "" : act.v)}
+                          style={{
+                            padding: "8px 14px", borderRadius: "8px", border: formState.headlinerActType === act.v ? "2px solid #7c3aed" : "1px solid #333",
+                            background: formState.headlinerActType === act.v ? "rgba(124,58,237,0.15)" : "transparent",
+                            color: formState.headlinerActType === act.v ? "#c4b5fd" : "#a3a3a3",
+                            fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: "5px",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {act.emoji} {act.label}
+                        </button>
+                      ))}
+                    </div>
+                  </FieldGroup>
+                  {formState.headlinerActType && (
+                    <FieldGroup>
+                      <FieldLabel>Genre / style</FieldLabel>
+                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                        {(
+                          formState.headlinerActType === "dj" ? [
+                            "Deep House", "Techno", "Hip Hop / R&B", "Disco", "Afrobeats", "Drum & Bass", "EDM", "Reggaeton",
+                          ] : formState.headlinerActType === "band" ? [
+                            "Rock", "Indie", "Jazz", "Cover Band", "Punk", "Folk", "Metal", "Funk / Soul",
+                          ] : formState.headlinerActType === "solo" ? [
+                            "Acoustic", "Singer-Songwriter", "Pop", "Jazz Vocal", "Classical",
+                          ] : formState.headlinerActType === "comedian" ? [
+                            "Stand-Up", "Improv", "Sketch", "Roast",
+                          ] : formState.headlinerActType === "drag" ? [
+                            "Lip Sync", "Live Vocals", "Burlesque", "Comedy Drag",
+                          ] : [
+                            "Performance Art", "Spoken Word", "Dance", "Cabaret", "Magic",
+                          ]
+                        ).map((genre) => (
+                          <button
+                            key={genre}
+                            type="button"
+                            onClick={() => onFieldChange("headlinerGenre", formState.headlinerGenre === genre ? "" : genre)}
+                            style={{
+                              padding: "6px 12px", borderRadius: "6px", border: formState.headlinerGenre === genre ? "1.5px solid #10b981" : "1px solid #333",
+                              background: formState.headlinerGenre === genre ? "rgba(16,185,129,0.1)" : "transparent",
+                              color: formState.headlinerGenre === genre ? "#6ee7b7" : "#737373",
+                              fontSize: "11px", fontWeight: 500, cursor: "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            {genre}
+                          </button>
+                        ))}
+                      </div>
+                    </FieldGroup>
+                  )}
+                </div>
+
+                {/* Output style — multi-select: both can be on */}
+                <div style={{ marginBottom: "20px" }}>
+                  <div style={{ color: "#7c3aed", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "10px" }}>2. Output style</div>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    {[
+                      { v: "poster" as const, label: "Event Poster", desc: "Bold headline + date/time + CTA. Like a flyer." },
+                      { v: "social" as const, label: "Social Post", desc: "1–2 sentence post with details and a call to action." },
+                    ].map((style) => {
+                      const isSelected = formState.headlinerTextStyles.includes(style.v);
+                      return (
+                      <button
+                        key={style.v}
+                        type="button"
+                        onClick={() => {
+                          const next = isSelected
+                            ? formState.headlinerTextStyles.filter((s) => s !== style.v)
+                            : [...formState.headlinerTextStyles, style.v];
+                          onFieldChange("headlinerTextStyles", next);
+                        }}
+                        style={{
+                          flex: 1, padding: "12px", borderRadius: "8px",
+                          border: isSelected ? "2px solid #7c3aed" : "1px solid #333",
+                          background: isSelected ? "rgba(124,58,237,0.1)" : "transparent",
+                          color: isSelected ? "#c4b5fd" : "#a3a3a3",
+                          fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                          textAlign: "left", fontFamily: "inherit",
+                        }}
+                      >
+                        <div style={{ fontSize: "13px", marginBottom: "2px", color: isSelected ? "#e5e5e5" : "#a3a3a3" }}>{style.label}</div>
+                        <div style={{ fontSize: "10px", fontWeight: 400, color: "#737373", lineHeight: 1.4 }}>{style.desc}</div>
+                      </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Step 3: Social */}
+                <div style={{ marginBottom: "20px" }}>
+                  <div style={{ color: "#7c3aed", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "10px" }}>3. Social reach</div>
+                  <FieldGroup>
+                    <FieldLabel>Instagram handle</FieldLabel>
+                    <FieldInput
+                      value={formState.headlinerInstagram}
+                      onChange={(e) => onFieldChange("headlinerInstagram", e.target.value)}
+                      placeholder="@djmira"
+                    />
+                  </FieldGroup>
+                </div>
+
+                {/* Step 4: Visual */}
+                <div style={{ marginBottom: "12px" }}>
+                  <div style={{ color: "#7c3aed", fontSize: "11px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: "10px" }}>4. Visual</div>
+
+                  {/* Image preview + upload + URL */}
+                  <div style={{ display: "flex", gap: "14px", marginBottom: "12px" }}>
+                    {/* Preview thumbnail */}
+                    <div style={{
+                      width: "100px", height: "100px", minWidth: "100px",
+                      borderRadius: "10px", border: "1px solid #333",
+                      background: formState.headlinerImage ? "transparent" : "rgba(124,58,237,0.03)",
+                      overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center",
+                      position: "relative",
+                    }}>
+                      {formState.headlinerImage ? (
+                        <img
+                          src={formState.headlinerImage}
+                          alt="Headliner preview"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <span style={{ fontSize: "28px", opacity: 0.3 }}>🎤</span>
+                      )}
+                    </div>
+
+                    {/* Upload + URL controls */}
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+                      {/* Cloudinary upload button */}
+                      <label style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                        padding: "10px", borderRadius: "8px",
+                        border: "1px dashed rgba(124,58,237,0.3)",
+                        background: "rgba(124,58,237,0.04)",
+                        color: "#a78bfa", fontSize: "12px", fontWeight: 600, cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}>
+                        <span style={{ fontSize: "14px" }}>📁</span>
+                        Upload photo from device
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          style={{ display: "none" }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const formData = new FormData();
+                            formData.append("file", file);
+                            try {
+                              const res = await fetch(`/api/auth/bar/${barId}/upload`, {
+                                method: "POST",
+                                headers: { Authorization: `Bearer ${token}` },
+                                body: formData,
+                              });
+                              if (res.ok) {
+                                const data = await res.json();
+                                onFieldChange("headlinerImage", data.url);
+                              }
+                            } catch {}
+                          }}
+                        />
+                      </label>
+
+                      {/* URL input */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <FieldInput
+                          value={formState.headlinerImage ?? ""}
+                          onChange={(e) => onFieldChange("headlinerImage", e.target.value || null)}
+                          placeholder="Or paste a photo URL…"
+                          style={{ flex: 1, fontSize: "11px" }}
+                        />
+                        {formState.headlinerImage && (
+                          <button
+                            type="button"
+                            onClick={() => onFieldChange("headlinerImage", null)}
+                            style={{
+                              padding: "4px 8px", borderRadius: "4px", border: "1px solid #333",
+                              background: "transparent", color: "#737373", fontSize: "10px",
+                              cursor: "pointer", fontFamily: "inherit",
+                            }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI image prompt fallback */}
+                  {!formState.headlinerImage && (
+                    <FieldGroup>
+                      <FieldLabel>Describe the visual you want (we'll generate it)</FieldLabel>
+                      <FieldInput
+                        value={formState.headlinerImagePrompt}
+                        onChange={(e) => onFieldChange("headlinerImagePrompt", e.target.value)}
+                        placeholder={
+                          formState.headlinerActType === "dj"
+                            ? "e.g. DJ behind the decks, purple lighting, focused, crowd silhouettes"
+                            : formState.headlinerActType === "band"
+                            ? "e.g. band on a small stage, warm amber lights, instruments visible"
+                            : "e.g. performer under a spotlight, atmospheric, editorial style"
+                        }
+                      />
+                    </FieldGroup>
+                  )}
+                </div>
+
+                {/* Preview of what we'll generate */}
+                {formState.headlinerName && (
+                  <div style={{
+                    padding: "12px 14px",
+                    background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.12)",
+                    borderRadius: "8px",
+                  }}>
+                    <div style={{ color: "#10b981", fontSize: "11px", fontWeight: 600, marginBottom: "4px" }}>We'll generate:</div>
+                    <div style={{ color: "#a3a3a3", fontSize: "11px", lineHeight: 1.6 }}>
+                      {formState.headlinerTextStyles.length === 2 ? (
+                        <>Both an <strong style={{ color: "#e5e5e5" }}>event poster</strong> and a <strong style={{ color: "#e5e5e5" }}>social post</strong> for:</>
+                      ) : formState.headlinerTextStyles[0] === "poster" ? (
+                        <>An <strong style={{ color: "#e5e5e5" }}>event-poster-style</strong> card for:</>
+                      ) : (
+                        <>A <strong style={{ color: "#e5e5e5" }}>social-media-style</strong> post for:</>
+                      )}
+                      {' '}<strong style={{ color: "#e5e5e5" }}>{formState.headlinerName}</strong>
+                      {formState.headlinerActType && <> · {formState.headlinerActType}</>}
+                      {formState.headlinerGenre && <> · {formState.headlinerGenre}</>}
+                      {formState.headlinerInstagram && <> · {formState.headlinerInstagram}</>}
+                      {' '}at {barName || "the venue"}
+                      {formState.headlinerTextStyles.includes("poster") && formState.headlinerTextStyles.includes("social") && <> — poster with headline/date/CTA + shareable social post.</>}
+                      {formState.headlinerTextStyles.includes("poster") && !formState.headlinerTextStyles.includes("social") && <> — bold headline with date, time, and CTA.</>}
+                      {!formState.headlinerTextStyles.includes("poster") && formState.headlinerTextStyles.includes("social") && <> — short post with details and a call to action.</>}
+                      {formState.headlinerImage && <> Using the uploaded photo.</>}
+                      {!formState.headlinerImage && formState.headlinerImagePrompt && (
+                        <> An AI-generated visual will be created from your description.</>
+                      )}
+                      {!formState.headlinerImage && !formState.headlinerImagePrompt && formState.headlinerActType && (
+                        <> A matching visual will be auto-generated based on the act type.</>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Campaign config panel — only shown in campaign mode */}
             {creationMode === "campaign" && (
               <CampaignConfigPanel>
@@ -3240,7 +3614,8 @@ export default function UnifiedCreationFlow({
               </PreviewSection>
             )}
 
-            {/* Language toggle */}
+            {/* Language toggle — hidden in headliner mode (moved into the form header) */}
+            {creationMode !== "headliner" && (
             <ControlsRow style={{ marginTop: 0, marginBottom: 14 }}>
               <ControlGroup>
                 <ControlLabel>Language</ControlLabel>
@@ -3258,6 +3633,7 @@ export default function UnifiedCreationFlow({
                 </PillGroup>
               </ControlGroup>
             </ControlsRow>
+            )}
 
             {/* Example cards — appear when a template is selected, showing
                 what kind of content the chosen ingredients will produce */}
@@ -3277,6 +3653,7 @@ export default function UnifiedCreationFlow({
               </>
             ) : (
               <ExampleCardsRow>
+                {creationMode !== "headliner" && (
                 <ExampleCard $tone={null}>
                   <ExampleLabel>
                     {language === "fi" ? "Valitse malli" : "Pick a template"}
@@ -3287,14 +3664,21 @@ export default function UnifiedCreationFlow({
                       : "Choose a quick template above to see example outputs. Templates help you create content fast."}
                   </ExampleCardDesc>
                 </ExampleCard>
+                )}
                 <ExampleCard $tone={null}>
                   <ExampleLabel>
-                    {language === "fi" ? "Lisää äänensävy" : "Add a tone"}
+                    {creationMode === "headliner"
+                      ? (language === "fi" ? "Valitse äänensävy" : "Pick a tone")
+                      : (language === "fi" ? "Lisää äänensävy" : "Add a tone")}
                   </ExampleLabel>
                   <ExampleCardDesc>
-                    {language === "fi"
-                      ? "Valitse äänensävy antaaksesi sisällölle persoonallisuutta. Eri sävyt toimivat eri tilanteisiin."
-                      : "Pick a tone to give your content personality. Different tones suit different occasions."}
+                    {creationMode === "headliner"
+                      ? (language === "fi"
+                        ? "Valitse äänensävy joka sopii esiintyjän tyyliin. Esim. energinen DJ:lle, lämmin akustiselle."
+                        : "Pick a tone that matches the act. E.g. energetic for a DJ, warm for acoustic.")
+                      : (language === "fi"
+                        ? "Valitse äänensävy antaaksesi sisällölle persoonallisuutta. Eri sävyt toimivat eri tilanteisiin."
+                        : "Pick a tone to give your content personality. Different tones suit different occasions.")}
                   </ExampleCardDesc>
                 </ExampleCard>
               </ExampleCardsRow>
@@ -3310,9 +3694,13 @@ export default function UnifiedCreationFlow({
                 </RegenerateBriefButton>
               )}
               <TextareaHint>
-                {language === "fi"
-                  ? "Valitse malli ja äänensävy — tai jätä tyhjäksi ja luo automaattisesti."
-                  : "Pick a template and tone — or leave empty to generate automatically."}
+                {creationMode === "headliner"
+                  ? (language === "fi"
+                    ? "Valitse äänensävy joka sopii esiintyjälle — tai jätä tyhjäksi ja luo automaattisesti."
+                    : "Pick a tone that matches the act — or leave empty to generate automatically.")
+                  : (language === "fi"
+                    ? "Valitse malli ja äänensävy — tai jätä tyhjäksi ja luo automaattisesti."
+                    : "Pick a template and tone — or leave empty to generate automatically.")}
               </TextareaHint>
             </BriefActionsRow>
 
@@ -3418,7 +3806,8 @@ export default function UnifiedCreationFlow({
               )}
             </HelperSection>
 
-            {/* Templates helper */}
+            {/* Templates helper — hidden in headliner mode (guided form handles the brief) */}
+            {creationMode !== "headliner" && (
             <HelperSection>
               <HelperToggle onClick={() => setTemplatesOpen(!templatesOpen)}>
                 <HelperToggleIcon $open={templatesOpen}>
@@ -3669,8 +4058,10 @@ export default function UnifiedCreationFlow({
                 </HelperBody>
               )}
             </HelperSection>
+            )}
 
-            {/* Context helper */}
+            {/* Context helper — hidden in headliner mode (guided form handles context) */}
+            {creationMode !== "headliner" && (
             <HelperSection>
               <HelperToggle onClick={() => setContextOpen(!contextOpen)}>
                 <HelperToggleIcon $open={contextOpen}>
@@ -3819,6 +4210,7 @@ export default function UnifiedCreationFlow({
                 </HelperBody>
               )}
             </HelperSection>
+            )}
 
             {/* ===== Brand ingredient helpers — only visible in brand mode ===== */}
             {creationMode === "brand" && (
@@ -4762,6 +5154,38 @@ export default function UnifiedCreationFlow({
               )}
             </BriefRecap>
 
+            {/* Headliner photo preview — shows the image uploaded in step 2 so the bar owner
+                can see it alongside the generated text before moving to images */}
+            {creationMode === "headliner" && formState.headlinerImage && (
+              <div style={{
+                display: "flex", alignItems: "center", gap: "12px",
+                padding: "14px", marginBottom: "16px",
+                background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.12)",
+                borderRadius: "10px",
+              }}>
+                <img
+                  src={formState.headlinerImage}
+                  alt={formState.headlinerName}
+                  style={{
+                    width: "56px", height: "56px", borderRadius: "12px",
+                    objectFit: "cover", border: "2px solid rgba(124,58,237,0.3)",
+                    flexShrink: 0,
+                  }}
+                />
+                <div>
+                  <div style={{ color: "#a78bfa", fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "2px" }}>
+                    Talent photo (uploaded)
+                  </div>
+                  <div style={{ color: "#e5e5e5", fontSize: "13px", fontWeight: 600 }}>
+                    {formState.headlinerName}
+                  </div>
+                  <div style={{ color: "#737373", fontSize: "11px" }}>
+                    This appears in the talent card on the event page — separate from the event poster image you'll generate next.
+                  </div>
+                </div>
+              </div>
+            )}
+
             <RefineGrid>
               {variants.map((v, i) => (
                 <VariantCard key={i}>
@@ -4785,6 +5209,25 @@ export default function UnifiedCreationFlow({
                         }}
                       >
                         {STRATEGY_LABELS[v.strategy][language]}
+                      </span>
+                    )}
+                    {/* Headliner style badge — poster or social */}
+                    {creationMode === "headliner" && (v.imageMood === "poster" || v.imageMood === "social") && (
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          color: v.imageMood === "poster" ? "#a78bfa" : "#6ee7b7",
+                          background: v.imageMood === "poster" ? "rgba(167,139,250,0.12)" : "rgba(110,231,183,0.12)",
+                          padding: "2px 8px",
+                          borderRadius: "4px",
+                          fontFamily: "inherit",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {v.imageMood === "poster" ? "Poster" : "Social"}
                       </span>
                     )}
                     {variants.length > 1 && (
@@ -5284,11 +5727,32 @@ export default function UnifiedCreationFlow({
               </ComplianceWarningBox>
             )}
 
+            {creationMode === "headliner" && formState.headlinerImage && (
+              <div style={{
+                padding: "10px 14px", marginBottom: "12px",
+                background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.15)",
+                borderRadius: "8px", color: "#6ee7b7", fontSize: "12px", lineHeight: 1.5,
+              }}>
+                {language === "fi"
+                  ? "Lataamasi esiintyjäkuva on tapahtumakuvana. Klikkaa 'Jatka kuviin' siirtyäksesi eteenpäin — tai 'Generate different image' jos haluat tekoälyn luovan uuden kuvan."
+                  : "Your uploaded talent photo is set as the event image. Click 'Continue to Images' to proceed — or 'Generate different image' to let AI create a new one."}
+              </div>
+            )}
+
+            <ButtonRow style={{ marginBottom: 16 }}>
+              <ButtonSecondary onClick={goBack}>
+                {language === "fi" ? "← Takaisin" : "← Back"}
+              </ButtonSecondary>
+              <ButtonPrimary onClick={() => setStep("images")}>
+                {language === "fi" ? "Jatka kuviin" : "Continue to Images"} →
+              </ButtonPrimary>
+            </ButtonRow>
+
             <GenerateRow>
               <FormatNote>
                 {language === "fi"
-                  ? `${variants.length} varianttia — kuvat generoidaan jokaiselle erikseen.`
-                  : `${variants.length} variants — images will be generated for each.`}
+                  ? "Vaihtoehtoisesti generoi uudet kuvat tekoälyllä:"
+                  : "Or generate new images with AI:"}
               </FormatNote>
               <GenerateButton
                 onClick={handleGenerateImages}
@@ -5300,6 +5764,8 @@ export default function UnifiedCreationFlow({
                   >
                     <Spinner /> {GENERATING_IMAGES_MSG[language]}
                   </span>
+                ) : creationMode === "headliner" && formState.headlinerImage ? (
+                  "Generate different image"
                 ) : (
                   "Generate Images"
                 )}
@@ -5460,15 +5926,25 @@ export default function UnifiedCreationFlow({
                     />
                   </ImageUploadWrapper>
 
-                  {/* Select button */}
+                  {/* Select button — also navigates forward to schedule */}
                   <SelectVariantBtn onClick={() => handleSelectVariant(i)}>
-                    {language === "fi" ? "Valitse tämä" : "Use this one"}
+                    {language === "fi" ? "Valitse & jatka" : "Select & continue"} →
                   </SelectVariantBtn>
                 </ImageCard>
               ))}
             </ImageGrid>
 
             {error && <ErrorBox>{error}</ErrorBox>}
+
+            {/* Forward navigation — select first variant (default) and go to schedule */}
+            <ButtonRow style={{ marginTop: "20px" }}>
+              <ButtonPrimary
+                onClick={() => handleSelectVariant(0)}
+                disabled={variants.length === 0}
+              >
+                {language === "fi" ? "Jatka aikatauluun" : "Continue to Schedule"} →
+              </ButtonPrimary>
+            </ButtonRow>
 
             <BackLink onClick={goBack}>
               {language === "fi" ? "← Takaisin muokkaukseen" : "← Back to edit"}
@@ -6063,6 +6539,39 @@ export default function UnifiedCreationFlow({
                     placeholder="Leave empty for unlimited"
                   />
                 </FieldGroup>
+
+                {/* Headliner (talent feature) */}
+                <div style={{ marginTop: "24px", padding: "20px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.15)", borderRadius: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+                    <span style={{ fontSize: "18px" }}>🎤</span>
+                    <span style={{ color: "#fff", fontWeight: 700, fontSize: "14px" }}>Headliner (optional)</span>
+                    <span style={{ color: "#7c3aed", fontSize: "11px", marginLeft: "auto" }}>New — talent co-promotion</span>
+                  </div>
+                  <FieldGroup>
+                    <FieldLabel>Talent name (DJ, band, comedian)</FieldLabel>
+                    <FieldInput
+                      value={formState.headlinerName}
+                      onChange={(e) => onFieldChange("headlinerName", e.target.value)}
+                      placeholder="e.g. DJ Mira"
+                    />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel>Instagram handle</FieldLabel>
+                    <FieldInput
+                      value={formState.headlinerInstagram}
+                      onChange={(e) => onFieldChange("headlinerInstagram", e.target.value)}
+                      placeholder="e.g. @djmira"
+                    />
+                  </FieldGroup>
+                  <FieldGroup>
+                    <FieldLabel>Headliner photo URL (optional)</FieldLabel>
+                    <FieldInput
+                      value={formState.headlinerImage ?? ""}
+                      onChange={(e) => onFieldChange("headlinerImage", e.target.value || null)}
+                      placeholder="https://..."
+                    />
+                  </FieldGroup>
+                </div>
               </>
             )}
 

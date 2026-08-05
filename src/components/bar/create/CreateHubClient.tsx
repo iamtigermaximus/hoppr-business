@@ -984,6 +984,9 @@ export default function CreateHubClient({ barId, userRole, barName, barType, bar
         body.endTime = formState.endTime;
         body.maxAttendees = formState.maxAttendees;
         body.isPrivate = formState.isPrivate;
+        if (formState.headlinerName) body.headlinerName = formState.headlinerName;
+        if (formState.headlinerImage) body.headlinerImage = formState.headlinerImage;
+        if (formState.headlinerInstagram) body.headlinerInstagram = formState.headlinerInstagram;
       } else if (contentType === "promotion") {
         body.promotionType = formState.promotionType;
         body.discountValue = formState.discountValue;

@@ -159,6 +159,7 @@ export async function POST(
       templateFields = {},
       voiceProfileContext,
       promptVariant,
+      headlinerTextStyles,
     } = body as {
       text: string;
       language?: string;
@@ -181,6 +182,8 @@ export async function POST(
       voiceProfileContext?: string;
       /** A/B test variant selector — chooses between prompt versions (e.g. "v1", "v2") */
       promptVariant?: string;
+      /** Headliner output styles: array of "poster" and/or "social" — both can be selected */
+      headlinerTextStyles?: string[];
     };
 
     // In brand mode, the structured ingredients (audience, coreMessage,
@@ -296,6 +299,35 @@ export async function POST(
 
     if (ct === "event" && mode !== "brand") {
       const inferredCategory = inferEventCategory(text);
+
+      // Headliner mode: inject talent context into the brief so the AI writes talent-focused copy
+      let eventBrief = text;
+      const headliner = body.headliner as { name?: string; actType?: string; genre?: string; instagram?: string; imagePrompt?: string } | undefined;
+      if (mode === "headliner" && headliner?.name) {
+        const isFi = lang === "fi";
+        const styles = (headlinerTextStyles && headlinerTextStyles.length > 0) ? headlinerTextStyles : ["poster", "social"];
+        const hasPoster = styles.includes("poster");
+        const hasSocial = styles.includes("social");
+        const actLabel = headliner.actType === "dj" ? "DJ" : headliner.actType === "band" ? (isFi ? "bändi" : "band") : headliner.actType === "comedian" ? (isFi ? "koomikko" : "comedian") : (isFi ? "esiintyjä" : "performer");
+        const genreStr = headliner.genre ? ` (${headliner.genre})` : "";
+        const igStr = headliner.instagram ? ` Instagram: ${headliner.instagram}.` : "";
+
+        if (hasPoster && hasSocial) {
+          // Both styles: generate a short poster-style headline + a 1-2 sentence social caption
+          eventBrief = isFi
+            ? `PÄÄESIINTYJÄ: ${headliner.name} — ${actLabel}${genreStr}.${igStr} TYYLI: sekä tapahtumajuliste että somepostaus. Luo: (1) lyhyt ja iskevä otsikko (max 8 sanaa) + päivämäärä + kellonaika + toimintakehote, ja (2) 1–2 lauseen somepostaus (max 40 sanaa). Esiintyjä on pääasia, ei juomat.${text ? `\\n\\nKäyttäjän lisätiedot: ${text}` : ""}`
+            : `HEADLINER: ${headliner.name} — ${actLabel}${genreStr}.${igStr} STYLE: both event poster and social post. Create: (1) a short punchy headline (max 8 words) + date + time + CTA, and (2) a 1–2 sentence social caption (max 40 words). The talent is the focus, not drinks.${text ? `\\n\\nAdditional notes from user: ${text}` : ""}`;
+        } else if (hasPoster) {
+          eventBrief = isFi
+            ? `PÄÄESIINTYJÄ: ${headliner.name} — ${actLabel}${genreStr}.${igStr} TYYLI: tapahtumajuliste. Luo lyhyt ja iskevä otsikko (max 8 sanaa), päivämäärä + kellonaika, ja ytimekäs toimintakehote (esim. \"Ilmainen sisäänpääsy\", \"Tule paikalle\", \"Ovet klo 21\"). EI pitkää tekstiä. Vain faktat ja toimintakehote. Esiintyjä on pääasia.${text ? `\\n\\nKäyttäjän lisätiedot: ${text}` : ""}`
+            : `HEADLINER: ${headliner.name} — ${actLabel}${genreStr}.${igStr} STYLE: event poster. Create a short, punchy headline (max 8 words), date + time, and a tight call to action (e.g. "Free entry", "Be there", "Doors at 9pm"). NO long copy. Just facts and CTA. The talent is the focus.${text ? `\\n\\nAdditional notes from user: ${text}` : ""}`;
+        } else {
+          eventBrief = isFi
+            ? `PÄÄESIINTYJÄ: ${headliner.name} — ${actLabel}${genreStr}.${igStr} TYYLI: somepostaus. Kirjoita 1–2 lauseen postaus (max 40 sanaa) joka mainostaa tätä esiintyjää. Sisällytä päivämäärä, aika ja toimintakehote. Älä mainosta juomia — esiintyjä on pääasia. Pidä rentona ja jaettavana.${text ? `\\n\\nKäyttäjän lisätiedot: ${text}` : ""}`
+            : `HEADLINER: ${headliner.name} — ${actLabel}${genreStr}.${igStr} STYLE: social post. Write a 1–2 sentence post (max 40 words) promoting this performer. Include date, time, and a call to action. Do not promote drinks — the talent is the focus. Keep it casual and shareable.${text ? `\\n\\nAdditional notes from user: ${text}` : ""}`;
+        }
+      }
+
       eventPromptResult = buildEventPrompt({
         barName: bar.name,
         barType: bar.type,
@@ -306,7 +338,7 @@ export async function POST(
         description: bar.description ?? undefined,
         musicTags: (bar.musicTags as string[]) ?? undefined,
         vipEnabled: bar.vipEnabled,
-        userBrief: text,
+        userBrief: eventBrief,
         language: lang as "en" | "fi",
         eventCategory: inferredCategory,
       });
@@ -949,6 +981,36 @@ ${buildUserReminder("en")}`;
       reasoning: result.reasoning || `Based on your description, this appears to be a ${inferredType}.`,
       imageSuggestion: result.imageSuggestion || "bar-ambiance",
     };
+
+    // Override imageSuggestion for headliner mode — the AI returns a short
+    // category keyword (e.g. "dj-night"), but Flux needs a rich descriptive
+    // prompt to produce polished, professional-looking event imagery.
+    if (mode === "headliner" && (body.headliner as any)?.name) {
+      const h = body.headliner as { name?: string; actType?: string; genre?: string; instagram?: string; imagePrompt?: string };
+      const actVisuals: Record<string, string> = {
+        dj: "A professional DJ performing behind decks with headphones, focused expression, hands on the mixer,"
+          + " club atmosphere with purple and blue atmospheric lighting, crowd silhouettes, smoke haze,"
+          + " editorial photography style, high contrast, cinematic, 4K",
+        band: "A live band performing on stage, instruments visible, warm amber and red stage lighting,"
+          + " silhouettes and lens flare, dynamic energy, concert photography style,"
+          + " wide shot capturing the full stage presence, cinematic grain, 4K",
+        solo: "A solo artist performing under a single spotlight on a dark stage, microphone or instrument in hand,"
+          + " dramatic lighting with deep shadows, intimate atmosphere, editorial portrait style,"
+          + " bokeh background, emotional moment captured, 4K",
+        comedian: "A stand-up comedian on stage with microphone, spotlight from above,"
+          + " brick wall or curtain backdrop, warm tungsten lighting,"
+          + " crowd laughter suggested by warm blur in foreground, comedy club atmosphere, editorial, 4K",
+        drag: "A drag performer on stage, dramatic pose, bold theatrical makeup and costume,"
+          + " vibrant pink and purple stage lighting, glitter and sparkle effects,"
+          + " confident powerful expression, performance photography, high fashion editorial, 4K",
+        other: "A live performer on stage, dramatic spotlight, moody atmospheric lighting,"
+          + " crowd silhouettes, smoke haze, editorial concert photography, cinematic, 4K",
+      };
+      const basePrompt = actVisuals[h.actType || "other"] || actVisuals.other;
+      const genreStr = h.genre ? `, ${h.genre} music genre aesthetic` : "";
+      const nameStr = h.name ? ` — featuring ${h.name}` : "";
+      response_.imageSuggestion = `${basePrompt}${genreStr}${nameStr}`;
+    }
 
     // Add type-specific fields
     if (isBrandMode) {

@@ -11,7 +11,7 @@
 export type ContentType = "event" | "promotion" | "pass" | "campaign" | "brand";
 
 /** Creation mode — "brand" = advertising/brand building, "promotional" = deals/offers */
-export type CreationMode = "brand" | "promotional" | "campaign";
+export type CreationMode = "brand" | "promotional" | "campaign" | "headliner";
 
 // ---- Advertising hub ingredient types (re-exported from creative-director for UI use) ----
 
@@ -81,6 +81,14 @@ export interface FormState {
   endTime: string;
   maxAttendees: number | null;
   isPrivate: boolean;
+  // Event headliner (talent — DJ, band, comedian)
+  headlinerName: string;
+  headlinerInstagram: string;
+  headlinerImage: string | null;
+  headlinerActType: string;    // dj, band, solo, comedian, drag, other
+  headlinerGenre: string;      // e.g. deep-house, stand-up, indie-rock
+  headlinerImagePrompt: string; // AI image prompt for the talent visual
+  headlinerTextStyles: string[]; // "poster" and/or "social" — can select both
   // Promotion
   promotionType: string;
   discountValue: number | null;
@@ -152,6 +160,13 @@ export const EMPTY_FORM: FormState = {
   endTime: "",
   maxAttendees: null,
   isPrivate: false,
+  headlinerName: "",
+  headlinerInstagram: "",
+  headlinerImage: null,
+  headlinerActType: "",
+  headlinerGenre: "",
+  headlinerImagePrompt: "",
+  headlinerTextStyles: ["poster", "social"],
   promotionType: "",
   discountValue: null,
   startDate: "",
